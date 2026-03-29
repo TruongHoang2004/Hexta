@@ -1,0 +1,11 @@
+database:
+  url: postgres://postgres:postgres@localhost:5433/catalog
+server:
+  port: 8082
+redis:
+  addr: localhost:6379
+elasticsearch:
+  addresses:
+    - "http://localhost:9200"
+  username: ""
+  password: ""

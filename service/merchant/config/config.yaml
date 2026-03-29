@@ -1,0 +1,6 @@
+database:
+  url: ${MERCHANT_DB_URL}
+server:
+  port: 8082
+redis:
+  addr: ${REDIS_ADDR}

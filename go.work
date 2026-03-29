@@ -1,0 +1,20 @@
+go 1.25.3
+
+use (
+	./lib
+	./service/api
+	./service/catalog
+	./service/merchant
+	./service/user
+)
+
+replace gitlab.com/ecommercehub1/merchant v0.0.0 => ./service/merchant
+
+replace (
+	gitlab.com/ecommercehub1/user v0.0.0 => ./service/user
+	gitlab.com/ecommercehub1/user v0.0.0-20260301170841-71d5364f3073 => ./service/user
+)
+
+replace gitlab.com/ecommercehub1/catalog v0.0.0 => ./service/catalog
+
+replace gitlab.com/ecommercehub1/lib v0.0.0-20260219184628-ad901abce4dd => ./lib

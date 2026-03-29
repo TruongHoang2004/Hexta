@@ -1,0 +1,29 @@
+# Binary files
+main
+bin/
+*/bin/
+
+# Environment files
+.env
+*/.env
+
+# Infrastructure data
+infrastructure/.database/
+infrastructure/.elasticsearch/
+infrastructure/.minio/
+infrastructure/.redis/
+
+# Go build files
+*.o
+*.a
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Go workspace
+# go.work
+# go.work.sum

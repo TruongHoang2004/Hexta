@@ -1,0 +1,23 @@
+server:
+  port: 9090
+  production: false
+
+database:
+  url: ${DB_URL}
+
+service:
+  user: ${USER_SERVICE_URL}
+  merchant: ${MERCHANT_SERVICE_URL}
+  product: ${PRODUCT_SERVICE_URL}
+  
+  
+jwt:
+  access_token_secret: ${JWT_ACCESS_TOKEN_SECRET}
+  access_token_expire: ${JWT_ACCESS_TOKEN_EXPIRE}
+  refresh_token_secret: ${JWT_REFRESH_TOKEN_SECRET}
+  refresh_token_expire: ${JWT_REFRESH_TOKEN_EXPIRE}
+
+redis:
+  addr: ${REDIS_ADDR}
+
+

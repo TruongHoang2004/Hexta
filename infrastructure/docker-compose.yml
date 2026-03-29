@@ -1,0 +1,119 @@
+include:
+  - path: docker-compose.infra.yml
+  - path: docker-compose.log.yml
+  - path: docker-compose.ui.yml
+
+services:
+  # ==========================================
+  # Backend Services
+  # ==========================================
+  api:
+    build:
+      context: ..
+      dockerfile: service/api/Dockerfile
+      args:
+        - GITLAB_TOKEN=${GITLAB_TOKEN}
+    container_name: ecommerce_api
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../service/api/.env
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/api
+      - REDIS_ADDR=redis:6379
+      - USER_SERVICE_URL=user:8080
+      - MERCHANT_SERVICE_URL=merchant:8082
+      - PRODUCT_SERVICE_URL=catalog:8083
+    networks:
+      - ecommerce_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  user:
+    build:
+      context: ..
+      dockerfile: service/user/Dockerfile
+      args:
+        - GITLAB_TOKEN=${GITLAB_TOKEN}
+    container_name: ecommerce_user
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../service/user/.env
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/user
+    networks:
+      - ecommerce_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  merchant:
+    build:
+      context: ..
+      dockerfile: service/merchant/Dockerfile
+      args:
+        - GITLAB_TOKEN=${GITLAB_TOKEN}
+    container_name: ecommerce_merchant
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../service/merchant/.env
+    environment:
+      - MERCHANT_DB_URL=postgres://postgres:postgres@postgres:5432/merchant
+      - REDIS_ADDR=redis:6379
+    networks:
+      - ecommerce_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  catalog:
+    build:
+      context: ..
+      dockerfile: service/catalog/Dockerfile
+      args:
+        - GITLAB_TOKEN=${GITLAB_TOKEN}
+    container_name: ecommerce_catalog
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    env_file:
+      - ../service/catalog/.env
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/catalog
+      - REDIS_ADDR=redis:6379
+      - ELASTICSEARCH_ADDRESS=http://elasticsearch:9200
+    networks:
+      - ecommerce_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

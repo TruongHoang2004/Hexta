@@ -1,0 +1,20 @@
+# Ignore infrastructure data
+infrastructure/.database
+infrastructure/.redis
+infrastructure/.elasticsearch
+infrastructure/.minio
+infrastructure/.loki
+infrastructure/.prometheus
+
+# Ignore project files
+.git
+.vscode
+.idea
+*.log
+
+# Ignore module files that will be re-downloaded
+**/vendor/
+**/bin/
+
+# Temporary files
+/tmp/

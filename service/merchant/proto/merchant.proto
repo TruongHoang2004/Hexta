@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package merchant;
+
+option go_package = "gitlab.com/ecommercehub1/merchant/proto;proto";
+
+import "google/protobuf/timestamp.proto";
+
+// =====================
+// Enums
+// =====================
+
+enum MerchantStatus {
+  MERCHANT_STATUS_UNSPECIFIED = 0;
+  MERCHANT_STATUS_PENDING = 1;
+  MERCHANT_STATUS_ACTIVE = 2;
+  MERCHANT_STATUS_SUSPENDED = 3;
+  MERCHANT_STATUS_CLOSED = 4;
+}
+
+// =====================
+// Message Definitions
+// =====================
+
+message Merchant {
+  string id = 1;
+  string owner_id = 2;
+  string name = 3;
+  string email = 4;
+  string phone = 5;
+  string description = 6;
+  string logo_url = 7;
+  MerchantStatus status = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// =====================
+// Create Merchant
+// =====================
+
+message CreateMerchantRequest {
+  string owner_id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  optional string description = 5;
+  optional string logo_url = 6;
+}
+
+message CreateMerchantResponse {
+  Merchant merchant = 1;
+}
+
+// =====================
+// Get Merchant
+// =====================
+
+message GetMerchantRequest {
+  string id = 1;
+}
+
+message GetMerchantResponse {
+  Merchant merchant = 1;
+}
+
+message GetMerchantByOwnerRequest {
+  string owner_id = 1;
+}
+
+message GetMerchantByOwnerResponse {
+  Merchant merchant = 1;
+}
+
+// =====================
+// Update Merchant
+// =====================
+
+message UpdateMerchantRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string email = 3;
+  optional string phone = 4;
+  optional string description = 5;
+  optional string logo_url = 6;
+}
+
+message UpdateMerchantResponse {
+  Merchant merchant = 1;
+}
+
+// =====================
+// List Merchants
+// =====================
+
+message ListMerchantsRequest {
+  optional int32 page = 1;
+  optional int32 limit = 2;
+  optional string search = 3;
+  optional MerchantStatus status = 4;
+}
+
+message ListMerchantsResponse {
+  repeated Merchant merchants = 1;
+  int32 total = 2;
+}
+
+// =====================
+// Delete Merchant
+// =====================
+
+message DeleteMerchantRequest {
+  string id = 1;
+}
+
+message DeleteMerchantResponse {
+  bool success = 1;
+}
+
+// =====================
+// Service
+// =====================
+
+service MerchantService {
+  rpc CreateMerchant(CreateMerchantRequest) returns (CreateMerchantResponse);
+  rpc GetMerchant(GetMerchantRequest) returns (GetMerchantResponse);
+  rpc GetMerchantByOwner(GetMerchantByOwnerRequest) returns (GetMerchantByOwnerResponse);
+  rpc UpdateMerchant(UpdateMerchantRequest) returns (UpdateMerchantResponse);
+  rpc ListMerchants(ListMerchantsRequest) returns (ListMerchantsResponse);
+  rpc DeleteMerchant(DeleteMerchantRequest) returns (DeleteMerchantResponse);
+}
