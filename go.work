@@ -6,6 +6,7 @@ use (
 	./service/catalog
 	./service/merchant
 	./service/user
+	./service/order
 )
 
 replace gitlab.com/ecommercehub1/merchant v0.0.0 => ./service/merchant

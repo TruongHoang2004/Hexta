@@ -1,0 +1,6 @@
+database:
+  url: ${ORDER_DB_URL}
+server:
+  port: ${ORDER_PORT}
+redis:
+  addr: ${REDIS_ADDR}

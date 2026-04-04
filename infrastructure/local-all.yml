@@ -1,0 +1,75 @@
+# This file relates to and includes all modular compose files to run the complete stack locally.
+# It avoids duplication by using the 'include' feature of Docker Compose.
+
+include:
+  - path: docker-compose.infra.yml
+  - path: docker-compose.log.yml
+  - path: docker-compose.ui.yml
+
+services:
+  # Overriding Prometheus port to avoid conflict with the backend 'api' service (which also uses 9090)
+  prometheus:
+    ports:
+      - "9091:9090"
+
+  # Include Backend services (api, user, merchant, catalog)
+  # We define them here referencing their build and settings to keep local-all self-contained for starting everything.
+  api:
+    build:
+      context: ..
+      dockerfile: service/api/Dockerfile
+    container_name: ecommerce_api
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file: [ "../service/api/.env" ]
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/api
+      - REDIS_ADDR=redis:6379
+      - USER_SERVICE_URL=user:8080
+      - MERCHANT_SERVICE_URL=merchant:8082
+      - PRODUCT_SERVICE_URL=catalog:8083
+    networks: [ ecommerce_network ]
+
+  user:
+    build:
+      context: ..
+      dockerfile: service/user/Dockerfile
+    container_name: ecommerce_user
+    depends_on:
+      postgres: { condition: service_healthy }
+    env_file: [ "../service/user/.env" ]
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/user
+    networks: [ ecommerce_network ]
+
+  merchant:
+    build:
+      context: ..
+      dockerfile: service/merchant/Dockerfile
+    container_name: ecommerce_merchant
+    depends_on:
+      postgres: { condition: service_healthy }
+    env_file: [ "../service/merchant/.env" ]
+    environment:
+      - MERCHANT_DB_URL=postgres://postgres:postgres@postgres:5432/merchant
+    networks: [ ecommerce_network ]
+
+  catalog:
+    build:
+      context: ..
+      dockerfile: service/catalog/Dockerfile
+    container_name: ecommerce_catalog
+    depends_on:
+      postgres: { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
+    env_file: [ "../service/catalog/.env" ]
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/catalog
+      - REDIS_ADDR=redis:6379
+      - ELASTICSEARCH_ADDRESS=http://elasticsearch:9200
+    networks: [ ecommerce_network ]
+
+networks:
+  ecommerce_network:
+    driver: bridge
