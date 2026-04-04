@@ -25,6 +25,16 @@ func NewMerchantController(
 	}
 }
 
+// CreateMerchant godoc
+// @Summary Create merchant profile
+// @Description Register a new merchant profile for the authenticated user
+// @Tags Merchants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateMerchantRequest true "Merchant details"
+// @Success 201 {object} response.Response[dto.MerchantResponse]
+// @Router /merchants/ [post]
 func (c *MerchantController) CreateMerchant(ctx *gin.Context) {
 	var req dto.CreateMerchantRequest
 	if err := c.BindAndValidateRequest(ctx, &req); err != nil {
@@ -41,6 +51,20 @@ func (c *MerchantController) CreateMerchant(ctx *gin.Context) {
 	c.Success(ctx, response.NewSuccessResponse(res, nil))
 }
 
+// ListMerchants godoc
+// @Summary List merchants
+// @Description Retrieve a paginated list of merchants
+// @Tags Merchants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param size query int false "Page size" default(10)
+// @Param search query string false "Global search"
+// @Param status query string false "Filter by status"
+// @Param name query string false "Filter by name"
+// @Success 200 {object} response.Response[dto.ListMerchantsResponse]
+// @Router /merchants/ [get]
 func (c *MerchantController) ListMerchants(ctx *gin.Context) {
 	pagination, err := c.GetPaginationParams(ctx)
 	if err != nil {
@@ -69,6 +93,16 @@ func (c *MerchantController) ListMerchants(ctx *gin.Context) {
 	c.Success(ctx, response.NewSuccessResponse(res, nil))
 }
 
+// UpdateMerchant godoc
+// @Summary Update merchant profile
+// @Description Update existing merchant information
+// @Tags Merchants
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.UpdateMerchantRequest true "Updated merchant details"
+// @Success 200 {object} response.Response[dto.MerchantResponse]
+// @Router /merchants/ [put]
 func (c *MerchantController) UpdateMerchant(ctx *gin.Context) {
 	var req dto.UpdateMerchantRequest
 	if err := c.BindAndValidateRequest(ctx, &req); err != nil {

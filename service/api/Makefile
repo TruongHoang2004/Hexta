@@ -20,6 +20,9 @@ clean:
 seed:
 	go run cmd/seed/*.go
 
+swagger:
+	swag init -g $(MAIN_FILE) --parseDependency --parseInternal
+
 # ==============================
 # Database migrations (Atlas)
 # ==============================

@@ -25,6 +25,16 @@ func NewUserController(
 	}
 }
 
+// GetProfile godoc
+// @Summary Get current user profile
+// @Description Retrieve the profile of the currently authenticated user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Response[dto.UserResponse]
+// @Failure 401 {object} errors.ErrorResponse
+// @Router /users/me [get]
 func (c *UserController) GetProfile(ctx *gin.Context) {
 	res, err := c.userService.GetProfile(ctx.Request.Context())
 	if err != nil {
@@ -35,6 +45,23 @@ func (c *UserController) GetProfile(ctx *gin.Context) {
 	c.Success(ctx, response.NewSuccessResponse(res, nil))
 }
 
+// ListUsers godoc
+// @Summary List users
+// @Description Retrieve a paginated list of users
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param size query int false "Page size" default(10)
+// @Param search query string false "Global search"
+// @Param user_name query string false "Filter by username"
+// @Param full_name query string false "Filter by full name"
+// @Param email query string false "Filter by email"
+// @Param gender query string false "Filter by gender"
+// @Success 200 {object} response.Response[dto.ListUsersResponse]
+// @Failure 401 {object} errors.ErrorResponse
+// @Router /users/ [get]
 func (c *UserController) ListUsers(ctx *gin.Context) {
 	pagination, err := c.GetPaginationParams(ctx)
 	if err != nil {

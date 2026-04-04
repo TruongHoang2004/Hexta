@@ -1,12 +1,12 @@
 package response
 
-type Response struct {
-	Data interface{} `json:"data"`
+type Response[T any] struct {
+	Data T           `json:"data"`
 	Meta interface{} `json:"meta"`
 }
 
-func NewSuccessResponse(data interface{}, meta interface{}) interface{} {
-	return &Response{
+func NewSuccessResponse[T any](data T, meta interface{}) *Response[T] {
+	return &Response[T]{
 		Data: data,
 		Meta: meta,
 	}
