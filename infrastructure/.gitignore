@@ -1,5 +1,1 @@
-.database
-.redis
-.env
-.minio
-.elasticsearch
+volumes/

@@ -3,14 +3,9 @@
 
 include:
   - path: docker-compose.infra.yml
-  - path: docker-compose.log.yml
   - path: docker-compose.ui.yml
 
 services:
-  # Overriding Prometheus port to avoid conflict with the backend 'api' service (which also uses 9090)
-  prometheus:
-    ports:
-      - "9091:9090"
 
   # Include Backend services (api, user, merchant, catalog)
   # We define them here referencing their build and settings to keep local-all self-contained for starting everything.

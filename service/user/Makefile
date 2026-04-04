@@ -6,7 +6,7 @@ APP_FILE=bin/user
 # Development / Build / Run
 # ==============================
 dev: 
-	go run -mod=mod -tags=dev $(MAIN_FILE)
+	go run -tags=dev $(MAIN_FILE)
 
 build: 
 	go build -o bin/$(APP_NAME) $(MAIN_FILE)
