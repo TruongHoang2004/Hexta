@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gitlab.com/ecommercehub1/api/config"
-	pb "gitlab.com/ecommercehub1/merchant/proto"
+	pb "gitlab.com/ecommercehub1/user/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

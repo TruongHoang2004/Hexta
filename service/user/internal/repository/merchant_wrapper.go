@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"gitlab.com/ecommercehub1/lib/pkg/errors"
-	"gitlab.com/ecommercehub1/merchant/internal/core/model"
-	"gitlab.com/ecommercehub1/merchant/internal/infrastructure/cache"
-	"gitlab.com/ecommercehub1/merchant/internal/present/request"
+	"gitlab.com/ecommercehub1/user/internal/core/model"
+	"gitlab.com/ecommercehub1/user/internal/infrastructure/cache"
+	"gitlab.com/ecommercehub1/user/internal/present/request"
 )
 
 type MerchantCacheWrapper struct {

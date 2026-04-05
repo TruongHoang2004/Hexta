@@ -913,7 +913,7 @@ const file_proto_merchant_proto_rawDesc = "" +
 	"\x12GetMerchantByOwner\x12#.merchant.GetMerchantByOwnerRequest\x1a$.merchant.GetMerchantByOwnerResponse\x12S\n" +
 	"\x0eUpdateMerchant\x12\x1f.merchant.UpdateMerchantRequest\x1a .merchant.UpdateMerchantResponse\x12P\n" +
 	"\rListMerchants\x12\x1e.merchant.ListMerchantsRequest\x1a\x1f.merchant.ListMerchantsResponse\x12S\n" +
-	"\x0eDeleteMerchant\x12\x1f.merchant.DeleteMerchantRequest\x1a .merchant.DeleteMerchantResponseB/Z-gitlab.com/ecommercehub1/merchant/proto;protob\x06proto3"
+	"\x0eDeleteMerchant\x12\x1f.merchant.DeleteMerchantRequest\x1a .merchant.DeleteMerchantResponseB/Z-gitlab.com/ecommercehub1/user/proto;protob\x06proto3"
 
 var (
 	file_proto_merchant_proto_rawDescOnce sync.Once

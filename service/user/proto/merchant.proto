@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package merchant;
 
-option go_package = "gitlab.com/ecommercehub1/merchant/proto;proto";
+option go_package = "gitlab.com/ecommercehub1/user/proto;proto";
 
 import "google/protobuf/timestamp.proto";
 

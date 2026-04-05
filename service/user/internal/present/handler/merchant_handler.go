@@ -3,10 +3,10 @@ package handler
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/merchant/internal/core/model"
-	"gitlab.com/ecommercehub1/merchant/internal/core/service"
-	"gitlab.com/ecommercehub1/merchant/internal/present/request"
-	pb "gitlab.com/ecommercehub1/merchant/proto"
+	"gitlab.com/ecommercehub1/user/internal/core/model"
+	"gitlab.com/ecommercehub1/user/internal/core/service"
+	"gitlab.com/ecommercehub1/user/internal/present/request"
+	pb "gitlab.com/ecommercehub1/user/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

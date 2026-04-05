@@ -32,6 +32,7 @@ func PresentModule() fx.Option {
 		fx.Provide(
 			AsGrpcRegistrar(present.NewGrpcHandler),
 			AsGrpcRegistrar(present.NewAddressGrpcHandler),
+			AsGrpcRegistrar(present.NewMerchantGrpcHandler),
 		),
 		fx.Invoke(StartGrpcServer),
 	)

@@ -9,5 +9,6 @@ func CacheModule() fx.Option {
 	return fx.Options(
 		fx.Provide(cache.NewRedisClient),
 		fx.Provide(cache.NewUserCache),
+		fx.Provide(cache.NewMerchantCache),
 	)
 }

@@ -8,7 +8,7 @@ import (
 	"gitlab.com/ecommercehub1/api/internal/present/http/mapper"
 	"gitlab.com/ecommercehub1/api/pkg/client"
 	"gitlab.com/ecommercehub1/lib/pkg/errors"
-	pb "gitlab.com/ecommercehub1/merchant/proto"
+	pb "gitlab.com/ecommercehub1/user/proto"
 )
 
 type MerchantService struct {

@@ -4,7 +4,6 @@ use (
 	./lib
 	./service/api
 	./service/catalog
-	./service/merchant
 	./service/user
 	./service/order
 )

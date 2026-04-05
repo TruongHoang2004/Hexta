@@ -9,5 +9,6 @@ func ServiceModule() fx.Option {
 	return fx.Options(
 		fx.Provide(service.NewUserService),
 		fx.Provide(service.NewAddressService),
+		fx.Provide(service.NewMerchantService),
 	)
 }

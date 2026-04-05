@@ -10,7 +10,6 @@ require (
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.21.0
 	gitlab.com/ecommercehub1/lib v0.0.0
-	gitlab.com/ecommercehub1/merchant v0.0.0
 	gitlab.com/ecommercehub1/user v0.0.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.67.0
 	go.opentelemetry.io/otel/trace v1.42.0
@@ -149,7 +148,6 @@ require (
 replace (
 	gitlab.com/ecommercehub1/catalog => ../catalog
 	gitlab.com/ecommercehub1/lib => ../../lib
-	gitlab.com/ecommercehub1/merchant => ../merchant
 	gitlab.com/ecommercehub1/order => ../order
 	gitlab.com/ecommercehub1/user => ../user
 )

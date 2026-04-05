@@ -10,5 +10,7 @@ func RepositoryModule() fx.Option {
 		fx.Provide(repository.NewUserDBRepository),
 		fx.Provide(repository.NewUserCacheWrapper),
 		fx.Provide(repository.NewAddressRepository),
+		fx.Provide(repository.NewMerchantDBRepository),
+		fx.Provide(repository.NewMerchantCacheWrapper),
 	)
 }

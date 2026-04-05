@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"gitlab.com/ecommercehub1/api/internal/present/http/dto"
-	pb "gitlab.com/ecommercehub1/merchant/proto"
+	pb "gitlab.com/ecommercehub1/user/proto"
 )
 
 func PbToMerchantResponse(merchant *pb.Merchant) *dto.MerchantResponse {

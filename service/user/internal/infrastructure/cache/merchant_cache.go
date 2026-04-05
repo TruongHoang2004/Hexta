@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/ecommercehub1/merchant/internal/core/model"
+	"gitlab.com/ecommercehub1/user/internal/core/model"
 )
 
 const (
