@@ -17,7 +17,7 @@ env "gorm" {
   url = "postgres://postgres:postgres@localhost:5433/catalog?sslmode=disable"
 
   migration {
-    dir = "file://internal/infrastructure/database/migrations"
+    dir = "file://../../migrations/catalog"
   }
 
   format {
