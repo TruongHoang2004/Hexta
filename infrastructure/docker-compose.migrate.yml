@@ -1,0 +1,22 @@
+include:
+  - docker-compose.yml
+
+services:
+  migrator:
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MIGRATE_TARGET: ${MIGRATE_TARGET:-all}
+    volumes:
+      - ..:/workspace
+    networks:
+      - ecommerce_network
+
+networks:
+  ecommerce_network:
+    driver: bridge
+

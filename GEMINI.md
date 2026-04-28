@@ -46,6 +46,7 @@ This document contains the core rules and standards for the CommerceHub project.
 - Use **Atlas** for migrations.
 - Models should be defined in the repository layer using Gorm tags.
 - Run `make migrate-diff` to generate new migrations and `make migrate-apply` to apply them.
+- Use `make migrate svc=all` to apply every supported database migration through the migration image, or `make migrate svc=user` for a single database.
 
 ## 5. Frontend (Next.js)
 - Use **TypeScript** with strict types.

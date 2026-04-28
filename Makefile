@@ -26,3 +26,43 @@ infra-down:
 clean:
 	@./scripts/debug-all.sh stop 2>/dev/null || true
 	@cd infrastructure && docker compose down -v
+
+# ==============================
+# Database migrations (Atlas)
+# ==============================
+
+.PHONY: migrate-init migrate-diff migrate-apply migrate-status migrate-hash
+
+# Check if svc is provided
+check-svc:
+	@if [ -z "$(svc)" ]; then echo "Error: svc is required (e.g. make migrate-diff svc=api name=init_schema)"; exit 1; fi
+
+# Helper to run atlas in docker
+# We use the migrator image, but override the entrypoint to run specific atlas commands
+# The working directory in container is /workspace (which is the platform folder)
+DOCKER_MIGRATE = cd infrastructure && docker compose -f docker-compose.yml -f docker-compose.migrate.yml run --rm --entrypoint atlas migrator
+
+# Create new migration
+migrate-init: check-svc
+	@if [ -z "$(name)" ]; then read -p "Enter migration name: " name_val; else name_val="$(name)"; fi; \
+	$(DOCKER_MIGRATE) migrate new $$name_val --config file://migrations/$(svc)/atlas.hcl --env gorm
+
+# Generate migration diff
+migrate-diff: check-svc
+	@if [ -z "$(name)" ]; then read -p "Enter migration name: " name_val; else name_val="$(name)"; fi; \
+	$(DOCKER_MIGRATE) migrate diff $$name_val --config file://migrations/$(svc)/atlas.hcl --env gorm
+
+# Apply migrations for one service or all supported services through the migration image.
+# Usage: make migrate-apply svc=all
+#        make migrate-apply svc=user
+migrate-apply:
+	@cd infrastructure && MIGRATE_TARGET="$(if $(svc),$(svc),all)" docker compose -f docker-compose.yml -f docker-compose.migrate.yml run --rm migrator
+
+# Show migration status
+migrate-status: check-svc
+	$(DOCKER_MIGRATE) migrate status --config file://migrations/$(svc)/atlas.hcl --env gorm
+
+# Hash migrations
+migrate-hash: check-svc
+	$(DOCKER_MIGRATE) migrate hash --dir file://migrations/$(svc)
+

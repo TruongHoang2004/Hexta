@@ -1,8 +1,8 @@
 data "external_schema" "gorm" {
   program = [
-    "go", "run", "-mod=mod",
+    "go", "run",
     "ariga.io/atlas-provider-gorm", "load",
-    "--path", "./internal/core/model",
+    "--path", "../../service/user/internal/core/model",
     "--dialect", "postgres"
   ]
 }
@@ -12,12 +12,12 @@ env "gorm" {
   src = data.external_schema.gorm.url
 
   # Database dev (chỉ dùng để Atlas diff, không phải DB production)
-  dev = "postgres://postgres:postgres@localhost:5433/dev?sslmode=disable"
+  dev = "postgres://postgres:postgres@postgres:5432/dev?sslmode=disable"
 
-  url = "postgres://postgres:postgres@localhost:5433/api?sslmode=disable"
+  url = "postgres://postgres:postgres@postgres:5432/user?sslmode=disable"
 
   migration {
-    dir = "file://../../migrations/api"
+    dir = "file://."
   }
 
   format {
