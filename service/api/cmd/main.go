@@ -69,7 +69,6 @@ func main() {
 		bootstrap.TelemetryModule,
 	)
 
-
 	startCtx, cancel := context.WithTimeout(context.Background(), defaultGracefulTimeout)
 	defer cancel()
 	if err := app.Start(startCtx); err != nil {

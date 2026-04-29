@@ -189,6 +189,37 @@ Retrieve a paginated list of users (Admin/Merchant only).
 
 ## System
 
+### Health Check
+
+Check the status of the API and its dependencies (Database, Redis).
+
+- **URL:** `/health`
+- **Method:** `GET`
+- **Auth required:** No
+- **Success Response (200 OK):**
+
+```json
+{
+  "status": "up",
+  "details": {
+    "database": "ok",
+    "redis": "ok"
+  }
+}
+```
+
+- **Error Response (503 Service Unavailable):**
+
+```json
+{
+  "status": "down",
+  "details": {
+    "database": "unreachable",
+    "redis": "ok"
+  }
+}
+```
+
 ### Ping
 
 Check if the API is active.

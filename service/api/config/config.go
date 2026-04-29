@@ -16,10 +16,11 @@ type Config struct {
 		Name       string `yaml:"name" mapstructure:"name"`
 		Port       string `yaml:"port" mapstructure:"port"`
 		Production bool   `yaml:"production" mapstructure:"production"`
+		Trace      bool   `yaml:"trace" mapstructure:"trace"`
 	} `yaml:"server" mapstructure:"server"`
 	Service struct {
-		User     string `yaml:"user" mapstructure:"user"`
-		Product  string `yaml:"product" mapstructure:"product"`
+		User    string `yaml:"user" mapstructure:"user"`
+		Product string `yaml:"product" mapstructure:"product"`
 	} `yaml:"service" mapstructure:"service"`
 	JWT struct {
 		AccessTokenSecret  string `yaml:"access_token_secret" mapstructure:"access_token_secret"`

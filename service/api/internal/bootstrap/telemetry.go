@@ -15,6 +15,9 @@ var TelemetryModule = fx.Module("telemetry",
 	fx.Invoke(func(lc fx.Lifecycle) {
 		lc.Append(fx.Hook{
 			OnStart: func(ctx context.Context) error {
+				if !config.AppConfig.Server.Trace {
+					return nil
+				}
 				tp, err := telemetry.InitTracer(ctx, config.AppConfig.Server.Name)
 				if err != nil {
 					return err

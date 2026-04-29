@@ -14,11 +14,14 @@ func RegisterRoutes(
 	params Params,
 	authController *controller.AuthController,
 	userController *controller.UserController,
+	healthController *controller.HealthController,
 ) {
 	// Root level public routes
 	params.Public.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
+
+	params.Public.GET("/health", healthController.HealthCheck)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
