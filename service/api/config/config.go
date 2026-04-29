@@ -19,7 +19,6 @@ type Config struct {
 	} `yaml:"server" mapstructure:"server"`
 	Service struct {
 		User     string `yaml:"user" mapstructure:"user"`
-		Merchant string `yaml:"merchant" mapstructure:"merchant"`
 		Product  string `yaml:"product" mapstructure:"product"`
 	} `yaml:"service" mapstructure:"service"`
 	JWT struct {

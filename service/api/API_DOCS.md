@@ -5,12 +5,14 @@ This document provides a comprehensive overview of the available API endpoints f
 ## Authentication
 
 ### Register
+
 Create a new user account.
 
 - **URL:** `/auth/register`
 - **Method:** `POST`
 - **Auth required:** No
 - **Request Body:**
+
 ```json
 {
   "user_name": "johndoe",
@@ -22,7 +24,9 @@ Create a new user account.
   "date_of_birth": "1990-01-01T00:00:00Z"
 }
 ```
+
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -42,19 +46,23 @@ Create a new user account.
 ```
 
 ### Login
+
 Authenticate a user and receive access/refresh tokens.
 
 - **URL:** `/auth/login`
 - **Method:** `POST`
 - **Auth required:** No
 - **Request Body:**
+
 ```json
 {
   "user_name": "johndoe",
   "password": "securepassword123"
 }
 ```
+
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -67,6 +75,7 @@ Authenticate a user and receive access/refresh tokens.
 ```
 
 ### Validate Token
+
 Checks if the provided access token is valid.
 
 - **URL:** `/auth/validate-token`
@@ -74,6 +83,7 @@ Checks if the provided access token is valid.
 - **Headers:** `Authorization: Bearer <access_token>`
 - **Auth required:** Yes
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -86,18 +96,22 @@ Checks if the provided access token is valid.
 ```
 
 ### Refresh Token
+
 Obtain a new access token using a refresh token.
 
 - **URL:** `/auth/refresh`
 - **Method:** `POST`
 - **Auth required:** No
 - **Request Body:**
+
 ```json
 {
   "refresh_token": "jwt-refresh-token"
 }
 ```
+
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -114,6 +128,7 @@ Obtain a new access token using a refresh token.
 ## User Management
 
 ### Get Current User Profile
+
 Retrieve the profile of the currently authenticated user.
 
 - **URL:** `/users/me`
@@ -121,6 +136,7 @@ Retrieve the profile of the currently authenticated user.
 - **Headers:** `Authorization: Bearer <access_token>`
 - **Auth required:** Yes
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -138,6 +154,7 @@ Retrieve the profile of the currently authenticated user.
 ```
 
 ### List Users
+
 Retrieve a paginated list of users (Admin/Merchant only).
 
 - **URL:** `/users/`
@@ -153,6 +170,7 @@ Retrieve a paginated list of users (Admin/Merchant only).
   - `email`: Filter by email
   - `gender`: Filter by gender (male/female/other)
 - **Success Response (200 OK):**
+
 ```json
 {
   "code": "SUCCESS",
@@ -169,89 +187,10 @@ Retrieve a paginated list of users (Admin/Merchant only).
 
 ---
 
-## Merchant Management
-
-### Create Merchant
-Register a new merchant profile for the authenticated user.
-
-- **URL:** `/merchants/`
-- **Method:** `POST`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Auth required:** Yes
-- **Request Body:**
-```json
-{
-  "name": "My Store",
-  "logo": "https://example.com/logo.png",
-  "description": "Store description",
-  "phone": "+1234567890",
-  "email": "store@example.com"
-}
-```
-- **Success Response (200 OK):**
-```json
-{
-  "code": "SUCCESS",
-  "message": "Success",
-  "data": {
-    "id": "uuid-string",
-    "name": "My Store",
-    "status": "pending",
-    "created_at": "...",
-    ...
-  }
-}
-```
-
-### List Merchants
-Retrieve a paginated list of merchants.
-
-- **URL:** `/merchants/`
-- **Method:** `GET`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Auth required:** Yes
-- **Query Parameters:**
-  - `page`, `size`, `search`
-  - `status`, `name`, `email`
-- **Success Response (200 OK):**
-```json
-{
-  "code": "SUCCESS",
-  "message": "Success",
-  "data": {
-    "data": [...],
-    "total": 50,
-    "page": 1,
-    "size": 20,
-    "total_pages": 3
-  }
-}
-```
-
-### Update Merchant
-Update existing merchant information.
-
-- **URL:** `/merchants/`
-- **Method:** `PUT`
-- **Headers:** `Authorization: Bearer <access_token>`
-- **Auth required:** Yes
-- **Request Body:**
-```json
-{
-  "id": "uuid-string",
-  "name": "Updated Store Name",
-  "logo": "...",
-  "description": "...",
-  "phone": "...",
-  "email": "..."
-}
-```
-
----
-
 ## System
 
 ### Ping
+
 Check if the API is active.
 
 - **URL:** `/ping`
