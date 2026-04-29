@@ -1,6 +1,8 @@
 database:
   url: ${ORDER_DB_URL}
 server:
+  name: ecommercehub_order
   port: ${ORDER_PORT}
+  production: false
 redis:
   addr: ${REDIS_ADDR}

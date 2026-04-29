@@ -13,6 +13,7 @@ type Config struct {
 		Url string `yaml:"url" mapstructure:"url"`
 	} `yaml:"database" mapstructure:"database"`
 	Server struct {
+		Name       string `yaml:"name" mapstructure:"name"`
 		Port       string `yaml:"port" mapstructure:"port"`
 		Production bool   `yaml:"production" mapstructure:"production"`
 	} `yaml:"server" mapstructure:"server"`

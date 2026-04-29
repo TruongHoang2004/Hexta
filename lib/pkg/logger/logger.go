@@ -1,12 +1,15 @@
 package logger
 
 import (
+	"context"
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
 
 const callerSkip = 2
 
@@ -59,16 +62,32 @@ func (l *Logger) Info(msg string, args ...interface{}) {
 	l.zap.Infof(msg, args...)
 }
 
+func (l *Logger) InfoC(ctx context.Context, msg string, args ...interface{}) {
+	l.withTrace(ctx).Infof(msg, args...)
+}
+
 func (l *Logger) Debug(msg string, args ...interface{}) {
 	l.zap.Debugf(msg, args...)
+}
+
+func (l *Logger) DebugC(ctx context.Context, msg string, args ...interface{}) {
+	l.withTrace(ctx).Debugf(msg, args...)
 }
 
 func (l *Logger) Warn(msg string, args ...interface{}) {
 	l.zap.Warnf(msg, args...)
 }
 
+func (l *Logger) WarnC(ctx context.Context, msg string, args ...interface{}) {
+	l.withTrace(ctx).Warnf(msg, args...)
+}
+
 func (l *Logger) Error(msg string, args ...interface{}) {
 	l.zap.Errorf(msg, args...)
+}
+
+func (l *Logger) ErrorC(ctx context.Context, msg string, args ...interface{}) {
+	l.withTrace(ctx).Errorf(msg, args...)
 }
 
 func (l *Logger) Fatal(msg string, args ...interface{}) {
@@ -78,3 +97,12 @@ func (l *Logger) Fatal(msg string, args ...interface{}) {
 func (l *Logger) GetZap() *zap.SugaredLogger {
 	return l.zap
 }
+
+func (l *Logger) withTrace(ctx context.Context) *zap.SugaredLogger {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().HasTraceID() {
+		return l.zap.With("trace_id", span.SpanContext().TraceID().String())
+	}
+	return l.zap
+}
+

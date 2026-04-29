@@ -1,7 +1,9 @@
 database:
   url: postgres://postgres:postgres@localhost:5433/catalog
 server:
+  name: ecommercehub_catalog
   port: 8082
+  production: false
 redis:
   addr: localhost:6379
 elasticsearch:

@@ -3,11 +3,14 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"log"
+	stdlog "log"
 	"net"
 
 	"gitlab.com/ecommercehub1/catalog/config"
+	"gitlab.com/ecommercehub1/catalog/internal/common/log"
 	present "gitlab.com/ecommercehub1/catalog/internal/present/handler"
+	"gitlab.com/ecommercehub1/lib/pkg/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -52,7 +55,12 @@ func StartGrpcServer(params GrpcServerParams) {
 				return fmt.Errorf("failed to listen: %w", err)
 			}
 
-			grpcServer = grpc.NewServer()
+			grpcServer = grpc.NewServer(
+				grpc.StatsHandler(otelgrpc.NewServerHandler()),
+				grpc.ChainUnaryInterceptor(
+					telemetry.GrpcInterceptor(log.GetLogger().GetZap()),
+				),
+			)
 			reflection.Register(grpcServer)
 
 			// Register all handlers in the group
@@ -61,15 +69,25 @@ func StartGrpcServer(params GrpcServerParams) {
 			}
 
 			go func() {
-				log.Printf("🚀 gRPC server listening on %s", config.AppConfig.Server.Port)
+				stdlog.Printf("🚀 gRPC server listening on %s", config.AppConfig.Server.Port)
 				if err := grpcServer.Serve(lis); err != nil {
-					log.Fatalf("failed to serve: %v", err)
+					stdlog.Fatalf("failed to serve: %v", err)
 				}
 			}()
+
+			go func() {
+				metricsPort := "9091" // Exposing on 9091
+				stdlog.Printf("📊 Metrics server listening on %s", metricsPort)
+				if err := telemetry.ExposeMetrics(metricsPort); err != nil {
+					stdlog.Printf("failed to expose metrics: %v", err)
+				}
+			}()
+
 			return nil
+
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("🛑 Stopping gRPC server...")
+			stdlog.Println("🛑 Stopping gRPC server...")
 			if grpcServer != nil {
 				grpcServer.GracefulStop()
 			}

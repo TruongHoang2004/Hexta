@@ -1,49 +1,81 @@
 services:
   # Metrics Database
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.51.1
+    container_name: prometheus
     ports: [ "9090:9090" ]
-    volumes: [ "./prometheus.yml:/etc/prometheus/prometheus.yml" ]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
+      - "--enable-feature=exemplar-storage"
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
 
   # Logs Database
   loki:
-    image: grafana/loki:3.7
+    image: grafana/loki:3.0.0
+    container_name: loki
     ports: [ "3100:3100" ]
+    volumes:
+      - ./configs/loki.yml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:3.6
+    image: grafana/promtail:3.0.0
+    container_name: promtail
     volumes:
-      - /var/log:/var/log:ro
+      - ./configs/promtail.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    depends_on: [ loki ]
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
+
+  # Tracing Database
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: tempo
+    ports: [ "3200:3200", "4318:4318" ]
+    volumes:
+      - ./configs/tempo.yml:/etc/tempo/tempo.yml
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
+
+  # OTel Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.98.0
+    container_name: otel-collector
+    ports: [ "4317:4317" ]
+    volumes:
+      - ./configs/otel-collector.yml:/etc/otelcol-contrib/config.yaml
+    depends_on: [ tempo ]
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
 
   # Visualization
   grafana:
-    image: grafana/grafana:main-ubuntu
+    image: grafana/grafana:10.4.2
+    container_name: grafana
     ports: [ "3000:3000" ]
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./configs/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./configs/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on: [ loki, prometheus, tempo ]
+    networks: [ ecommerce_network ]
+    restart: unless-stopped
+
+networks:
+  ecommerce_network:
+    external: true
+

@@ -13,7 +13,9 @@ type Config struct {
 		Url string `yaml:"url" mapstructure:"url"`
 	} `yaml:"database" mapstructure:"database"`
 	Server struct {
-		Port string `yaml:"port" mapstructure:"port"`
+		Name       string `yaml:"name" mapstructure:"name"`
+		Port       string `yaml:"port" mapstructure:"port"`
+		Production bool   `yaml:"production" mapstructure:"production"`
 	} `yaml:"server" mapstructure:"server"`
 	Redis struct {
 		Addr string `yaml:"addr" mapstructure:"addr"`

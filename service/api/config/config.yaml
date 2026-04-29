@@ -1,4 +1,5 @@
 server:
+  name: ecommercehub_api
   port: 9090
   production: false
 
@@ -9,8 +10,7 @@ service:
   user: ${USER_SERVICE_URL}
   merchant: ${MERCHANT_SERVICE_URL}
   product: ${PRODUCT_SERVICE_URL}
-  
-  
+
 jwt:
   access_token_secret: ${JWT_ACCESS_TOKEN_SECRET}
   access_token_expire: ${JWT_ACCESS_TOKEN_EXPIRE}
@@ -19,5 +19,3 @@ jwt:
 
 redis:
   addr: ${REDIS_ADDR}
-
-

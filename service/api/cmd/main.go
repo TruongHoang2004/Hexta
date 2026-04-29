@@ -66,7 +66,9 @@ func main() {
 		bootstrap.BuildMiddleware(),
 		bootstrap.ServerModule,
 		bootstrap.RouterModule,
+		bootstrap.TelemetryModule,
 	)
+
 
 	startCtx, cancel := context.WithTimeout(context.Background(), defaultGracefulTimeout)
 	defer cancel()

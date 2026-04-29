@@ -32,7 +32,9 @@ func main() {
 		bootstrap.RepositoryModule(),
 		bootstrap.ServiceModule(),
 		bootstrap.PresentModule(),
+		bootstrap.TelemetryModule(),
 	)
+
 
 	app.Run()
 }
