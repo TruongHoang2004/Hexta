@@ -8,6 +8,5 @@ import (
 func BuildClient() fx.Option {
 	return fx.Options(
 		fx.Provide(client.NewUserClient),
-		fx.Provide(client.NewMerchantClient),
 	)
 }

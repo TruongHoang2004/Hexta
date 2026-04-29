@@ -14,7 +14,6 @@ func RegisterRoutes(
 	params Params,
 	authController *controller.AuthController,
 	userController *controller.UserController,
-	merchantController *controller.MerchantController,
 ) {
 	// Root level public routes
 	params.Public.GET("/ping", func(c *gin.Context) {
@@ -27,7 +26,6 @@ func RegisterRoutes(
 	// Delegate registration to controllers
 	authController.RegisterRoutes(params.Public, params.Private)
 	userController.RegisterRoutes(params.Private)
-	merchantController.RegisterRoutes(params.Private)
 }
 
 func CreatePublicRouterGroup(r *gin.Engine) *gin.RouterGroup {
