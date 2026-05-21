@@ -27,6 +27,7 @@ func main() {
 	fmt.Println(config.AppConfig)
 
 	app := fx.New(
+		bootstrap.InfrastructureModule(),
 		bootstrap.DatabaseModule(),
 		bootstrap.CacheModule(),
 		bootstrap.RepositoryModule(),

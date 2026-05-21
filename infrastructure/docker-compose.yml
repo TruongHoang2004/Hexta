@@ -16,7 +16,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_MULTIPLE_DATABASES:-user,api,catalog,dev}
+      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_MULTIPLE_DATABASES:-user,api,catalog,dev,order}
     ports:
       - "5433:5432"
     volumes:
@@ -95,6 +95,31 @@ services:
       - ecommerce_network
     volumes:
       - ./volumes/minio:/data
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: ecommerce_kafka
+    restart: always
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_NUM_PARTITIONS=1
+      - CLUSTER_ID=ci2cm9r2ThSWea8z8f3R2g
+    ports:
+      - "9092:9092"
+    networks:
+      - ecommerce_network
+    volumes:
+      - ./volumes/kafka:/bitnami/kafka
 
 networks:
   ecommerce_network:

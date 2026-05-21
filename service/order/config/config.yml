@@ -6,3 +6,6 @@ server:
   production: false
 redis:
   addr: ${REDIS_ADDR}
+kafka:
+  brokers:
+    - ${KAFKA_BROKER_1:-localhost:9092}

@@ -20,6 +20,9 @@ type Config struct {
 	Redis struct {
 		Addr string `yaml:"addr" mapstructure:"addr"`
 	} `yaml:"redis" mapstructure:"redis"`
+	Kafka struct {
+		Brokers []string `yaml:"brokers" mapstructure:"brokers"`
+	} `yaml:"kafka" mapstructure:"kafka"`
 }
 
 var AppConfig *Config
