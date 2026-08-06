@@ -121,6 +121,28 @@ services:
     volumes:
       - ./volumes/kafka:/bitnami/kafka
 
+  qdrant:
+    image: qdrant/qdrant:v1.18.3
+    container_name: ecommerce_qdrant
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - ecommerce_network
+    volumes:
+      - ./volumes/qdrant:/qdrant/storage
+
 networks:
   ecommerce_network:
     driver: bridge
