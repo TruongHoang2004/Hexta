@@ -8,8 +8,6 @@ database:
   url: "postgresql://postgres:postgres@localhost:5433/api?sslmode=disable"
 
 service:
-  user: ${USER_SERVICE_URL}
-  product: ${PRODUCT_SERVICE_URL}
 
 jwt:
   access_token_secret: ${JWT_ACCESS_TOKEN_SECRET}

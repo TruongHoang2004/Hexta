@@ -14,7 +14,6 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.8.12
 	gitlab.com/ecommercehub1/lib v0.0.0
-	gitlab.com/ecommercehub1/user v0.0.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.67.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	go.uber.org/fx v1.24.0
@@ -147,7 +146,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	golang.org/x/arch v0.24.0 // indirect
-	golang.org/x/crypto v0.48.0
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
@@ -155,9 +154,4 @@ require (
 	gorm.io/driver/postgres v1.6.0
 )
 
-replace (
-	gitlab.com/ecommercehub1/catalog => ../catalog
-	gitlab.com/ecommercehub1/lib => ../../lib
-	gitlab.com/ecommercehub1/order => ../order
-	gitlab.com/ecommercehub1/user => ../user
-)
+replace gitlab.com/ecommercehub1/lib => ../../lib

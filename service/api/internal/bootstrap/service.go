@@ -8,7 +8,5 @@ import (
 func BuildService() fx.Option {
 	return fx.Provide(
 		service.NewBaseService,
-		service.NewAuthService,
-		service.NewUserService,
 	)
 }

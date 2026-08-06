@@ -1,6 +1,0 @@
-database:
-  url: postgres://postgres:postgres@localhost:5433/user
-server:
-  port: 8080
-redis:
-  addr: localhost:6379

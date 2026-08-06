@@ -3,7 +3,4 @@ go 1.25.3
 use (
 	./lib
 	./service/api
-	./service/catalog
-	./service/user
-	./service/order
 )

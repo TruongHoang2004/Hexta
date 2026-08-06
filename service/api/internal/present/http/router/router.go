@@ -6,14 +6,11 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "gitlab.com/ecommercehub1/api/docs"
 	"gitlab.com/ecommercehub1/api/internal/present/http/controller"
-	"gitlab.com/ecommercehub1/api/internal/present/http/middleware"
 	"go.uber.org/fx"
 )
 
 func RegisterRoutes(
 	params Params,
-	authController *controller.AuthController,
-	userController *controller.UserController,
 	healthController *controller.HealthController,
 ) {
 	// Root level public routes
@@ -26,18 +23,14 @@ func RegisterRoutes(
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Delegate registration to controllers
-	authController.RegisterRoutes(params.Public, params.Private)
-	userController.RegisterRoutes(params.Private)
 }
 
 func CreatePublicRouterGroup(r *gin.Engine) *gin.RouterGroup {
 	return r.Group("/api/v1")
 }
 
-func CreatePrivateRouterGroup(r *gin.Engine, authMiddleware *middleware.AuthMiddleware) *gin.RouterGroup {
+func CreatePrivateRouterGroup(r *gin.Engine) *gin.RouterGroup {
 	private := r.Group("/api/v1")
-	private.Use(authMiddleware.Authentication())
 	return private
 }
 
