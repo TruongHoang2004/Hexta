@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { sdk, Tenant } from "@/lib/sdk";
+import { sdk } from "@/lib/sdk";
+import { Tenant } from "@ubi/sdk";
 import { useRouter } from "next/navigation";
 
 export default function TenantDashboardPage() {

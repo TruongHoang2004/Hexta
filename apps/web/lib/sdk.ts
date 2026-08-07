@@ -1,4 +1,4 @@
-import { EcommerceHubSDK } from "@ecommercehub/sdk";
+import { EcommerceHubSDK } from "@ubi/sdk";
 
 // Helper to get token (e.g. from cookies or localStorage)
 const getToken = () => {
