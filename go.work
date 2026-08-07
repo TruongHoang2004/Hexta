@@ -1,6 +1,7 @@
-go 1.25.3
+go 1.26.2
 
 use (
-	./lib
-	./service/api
+	./packages/shared
+	./services/api
+	./services/identity-service
 )
