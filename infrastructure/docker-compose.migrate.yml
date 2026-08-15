@@ -14,9 +14,8 @@ services:
     volumes:
       - ..:/workspace
     networks:
-      - ecommerce_network
+      - hexta_network
 
 networks:
-  ecommerce_network:
+  hexta_network:
     driver: bridge
-

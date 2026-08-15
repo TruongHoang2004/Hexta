@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17.7-alpine3.23
-    container_name: ecommerce_postgres
+    container_name: hexta_postgres
     restart: always
     logging:
       driver: "json-file"
@@ -23,11 +23,11 @@ services:
       - ./volumes/postgres:/var/lib/postgresql/data
 
     networks:
-      - ecommerce_network
+      - hexta_network
 
   redis:
     image: redis:alpine3.22
-    container_name: ecommerce_redis
+    container_name: hexta_redis
     restart: always
     logging:
       driver: "json-file"
@@ -42,13 +42,13 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - ecommerce_network
+      - hexta_network
     volumes:
       - ./volumes/redis:/data
 
   elasticsearch:
     image: elasticsearch:8.17.1
-    container_name: ecommerce_elasticsearch
+    container_name: hexta_elasticsearch
     restart: always
     logging:
       driver: "json-file"
@@ -67,13 +67,13 @@ services:
       - "9200:9200"
       - "9300:9300"
     networks:
-      - ecommerce_network
+      - hexta_network
     volumes:
       - ./volumes/elasticsearch:/usr/share/elasticsearch/data
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
-    container_name: ecommerce_minio
+    container_name: hexta_minio
     restart: always
     logging:
       driver: "json-file"
@@ -92,13 +92,13 @@ services:
       - "9000:9000"
       - "9001:9001"
     networks:
-      - ecommerce_network
+      - hexta_network
     volumes:
       - ./volumes/minio:/data
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: ecommerce_kafka
+    container_name: hexta_kafka
     restart: always
     environment:
       - KAFKA_NODE_ID=1
@@ -117,13 +117,13 @@ services:
     ports:
       - "9092:9092"
     networks:
-      - ecommerce_network
+      - hexta_network
     volumes:
       - ./volumes/kafka:/bitnami/kafka
 
   qdrant:
     image: qdrant/qdrant:v1.18.3
-    container_name: ecommerce_qdrant
+    container_name: hexta_qdrant
     restart: always
     logging:
       driver: "json-file"
@@ -139,12 +139,12 @@ services:
       - "6333:6333"
       - "6334:6334"
     networks:
-      - ecommerce_network
+      - hexta_network
     volumes:
       - ./volumes/qdrant:/qdrant/storage
 
 networks:
-  ecommerce_network:
+  hexta_network:
     driver: bridge
 
 # Volumes are now defined as bind mounts in each service.

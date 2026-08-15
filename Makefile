@@ -58,6 +58,22 @@ migrate-diff: check-svc
 migrate-apply:
 	@cd infrastructure && MIGRATE_TARGET="$(if $(svc),$(svc),all)" docker compose -f docker-compose.yml -f docker-compose.migrate.yml run --rm migrator
 
+# Apply migrations locally without Docker
+# Usage: make migrate-apply-local svc=all
+#        make migrate-apply-local svc=user
+migrate-apply-local:
+	@if [ -z "$(svc)" ] || [ "$(svc)" = "all" ]; then \
+		echo "Applying migrations for user..."; \
+		atlas migrate apply --dir "file://migrations/user" --url "postgres://postgres:postgres@localhost:5433/user?sslmode=disable"; \
+		echo "Applying migrations for api..."; \
+		atlas migrate apply --dir "file://migrations/api" --url "postgres://postgres:postgres@localhost:5433/api?sslmode=disable"; \
+		echo "Applying migrations for catalog..."; \
+		atlas migrate apply --dir "file://migrations/catalog" --url "postgres://postgres:postgres@localhost:5433/catalog?sslmode=disable"; \
+	else \
+		echo "Applying migrations for $(svc)..."; \
+		atlas migrate apply --dir "file://migrations/$(svc)" --url "postgres://postgres:postgres@localhost:5433/$(svc)?sslmode=disable"; \
+	fi
+
 # Show migration status
 migrate-status: check-svc
 	$(DOCKER_MIGRATE) migrate status --config file://migrations/$(svc)/atlas.hcl --env gorm
