@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button, Input, Label } from "@hexta/ui";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,81 +24,106 @@ export default function LoginPage() {
       localStorage.setItem("auth_token", response.token);
       router.push("/tenant");
     } catch (err: any) {
-      setError(err.message || "Failed to login");
+      setError(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-          Sign in to your workspace
-        </h2>
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden selection:bg-primary/20 selection:text-primary">
+      {/* Background decorations */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
+
+      {/* Header */}
+      <div className="absolute top-6 left-6 z-20">
+        <Button variant="ghost" asChild className="text-muted hover:text-foreground">
+          <Link href="/">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Quay lại trang chủ
+          </Link>
+        </Button>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleLogin}>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
+      <div className="flex-1 flex items-center justify-center p-6 z-10">
+        <div className="w-full max-w-[400px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-6">
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="text-white font-bold text-2xl leading-none">H</span>
               </div>
             </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Đăng nhập Hexta</h1>
+            <p className="text-muted">Nhập email và mật khẩu để vào không gian làm việc của bạn</p>
+          </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
+          <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Mật khẩu</Label>
+                    <Link href="#" className="text-sm font-medium text-primary hover:underline underline-offset-4">
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    className="h-11"
+                  />
+                </div>
               </div>
-            </div>
 
-            {error && (
-              <div className="text-red-500 text-sm font-medium text-center">
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
+                  {error}
+                </div>
+              )}
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                {loading ? "Signing in..." : "Sign in"}
-              </button>
-            </div>
-          </form>
+              <Button type="submit" className="w-full h-11 text-base font-medium shadow-primary/25" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Đang đăng nhập...
+                  </>
+                ) : (
+                  "Đăng nhập"
+                )}
+              </Button>
+            </form>
+          </div>
+
+          <p className="text-center text-sm text-muted">
+            Chưa có tài khoản?{" "}
+            <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
+              Đăng ký ngay
+            </Link>
+          </p>
         </div>
       </div>
     </div>
