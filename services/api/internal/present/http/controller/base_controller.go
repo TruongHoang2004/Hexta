@@ -11,6 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"gitlab.com/ecommercehub1/api/common/log"
 	"gitlab.com/ecommercehub1/api/internal/present/http/dto"
+	"gitlab.com/ecommercehub1/api/internal/present/http/response"
 	"gitlab.com/ecommercehub1/api/utils/casting"
 	"gitlab.com/ecommercehub1/shared/pkg/errors"
 )
@@ -26,7 +27,7 @@ func NewBaseController(validate *validator.Validate) *baseController {
 }
 
 func (b *baseController) Success(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, data)
+	c.JSON(http.StatusOK, response.NewSuccessResponse(data, nil))
 }
 
 func (b *baseController) ErrorData(c *gin.Context, err *errors.Error) {

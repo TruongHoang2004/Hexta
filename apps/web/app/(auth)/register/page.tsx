@@ -4,7 +4,7 @@ import { useState } from "react";
 import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, Input, Label } from "@hexta/ui";
+import { Button, Input, Label, toast } from "@hexta/ui";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -20,16 +20,15 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      toast.error("Mật khẩu xác nhận không khớp.");
       setLoading(false);
       return;
     }
     
     if (password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự.");
+      toast.error("Mật khẩu phải có ít nhất 6 ký tự.");
       setLoading(false);
       return;
     }
@@ -39,7 +38,7 @@ export default function RegisterPage() {
       setAuth();
       router.push("/tenant");
     } catch (err: any) {
-      setError(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");
+      toast.error(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");
     } finally {
       setLoading(false);
     }
@@ -125,11 +124,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {error && (
-                <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg text-sm font-medium">
-                  {error}
-                </div>
-              )}
+
 
               <Button type="submit" className="w-full h-11 text-base font-medium shadow-primary/25" disabled={loading}>
                 {loading ? (

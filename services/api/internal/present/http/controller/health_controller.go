@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gitlab.com/ecommercehub1/api/internal/infrastructure/cache"
+	"gitlab.com/ecommercehub1/api/internal/present/http/response"
 	"gorm.io/gorm"
 )
 
@@ -65,8 +66,8 @@ func (h *HealthController) HealthCheck(c *gin.Context) {
 		httpStatus = http.StatusServiceUnavailable
 	}
 
-	c.JSON(httpStatus, gin.H{
+	c.JSON(httpStatus, response.NewSuccessResponse(gin.H{
 		"status":  status,
 		"details": details,
-	})
+	}, nil))
 }
