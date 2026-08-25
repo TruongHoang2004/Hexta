@@ -1,6 +1,6 @@
 server:
   name: ecommercehub_api
-  port: 9090
+  port: 8080
   production: false
   trace: false
 

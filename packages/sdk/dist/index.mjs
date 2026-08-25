@@ -1,61 +1,103 @@
 // src/index.ts
-var IdentityClient = class {
-  baseUrl;
-  getToken;
-  constructor(baseUrl, getToken) {
-    this.baseUrl = baseUrl;
-    this.getToken = getToken;
+import axios from "axios";
+import Cookies from "js-cookie";
+var DefaultBrowserStorage = class {
+  get(key) {
+    if (typeof window !== "undefined") {
+      return Cookies.get(key) || null;
+    }
+    return null;
   }
-  async fetchApi(endpoint, options) {
-    const token = this.getToken();
-    const headers = {
-      "Content-Type": "application/json"
-    };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+  set(key, value) {
+    if (typeof window !== "undefined") {
+      Cookies.set(key, value, { expires: 7, path: "/" });
     }
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options?.headers
-      }
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API Error: ${response.status}`);
+  }
+  remove(key) {
+    if (typeof window !== "undefined") {
+      Cookies.remove(key, { path: "/" });
     }
-    return response.json();
+  }
+};
+var IdentityClient = class {
+  client;
+  storage;
+  authKey = "auth_token";
+  constructor(client, storage) {
+    this.client = client;
+    this.storage = storage;
   }
   // Auth
   async login(email, password) {
-    return this.fetchApi("/api/v1/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
+    const response = await this.client.post("/api/v1/auth/login", { email, password });
+    const token = response.data.data.access_token;
+    if (token) {
+      await this.storage.set(this.authKey, token);
+    }
+    return { token };
   }
   async register(email, password) {
-    return this.fetchApi("/api/v1/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
+    const response = await this.client.post("/api/v1/auth/register", { email, password });
+    const token = response.data.data.access_token;
+    if (token) {
+      await this.storage.set(this.authKey, token);
+    }
+    return { token };
+  }
+  async logout() {
+    try {
+      await this.client.post("/api/v1/auth/logout");
+    } catch (e) {
+    } finally {
+      await this.storage.remove(this.authKey);
+    }
   }
   // Tenant
   async getTenant(id) {
-    return this.fetchApi(`/api/v1/tenants/${id}`);
+    const response = await this.client.get(`/api/v1/tenants/${id}`);
+    return response.data.data;
   }
   // Users
   async getUsers(tenantId) {
-    return this.fetchApi(`/api/v1/tenants/${tenantId}/users`);
+    const response = await this.client.get(`/api/v1/tenants/${tenantId}/users`);
+    return response.data.data;
   }
 };
 var EcommerceHubSDK = class {
   identity;
+  client;
+  storage;
   constructor(config) {
-    this.identity = new IdentityClient(config.apiUrl, config.getToken);
+    this.storage = config.storage || new DefaultBrowserStorage();
+    this.client = axios.create({
+      baseURL: config.apiUrl,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    this.client.interceptors.request.use(async (reqConfig) => {
+      const token = await this.storage.get("auth_token");
+      if (token) {
+        reqConfig.headers = reqConfig.headers || {};
+        reqConfig.headers.Authorization = `Bearer ${token}`;
+      }
+      return reqConfig;
+    });
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.data) {
+          const apiError = error.response.data;
+          throw new Error(apiError.message || apiError.detail || "API Error");
+        }
+        throw error;
+      }
+    );
+    this.identity = new IdentityClient(this.client, this.storage);
   }
 };
 export {
+  DefaultBrowserStorage,
   EcommerceHubSDK,
   IdentityClient
 };

@@ -1,9 +1,11 @@
 import { EcommerceHubSDK } from "@ubi/sdk";
 
-// Helper to get token (e.g. from cookies or localStorage)
+import Cookies from "js-cookie";
+
+// Helper to get token (from cookies)
 const getToken = () => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("auth_token");
+    return Cookies.get("auth_token") || null;
   }
   return null;
 };

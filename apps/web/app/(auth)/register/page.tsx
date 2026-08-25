@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Input, Label } from "@hexta/ui";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +36,7 @@ export default function RegisterPage() {
 
     try {
       const response = await sdk.identity.register(email, password);
-      localStorage.setItem("auth_token", response.token);
+      setAuth(response.token);
       router.push("/tenant");
     } catch (err: any) {
       setError(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");

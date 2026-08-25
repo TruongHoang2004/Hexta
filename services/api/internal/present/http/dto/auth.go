@@ -1,8 +1,8 @@
 package dto
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
 }
 
 type LoginResponse struct {
@@ -13,8 +13,8 @@ type LoginResponse struct {
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
 }
 
 type RegisterResponse struct {
@@ -25,7 +25,7 @@ type RegisterResponse struct {
 }
 
 type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 type RefreshTokenResponse struct {
@@ -34,5 +34,5 @@ type RefreshTokenResponse struct {
 }
 
 type LogoutRequest struct {
-	SessionID int64 `json:"session_id" binding:"required"`
+	SessionID int64 `json:"session_id" validate:"required"`
 }

@@ -1,3 +1,6 @@
+import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import Cookies from "js-cookie";
+
 export interface Tenant {
   id: string;
   name: string;
@@ -16,71 +19,130 @@ export interface User {
   role_id: string;
 }
 
-export class IdentityClient {
-  private baseUrl: string;
-  private getToken: () => string | null;
+export interface StorageAdapter {
+  get: (key: string) => string | null | Promise<string | null>;
+  set: (key: string, value: string) => void | Promise<void>;
+  remove: (key: string) => void | Promise<void>;
+}
 
-  constructor(baseUrl: string, getToken: () => string | null) {
-    this.baseUrl = baseUrl;
-    this.getToken = getToken;
+export class DefaultBrowserStorage implements StorageAdapter {
+  get(key: string): string | null {
+    if (typeof window !== "undefined") {
+      return Cookies.get(key) || null;
+    }
+    return null;
   }
-
-  private async fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const token = this.getToken();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+  set(key: string, value: string): void {
+    if (typeof window !== "undefined") {
+      Cookies.set(key, value, { expires: 7, path: "/" });
     }
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options?.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API Error: ${response.status}`);
+  }
+  remove(key: string): void {
+    if (typeof window !== "undefined") {
+      Cookies.remove(key, { path: "/" });
     }
+  }
+}
 
-    return response.json();
+export class IdentityClient {
+  private client: AxiosInstance;
+  private storage: StorageAdapter;
+  private authKey = "auth_token";
+
+  constructor(client: AxiosInstance, storage: StorageAdapter) {
+    this.client = client;
+    this.storage = storage;
   }
 
   // Auth
   async login(email: string, password?: string): Promise<{ token: string }> {
-    return this.fetchApi<{ token: string }>("/api/v1/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    const response = await this.client.post<{ data: { access_token: string } }>("/api/v1/auth/login", { email, password });
+    
+    // We expect the standard response format from the API (Response[T])
+    const token = response.data.data.access_token;
+    if (token) {
+      await this.storage.set(this.authKey, token);
+    }
+    
+    return { token };
   }
 
   async register(email: string, password?: string): Promise<{ token: string }> {
-    return this.fetchApi<{ token: string }>("/api/v1/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    const response = await this.client.post<{ data: { access_token: string } }>("/api/v1/auth/register", { email, password });
+    
+    const token = response.data.data.access_token;
+    if (token) {
+      await this.storage.set(this.authKey, token);
+    }
+    
+    return { token };
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.client.post("/api/v1/auth/logout");
+    } catch (e) {
+      // Ignore errors on logout (e.g. already logged out)
+    } finally {
+      await this.storage.remove(this.authKey);
+    }
   }
 
   // Tenant
   async getTenant(id: string): Promise<Tenant> {
-    return this.fetchApi<Tenant>(`/api/v1/tenants/${id}`);
+    const response = await this.client.get<{ data: Tenant }>(`/api/v1/tenants/${id}`);
+    return response.data.data;
   }
 
   // Users
   async getUsers(tenantId: string): Promise<User[]> {
-    return this.fetchApi<User[]>(`/api/v1/tenants/${tenantId}/users`);
+    const response = await this.client.get<{ data: User[] }>(`/api/v1/tenants/${tenantId}/users`);
+    return response.data.data;
   }
+}
+
+export interface SDKConfig {
+  apiUrl: string;
+  storage?: StorageAdapter;
 }
 
 export class EcommerceHubSDK {
   public identity: IdentityClient;
+  private client: AxiosInstance;
+  private storage: StorageAdapter;
 
-  constructor(config: { apiUrl: string; getToken: () => string | null }) {
-    this.identity = new IdentityClient(config.apiUrl, config.getToken);
+  constructor(config: SDKConfig) {
+    this.storage = config.storage || new DefaultBrowserStorage();
+    
+    this.client = axios.create({
+      baseURL: config.apiUrl,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    // Request interceptor to inject token
+    this.client.interceptors.request.use(async (reqConfig) => {
+      const token = await this.storage.get("auth_token");
+      if (token) {
+        reqConfig.headers = reqConfig.headers || {};
+        reqConfig.headers.Authorization = `Bearer ${token}`;
+      }
+      return reqConfig;
+    });
+
+    // Response interceptor to handle standard API errors
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.data) {
+          const apiError = error.response.data;
+          throw new Error(apiError.message || apiError.detail || "API Error");
+        }
+        throw error;
+      }
+    );
+
+    this.identity = new IdentityClient(this.client, this.storage);
   }
 }
