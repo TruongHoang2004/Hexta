@@ -20,7 +20,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   setAuth: (user?: User) => {
-    set({ user: user || null, isAuthenticated: true });
+    if (user) {
+      set({ user, isAuthenticated: true });
+    } else {
+      const token = Cookies.get("auth_token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          set({ user: { id: payload.sub || "", email: payload.email || "" }, isAuthenticated: true });
+          return;
+        } catch (e) {
+          // ignore
+        }
+      }
+      set({ user: null, isAuthenticated: true });
+    }
   },
 
   logout: () => {
@@ -30,7 +44,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   initialize: () => {
     const token = Cookies.get("auth_token");
     if (token) {
-      set({ isAuthenticated: true });
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        set({ isAuthenticated: true, user: { id: payload.sub || "", email: payload.email || "" } });
+      } catch (e) {
+        set({ isAuthenticated: true });
+      }
     }
   },
 }));

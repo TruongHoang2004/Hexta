@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Shield, Zap, LayoutDashboard, Smartphone } from "lucide-react";
 import { Button } from "@hexta/ui";
+import { AuthNav } from "@/components/auth-nav";
 
 export default function LandingPage() {
   return (
@@ -19,14 +20,7 @@ export default function LandingPage() {
             <Link href="#solutions" className="hover:text-foreground transition-colors">Giải pháp</Link>
             <Link href="#pricing" className="hover:text-foreground transition-colors">Bảng giá</Link>
           </nav>
-          <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" className="hover:text-primary transition-colors text-muted">
-              <Link href="/login">Đăng nhập</Link>
-            </Button>
-            <Button asChild className="rounded-full shadow-lg shadow-primary/25 transition-all">
-              <Link href="/register">Bắt đầu ngay</Link>
-            </Button>
-          </div>
+          <AuthNav />
         </div>
       </header>
 
