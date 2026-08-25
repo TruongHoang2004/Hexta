@@ -19,6 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	IdentityService_Login_FullMethodName           = "/identity.v1.IdentityService/Login"
+	IdentityService_Logout_FullMethodName          = "/identity.v1.IdentityService/Logout"
+	IdentityService_RefreshToken_FullMethodName    = "/identity.v1.IdentityService/RefreshToken"
 	IdentityService_ValidateToken_FullMethodName   = "/identity.v1.IdentityService/ValidateToken"
 	IdentityService_CheckPermission_FullMethodName = "/identity.v1.IdentityService/CheckPermission"
 	IdentityService_GetUser_FullMethodName         = "/identity.v1.IdentityService/GetUser"
@@ -31,6 +34,10 @@ const (
 //
 // --- Services ---
 type IdentityServiceClient interface {
+	// Authentication
+	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
+	RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
 	// Authentication & Authorization (Internal API Gateway usage)
 	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
 	CheckPermission(ctx context.Context, in *CheckPermissionRequest, opts ...grpc.CallOption) (*CheckPermissionResponse, error)
@@ -46,6 +53,36 @@ type identityServiceClient struct {
 
 func NewIdentityServiceClient(cc grpc.ClientConnInterface) IdentityServiceClient {
 	return &identityServiceClient{cc}
+}
+
+func (c *identityServiceClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginResponse)
+	err := c.cc.Invoke(ctx, IdentityService_Login_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, IdentityService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshTokenResponse)
+	err := c.cc.Invoke(ctx, IdentityService_RefreshToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *identityServiceClient) ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error) {
@@ -94,6 +131,10 @@ func (c *identityServiceClient) GetTenant(ctx context.Context, in *GetTenantRequ
 //
 // --- Services ---
 type IdentityServiceServer interface {
+	// Authentication
+	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
+	RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error)
 	// Authentication & Authorization (Internal API Gateway usage)
 	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
 	CheckPermission(context.Context, *CheckPermissionRequest) (*CheckPermissionResponse, error)
@@ -111,6 +152,15 @@ type IdentityServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedIdentityServiceServer struct{}
 
+func (UnimplementedIdentityServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedIdentityServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
+}
+func (UnimplementedIdentityServiceServer) RefreshToken(context.Context, *RefreshTokenRequest) (*RefreshTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshToken not implemented")
+}
 func (UnimplementedIdentityServiceServer) ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateToken not implemented")
 }
@@ -142,6 +192,60 @@ func RegisterIdentityServiceServer(s grpc.ServiceRegistrar, srv IdentityServiceS
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&IdentityService_ServiceDesc, srv)
+}
+
+func _IdentityService_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).Login(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_Login_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).Login(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_RefreshToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).RefreshToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_RefreshToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).RefreshToken(ctx, req.(*RefreshTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _IdentityService_ValidateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -223,6 +327,18 @@ var IdentityService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "identity.v1.IdentityService",
 	HandlerType: (*IdentityServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Login",
+			Handler:    _IdentityService_Login_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _IdentityService_Logout_Handler,
+		},
+		{
+			MethodName: "RefreshToken",
+			Handler:    _IdentityService_RefreshToken_Handler,
+		},
 		{
 			MethodName: "ValidateToken",
 			Handler:    _IdentityService_ValidateToken_Handler,

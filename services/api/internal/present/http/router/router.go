@@ -12,6 +12,7 @@ import (
 func RegisterRoutes(
 	params Params,
 	healthController *controller.HealthController,
+	authController *controller.AuthController,
 ) {
 	// Root level public routes
 	params.Public.GET("/ping", func(c *gin.Context) {
@@ -19,6 +20,14 @@ func RegisterRoutes(
 	})
 
 	params.Public.GET("/health", healthController.HealthCheck)
+
+	// Auth routes
+	authGroup := params.Public.Group("/auth")
+	{
+		authGroup.POST("/login", authController.Login)
+		authGroup.POST("/refresh", authController.RefreshToken)
+		authGroup.POST("/logout", authController.Logout)
+	}
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

@@ -9,6 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type IIdentityRepository interface {
+	GetCredentialByIdentifier(ctx context.Context, identifier string, provider model.Provider) (*model.AuthIdentities, *errors.Error)
+	CreateIdentity(ctx context.Context, authIdentity *model.AuthIdentities) (*model.AuthIdentities, *errors.Error)
+}
+
 type IdentityRepository struct {
 	*baseRepository
 }

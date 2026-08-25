@@ -895,6 +895,319 @@ func (x *GetTenantResponse) GetTenant() *Tenant {
 	return nil
 }
 
+// --- Auth Requests & Responses ---
+type LoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginRequest) Reset() {
+	*x = LoginRequest{}
+	mi := &file_identity_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRequest) ProtoMessage() {}
+
+func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
+func (*LoginRequest) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *LoginRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type LoginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	SessionId     string                 `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	User          *User                  `protobuf:"bytes,4,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginResponse) Reset() {
+	*x = LoginResponse{}
+	mi := &file_identity_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginResponse) ProtoMessage() {}
+
+func (x *LoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
+func (*LoginResponse) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *LoginResponse) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type RefreshTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenRequest) Reset() {
+	*x = RefreshTokenRequest{}
+	mi := &file_identity_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenRequest) ProtoMessage() {}
+
+func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
+func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RefreshTokenRequest) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type RefreshTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccessToken   string                 `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenResponse) Reset() {
+	*x = RefreshTokenResponse{}
+	mi := &file_identity_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenResponse) ProtoMessage() {}
+
+func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenResponse.ProtoReflect.Descriptor instead.
+func (*RefreshTokenResponse) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RefreshTokenResponse) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *RefreshTokenResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type LogoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutRequest) Reset() {
+	*x = LogoutRequest{}
+	mi := &file_identity_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutRequest) ProtoMessage() {}
+
+func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
+func (*LogoutRequest) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LogoutRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *LogoutRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type LogoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutResponse) Reset() {
+	*x = LogoutResponse{}
+	mi := &file_identity_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutResponse) ProtoMessage() {}
+
+func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_identity_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
+func (*LogoutResponse) Descriptor() ([]byte, []int) {
+	return file_identity_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *LogoutResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_identity_proto protoreflect.FileDescriptor
 
 const file_identity_proto_rawDesc = "" +
@@ -956,7 +1269,27 @@ const file_identity_proto_rawDesc = "" +
 	"\x10GetTenantRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"@\n" +
 	"\x11GetTenantResponse\x12+\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x13.identity.v1.TenantR\x06tenant*\x9a\x01\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x13.identity.v1.TenantR\x06tenant\"@\n" +
+	"\fLoginRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x9d\x01\n" +
+	"\rLoginResponse\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x03 \x01(\tR\tsessionId\x12%\n" +
+	"\x04user\x18\x04 \x01(\v2\x11.identity.v1.UserR\x04user\":\n" +
+	"\x13RefreshTokenRequest\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"^\n" +
+	"\x14RefreshTokenResponse\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"G\n" +
+	"\rLogoutRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"*\n" +
+	"\x0eLogoutResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess*\x9a\x01\n" +
 	"\fTenantStatus\x12\x1d\n" +
 	"\x19TENANT_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15TENANT_STATUS_PENDING\x10\x01\x12\x18\n" +
@@ -975,8 +1308,11 @@ const file_identity_proto_rawDesc = "" +
 	"\x13USER_STATUS_PENDING\x10\x01\x12\x16\n" +
 	"\x12USER_STATUS_ACTIVE\x10\x02\x12\x18\n" +
 	"\x14USER_STATUS_INACTIVE\x10\x03\x12\x17\n" +
-	"\x13USER_STATUS_DELETED\x10\x042\xd9\x02\n" +
-	"\x0fIdentityService\x12V\n" +
+	"\x13USER_STATUS_DELETED\x10\x042\xb1\x04\n" +
+	"\x0fIdentityService\x12>\n" +
+	"\x05Login\x12\x19.identity.v1.LoginRequest\x1a\x1a.identity.v1.LoginResponse\x12A\n" +
+	"\x06Logout\x12\x1a.identity.v1.LogoutRequest\x1a\x1b.identity.v1.LogoutResponse\x12S\n" +
+	"\fRefreshToken\x12 .identity.v1.RefreshTokenRequest\x1a!.identity.v1.RefreshTokenResponse\x12V\n" +
 	"\rValidateToken\x12!.identity.v1.ValidateTokenRequest\x1a\".identity.v1.ValidateTokenResponse\x12\\\n" +
 	"\x0fCheckPermission\x12#.identity.v1.CheckPermissionRequest\x1a$.identity.v1.CheckPermissionResponse\x12D\n" +
 	"\aGetUser\x12\x1b.identity.v1.GetUserRequest\x1a\x1c.identity.v1.GetUserResponse\x12J\n" +
@@ -995,7 +1331,7 @@ func file_identity_proto_rawDescGZIP() []byte {
 }
 
 var file_identity_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_identity_proto_goTypes = []any{
 	(TenantStatus)(0),               // 0: identity.v1.TenantStatus
 	(TenantPlan)(0),                 // 1: identity.v1.TenantPlan
@@ -1011,31 +1347,44 @@ var file_identity_proto_goTypes = []any{
 	(*GetUserResponse)(nil),         // 11: identity.v1.GetUserResponse
 	(*GetTenantRequest)(nil),        // 12: identity.v1.GetTenantRequest
 	(*GetTenantResponse)(nil),       // 13: identity.v1.GetTenantResponse
-	(*timestamppb.Timestamp)(nil),   // 14: google.protobuf.Timestamp
+	(*LoginRequest)(nil),            // 14: identity.v1.LoginRequest
+	(*LoginResponse)(nil),           // 15: identity.v1.LoginResponse
+	(*RefreshTokenRequest)(nil),     // 16: identity.v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),    // 17: identity.v1.RefreshTokenResponse
+	(*LogoutRequest)(nil),           // 18: identity.v1.LogoutRequest
+	(*LogoutResponse)(nil),          // 19: identity.v1.LogoutResponse
+	(*timestamppb.Timestamp)(nil),   // 20: google.protobuf.Timestamp
 }
 var file_identity_proto_depIdxs = []int32{
 	0,  // 0: identity.v1.Tenant.status:type_name -> identity.v1.TenantStatus
 	1,  // 1: identity.v1.Tenant.plan:type_name -> identity.v1.TenantPlan
-	14, // 2: identity.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
-	14, // 3: identity.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 2: identity.v1.Tenant.created_at:type_name -> google.protobuf.Timestamp
+	20, // 3: identity.v1.Tenant.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: identity.v1.User.status:type_name -> identity.v1.UserStatus
-	14, // 5: identity.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	14, // 6: identity.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 5: identity.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	20, // 6: identity.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	4,  // 7: identity.v1.GetUserResponse.user:type_name -> identity.v1.User
 	3,  // 8: identity.v1.GetTenantResponse.tenant:type_name -> identity.v1.Tenant
-	6,  // 9: identity.v1.IdentityService.ValidateToken:input_type -> identity.v1.ValidateTokenRequest
-	8,  // 10: identity.v1.IdentityService.CheckPermission:input_type -> identity.v1.CheckPermissionRequest
-	10, // 11: identity.v1.IdentityService.GetUser:input_type -> identity.v1.GetUserRequest
-	12, // 12: identity.v1.IdentityService.GetTenant:input_type -> identity.v1.GetTenantRequest
-	7,  // 13: identity.v1.IdentityService.ValidateToken:output_type -> identity.v1.ValidateTokenResponse
-	9,  // 14: identity.v1.IdentityService.CheckPermission:output_type -> identity.v1.CheckPermissionResponse
-	11, // 15: identity.v1.IdentityService.GetUser:output_type -> identity.v1.GetUserResponse
-	13, // 16: identity.v1.IdentityService.GetTenant:output_type -> identity.v1.GetTenantResponse
-	13, // [13:17] is the sub-list for method output_type
-	9,  // [9:13] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	4,  // 9: identity.v1.LoginResponse.user:type_name -> identity.v1.User
+	14, // 10: identity.v1.IdentityService.Login:input_type -> identity.v1.LoginRequest
+	18, // 11: identity.v1.IdentityService.Logout:input_type -> identity.v1.LogoutRequest
+	16, // 12: identity.v1.IdentityService.RefreshToken:input_type -> identity.v1.RefreshTokenRequest
+	6,  // 13: identity.v1.IdentityService.ValidateToken:input_type -> identity.v1.ValidateTokenRequest
+	8,  // 14: identity.v1.IdentityService.CheckPermission:input_type -> identity.v1.CheckPermissionRequest
+	10, // 15: identity.v1.IdentityService.GetUser:input_type -> identity.v1.GetUserRequest
+	12, // 16: identity.v1.IdentityService.GetTenant:input_type -> identity.v1.GetTenantRequest
+	15, // 17: identity.v1.IdentityService.Login:output_type -> identity.v1.LoginResponse
+	19, // 18: identity.v1.IdentityService.Logout:output_type -> identity.v1.LogoutResponse
+	17, // 19: identity.v1.IdentityService.RefreshToken:output_type -> identity.v1.RefreshTokenResponse
+	7,  // 20: identity.v1.IdentityService.ValidateToken:output_type -> identity.v1.ValidateTokenResponse
+	9,  // 21: identity.v1.IdentityService.CheckPermission:output_type -> identity.v1.CheckPermissionResponse
+	11, // 22: identity.v1.IdentityService.GetUser:output_type -> identity.v1.GetUserResponse
+	13, // 23: identity.v1.IdentityService.GetTenant:output_type -> identity.v1.GetTenantResponse
+	17, // [17:24] is the sub-list for method output_type
+	10, // [10:17] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_identity_proto_init() }
@@ -1049,7 +1398,7 @@ func file_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_identity_proto_rawDesc), len(file_identity_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   11,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

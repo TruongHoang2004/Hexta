@@ -104,8 +104,44 @@ message GetTenantResponse {
   Tenant tenant = 1;
 }
 
+// --- Auth Requests & Responses ---
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  string session_id = 3;
+  User user = 4;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LogoutRequest {
+  string session_id = 1;
+  string user_id = 2;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
 // --- Services ---
 service IdentityService {
+  // Authentication
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
   // Authentication & Authorization (Internal API Gateway usage)
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
