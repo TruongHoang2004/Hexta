@@ -9,9 +9,7 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  isAuthenticated: boolean;
-  setAuth: (token: string, user?: User) => void;
-  logout: () => void;
+  setAuth: (user?: User) => void;
   initialize: () => void;
 }
 
@@ -19,14 +17,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
 
-  setAuth: (token: string, user?: User) => {
-    // Save to cookie (expires in 7 days)
-    Cookies.set("auth_token", token, { expires: 7, path: "/" });
+  setAuth: (user?: User) => {
     set({ user: user || null, isAuthenticated: true });
   },
 
   logout: () => {
-    Cookies.remove("auth_token", { path: "/" });
     set({ user: null, isAuthenticated: false });
   },
 
