@@ -11,9 +11,11 @@ import (
 	"gitlab.com/ecommercehub1/api/internal/core/model"
 	"gitlab.com/ecommercehub1/api/internal/repository"
 	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/google/uuid"
 )
 
 type IAuthService interface {
+	Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	Login(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*AuthTokens, *errors.Error)
 	Logout(ctx context.Context, sessionID int64) *errors.Error
@@ -47,6 +49,74 @@ func NewAuthService(identityRepo *repository.IdentityRepository, sessionRepo *re
 		sessionRepo:  sessionRepo,
 		jwtSecret:    []byte("super-secret-key-replace-me-later"),
 	}
+}
+
+func (s *AuthService) Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
+	// 1. Check if email already exists
+	existing, err := s.identityRepo.GetCredentialByIdentifier(ctx, email, model.ProviderLocal)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, errors.ErrConflict(ctx, "Email", "already exists")
+	}
+
+	// 2. Hash password
+	hashedPassword, bcryptErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if bcryptErr != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to hash password")
+	}
+
+	// 3. Create identity
+	userID := uuid.New().String()
+	identity := &model.AuthIdentities{
+		UserID:     userID,
+		Provider:   model.ProviderLocal,
+		Identifier: email,
+		Password:   string(hashedPassword),
+	}
+
+	identity, err = s.identityRepo.CreateIdentity(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Create session in DB
+	now := time.Now()
+	expiresAt := now.Add(7 * 24 * time.Hour) // 7 days for refresh token
+	session := &model.Sessions{
+		UserID:     identity.UserID,
+		Token:      "temp", // Will update after generating JWT
+		Provider:   model.ProviderLocal,
+		DeviceInfo: deviceInfo,
+		IpAddress:  ipAddress,
+		UserAgent:  userAgent,
+		IsActive:   true,
+		ExpiresAt:  expiresAt,
+	}
+
+	session, err = s.sessionRepo.CreateSession(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+
+	// 5. Generate JWT tokens
+	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, 15*time.Minute)
+	if jwtErr != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
+	}
+
+	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, 7*24*time.Hour)
+	if jwtErr != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
+	}
+
+	return &AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		SessionID:    session.ID,
+		User:         identity,
+	}, nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {

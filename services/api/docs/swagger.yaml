@@ -43,6 +43,28 @@ definitions:
       refresh_token:
         type: string
     type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      session_id:
+        type: integer
+      user_id:
+        type: string
+    type: object
 host: localhost:9090
 info:
   contact:
@@ -119,6 +141,28 @@ paths:
           schema:
             $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse'
       summary: Refresh access token
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with email and password
+      parameters:
+      - description: Register credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse'
+      summary: Register user
       tags:
       - Auth
   /health:

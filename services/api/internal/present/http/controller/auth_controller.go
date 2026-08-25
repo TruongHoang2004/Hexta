@@ -19,6 +19,42 @@ func NewAuthController(validate *validator.Validate, authService *service.AuthSe
 	}
 }
 
+// Register
+// @Summary Register user
+// @Description Register a new user with email and password
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterRequest true "Register credentials"
+// @Success 200 {object} dto.RegisterResponse
+// @Router /api/v1/auth/register [post]
+func (ctrl *AuthController) Register(c *gin.Context) {
+	var req dto.RegisterRequest
+	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+
+	userAgent := c.Request.UserAgent()
+	ipAddress := c.ClientIP()
+	deviceInfo := c.GetHeader("X-Device-Info")
+
+	tokens, err := ctrl.authService.Register(c.Request.Context(), req.Email, req.Password, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+
+	res := dto.RegisterResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		SessionID:    tokens.SessionID,
+		UserID:       tokens.User.UserID,
+	}
+
+	ctrl.Success(c, res)
+}
+
 // Login
 // @Summary Login user
 // @Description Authenticate user with email and password

@@ -34,6 +34,12 @@ var IdentityClient = class {
       body: JSON.stringify({ email, password })
     });
   }
+  async register(email, password) {
+    return this.fetchApi("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+  }
   // Tenant
   async getTenant(id) {
     return this.fetchApi(`/api/v1/tenants/${id}`);

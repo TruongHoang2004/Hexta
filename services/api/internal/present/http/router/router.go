@@ -24,6 +24,7 @@ func RegisterRoutes(
 	// Auth routes
 	authGroup := params.Public.Group("/auth")
 	{
+		authGroup.POST("/register", authController.Register)
 		authGroup.POST("/login", authController.Login)
 		authGroup.POST("/refresh", authController.RefreshToken)
 		authGroup.POST("/logout", authController.Logout)

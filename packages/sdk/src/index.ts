@@ -59,6 +59,13 @@ export class IdentityClient {
     });
   }
 
+  async register(email: string, password?: string): Promise<{ token: string }> {
+    return this.fetchApi<{ token: string }>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
   // Tenant
   async getTenant(id: string): Promise<Tenant> {
     return this.fetchApi<Tenant>(`/api/v1/tenants/${id}`);

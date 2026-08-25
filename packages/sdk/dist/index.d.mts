@@ -22,6 +22,9 @@ declare class IdentityClient {
     login(email: string, password?: string): Promise<{
         token: string;
     }>;
+    register(email: string, password?: string): Promise<{
+        token: string;
+    }>;
     getTenant(id: string): Promise<Tenant>;
     getUsers(tenantId: string): Promise<User[]>;
 }
