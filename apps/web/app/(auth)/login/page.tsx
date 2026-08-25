@@ -22,8 +22,8 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await sdk.identity.login(email, password);
-      setAuth(response.token);
+      await sdk.identity.login(email, password);
+      setAuth();
       router.push("/tenant");
     } catch (err: any) {
       setError(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");

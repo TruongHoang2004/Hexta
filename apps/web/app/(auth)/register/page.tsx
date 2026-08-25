@@ -35,8 +35,8 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await sdk.identity.register(email, password);
-      setAuth(response.token);
+      await sdk.identity.register(email, password);
+      setAuth();
       router.push("/tenant");
     } catch (err: any) {
       setError(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");

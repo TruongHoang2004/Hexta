@@ -9,7 +9,9 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  isAuthenticated: boolean;
   setAuth: (user?: User) => void;
+  logout: () => void;
   initialize: () => void;
 }
 
