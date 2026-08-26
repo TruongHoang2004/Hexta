@@ -29,6 +29,13 @@ type Config struct {
 	Redis struct {
 		Addr string `yaml:"addr" mapstructure:"addr"`
 	} `yaml:"redis" mapstructure:"redis"`
+	OAuth struct {
+		Google struct {
+			ClientID     string `yaml:"client_id" mapstructure:"client_id"`
+			ClientSecret string `yaml:"client_secret" mapstructure:"client_secret"`
+			RedirectURL  string `yaml:"redirect_url" mapstructure:"redirect_url"`
+		} `yaml:"google" mapstructure:"google"`
+	} `yaml:"oauth" mapstructure:"oauth"`
 }
 
 var AppConfig *Config

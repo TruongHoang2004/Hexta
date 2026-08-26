@@ -147,3 +147,47 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 	ctrl.Success(c, gin.H{"message": "Logged out successfully"})
 }
+
+// GoogleLogin
+// @Summary Google OAuth login
+// @Description Redirects to Google consent screen
+// @Tags Auth
+// @Success 302
+// @Router /api/v1/auth/google/login [get]
+func (ctrl *AuthController) GoogleLogin(c *gin.Context) {
+	url, err := ctrl.authService.GoogleLogin(c.Request.Context())
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	c.Redirect(302, url)
+}
+
+// GoogleCallback
+// @Summary Google OAuth callback
+// @Description Handles Google OAuth callback and redirects to frontend with token
+// @Tags Auth
+// @Param code query string true "OAuth code"
+// @Success 302
+// @Router /api/v1/auth/google/callback [get]
+func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.Redirect(302, "http://localhost:3000/login?error=missing_code")
+		return
+	}
+
+	userAgent := c.Request.UserAgent()
+	ipAddress := c.ClientIP()
+	deviceInfo := c.GetHeader("X-Device-Info")
+
+	tokens, err := ctrl.authService.GoogleCallback(c.Request.Context(), code, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		c.Redirect(302, "http://localhost:3000/login?error=auth_failed")
+		return
+	}
+
+	// Redirect back to frontend with the token
+	redirectURL := "http://localhost:3000/auth/callback?token=" + tokens.AccessToken
+	c.Redirect(302, redirectURL)
+}

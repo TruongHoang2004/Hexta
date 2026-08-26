@@ -28,6 +28,8 @@ func RegisterRoutes(
 		authGroup.POST("/login", authController.Login)
 		authGroup.POST("/refresh", authController.RefreshToken)
 		authGroup.POST("/logout", authController.Logout)
+		authGroup.GET("/google/login", authController.GoogleLogin)
+		authGroup.GET("/google/callback", authController.GoogleCallback)
 	}
 
 	// Swagger UI

@@ -17,3 +17,9 @@ jwt:
 
 redis:
   addr: localhost:6379
+
+oauth:
+  google:
+    client_id: ${GOOGLE_CLIENT_ID}
+    client_secret: ${GOOGLE_CLIENT_SECRET}
+    redirect_url: ${GOOGLE_REDIRECT_URL}

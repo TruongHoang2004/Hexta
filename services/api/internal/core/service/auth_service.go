@@ -7,16 +7,22 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
+	"gitlab.com/ecommercehub1/api/config"
 	"gitlab.com/ecommercehub1/api/internal/core/model"
 	"gitlab.com/ecommercehub1/api/internal/repository"
 	"gitlab.com/ecommercehub1/shared/pkg/errors"
 	"github.com/google/uuid"
+	"encoding/json"
 )
 
 type IAuthService interface {
 	Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	Login(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
+	GoogleLogin(ctx context.Context) (string, *errors.Error)
+	GoogleCallback(ctx context.Context, code string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*AuthTokens, *errors.Error)
 	Logout(ctx context.Context, sessionID int64) *errors.Error
 }
@@ -208,6 +214,107 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
 		SessionID:    session.ID,
+	}, nil
+}
+
+func (s *AuthService) getGoogleOAuthConfig() *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     config.AppConfig.OAuth.Google.ClientID,
+		ClientSecret: config.AppConfig.OAuth.Google.ClientSecret,
+		RedirectURL:  config.AppConfig.OAuth.Google.RedirectURL,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+}
+
+func (s *AuthService) GoogleLogin(ctx context.Context) (string, *errors.Error) {
+	conf := s.getGoogleOAuthConfig()
+	url := conf.AuthCodeURL("state") // TODO: use secure random state
+	return url, nil
+}
+
+func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
+	conf := s.getGoogleOAuthConfig()
+
+	token, err := conf.Exchange(ctx, code)
+	if err != nil {
+		return nil, errors.ErrUnauthorized(ctx).SetMessage("Failed to exchange code")
+	}
+
+	client := conf.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to get user info")
+	}
+	defer resp.Body.Close()
+
+	var userInfo struct {
+		Id    string `json:"id"`
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to parse user info")
+	}
+
+	// Find identity by email
+	identity, dbErr := s.identityRepo.GetCredentialByIdentifier(ctx, userInfo.Email, model.ProviderGoogle)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	if identity == nil {
+		// Auto-register
+		identity = &model.AuthIdentities{
+			UserID:     uuid.New().String(),
+			Provider:   model.ProviderGoogle,
+			Identifier: userInfo.Email,
+			Password:   "oauth2-dummy", // Dummy password for OAuth
+		}
+		identity, dbErr = s.identityRepo.CreateIdentity(ctx, identity)
+		if dbErr != nil {
+			return nil, dbErr
+		}
+	}
+
+	// Create session
+	now := time.Now()
+	expiresAt := now.Add(7 * 24 * time.Hour)
+	session := &model.Sessions{
+		UserID:     identity.UserID,
+		Token:      "temp",
+		Provider:   model.ProviderGoogle,
+		DeviceInfo: deviceInfo,
+		IpAddress:  ipAddress,
+		UserAgent:  userAgent,
+		IsActive:   true,
+		ExpiresAt:  expiresAt,
+	}
+
+	session, dbErr = s.sessionRepo.CreateSession(ctx, session)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	// Generate JWT tokens
+	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, 15*time.Minute)
+	if jwtErr != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
+	}
+
+	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, 7*24*time.Hour)
+	if jwtErr != nil {
+		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
+	}
+
+	return &AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		SessionID:    session.ID,
+		User:         identity,
 	}, nil
 }
 
