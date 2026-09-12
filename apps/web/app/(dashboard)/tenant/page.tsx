@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { sdk } from "@/lib/sdk";
-import { Tenant } from "@ubi/sdk";
+import { Tenant, DefaultBrowserStorage } from "@ubi/sdk";
 import { useRouter } from "next/navigation";
+
+const storage = new DefaultBrowserStorage();
 
 export default function TenantDashboardPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -11,6 +13,12 @@ export default function TenantDashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check auth
+    if (!storage.get("auth_token")) {
+      router.push("/login");
+      return;
+    }
+
     // Basic mock implementation for fetching tenant info
     // In a real app, you would fetch the tenant based on the authenticated user's token context.
     const loadTenant = async () => {
@@ -24,12 +32,6 @@ export default function TenantDashboardPage() {
         setLoading(false);
       }
     };
-    
-    // Check auth
-    if (!localStorage.getItem("auth_token")) {
-      router.push("/login");
-      return;
-    }
 
     loadTenant();
   }, [router]);

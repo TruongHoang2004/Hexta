@@ -44,6 +44,7 @@ type AuthTokens struct {
 type JWTClaims struct {
 	SessionID int64  `json:"session_id"`
 	UserID    string `json:"user_id"`
+	Email     string `json:"email"`
 	jwt.RegisteredClaims
 }
 
@@ -107,12 +108,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 	}
 
 	// 5. Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, 15*time.Minute)
+	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 15*time.Minute)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 7*24*time.Hour)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -160,12 +161,12 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 	}
 
 	// 4. Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, 15*time.Minute)
+	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 15*time.Minute)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 7*24*time.Hour)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -200,12 +201,12 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	}
 
 	// 3. Generate new tokens
-	accessToken, jwtErr := s.generateToken(session.ID, session.UserID, 15*time.Minute)
+	accessToken, jwtErr := s.generateToken(session.ID, session.UserID, claims.Email, 15*time.Minute)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	newRefreshToken, jwtErr := s.generateToken(session.ID, session.UserID, 7*24*time.Hour)
+	newRefreshToken, jwtErr := s.generateToken(session.ID, session.UserID, claims.Email, 7*24*time.Hour)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -300,12 +301,12 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 	}
 
 	// Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, 15*time.Minute)
+	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, userInfo.Email, 15*time.Minute)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, userInfo.Email, 7*24*time.Hour)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -322,11 +323,12 @@ func (s *AuthService) Logout(ctx context.Context, sessionID int64) *errors.Error
 	return s.sessionRepo.RevokeSession(ctx, sessionID)
 }
 
-func (s *AuthService) generateToken(sessionID int64, userID string, ttl time.Duration) (string, error) {
+func (s *AuthService) generateToken(sessionID int64, userID string, email string, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
 		SessionID: sessionID,
 		UserID:    userID,
+		Email:     email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
