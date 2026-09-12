@@ -52,7 +52,7 @@ export function AuthNav() {
 
         <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-full shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all">
           <LogOut className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Đăng xuất</span>
+          <span className="hidden sm:inline">Sign out</span>
         </Button>
       </div>
     );
@@ -61,10 +61,10 @@ export function AuthNav() {
   return (
     <div className="flex items-center gap-4">
       <Button asChild variant="ghost" className="hover:text-primary transition-colors text-muted">
-        <Link href="/login">Đăng nhập</Link>
+        <Link href="/login">Sign in</Link>
       </Button>
       <Button asChild className="rounded-full shadow-lg shadow-primary/25 transition-all">
-        <Link href="/register">Bắt đầu ngay</Link>
+        <Link href="/register">Get started</Link>
       </Button>
     </div>
   );

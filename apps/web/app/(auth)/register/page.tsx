@@ -22,13 +22,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     if (password !== confirmPassword) {
-      toast.error("Mật khẩu xác nhận không khớp.");
+      toast.error("Password confirmation does not match.");
       setLoading(false);
       return;
     }
     
     if (password.length < 6) {
-      toast.error("Mật khẩu phải có ít nhất 6 ký tự.");
+      toast.error("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }
@@ -38,7 +38,7 @@ export default function RegisterPage() {
       setAuth();
       router.push("/tenant");
     } catch (err: any) {
-      toast.error(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");
+      toast.error(err.message || "Registration failed. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function RegisterPage() {
         <Button variant="ghost" asChild className="text-muted hover:text-foreground">
           <Link href="/">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Quay lại trang chủ
+            Back to home
           </Link>
         </Button>
       </div>
@@ -68,8 +68,8 @@ export default function RegisterPage() {
                 <span className="text-white font-bold text-2xl leading-none">H</span>
               </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Đăng ký tài khoản</h1>
-            <p className="text-muted">Tạo tài khoản để bắt đầu sử dụng Hexta</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Create an account</h1>
+            <p className="text-muted">Create an account to get started with Hexta</p>
           </div>
 
           <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
@@ -92,7 +92,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Mật khẩu</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     name="password"
@@ -108,7 +108,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -124,16 +124,14 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-
-
               <Button type="submit" className="w-full h-11 text-base font-medium shadow-primary/25" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Đang đăng ký...
+                    Creating account...
                   </>
                 ) : (
-                  "Đăng ký"
+                  "Create account"
                 )}
               </Button>
             </form>
@@ -144,7 +142,7 @@ export default function RegisterPage() {
                   <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-surface/50 px-2 text-muted">Hoặc tiếp tục với</span>
+                  <span className="bg-surface/50 px-2 text-muted">Or continue with</span>
                 </div>
               </div>
 
@@ -175,16 +173,16 @@ export default function RegisterPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Đăng ký bằng Google
+                  Sign up with Google
                 </Button>
               </div>
             </div>
           </div>
 
           <p className="text-center text-sm text-muted">
-            Đã có tài khoản?{" "}
+            Already have an account?{" "}
             <Link href="/login" className="font-medium text-primary hover:underline underline-offset-4">
-              Đăng nhập ngay
+              Sign in now
             </Link>
           </p>
         </div>

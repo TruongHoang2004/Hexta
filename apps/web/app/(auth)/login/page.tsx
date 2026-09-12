@@ -25,7 +25,7 @@ export default function LoginPage() {
       setAuth();
       router.push("/tenant");
     } catch (err: any) {
-      toast.error(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+      toast.error(err.message || "Sign in failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -42,7 +42,7 @@ export default function LoginPage() {
         <Button variant="ghost" asChild className="text-muted hover:text-foreground">
           <Link href="/">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Quay lại trang chủ
+            Back to home
           </Link>
         </Button>
       </div>
@@ -55,8 +55,8 @@ export default function LoginPage() {
                 <span className="text-white font-bold text-2xl leading-none">H</span>
               </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Đăng nhập Hexta</h1>
-            <p className="text-muted">Nhập email và mật khẩu để vào không gian làm việc của bạn</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in to Hexta</h1>
+            <p className="text-muted">Enter your email and password to access your workspace</p>
           </div>
 
           <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
@@ -80,9 +80,9 @@ export default function LoginPage() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Mật khẩu</Label>
+                    <Label htmlFor="password">Password</Label>
                     <Link href="#" className="text-sm font-medium text-primary hover:underline underline-offset-4">
-                      Quên mật khẩu?
+                      Forgot password?
                     </Link>
                   </div>
                   <Input
@@ -100,16 +100,14 @@ export default function LoginPage() {
                 </div>
               </div>
 
-
-
               <Button type="submit" className="w-full h-11 text-base font-medium shadow-primary/25" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Đang đăng nhập...
+                    Signing in...
                   </>
                 ) : (
-                  "Đăng nhập"
+                  "Sign in"
                 )}
               </Button>
             </form>
@@ -120,7 +118,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-surface/50 px-2 text-muted">Hoặc tiếp tục với</span>
+                  <span className="bg-surface/50 px-2 text-muted">Or continue with</span>
                 </div>
               </div>
 
@@ -151,16 +149,16 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Đăng nhập bằng Google
+                  Sign in with Google
                 </Button>
               </div>
             </div>
           </div>
 
           <p className="text-center text-sm text-muted">
-            Chưa có tài khoản?{" "}
+            Don't have an account?{" "}
             <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
-              Đăng ký ngay
+              Sign up now
             </Link>
           </p>
         </div>
