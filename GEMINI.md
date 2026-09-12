@@ -3,6 +3,7 @@
 This document contains the core rules and standards for the CommerceHub project. All AI assistants should follow these guidelines strictly when modifying or adding code.
 
 ## 1. General Principles
+- **Language**: Use English exclusively for all code, comments, documentation, commit messages, and memory records.
 - **Clarity over Cleverness**: Write readable, maintainable Go code. Follow "Effective Go" principles.
 - **Monorepo Structure**: Keep services in `backend/service/` and shared logic in `backend/lib/`.
 - **Consistency**: Match the existing coding style, including variable naming (camelCase), file naming (snake_case), and directory structure.
