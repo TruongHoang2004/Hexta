@@ -60,3 +60,10 @@ This document contains the core rules and standards for the CommerceHub project.
 - **Check Workspaces**: Be aware of the `go.work` file. Do not use `replace` directives in `go.mod` unless absolutely necessary and documented.
 - **Update Documentation**: If you change standard patterns, reflect them in this `GEMINI.md`.
 - **Validation**: When fixing bugs, look for validation tags in DTOs and ensure the frontend matches the requirements.
+
+## 7. CI/CD & Automation (GitHub Actions)
+- **Backend CI** (`.github/workflows/backend-ci.yml`): Runs Go tests with race detection, `go vet`, and Atlas migration integrity validation.
+- **Frontend CI** (`.github/workflows/frontend-ci.yml`): Uses pnpm v10 and Node.js v20, builds SDK packages, checks linting, and validates Next.js production builds.
+- **Docker CI/CD** (`.github/workflows/docker-ci-cd.yml`): Builds and caches container images for `services/api`, `apps/web`, and `Dockerfile.migrate` via Docker Buildx; pushes images to GitHub Container Registry (`ghcr.io`) on `main`.
+- **Concurrency**: Workflows cancel superseded in-progress runs on pull requests (`cancel-in-progress: true`) to optimize runner resources.
+
