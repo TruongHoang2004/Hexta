@@ -41,3 +41,33 @@ Use Conventional Commits:
 - The scheduled cron job runs periodically (`*/5 * * * *`).
 - It executes `.agents/scripts/get_next_issue.sh` and activates the `/github-task-runner` skill.
 
+---
+
+## 5. Codebase Scout & Tech Debt Audit Lifecycle
+
+The repository includes an automated Codebase Scout (`.agents/scripts/audit_codebase.py`) to discover technical debt, security issues, architectural violations, and test gaps.
+
+### Audit Schedule & Triggers
+- **Automated Cron**: Executes weekly on Mondays at 03:00 UTC via `.github/workflows/codebase-scout.yml`.
+- **Manual Trigger**: Supports on-demand dispatch via GitHub Actions `workflow_dispatch` with custom parameters (`dry_run`, `max_issues`).
+- **Local Execution**: Developers or agents can invoke `./.agents/scripts/audit_codebase.sh --dry-run` to preview findings without creating issues.
+
+### Modular Audit Coverage
+1. **Security & Secrets**: Detects private keys, API tokens, and credential patterns.
+2. **5-Layer Architecture Compliance**: Enforces Go layer boundaries in `services/api` (no DB/GORM in controllers, no HTTP frameworks in core services).
+3. **Swagger / OpenAPI Documentation**: Audits controller endpoints for required Swagger doc annotations and `response.Response[T]` wrapper usage.
+4. **Technical Debt & Mock Scans**: Flags unresolved `TODO:`, `FIXME:`, `HACK:`, and temporary mock tenant strings.
+5. **Test Coverage Gaps**: Identifies critical services and SDK packages lacking unit tests.
+6. **Atlas Migration Integrity**: Verifies `atlas.sum` checksum tracking for all SQL migrations.
+7. **English Language Rule**: Enforces English-only comments and identifiers per `GEMINI.md`.
+
+### Deduplication & Issue Triage Process
+- All generated issues embed a unique semantic fingerprint (`<!-- audit-fingerprint: <id> -->`).
+- The deduplication engine queries all open and closed issues via `gh issue list --state all` before creating new tasks.
+- Conflicting topics or existing tracked issues are skipped automatically.
+- New issues are capped at `--max-issues` (default 5) per execution to avoid backlog spam.
+
+### Audit Archiving
+Every run records a complete markdown audit report in `agentic-memory/audits/YYYY-MM-DD_codebase-audit.md` to track health trends and audit metrics over time.
+
+
