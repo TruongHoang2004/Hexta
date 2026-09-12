@@ -1,0 +1,60 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'packages/shared/**'
+      - 'migrations/**'
+      - 'test/**'
+      - 'go.work*'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'packages/shared/**'
+      - 'migrations/**'
+      - 'test/**'
+      - 'go.work*'
+      - '.github/workflows/backend-ci.yml'
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend-test:
+    name: Test & Lint Backend (Go)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.work.sum
+
+      - name: Verify Go Workspace
+        run: go work sync
+
+      - name: Run Go Vet
+        run: go vet ./services/api/... ./packages/shared/...
+
+      - name: Run Backend Tests
+        run: |
+          go test -v -race -coverprofile=coverage.out ./services/api/... ./packages/shared/...
+
+      - name: Setup Atlas CLI
+        uses: ariga/setup-atlas@v0
+
+      - name: Validate Atlas Migration Directory Integrity
+        run: |
+          atlas migrate hash --dir "file://migrations/api" --check
