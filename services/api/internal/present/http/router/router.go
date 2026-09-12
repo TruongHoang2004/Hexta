@@ -6,6 +6,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "gitlab.com/ecommercehub1/api/docs"
 	"gitlab.com/ecommercehub1/api/internal/present/http/controller"
+	"gitlab.com/ecommercehub1/api/internal/present/http/middleware"
 	"go.uber.org/fx"
 )
 
@@ -21,28 +22,33 @@ func RegisterRoutes(
 
 	params.Public.GET("/health", healthController.HealthCheck)
 
-	// Auth routes
-	authGroup := params.Public.Group("/auth")
+	// Auth public routes
+	authPublic := params.Public.Group("/auth")
 	{
-		authGroup.POST("/register", authController.Register)
-		authGroup.POST("/login", authController.Login)
-		authGroup.POST("/refresh", authController.RefreshToken)
-		authGroup.POST("/logout", authController.Logout)
-		authGroup.GET("/google/login", authController.GoogleLogin)
-		authGroup.GET("/google/callback", authController.GoogleCallback)
+		authPublic.POST("/register", authController.Register)
+		authPublic.POST("/login", authController.Login)
+		authPublic.POST("/refresh", authController.RefreshToken)
+		authPublic.GET("/google/login", authController.GoogleLogin)
+		authPublic.GET("/google/callback", authController.GoogleCallback)
+	}
+
+	// Auth private routes
+	authPrivate := params.Private.Group("/auth")
+	{
+		authPrivate.POST("/logout", authController.Logout)
 	}
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
 }
 
 func CreatePublicRouterGroup(r *gin.Engine) *gin.RouterGroup {
 	return r.Group("/api/v1")
 }
 
-func CreatePrivateRouterGroup(r *gin.Engine) *gin.RouterGroup {
+func CreatePrivateRouterGroup(r *gin.Engine, authMiddleware *middleware.AuthMiddleware) *gin.RouterGroup {
 	private := r.Group("/api/v1")
+	private.Use(authMiddleware.Authenticate())
 	return private
 }
 
