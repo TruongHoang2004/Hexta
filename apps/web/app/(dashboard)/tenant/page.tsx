@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sdk } from "@/lib/sdk";
-import { Tenant } from "@ubi/sdk";
+import { Tenant } from "@hexta/sdk";
 import { useRouter } from "next/navigation";
 
 export default function TenantDashboardPage() {
