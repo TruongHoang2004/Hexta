@@ -26,10 +26,10 @@ Execute the issue selector script:
 
 ---
 
-### Step 2: Mark Issue In-Progress & Checkout Branch
-1. Add the `in-progress` label to the issue to prevent duplicate work:
+### Step 2: Transition Issue to In-Progress & Checkout Branch
+1. Transition the issue label from `ready` to `in-progress` to indicate active development:
    ```bash
-   gh issue edit <number> --add-label "in-progress"
+   gh issue edit <number> --remove-label "ready" --add-label "in-progress"
    ```
 2. Checkout the feature branch:
    ```bash
@@ -92,7 +92,12 @@ Document all modified files, technical rationale, and verification steps in:
    - Review: [agentic-memory/reviews/YYYY-MM-DD_issue-<number>_review.md]
    - Changelog: [agentic-memory/changelogs/YYYY-MM-DD_issue-<number>_changelog.md]"
    ```
-5. Post a completion comment on the GitHub issue:
+5. Transition issue label from `in-progress` to `in-review`:
+   ```bash
+   gh issue edit <number> --remove-label "in-progress" --add-label "in-review"
+   ```
+6. Post a completion comment on the GitHub issue:
    ```bash
    gh issue comment <number> --body "Automated work complete. Pull Request opened for review. Relevant artifacts recorded in \`agentic-memory/\`."
    ```
+7. **Definition of Done**: The ticket is only considered **Done** once the Pull Request has been reviewed and merged into `main`. The `Closes #<number>` directive in the PR description will trigger GitHub to close the issue automatically upon merge.

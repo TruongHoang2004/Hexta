@@ -60,3 +60,11 @@ This document contains the core rules and standards for the CommerceHub project.
 - **Check Workspaces**: Be aware of the `go.work` file. Do not use `replace` directives in `go.mod` unless absolutely necessary and documented.
 - **Update Documentation**: If you change standard patterns, reflect them in this `GEMINI.md`.
 - **Validation**: When fixing bugs, look for validation tags in DTOs and ensure the frontend matches the requirements.
+
+## 7. Issue & Task Lifecycle Rules
+All tasks, GitHub issues, and automated runners must strictly follow the defined lifecycle states:
+- `ready`: The ticket is fully specified and ready to be picked up. Automated runners only pick tickets marked with this label.
+- `in-progress`: The ticket is actively being developed. When picked, the runner removes `ready` and adds `in-progress`.
+- `in-review`: Code changes, unit tests, and memory artifacts are complete, and a Pull Request has been opened for human review. The runner removes `in-progress` and adds `in-review`.
+- `done`: The ticket is only counted as **Done** once the Pull Request has been **merged into `main`**. GitHub automatically closes the issue upon PR merge via `Closes #<number>`.
+
