@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"gitlab.com/ecommercehub1/api/internal/core/model"
-	"gitlab.com/ecommercehub1/api/internal/repository"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 )
 
 type ITenantService interface {

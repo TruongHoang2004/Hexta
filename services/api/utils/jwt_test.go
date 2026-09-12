@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/ecommercehub1/api/utils"
+	"github.com/TruongHoang2004/Hexta/services/api/utils"
 )
 
 type TestPayload struct {

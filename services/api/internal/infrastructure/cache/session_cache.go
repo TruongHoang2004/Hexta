@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/ecommercehub1/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 )
 
 const (

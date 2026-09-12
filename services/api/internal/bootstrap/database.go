@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/api/internal/infrastructure/database"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/database"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

@@ -4,9 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "gitlab.com/ecommercehub1/api/docs"
-	"gitlab.com/ecommercehub1/api/internal/present/http/controller"
-	"gitlab.com/ecommercehub1/api/internal/present/http/middleware"
+	_ "github.com/TruongHoang2004/Hexta/services/api/docs"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/controller"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/middleware"
 	"go.uber.org/fx"
 )
 

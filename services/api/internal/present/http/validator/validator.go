@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/shopspring/decimal"
-	"gitlab.com/ecommercehub1/api/common/log"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 )
 
 func NewValidator() *validator.Validate {

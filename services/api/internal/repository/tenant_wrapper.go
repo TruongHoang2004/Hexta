@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/api/internal/core/model"
-	"gitlab.com/ecommercehub1/api/internal/infrastructure/cache"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
 )
 
 type TenantCacheWrapper struct {

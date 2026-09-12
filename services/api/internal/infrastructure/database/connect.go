@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"gitlab.com/ecommercehub1/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

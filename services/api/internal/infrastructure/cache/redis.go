@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"gitlab.com/ecommercehub1/api/common/log"
-	"gitlab.com/ecommercehub1/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 )
 
 type RedisClient struct {

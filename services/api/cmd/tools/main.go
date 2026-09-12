@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"ariga.io/atlas-provider-gorm/gormschema"
-	"gitlab.com/ecommercehub1/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 )
 
 func main() {

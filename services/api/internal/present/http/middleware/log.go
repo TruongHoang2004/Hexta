@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	"gitlab.com/ecommercehub1/api/common/log"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 )
 
 func Log() gin.HandlerFunc {

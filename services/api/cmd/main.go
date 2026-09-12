@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"gitlab.com/ecommercehub1/api/common/log"
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/api/internal/bootstrap"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/bootstrap"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )

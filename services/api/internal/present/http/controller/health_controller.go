@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"gitlab.com/ecommercehub1/api/internal/infrastructure/cache"
-	"gitlab.com/ecommercehub1/api/internal/present/http/response"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/response"
 	"gorm.io/gorm"
 )
 

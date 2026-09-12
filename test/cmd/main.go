@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.com/ecommercehub1/test/stress"
+	"github.com/TruongHoang2004/Hexta/test/stress"
 )
 
 func main() {

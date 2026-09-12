@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"gitlab.com/ecommercehub1/api/common"
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/api/internal/core/service"
-	"gitlab.com/ecommercehub1/api/internal/present/http/dto"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/common"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
 )
 
 type AuthController struct {

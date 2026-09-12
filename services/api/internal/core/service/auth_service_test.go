@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/api/internal/core/model"
-	"gitlab.com/ecommercehub1/api/internal/core/service"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
 )
 
 type mockIdentityRepo struct {

@@ -88,7 +88,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest"
                         }
                     }
                 ],
@@ -96,7 +96,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse"
                         }
                     }
                 }
@@ -126,7 +126,7 @@ const docTemplate = `{
                         "name": "request",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest"
                         }
                     }
                 ],
@@ -157,7 +157,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -165,7 +165,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse"
                         }
                     }
                 }
@@ -191,7 +191,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest"
                         }
                     }
                 ],
@@ -199,7 +199,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse"
                         }
                     }
                 }
@@ -227,7 +227,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
                         }
                     }
                 }
@@ -256,7 +256,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest"
                         }
                     }
                 ],
@@ -264,7 +264,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
                         }
                     }
                 }
@@ -301,7 +301,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
                         }
                     }
                 }
@@ -337,7 +337,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest"
                         }
                     }
                 ],
@@ -345,7 +345,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
                         }
                     }
                 }
@@ -383,7 +383,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest"
                         }
                     }
                 ],
@@ -391,7 +391,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse"
                         }
                     }
                 }
@@ -428,7 +428,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse"
                         }
                     }
                 }
@@ -462,7 +462,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest": {
             "type": "object",
             "required": [
                 "name",
@@ -484,7 +484,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest": {
             "type": "object",
             "required": [
                 "user_id"
@@ -498,7 +498,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -514,7 +514,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -531,7 +531,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest": {
             "type": "object",
             "properties": {
                 "session_id": {
@@ -539,7 +539,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -550,7 +550,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -561,7 +561,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -577,7 +577,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -594,7 +594,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -614,7 +614,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -643,7 +643,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -657,44 +657,44 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse"
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse"
                     }
                 },
                 "meta": {}
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse"
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
                     }
                 },
                 "meta": {}
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse"
                 },
                 "meta": {}
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
                 },
                 "meta": {}
             }

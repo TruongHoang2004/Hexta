@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest:
     properties:
       name:
         maxLength: 100
@@ -16,7 +16,7 @@ definitions:
     - name
     - slug
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest:
     properties:
       role:
         type: string
@@ -25,7 +25,7 @@ definitions:
     required:
     - user_id
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest:
     properties:
       email:
         type: string
@@ -36,7 +36,7 @@ definitions:
     - email
     - password
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse:
     properties:
       access_token:
         type: string
@@ -47,26 +47,26 @@ definitions:
       user_id:
         type: string
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest:
     properties:
       session_id:
         type: integer
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse:
     properties:
       access_token:
         type: string
       refresh_token:
         type: string
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest:
     properties:
       email:
         type: string
@@ -77,7 +77,7 @@ definitions:
     - email
     - password
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse:
     properties:
       access_token:
         type: string
@@ -88,7 +88,7 @@ definitions:
       user_id:
         type: string
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse:
     properties:
       created_at:
         type: string
@@ -101,7 +101,7 @@ definitions:
       user_id:
         type: string
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse:
     properties:
       created_at:
         type: string
@@ -120,7 +120,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest:
     properties:
       name:
         type: string
@@ -129,32 +129,32 @@ definitions:
       status:
         type: string
     type: object
-  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse
   : properties:
       data:
         items:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse'
         type: array
       meta: {}
     type: object
-  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse
   : properties:
       data:
         items:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse'
         type: array
       meta: {}
     type: object
-  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse
   : properties:
       data:
-        $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse'
       meta: {}
     type: object
-  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse
   : properties:
       data:
-        $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse'
       meta: {}
     type: object
 host: localhost:9090
@@ -212,14 +212,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse'
       summary: Login user
       tags:
       - Auth
@@ -233,7 +233,7 @@ paths:
         in: body
         name: request
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest'
       produces:
       - application/json
       responses:
@@ -255,14 +255,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse'
       summary: Refresh access token
       tags:
       - Auth
@@ -277,14 +277,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse'
       summary: Register user
       tags:
       - Auth
@@ -299,7 +299,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse'
       security:
       - BearerAuth: []
       summary: List user workspaces
@@ -315,14 +315,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse'
       security:
       - BearerAuth: []
       summary: Create workspace
@@ -345,7 +345,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse'
       security:
       - BearerAuth: []
       summary: Get workspace details
@@ -366,14 +366,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse'
       security:
       - BearerAuth: []
       summary: Update workspace settings
@@ -395,14 +395,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse'
       security:
       - BearerAuth: []
       summary: Invite user to workspace
@@ -425,7 +425,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse'
       security:
       - BearerAuth: []
       summary: List workspace members
