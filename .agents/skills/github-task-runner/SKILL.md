@@ -46,33 +46,42 @@ Execute the issue selector script:
 
 ---
 
-### Step 4: Implement Code Changes
-1. Make code modifications adhering strictly to project standards.
+### Step 4: Technical Design (`dev-design`)
+*(Mandatory for tasks introducing new database models, API contracts, architectural abstractions, or significant refactoring)*
+1. Structure the technical design specification with system architecture, data models (GORM/Atlas), API contracts, security, and performance considerations.
+2. Formulate and save the design document to:
+   `agentic-memory/designs/YYYY-MM-DD_issue-<number>_design.md`
+3. Include the design link in the Pull Request description under Memory Artifacts.
+
+---
+
+### Step 5: Implement Code Changes
+1. Make code modifications adhering strictly to project standards and the approved plan/design.
 2. All code comments, documentation, and identifiers must be written in **English**.
 
 ---
 
-### Step 5: Verify Changes & Code Review (`dev-review`)
+### Step 6: Verify Changes & Code Review (`dev-review`)
 1. Run automated build and test commands:
    - For backend: `go test ./...` or `go build ./...`
-   - For frontend: `npm run lint` / `npm run build` if applicable.
+   - For frontend: `pnpm test` / `pnpm run --recursive build` if applicable.
 2. Perform a comprehensive code audit and save the review report to:
    `agentic-memory/reviews/YYYY-MM-DD_issue-<number>_review.md`
 
 ---
 
-### Step 6: Generate Changelog & Verification Steps (`dev-changelog`)
+### Step 7: Generate Changelog & Verification Steps (`dev-changelog`)
 Document all modified files, technical rationale, and verification steps in:
 `agentic-memory/changelogs/YYYY-MM-DD_issue-<number>_changelog.md`
 
 ---
 
-### Step 7: Commit, Push, and Create Pull Request
+### Step 8: Commit, Push, and Create Pull Request
 1. Stage all changes including memory records:
    ```bash
    git add .
    ```
-2. Commit with Conventional Commits:
+2. Commit with Conventional Commits using the `commit-message-generator` skill:
    ```bash
    git commit -m "<type>(<scope>): <summary> (refs #<number>)"
    ```
@@ -89,6 +98,7 @@ Document all modified files, technical rationale, and verification steps in:
 
    ## Memory Artifacts
    - Plan: [agentic-memory/plans/YYYY-MM-DD_issue-<number>_plan.md]
+   - Design: [agentic-memory/designs/YYYY-MM-DD_issue-<number>_design.md] (if applicable)
    - Review: [agentic-memory/reviews/YYYY-MM-DD_issue-<number>_review.md]
    - Changelog: [agentic-memory/changelogs/YYYY-MM-DD_issue-<number>_changelog.md]"
    ```
