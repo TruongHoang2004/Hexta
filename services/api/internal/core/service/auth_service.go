@@ -59,7 +59,7 @@ func NewAuthService(identityRepo *repository.IdentityRepository, sessionRepo *re
 
 func (s *AuthService) Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
 	// 1. Check if email already exists
-	existing, err := s.identityRepo.GetCredentialByIdentifier(ctx, email, model.ProviderLocal)
+	existing, err := s.identityRepo.GetFirstByIdentifier(ctx, email)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +75,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 
 	// 3. Create identity
 	userID := uuid.New().String()
+	hashedPasswordStr := string(hashedPassword)
 	identity := &model.AuthIdentities{
 		UserID:     userID,
 		Provider:   model.ProviderLocal,
 		Identifier: email,
-		Password:   string(hashedPassword),
+		Password:   &hashedPasswordStr,
 	}
 
 	identity, err = s.identityRepo.CreateIdentity(ctx, identity)
@@ -131,12 +132,12 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 	if err != nil {
 		return nil, err
 	}
-	if identity == nil {
+	if identity == nil || identity.Password == nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
 	// 2. Check password
-	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(identity.Password), []byte(password)); bcryptErr != nil {
+	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(*identity.Password), []byte(password)); bcryptErr != nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
@@ -260,19 +261,31 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 		return nil, errors.ErrSystemError(ctx, "Failed to parse user info")
 	}
 
-	// Find identity by email
+	// Find identity by email and provider
 	identity, dbErr := s.identityRepo.GetCredentialByIdentifier(ctx, userInfo.Email, model.ProviderGoogle)
 	if dbErr != nil {
 		return nil, dbErr
 	}
 
 	if identity == nil {
-		// Auto-register
+		// Check if an identity with the same verified email already exists under another provider (e.g. local)
+		existingIdentity, err := s.identityRepo.GetFirstByIdentifier(ctx, userInfo.Email)
+		if err != nil {
+			return nil, err
+		}
+
+		userID := uuid.New().String()
+		if existingIdentity != nil {
+			// Seamlessly link OAuth identity to the existing user account
+			userID = existingIdentity.UserID
+		}
+
+		// Auto-register or link Google identity
 		identity = &model.AuthIdentities{
-			UserID:     uuid.New().String(),
+			UserID:     userID,
 			Provider:   model.ProviderGoogle,
 			Identifier: userInfo.Email,
-			Password:   "oauth2-dummy", // Dummy password for OAuth
+			Password:   nil, // OAuth identities have no password
 		}
 		identity, dbErr = s.identityRepo.CreateIdentity(ctx, identity)
 		if dbErr != nil {
