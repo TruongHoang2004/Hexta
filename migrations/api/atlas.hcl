@@ -1,9 +1,8 @@
 data "external_schema" "gorm" {
   program = [
-    "go", "run",
-    "ariga.io/atlas-provider-gorm", "load",
-    "--path", "../../service/api/internal/core/model",
-    "--dialect", "postgres"
+    "go",
+    "run",
+    "gitlab.com/ecommercehub1/api/cmd/tools"
   ]
 }
 
@@ -17,7 +16,7 @@ env "gorm" {
   url = "postgres://postgres:postgres@postgres:5432/api?sslmode=disable"
 
   migration {
-    dir = "file://."
+    dir = "file://migrations/api"
   }
 
   format {
