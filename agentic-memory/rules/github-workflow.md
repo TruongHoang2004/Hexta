@@ -38,5 +38,6 @@ Use Conventional Commits:
 ---
 
 ## 4. Automated Execution Trigger
-- The scheduled cron job runs periodically (`*/15 * * * *`).
+- The scheduled cron job runs periodically (`*/5 * * * *`).
 - It executes `.agents/scripts/get_next_issue.sh` and activates the `/github-task-runner` skill.
+
