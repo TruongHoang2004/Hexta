@@ -30,6 +30,15 @@ func (m *mockIdentityRepo) GetCredentialByIdentifier(ctx context.Context, identi
 	return nil, nil
 }
 
+func (m *mockIdentityRepo) GetFirstByIdentifier(ctx context.Context, identifier string) (*model.AuthIdentities, *errors.Error) {
+	for _, ident := range m.identities {
+		if ident.Identifier == identifier {
+			return ident, nil
+		}
+	}
+	return nil, nil
+}
+
 func (m *mockIdentityRepo) CreateIdentity(ctx context.Context, authIdentity *model.AuthIdentities) (*model.AuthIdentities, *errors.Error) {
 	key := string(authIdentity.Provider) + ":" + authIdentity.Identifier
 	m.identities[key] = authIdentity

@@ -9,5 +9,6 @@ func BuildCache() fx.Option {
 	return fx.Provide(
 		cache.NewRedisClient,
 		cache.NewSessionCache,
+		cache.NewTenantCache,
 	)
 }

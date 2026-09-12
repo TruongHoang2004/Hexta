@@ -1,5 +1,30 @@
 basePath: /api/v1
 definitions:
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      plan:
+        type: string
+      slug:
+        maxLength: 100
+        minLength: 2
+        type: string
+    required:
+    - name
+    - slug
+    type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest:
+    properties:
+      role:
+        type: string
+      user_id:
+        type: string
+    required:
+    - user_id
+    type: object
   gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest:
     properties:
       email:
@@ -62,6 +87,75 @@ definitions:
         type: integer
       user_id:
         type: string
+    type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      role:
+        type: string
+      tenant_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: string
+      plan:
+        type: string
+      slug:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest:
+    properties:
+      name:
+        type: string
+      plan:
+        type: string
+      status:
+        type: string
+    type: object
+  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse'
+        type: array
+      meta: {}
+    type: object
+  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse'
+        type: array
+      meta: {}
+    type: object
+  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse
+  : properties:
+      data:
+        $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantMemberResponse'
+      meta: {}
+    type: object
+  ? gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse
+  : properties:
+      data:
+        $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.TenantResponse'
+      meta: {}
     type: object
 host: localhost:9090
 info:
@@ -194,6 +288,149 @@ paths:
       summary: Register user
       tags:
       - Auth
+  /api/v1/tenants:
+    get:
+      consumes:
+      - application/json
+      description: Get all workspaces the authenticated user belongs to
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+      security:
+      - BearerAuth: []
+      summary: List user workspaces
+      tags:
+      - Tenants
+    post:
+      consumes:
+      - application/json
+      description: Create a new multi-tenant workspace
+      parameters:
+      - description: Workspace data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.CreateTenantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+      security:
+      - BearerAuth: []
+      summary: Create workspace
+      tags:
+      - Tenants
+  /api/v1/tenants/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get details for a specific workspace (caller must be a member)
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+      security:
+      - BearerAuth: []
+      summary: Get workspace details
+      tags:
+      - Tenants
+    put:
+      consumes:
+      - application/json
+      description: Update workspace details (requires owner or admin role)
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Workspace update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.UpdateTenantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantResponse'
+      security:
+      - BearerAuth: []
+      summary: Update workspace settings
+      tags:
+      - Tenants
+  /api/v1/tenants/{id}/invites:
+    post:
+      consumes:
+      - application/json
+      description: Invite a user to join the workspace (requires owner or admin role)
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Invite data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.InviteMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse'
+      security:
+      - BearerAuth: []
+      summary: Invite user to workspace
+      tags:
+      - Tenants
+  /api/v1/tenants/{id}/users:
+    get:
+      consumes:
+      - application/json
+      description: Get all members belonging to a workspace
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_response.Response-array_gitlab_com_ecommercehub1_api_internal_present_http_dto_TenantMemberResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspace members
+      tags:
+      - Tenants
   /health:
     get:
       consumes:

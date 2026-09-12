@@ -57,9 +57,15 @@ func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 		// 4. Inject auth info into Gin context and Request context
 		c.Set("auth_info", authInfo)
 		c.Set("user_id", authInfo.UserID)
+		c.Set("userID", authInfo.UserID)
 		c.Set("session_id", authInfo.SessionID)
+		c.Set("sessionID", authInfo.SessionID)
 		c.Request = c.Request.WithContext(common.SetAuthInfo(c.Request.Context(), authInfo))
 
 		c.Next()
 	}
+}
+
+func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
+	return m.Authenticate()
 }
