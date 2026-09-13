@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/ecommercehub1/api/internal/constant"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/constant"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 )

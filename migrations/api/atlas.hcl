@@ -2,7 +2,7 @@ data "external_schema" "gorm" {
   program = [
     "go",
     "run",
-    "gitlab.com/ecommercehub1/api/cmd/tools"
+    "github.com/TruongHoang2004/Hexta/services/api/cmd/tools"
   ]
 }
 

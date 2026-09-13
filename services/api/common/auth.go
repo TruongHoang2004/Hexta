@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 )
 
 type contextKey struct{}

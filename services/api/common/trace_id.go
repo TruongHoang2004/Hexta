@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/api/internal/constant"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/constant"
 )
 
 func GetTraceId(ctx context.Context) string {

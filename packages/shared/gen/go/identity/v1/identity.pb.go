@@ -1316,7 +1316,7 @@ const file_identity_proto_rawDesc = "" +
 	"\rValidateToken\x12!.identity.v1.ValidateTokenRequest\x1a\".identity.v1.ValidateTokenResponse\x12\\\n" +
 	"\x0fCheckPermission\x12#.identity.v1.CheckPermissionRequest\x1a$.identity.v1.CheckPermissionResponse\x12D\n" +
 	"\aGetUser\x12\x1b.identity.v1.GetUserRequest\x1a\x1c.identity.v1.GetUserResponse\x12J\n" +
-	"\tGetTenant\x12\x1d.identity.v1.GetTenantRequest\x1a\x1e.identity.v1.GetTenantResponseB?Z=gitlab.com/ecommercehub1/shared/gen/go/identity/v1;identityv1b\x06proto3"
+	"\tGetTenant\x12\x1d.identity.v1.GetTenantRequest\x1a\x1e.identity.v1.GetTenantResponseBPZNgithub.com/TruongHoang2004/Hexta/packages/shared/gen/go/identity/v1;identityv1b\x06proto3"
 
 var (
 	file_identity_proto_rawDescOnce sync.Once

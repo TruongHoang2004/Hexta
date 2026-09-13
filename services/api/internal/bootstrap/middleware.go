@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"gitlab.com/ecommercehub1/api/internal/present/http/middleware"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/middleware"
 	"go.uber.org/fx"
 )
 

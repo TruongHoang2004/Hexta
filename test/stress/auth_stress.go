@@ -9,7 +9,7 @@ import (
 	"time"
 
 	vegeta "github.com/tsenart/vegeta/v12/lib"
-	"gitlab.com/ecommercehub1/test/config"
+	"github.com/TruongHoang2004/Hexta/test/config"
 )
 
 type RegisterPayload struct {

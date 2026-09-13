@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	log "gitlab.com/ecommercehub1/shared/pkg/logger"
+	log "github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
 )
 
 func TestRegisterValidations(t *testing.T) {
