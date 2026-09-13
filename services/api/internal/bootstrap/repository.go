@@ -11,5 +11,7 @@ func BuildRepository() fx.Option {
 		repository.NewIdentityRepository,
 		repository.NewSessionDBRepository,
 		repository.NewSessionCacheWrapper,
+		repository.NewTenantDBRepository,
+		repository.NewTenantCacheWrapper,
 	)
 }

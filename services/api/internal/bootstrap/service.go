@@ -11,5 +11,6 @@ func BuildService() fx.Option {
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
 		service.NewAuthService,
+		service.NewTenantService,
 	)
 }

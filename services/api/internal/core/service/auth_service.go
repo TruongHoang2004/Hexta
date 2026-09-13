@@ -44,6 +44,7 @@ type IAuthService interface {
 	ValidateAndConsumeOAuthState(ctx context.Context, state string) *errors.Error
 	GetAccessTokenExpire() time.Duration
 	GetRefreshTokenExpire() time.Duration
+	ParseToken(tokenStr string) (*JWTClaims, error)
 }
 
 type AuthService struct {
@@ -412,7 +413,7 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, state str
 			UserID:     userID,
 			Provider:   model.ProviderGoogle,
 			Identifier: userInfo.Email,
-			Password:   "",
+			Password:   nil,
 		}
 		identity, dbErr = s.identityRepo.CreateIdentity(ctx, identity)
 		if dbErr != nil {
@@ -525,6 +526,10 @@ func (s *AuthService) parseAccessToken(tokenStr string) (*JWTClaims, error) {
 
 func (s *AuthService) parseRefreshToken(tokenStr string) (*JWTClaims, error) {
 	return s.parseTokenWithSecret(tokenStr, s.refreshTokenSecret, TokenTypeRefresh)
+}
+
+func (s *AuthService) ParseToken(tokenStr string) (*JWTClaims, error) {
+	return s.parseAccessToken(tokenStr)
 }
 
 func (s *AuthService) parseTokenWithSecret(tokenStr string, secret []byte, expectedType string) (*JWTClaims, error) {

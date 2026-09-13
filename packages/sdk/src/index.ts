@@ -8,15 +8,38 @@ export interface Tenant {
   status: string;
   plan: string;
   owner_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TenantMember {
+  id: number;
+  tenant_id: string;
+  user_id: string;
+  role: string;
+  created_at?: string;
 }
 
 export interface User {
   id: string;
   tenant_id: string;
-  email: string;
-  full_name: string;
-  status: string;
-  role_id: string;
+  email?: string;
+  full_name?: string;
+  status?: string;
+  role_id?: string;
+  role?: string;
+  user_id?: string;
+}
+
+export interface CreateTenantInput {
+  name: string;
+  slug: string;
+  plan?: string;
+}
+
+export interface InviteMemberInput {
+  user_id: string;
+  role?: string;
 }
 
 export interface StorageAdapter {
@@ -89,14 +112,34 @@ export class IdentityClient {
   }
 
   // Tenant
+  async createTenant(input: CreateTenantInput): Promise<Tenant> {
+    const response = await this.client.post<{ data: Tenant }>("/api/v1/tenants", input);
+    return response.data.data;
+  }
+
+  async getTenants(): Promise<Tenant[]> {
+    const response = await this.client.get<{ data: Tenant[] }>("/api/v1/tenants");
+    return response.data.data;
+  }
+
   async getTenant(id: string): Promise<Tenant> {
     const response = await this.client.get<{ data: Tenant }>(`/api/v1/tenants/${id}`);
     return response.data.data;
   }
 
-  // Users
-  async getUsers(tenantId: string): Promise<User[]> {
-    const response = await this.client.get<{ data: User[] }>(`/api/v1/tenants/${tenantId}/users`);
+  async updateTenant(id: string, input: Partial<CreateTenantInput> & { status?: string }): Promise<Tenant> {
+    const response = await this.client.put<{ data: Tenant }>(`/api/v1/tenants/${id}`, input);
+    return response.data.data;
+  }
+
+  // Members
+  async getUsers(tenantId: string): Promise<TenantMember[]> {
+    const response = await this.client.get<{ data: TenantMember[] }>(`/api/v1/tenants/${tenantId}/users`);
+    return response.data.data;
+  }
+
+  async inviteMember(tenantId: string, input: InviteMemberInput): Promise<TenantMember> {
+    const response = await this.client.post<{ data: TenantMember }>(`/api/v1/tenants/${tenantId}/invites`, input);
     return response.data.data;
   }
 }
