@@ -133,7 +133,7 @@ func (s *AuthService) GetRefreshTokenExpire() time.Duration {
 
 func (s *AuthService) Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
 	// 1. Check if email already exists
-	existing, err := s.identityRepo.GetCredentialByIdentifier(ctx, email, model.ProviderLocal)
+	existing, err := s.identityRepo.GetFirstByIdentifier(ctx, email)
 	if err != nil {
 		return nil, err
 	}
@@ -149,11 +149,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 
 	// 3. Create identity
 	userID := uuid.New().String()
+	hashedPasswordStr := string(hashedPassword)
 	identity := &model.AuthIdentities{
 		UserID:     userID,
 		Provider:   model.ProviderLocal,
 		Identifier: email,
-		Password:   string(hashedPassword),
+		Password:   &hashedPasswordStr,
 	}
 
 	identity, err = s.identityRepo.CreateIdentity(ctx, identity)
@@ -205,12 +206,12 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 	if err != nil {
 		return nil, err
 	}
-	if identity == nil {
+	if identity == nil || identity.Password == nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
 	// 2. Check password
-	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(identity.Password), []byte(password)); bcryptErr != nil {
+	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(*identity.Password), []byte(password)); bcryptErr != nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
