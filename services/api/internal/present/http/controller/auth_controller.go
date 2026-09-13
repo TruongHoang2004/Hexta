@@ -1,10 +1,16 @@
 package controller
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"gitlab.com/ecommercehub1/api/common"
+	"gitlab.com/ecommercehub1/api/config"
 	"gitlab.com/ecommercehub1/api/internal/core/service"
 	"gitlab.com/ecommercehub1/api/internal/present/http/dto"
+	"gitlab.com/ecommercehub1/shared/pkg/errors"
 )
 
 type AuthController struct {
@@ -73,8 +79,6 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 
 	userAgent := c.Request.UserAgent()
 	ipAddress := c.ClientIP()
-
-	// Optionally pass device info from header, for now empty string or extract from headers
 	deviceInfo := c.GetHeader("X-Device-Info")
 
 	tokens, err := ctrl.authService.Login(c.Request.Context(), req.Email, req.Password, deviceInfo, ipAddress, userAgent)
@@ -125,24 +129,39 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 
 // Logout
 // @Summary Logout user
-// @Description Revoke the user's current session
+// @Description Revoke the user's current or specified session (enforcing ownership)
 // @Tags Auth
+// @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.LogoutRequest true "Logout request"
+// @Param request body dto.LogoutRequest false "Logout request"
 // @Success 200
 // @Router /api/v1/auth/logout [post]
 func (ctrl *AuthController) Logout(c *gin.Context) {
 	var req dto.LogoutRequest
-	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
+	_ = c.ShouldBindJSON(&req)
+
+	authInfo, ok := common.GetAuthInfo(c.Request.Context())
+	if !ok || authInfo == nil {
+		ctrl.ErrorData(c, errors.ErrUnauthorized(c.Request.Context()).SetDetail("Unauthenticated"))
+		return
+	}
+
+	targetSessionID := req.SessionID
+	if targetSessionID == 0 {
+		targetSessionID = authInfo.SessionID
+	}
+
+	err := ctrl.authService.Logout(c.Request.Context(), authInfo.UserID, targetSessionID)
+	if err != nil {
 		ctrl.ErrorData(c, err)
 		return
 	}
 
-	err := ctrl.authService.Logout(c.Request.Context(), req.SessionID)
-	if err != nil {
-		ctrl.ErrorData(c, err)
-		return
+	// Clear cookies if current session was revoked
+	if targetSessionID == authInfo.SessionID {
+		c.SetCookie("auth_token", "", -1, "/", "", false, false)
+		c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 	}
 
 	ctrl.Success(c, gin.H{"message": "Logged out successfully"})
@@ -150,7 +169,7 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 // GoogleLogin
 // @Summary Google OAuth login
-// @Description Redirects to Google consent screen
+// @Description Redirects to Google consent screen with secure CSRF state
 // @Tags Auth
 // @Success 302
 // @Router /api/v1/auth/google/login [get]
@@ -160,20 +179,32 @@ func (ctrl *AuthController) GoogleLogin(c *gin.Context) {
 		ctrl.ErrorData(c, err)
 		return
 	}
-	c.Redirect(302, url)
+	c.Redirect(http.StatusFound, url)
 }
 
 // GoogleCallback
 // @Summary Google OAuth callback
-// @Description Handles Google OAuth callback and redirects to frontend with token
+// @Description Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies
 // @Tags Auth
 // @Param code query string true "OAuth code"
+// @Param state query string true "OAuth CSRF state"
 // @Success 302
 // @Router /api/v1/auth/google/callback [get]
 func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
+	state := c.Query("state")
+
+	frontendURL := "http://localhost:3000"
+	if config.AppConfig != nil && config.AppConfig.Server.FrontendURL != "" {
+		frontendURL = config.AppConfig.Server.FrontendURL
+	}
+
 	if code == "" {
-		c.Redirect(302, "http://localhost:3000/login?error=missing_code")
+		c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?error=missing_code", frontendURL))
+		return
+	}
+	if state == "" {
+		c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?error=missing_state", frontendURL))
 		return
 	}
 
@@ -181,13 +212,21 @@ func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	deviceInfo := c.GetHeader("X-Device-Info")
 
-	tokens, err := ctrl.authService.GoogleCallback(c.Request.Context(), code, deviceInfo, ipAddress, userAgent)
+	tokens, err := ctrl.authService.GoogleCallback(c.Request.Context(), code, state, deviceInfo, ipAddress, userAgent)
 	if err != nil {
-		c.Redirect(302, "http://localhost:3000/login?error=auth_failed")
+		c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?error=auth_failed", frontendURL))
 		return
 	}
 
-	// Redirect back to frontend with the token
-	redirectURL := "http://localhost:3000/auth/callback?token=" + tokens.AccessToken
-	c.Redirect(302, redirectURL)
+	// Deliver tokens securely via cookies to prevent leaking tokens in URL query strings
+	isProduction := config.AppConfig != nil && config.AppConfig.Server.Production
+	accessExpireSec := int(ctrl.authService.GetAccessTokenExpire().Seconds())
+	refreshExpireSec := int(ctrl.authService.GetRefreshTokenExpire().Seconds())
+
+	c.SetCookie("auth_token", tokens.AccessToken, accessExpireSec, "/", "", isProduction, false)
+	c.SetCookie("refresh_token", tokens.RefreshToken, refreshExpireSec, "/", "", isProduction, true)
+
+	// Clean redirect without tokens in query parameters
+	redirectURL := fmt.Sprintf("%s/auth/callback", frontendURL)
+	c.Redirect(http.StatusFound, redirectURL)
 }

@@ -26,8 +26,6 @@ definitions:
     properties:
       session_id:
         type: integer
-    required:
-    - session_id
     type: object
   gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest:
     properties:
@@ -79,6 +77,36 @@ info:
   title: CommerceHub API
   version: "1.0"
 paths:
+  /api/v1/auth/google/callback:
+    get:
+      description: Handles Google OAuth callback, validates state, and redirects to
+        frontend with secure cookies
+      parameters:
+      - description: OAuth code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth CSRF state
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: Google OAuth callback
+      tags:
+      - Auth
+  /api/v1/auth/google/login:
+    get:
+      description: Redirects to Google consent screen with secure CSRF state
+      responses:
+        "302":
+          description: Found
+      summary: Google OAuth login
+      tags:
+      - Auth
   /api/v1/auth/login:
     post:
       consumes:
@@ -105,12 +133,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Revoke the user's current session
+      description: Revoke the user's current or specified session (enforcing ownership)
       parameters:
       - description: Logout request
         in: body
         name: request
-        required: true
         schema:
           $ref: '#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest'
       produces:
@@ -118,6 +145,8 @@ paths:
       responses:
         "200":
           description: OK
+      security:
+      - BearerAuth: []
       summary: Logout user
       tags:
       - Auth
