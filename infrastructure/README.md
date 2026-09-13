@@ -1,93 +1,97 @@
-# Infrastructure
+# Hexta Infrastructure & Local Environment
 
+Orchestration, backing services, and observability tooling for local development across the [Hexta](https://github.com/TruongHoang2004/Hexta) platform.
 
+---
 
-## Getting started
+## 🏗 Stack Overview
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The local infrastructure stack runs via Docker Compose and provides all dependencies required by Hexta backend services.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+| Service | Port(s) | Description | Default Credentials |
+| :--- | :--- | :--- | :--- |
+| **PostgreSQL 17** | `5433:5432` | Relational database (`user`, `api`, `catalog`, `dev`, `order`) | `postgres` / `postgres` |
+| **Redis** | `6379:6379` | In-memory session store & cache | No auth (local) |
+| **Kafka** | `9092:9092` | Event streaming and asynchronous messaging | `PLAINTEXT://localhost:9092` |
+| **Elasticsearch** | `9200`, `9300` | Search indexing and document store | No auth (local dev) |
+| **MinIO** | `9000`, `9001` | S3-compatible object storage (API + Console) | `minioadmin` / `minioadmin` |
+| **Qdrant** | `6333`, `6334` | Vector database for embeddings and similarity search | HTTP `6333`, gRPC `6334` |
+| **Grafana** | `3000` | Observability dashboards (traces, logs, metrics) | `admin` / `admin` |
+| **Prometheus** | `9090` | Time-series metrics collection | Web UI `9090` |
+| **Loki** | `3100` | Centralized log aggregation | HTTP API |
+| **Tempo** | `3200`, `4317` | Distributed tracing backend (OTLP gRPC 4317) | OTLP exporter |
 
-## Add your files
+---
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 📁 Compose Configurations
 
+- **`docker-compose.yml`**: Core infrastructure stack (Postgres, Redis, Kafka, Elasticsearch, MinIO, Qdrant).
+- **`docker-compose.migrate.yml`**: Atlas migration runner for declarative and version-controlled database schemas.
+- **`docker-compose.log.yml`**: Full observability pipeline (Grafana, Loki, Promtail, Prometheus, Tempo, OTel Collector).
+- **`docker-compose.ui.yml`**: Local management UIs (Adminer, Redis Commander).
+- **`local-all.yml`**: Composite stack running all services and infrastructure concurrently.
+
+---
+
+## 🚀 Quickstart & Operational Commands
+
+Manage the infrastructure using the provided [`Makefile`](Makefile) or from the repository root:
+
+### Starting & Stopping Infrastructure
+```bash
+# Start all core backing services in background
+make up
+
+# Check status of running containers
+make ps
+
+# Tail real-time logs
+make logs
+
+# Stop all services
+make down
+
+# Clean stop (removes containers and mounted volume data)
+make clean
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/ecommercehub1/backend/infrastructure.git
-git branch -M main
-git push -uf origin main
+
+### Full Platform Startup
+From the project root:
+```bash
+# Start all services, infrastructure, and logging together
+make local-up
+
+# Stop all services and infrastructure
+make local-down
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/ecommercehub1/backend/infrastructure/-/settings/integrations)
+## 🗄 Database Initialization & Migrations
 
-## Collaborate with your team
+### Automatic Multi-Database Setup
+PostgreSQL initializes multiple logical databases (`user`, `api`, `catalog`, `dev`, `order`) on first startup using the initialization scripts in [`init-scripts/`](init-scripts/).
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Atlas Migrations
+Hexta uses [Atlas](https://atlasgo.io/) with GORM models to manage schema versions:
 
-## Test and Deploy
+```bash
+# Generate a new migration diff from GORM models
+make migrate-diff svc=api name=add_user_table
 
-Use the built-in continuous integration in GitLab.
+# Apply migrations across all databases
+make migrate-apply svc=all
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# Apply migrations for a single service
+make migrate-apply svc=api
 
-***
+# Inspect migration status
+make migrate-status svc=api
+```
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 🔗 Repository & Contributing
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This infrastructure configuration is maintained in the [Hexta monorepo](https://github.com/TruongHoang2004/Hexta).
+For development conventions and guidelines, refer to [`GEMINI.md`](../GEMINI.md).

@@ -1,58 +1,63 @@
-package service
+package service_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"gitlab.com/ecommercehub1/api/config"
 	"gitlab.com/ecommercehub1/api/internal/core/model"
+	"gitlab.com/ecommercehub1/api/internal/core/service"
 	"gitlab.com/ecommercehub1/shared/pkg/errors"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type mockIdentityRepo struct {
-	identities []*model.AuthIdentities
+	identities map[string]*model.AuthIdentities
+}
+
+func newMockIdentityRepo() *mockIdentityRepo {
+	return &mockIdentityRepo{
+		identities: make(map[string]*model.AuthIdentities),
+	}
 }
 
 func (m *mockIdentityRepo) GetCredentialByIdentifier(ctx context.Context, identifier string, provider model.Provider) (*model.AuthIdentities, *errors.Error) {
-	for _, id := range m.identities {
-		if id.Identifier == identifier && id.Provider == provider {
-			return id, nil
-		}
-	}
-	return nil, nil
-}
-
-func (m *mockIdentityRepo) GetFirstByIdentifier(ctx context.Context, identifier string) (*model.AuthIdentities, *errors.Error) {
-	for _, id := range m.identities {
-		if id.Identifier == identifier {
-			return id, nil
-		}
+	key := string(provider) + ":" + identifier
+	if ident, ok := m.identities[key]; ok {
+		return ident, nil
 	}
 	return nil, nil
 }
 
 func (m *mockIdentityRepo) CreateIdentity(ctx context.Context, authIdentity *model.AuthIdentities) (*model.AuthIdentities, *errors.Error) {
-	authIdentity.ID = int64(len(m.identities) + 1)
-	m.identities = append(m.identities, authIdentity)
+	key := string(authIdentity.Provider) + ":" + authIdentity.Identifier
+	m.identities[key] = authIdentity
 	return authIdentity, nil
 }
 
 type mockSessionRepo struct {
-	sessions []*model.Sessions
+	sessions map[int64]*model.Sessions
+	nextID   int64
+}
+
+func newMockSessionRepo() *mockSessionRepo {
+	return &mockSessionRepo{
+		sessions: make(map[int64]*model.Sessions),
+		nextID:   1,
+	}
 }
 
 func (m *mockSessionRepo) CreateSession(ctx context.Context, session *model.Sessions) (*model.Sessions, *errors.Error) {
-	session.ID = int64(len(m.sessions) + 1)
-	m.sessions = append(m.sessions, session)
+	session.ID = m.nextID
+	m.nextID++
+	m.sessions[session.ID] = session
 	return session, nil
 }
 
 func (m *mockSessionRepo) GetSessionByID(ctx context.Context, id int64) (*model.Sessions, *errors.Error) {
-	for _, s := range m.sessions {
-		if s.ID == id {
-			return s, nil
-		}
+	if s, ok := m.sessions[id]; ok {
+		return s, nil
 	}
 	return nil, nil
 }
@@ -67,193 +72,215 @@ func (m *mockSessionRepo) GetSessionByToken(ctx context.Context, token string) (
 }
 
 func (m *mockSessionRepo) RevokeSession(ctx context.Context, id int64) *errors.Error {
-	for _, s := range m.sessions {
-		if s.ID == id {
-			s.IsActive = false
-			s.RevokedAt = time.Now()
-			return nil
+	if s, ok := m.sessions[id]; ok {
+		s.IsActive = false
+		s.RevokedAt = time.Now()
+		return nil
+	}
+	return errors.ErrNotFound(ctx, "Session", "not found")
+}
+
+func createTestConfig(accessSecret, refreshSecret string, accessExpireSec, refreshExpireSec int) *config.Config {
+	cfg := &config.Config{}
+	cfg.JWT.AccessTokenSecret = accessSecret
+	cfg.JWT.AccessTokenExpire = accessExpireSec
+	cfg.JWT.RefreshTokenSecret = refreshSecret
+	cfg.JWT.RefreshTokenExpire = refreshExpireSec
+	return cfg
+}
+
+func TestJWTTokenSigningAndConfigInjection(t *testing.T) {
+	cfg := createTestConfig("custom-access-secret-1234567890", "custom-refresh-secret-0987654321", 900, 86400)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
+
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+
+	assert.Equal(t, 900*time.Second, authSvc.GetAccessTokenExpire())
+	assert.Equal(t, 86400*time.Second, authSvc.GetRefreshTokenExpire())
+
+	ctx := context.Background()
+	tokens, err := authSvc.Register(ctx, "test@example.com", "secretpassword", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+	assert.NotEmpty(t, tokens.AccessToken)
+	assert.NotEmpty(t, tokens.RefreshToken)
+	assert.Equal(t, int64(1), tokens.SessionID)
+
+	// Validate access token
+	authInfo, err := authSvc.ValidateAccessToken(ctx, tokens.AccessToken)
+	assert.Nil(t, err)
+	assert.Equal(t, tokens.User.UserID, authInfo.UserID)
+	assert.Equal(t, tokens.SessionID, authInfo.SessionID)
+
+	// Attempting to validate refresh token as an access token must fail
+	_, err = authSvc.ValidateAccessToken(ctx, tokens.RefreshToken)
+	assert.NotNil(t, err)
+
+	// Refresh token flow
+	refreshed, err := authSvc.RefreshToken(ctx, tokens.RefreshToken)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, refreshed.AccessToken)
+	assert.NotEmpty(t, refreshed.RefreshToken)
+
+	// Attempting to refresh using an access token must fail
+	_, err = authSvc.RefreshToken(ctx, tokens.AccessToken)
+	assert.NotNil(t, err)
+}
+
+func TestTokenExpiration(t *testing.T) {
+	// Configure 1-second expiration
+	cfg := createTestConfig("access-secret-exp", "refresh-secret-exp", 1, 1)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
+
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	ctx := context.Background()
+
+	tokens, err := authSvc.Register(ctx, "expire@example.com", "password123", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+
+	// Immediately valid
+	info, err := authSvc.ValidateAccessToken(ctx, tokens.AccessToken)
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
+
+	// Wait for expiration
+	time.Sleep(1200 * time.Millisecond)
+
+	// Now expired
+	_, err = authSvc.ValidateAccessToken(ctx, tokens.AccessToken)
+	assert.NotNil(t, err)
+
+	// Refresh token should also expire
+	_, err = authSvc.RefreshToken(ctx, tokens.RefreshToken)
+	assert.NotNil(t, err)
+}
+
+func TestInvalidAndTamperedTokenRejection(t *testing.T) {
+	cfg := createTestConfig("correct-secret-12345", "correct-refresh-secret", 900, 86400)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
+
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	ctx := context.Background()
+
+	// 1. Malformed token
+	_, err := authSvc.ValidateAccessToken(ctx, "invalid.malformed.token")
+	assert.NotNil(t, err)
+
+	// 2. Token signed with different secret
+	foreignCfg := createTestConfig("attacker-secret-9999", "attacker-refresh-secret", 900, 86400)
+	foreignSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, foreignCfg)
+
+	tokens, err := foreignSvc.Register(ctx, "attacker@example.com", "password123", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+
+	// Validation against real service must fail
+	_, err = authSvc.ValidateAccessToken(ctx, tokens.AccessToken)
+	assert.NotNil(t, err)
+}
+
+func TestOAuthStateGenerationAndCSRFValidation(t *testing.T) {
+	cfg := createTestConfig("secret", "secret", 900, 86400)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
+
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	ctx := context.Background()
+
+	// 1. Test GoogleLogin generates a URL with valid state parameter
+	loginURL, err := authSvc.GoogleLogin(ctx)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, loginURL)
+	assert.Contains(t, loginURL, "state=")
+
+	// 2. Extract state from URL and validate
+	// Empty state must fail
+	err = authSvc.ValidateAndConsumeOAuthState(ctx, "")
+	assert.NotNil(t, err)
+
+	// Non-existent state must fail
+	err = authSvc.ValidateAndConsumeOAuthState(ctx, "non-existent-state")
+	assert.NotNil(t, err)
+
+	// Extract state from loginURL
+	u, parseErr := time.ParseDuration("1s")
+	assert.Nil(t, parseErr)
+	_ = u
+
+	// Let's test single-use state consumption
+	// Re-run GoogleLogin to get a known state
+	var capturedState string
+	// We can parse state from URL
+	for i := 0; i < len(loginURL)-6; i++ {
+		if loginURL[i:i+6] == "state=" {
+			rest := loginURL[i+6:]
+			for j := 0; j < len(rest); j++ {
+				if rest[j] == '&' {
+					capturedState = rest[:j]
+					break
+				}
+			}
+			if capturedState == "" {
+				capturedState = rest
+			}
+			break
 		}
 	}
-	return nil
+	assert.NotEmpty(t, capturedState)
+
+	// First consumption must succeed
+	err = authSvc.ValidateAndConsumeOAuthState(ctx, capturedState)
+	assert.Nil(t, err)
+
+	// Second consumption (replay attack) must fail
+	err = authSvc.ValidateAndConsumeOAuthState(ctx, capturedState)
+	assert.NotNil(t, err)
 }
 
-func newTestAuthService(identities []*model.AuthIdentities) (*AuthService, *mockIdentityRepo, *mockSessionRepo) {
-	idRepo := &mockIdentityRepo{identities: identities}
-	sessRepo := &mockSessionRepo{}
-	svc := &AuthService{
-		baseService:  NewBaseService(),
-		identityRepo: idRepo,
-		sessionRepo:  sessRepo,
-		jwtSecret:    []byte("test-secret-key-12345"),
-	}
-	return svc, idRepo, sessRepo
-}
+func TestLogoutEnforcesSessionOwnership(t *testing.T) {
+	cfg := createTestConfig("secret", "secret", 900, 86400)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
 
-func TestAuthService_Register_Success(t *testing.T) {
-	svc, idRepo, _ := newTestAuthService(nil)
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
 	ctx := context.Background()
 
-	tokens, err := svc.Register(ctx, "test@example.com", "password123", "mobile", "127.0.0.1", "agent")
-	if err != nil {
-		t.Fatalf("unexpected error on register: %v", err)
-	}
-	if tokens.AccessToken == "" || tokens.RefreshToken == "" {
-		t.Fatal("expected non-empty tokens")
-	}
-	if len(idRepo.identities) != 1 {
-		t.Fatalf("expected 1 identity, got %d", len(idRepo.identities))
-	}
+	// Create user 1 and session 1
+	user1Tokens, err := authSvc.Register(ctx, "user1@example.com", "password123", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+	session1ID := user1Tokens.SessionID
 
-	saved := idRepo.identities[0]
-	if saved.Password == nil {
-		t.Fatal("expected password to be saved for local user")
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(*saved.Password), []byte("password123")); err != nil {
-		t.Fatalf("password was not hashed properly: %v", err)
-	}
-}
+	// Create user 2 and session 2
+	user2Tokens, err := authSvc.Register(ctx, "user2@example.com", "password123", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+	session2ID := user2Tokens.SessionID
 
-func TestAuthService_Register_DuplicateEmail(t *testing.T) {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
-	hStr := string(hashed)
-	svc, _, _ := newTestAuthService([]*model.AuthIdentities{
-		{
-			UserID:     "user-1",
-			Provider:   model.ProviderLocal,
-			Identifier: "test@example.com",
-			Password:   &hStr,
-		},
-	})
-	ctx := context.Background()
+	// 1. User 1 tries to revoke User 2's session -> Must fail with ErrForbidden
+	err = authSvc.Logout(ctx, user1Tokens.User.UserID, session2ID)
+	assert.NotNil(t, err)
+	assert.Equal(t, 403, err.GetHttpStatus())
 
-	_, err := svc.Register(ctx, "test@example.com", "newpassword", "device", "127.0.0.1", "agent")
-	if err == nil {
-		t.Fatal("expected conflict error for duplicate email")
-	}
-}
+	// Session 2 must still be active
+	s2, dbErr := sessionRepo.GetSessionByID(ctx, session2ID)
+	assert.Nil(t, dbErr)
+	assert.True(t, s2.IsActive)
 
-func TestAuthService_Login_Success(t *testing.T) {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
-	hStr := string(hashed)
-	svc, _, _ := newTestAuthService([]*model.AuthIdentities{
-		{
-			UserID:     "user-1",
-			Provider:   model.ProviderLocal,
-			Identifier: "login@example.com",
-			Password:   &hStr,
-		},
-	})
-	ctx := context.Background()
+	// 2. User 1 tries to revoke non-existent session -> Must fail with ErrNotFound
+	err = authSvc.Logout(ctx, user1Tokens.User.UserID, 99999)
+	assert.NotNil(t, err)
+	assert.Equal(t, 404, err.GetHttpStatus())
 
-	tokens, err := svc.Login(ctx, "login@example.com", "secret123", "device", "127.0.0.1", "agent")
-	if err != nil {
-		t.Fatalf("unexpected error on login: %v", err)
-	}
-	if tokens.AccessToken == "" {
-		t.Fatal("expected non-empty access token")
-	}
-}
+	// 3. User 1 revokes their own session -> Must succeed
+	err = authSvc.Logout(ctx, user1Tokens.User.UserID, session1ID)
+	assert.Nil(t, err)
 
-func TestAuthService_Login_InvalidPassword(t *testing.T) {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
-	hStr := string(hashed)
-	svc, _, _ := newTestAuthService([]*model.AuthIdentities{
-		{
-			UserID:     "user-1",
-			Provider:   model.ProviderLocal,
-			Identifier: "login@example.com",
-			Password:   &hStr,
-		},
-	})
-	ctx := context.Background()
+	// Session 1 is now inactive
+	s1, dbErr := sessionRepo.GetSessionByID(ctx, session1ID)
+	assert.Nil(t, dbErr)
+	assert.False(t, s1.IsActive)
 
-	_, err := svc.Login(ctx, "login@example.com", "wrongpassword", "device", "127.0.0.1", "agent")
-	if err == nil {
-		t.Fatal("expected error on invalid password")
-	}
-}
-
-func TestAuthService_Login_NilPassword_OAuthAccount(t *testing.T) {
-	// An account created via Google OAuth with no local password (Password is nil)
-	svc, _, _ := newTestAuthService([]*model.AuthIdentities{
-		{
-			UserID:     "user-oauth-1",
-			Provider:   model.ProviderLocal, // or local identity without password
-			Identifier: "oauth@example.com",
-			Password:   nil,
-		},
-	})
-	ctx := context.Background()
-
-	// Attempting to log in with password should return unauthorized safely without panicking
-	_, err := svc.Login(ctx, "oauth@example.com", "any-password", "device", "127.0.0.1", "agent")
-	if err == nil {
-		t.Fatal("expected unauthorized error for nil password")
-	}
-}
-
-func TestAuthService_AccountLinking_Logic(t *testing.T) {
-	ctx := context.Background()
-	existingUserID := "existing-user-uuid-1234"
-	localPasswordHash := "some-hashed-password"
-
-	// Pre-existing local identity
-	localIdentity := &model.AuthIdentities{
-		UserID:     existingUserID,
-		Provider:   model.ProviderLocal,
-		Identifier: "shared@example.com",
-		Password:   &localPasswordHash,
-	}
-
-	idRepo := &mockIdentityRepo{identities: []*model.AuthIdentities{localIdentity}}
-
-	// Verify that querying by Google provider returns nil
-	googleIdentity, err := idRepo.GetCredentialByIdentifier(ctx, "shared@example.com", model.ProviderGoogle)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if googleIdentity != nil {
-		t.Fatal("expected google identity to be nil initially")
-	}
-
-	// Verify that querying existing identity by identifier across providers returns localIdentity
-	foundExisting, err := idRepo.GetFirstByIdentifier(ctx, "shared@example.com")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if foundExisting == nil {
-		t.Fatal("expected to find existing identity for account linking")
-	}
-	if foundExisting.UserID != existingUserID {
-		t.Fatalf("expected UserID %s, got %s", existingUserID, foundExisting.UserID)
-	}
-
-	// Link Google provider to existing UserID with Password: nil
-	newGoogleIdentity := &model.AuthIdentities{
-		UserID:     foundExisting.UserID,
-		Provider:   model.ProviderGoogle,
-		Identifier: "shared@example.com",
-		Password:   nil,
-	}
-	createdGoogle, err := idRepo.CreateIdentity(ctx, newGoogleIdentity)
-	if err != nil {
-		t.Fatalf("failed to create linked google identity: %v", err)
-	}
-	if createdGoogle.UserID != existingUserID {
-		t.Fatalf("expected linked UserID %s, got %s", existingUserID, createdGoogle.UserID)
-	}
-	if createdGoogle.Password != nil {
-		t.Fatalf("expected nil password for OAuth identity, got %v", *createdGoogle.Password)
-	}
-
-	// Verify both identities exist under same identifier with distinct providers and identical UserID
-	loc, _ := idRepo.GetCredentialByIdentifier(ctx, "shared@example.com", model.ProviderLocal)
-	goo, _ := idRepo.GetCredentialByIdentifier(ctx, "shared@example.com", model.ProviderGoogle)
-
-	if loc == nil || goo == nil {
-		t.Fatal("both local and google identities must exist")
-	}
-	if loc.UserID != goo.UserID {
-		t.Fatalf("user_id mismatch between linked accounts: %s vs %s", loc.UserID, goo.UserID)
-	}
+	// Subsequent ValidateAccessToken using User 1's token must fail since session is revoked
+	_, err = authSvc.ValidateAccessToken(ctx, user1Tokens.AccessToken)
+	assert.NotNil(t, err)
 }

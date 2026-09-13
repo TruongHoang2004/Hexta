@@ -3,9 +3,8 @@
 .PHONY: build-all up down restart logs ps clean
 
 # Build all services (backend and infrastructure)
-# Use GITLAB_TOKEN=<your_token> make build-all if needed
 build-all:
-	docker compose build --parallel --build-arg GITLAB_TOKEN=$(GITLAB_TOKEN)
+	docker compose build --parallel
 
 # Start all services in detached mode
 up:

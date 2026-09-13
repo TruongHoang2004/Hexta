@@ -24,6 +24,50 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/auth/google/callback": {
+            "get": {
+                "description": "Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OAuth code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth CSRF state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/google/login": {
+            "get": {
+                "description": "Redirects to Google consent screen with secure CSRF state",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth login",
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with email and password",
@@ -60,7 +104,12 @@ const docTemplate = `{
         },
         "/api/v1/auth/logout": {
             "post": {
-                "description": "Revoke the user's current session",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revoke the user's current or specified session (enforcing ownership)",
                 "consumes": [
                     "application/json"
                 ],
@@ -76,7 +125,6 @@ const docTemplate = `{
                         "description": "Logout request",
                         "name": "request",
                         "in": "body",
-                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest"
                         }
@@ -220,9 +268,6 @@ const docTemplate = `{
         },
         "gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest": {
             "type": "object",
-            "required": [
-                "session_id"
-            ],
             "properties": {
                 "session_id": {
                     "type": "integer"

@@ -3,6 +3,7 @@ server:
   port: 8080
   production: false
   trace: false
+  frontend_url: ${FRONTEND_URL}
 
 database:
   url: "postgresql://postgres:postgres@localhost:5433/api?sslmode=disable"

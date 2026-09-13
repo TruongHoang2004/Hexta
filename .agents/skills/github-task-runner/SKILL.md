@@ -11,11 +11,18 @@ This skill automates end-to-end task execution from GitHub Issues top-down based
 
 ## Workflow Steps
 
-### Step 1: Fetch and Identify Next Issue
-Execute the issue selector script:
-```bash
-./.agents/scripts/get_next_issue.sh
-```
+### Step 1: Pre-Flight State Synchronization & Fetch Next Issue
+1. **Pre-flight State Synchronization**:
+   Reconcile PR-to-issue states, strip development labels from closed issues, and unlock any abandoned `in-progress` tasks:
+   ```bash
+   python3 .agents/scripts/manage_issue_lifecycle.py --sync --recover-stale
+   ```
+
+2. **Fetch and Identify Next Issue**:
+   Execute the issue selector script:
+   ```bash
+   ./.agents/scripts/get_next_issue.sh
+   ```
 
 - If `"status": "no_tasks"`, report that no pending tasks are ready and stop.
 - If `"status": "ready"`, extract the issue object:
