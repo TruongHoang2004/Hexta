@@ -1,0 +1,70 @@
+name: Issue Lifecycle State Synchronization
+
+on:
+  pull_request:
+    types: [opened, reopened, closed, synchronize]
+  schedule:
+    # Run periodically every 30 minutes to recover stale locks and reconcile states
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (do not modify labels or post comments)'
+        required: false
+        type: boolean
+        default: false
+      recover_stale:
+        description: 'Run stale task lock recovery'
+        required: false
+        type: boolean
+        default: true
+      triage:
+        description: 'Run backlog specification triage'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  sync:
+    name: Reconcile Issue States
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Issue Lifecycle Synchronization
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FLAGS="--sync"
+          
+          # If scheduled or requested via dispatch, enable stale recovery
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.recover_stale }}" = "true" ]; then
+            FLAGS="$FLAGS --recover-stale"
+          fi
+
+          # If triage requested via dispatch
+          if [ "${{ github.event.inputs.triage }}" = "true" ]; then
+            FLAGS="$FLAGS --triage"
+          fi
+
+          # If dry run specified
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+
+          echo "Running issue lifecycle manager with flags: $FLAGS"
+          python3 .agents/scripts/manage_issue_lifecycle.py $FLAGS --verbose

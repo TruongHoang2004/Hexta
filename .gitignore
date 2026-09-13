@@ -31,3 +31,7 @@ infrastructure/.redis/
 node_modules/
 **/node_modules/
 
+# Python
+__pycache__/
+*.pyc
+
