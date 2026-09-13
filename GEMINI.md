@@ -1,11 +1,11 @@
 # Project Rules & Standards (GEMINI)
 
-This document contains the core rules and standards for the CommerceHub project. All AI assistants should follow these guidelines strictly when modifying or adding code.
+This document contains the core rules and standards for the Hexta project. All AI assistants should follow these guidelines strictly when modifying or adding code.
 
 ## 1. General Principles
 - **Language**: Use English exclusively for all code, comments, documentation, commit messages, and memory records.
 - **Clarity over Cleverness**: Write readable, maintainable Go code. Follow "Effective Go" principles.
-- **Monorepo Structure**: Keep services in `backend/service/` and shared logic in `backend/lib/`.
+- **Monorepo Structure**: Keep services in `services/` and shared logic in `packages/`.
 - **Consistency**: Match the existing coding style, including variable naming (camelCase), file naming (snake_case), and directory structure.
 
 ## 2. Backend (Go)
@@ -23,7 +23,7 @@ This document contains the core rules and standards for the CommerceHub project.
 - **DTOs & Responses**:
   - Define all requests and responses in `internal/present/http/dto/`.
   - Use `response.Response[T]` for all API responses to ensure consistency and proper Swagger documentation.
-- **Error Handling**: Use the `errors` package from `gitlab.com/ecommercehub1/lib/pkg/errors`.
+- **Error Handling**: Use the `errors` package from `github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors`.
   - Return `*errors.Error` from services and repositories.
   - Map errors to appropriate HTTP status codes in controllers.
 

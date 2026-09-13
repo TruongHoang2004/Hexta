@@ -13,10 +13,11 @@ function AuthCallbackContent() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    // Read from search params (fallback/legacy) or from secure cookie set by backend
+    const token = searchParams.get("token") || Cookies.get("auth_token");
 
     if (token) {
-      // Set token to cookie
+      // Ensure cookie is set if came from query param
       Cookies.set("auth_token", token, { expires: 7, path: "/" });
       // Update auth store
       setAuth();

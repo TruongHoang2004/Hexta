@@ -24,7 +24,7 @@ func GenerateJWT[T any](payload T, secret string, expiry int) (string, error) {
 	claims := JWTClaims[T]{
 		Payload: payload,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expiry) * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expiry) * time.Second)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			ID:        uuid.New().String(),
