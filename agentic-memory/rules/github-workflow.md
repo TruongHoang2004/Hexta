@@ -29,10 +29,9 @@ This document outlines the standard process for task management, issue labeling,
    [in-progress] ── (Runner implements code, opens PR: remove 'in-progress', add 'in-review')
          │
          ▼
-    [in-review] ── (Human reviews & merges PR into main)
-         │
-         ▼
-    [done (Closed)]
+    [in-review] ── (PR Review Agent evaluates risk & merge state)
+         ├─── Low / Medium Risk (Clean) ──► Autonomous Squash Merge ──► [done (Closed)]
+         └─── High Risk / Complex Conflicts ──► Tag 'needs-human-review' ──► [Human Review & Merge] ──► [done (Closed)]
 ```
 
 ---
@@ -89,5 +88,28 @@ The repository includes an automated Codebase Scout (`.agents/scripts/audit_code
 
 ### Audit Archiving
 Every run records a complete markdown audit report in `agentic-memory/audits/YYYY-MM-DD_codebase-audit.md` to track health trends and audit metrics over time.
+
+---
+
+## 6. PR Review Agent & Autonomous Merge Lifecycle
+
+The repository employs an autonomous PR Review Agent (`.agents/scripts/pr_review_agent.py`, invoked via `.github/workflows/pr-review-agent.yml`) to evaluate, rebase, merge, or escalate open Pull Requests.
+
+### Separation of Responsibilities
+- **Task Runner Agents (`github-task-runner`)**: Complete code changes, verification, and open PRs transitioning issues from `in-progress` to `in-review`. The task runner agent **never** merges its own PRs.
+- **PR Review Agent (`pr-review-agent`)**: Evaluates all PRs in `in-review`. Categorizes risk, auto-merges low-risk and clean medium-risk PRs, and escalates high-risk or conflicting PRs.
+
+### Risk Classification Matrix & Actions
+| Risk Level | Heuristics | Automated Action |
+|---|---|---|
+| **Low (🟢)** | Documentation, READMEs, agentic-memory, configs, small refactors $\le 10$ files. | **Auto-Merge (Squash)** if state is clean. |
+| **Medium (🟡)** | Feature code with unit tests included, $\le 30$ changed files. | **Auto-Merge (Squash)** if clean or cleanly rebased. |
+| **High (🔴)** | Security/auth (`auth_service.go`, `**/security*`, `**/oauth*`), DB migrations (`migrations/*.sql`), module roots (`go.mod`), $> 50$ files, or core services without tests. | **Escalate**: Add `needs-human-review` label, comment on PR, require maintainer sign-off. |
+
+### Conflict Resolution & Escalation
+- **Trivial Conflicts**: Lockfiles (`go.sum`, `go.work.sum`, `package-lock.json`, `pnpm-lock.yaml`) and auto-generated files (`docs/docs.go`, `docs/swagger.*`) are automatically rebased and regenerated in ephemeral worktrees.
+- **Complex Conflicts**: Any overlapping source code conflicts prompt immediate rebase abort and escalation to maintainers with file path breakdowns.
+- **Post-Merge Cleanup**: Upon autonomous squash merge, the PR Review Agent removes the `in-review` label from the linked issue, allowing GitHub's native `Closes #<number>` trigger to close the issue as `done`.
+
 
 
