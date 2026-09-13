@@ -28,7 +28,7 @@ Structure the design document with:
 4. **API Contracts**:
    - HTTP method, route, request DTO, response DTO.
    - Swagger documentation format.
-   - Error code mappings using `gitlab.com/ecommercehub1/shared/pkg/errors`.
+   - Error code mappings using `github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors`.
 5. **Security, Caching & Performance Considerations**:
    - Authentication & Authorization checks.
    - Redis caching strategy and cache invalidation.
