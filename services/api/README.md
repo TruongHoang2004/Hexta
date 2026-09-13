@@ -1,6 +1,6 @@
-# Ngoc Lam ZMP Backend
+# Hexta API Service
 
-Backend service for the Ngoc Lam ZMP application, built with Go and Gin.
+Backend REST API service for the Hexta platform, built with Go and Gin.
 
 ## 🛠 Tech Stack
 
@@ -25,8 +25,8 @@ Backend service for the Ngoc Lam ZMP application, built with Go and Gin.
 1. **Clone the repository**
 
    ```bash
-   git clone https://gitlab.com/ecommercehub1/api.git
-   cd ngoclam-zmp-backend
+   git clone https://github.com/TruongHoang2004/Hexta.git
+   cd Hexta/services/api
    ```
 
 2. **Install dependencies**
