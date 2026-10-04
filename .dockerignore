@@ -15,6 +15,9 @@ infrastructure/.prometheus
 # Ignore module files that will be re-downloaded
 **/vendor/
 **/bin/
+**/node_modules/
+**/.next/
+**/.turbo/
 
 # Temporary files
 /tmp/

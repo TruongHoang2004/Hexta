@@ -24,8 +24,8 @@ export default function LoginPage() {
       await sdk.identity.login(email, password);
       setAuth();
       router.push("/tenant");
-    } catch (err: any) {
-      toast.error(err.message || "Sign in failed. Please check your credentials.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Sign in failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-sm text-muted">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
               Sign up now
             </Link>

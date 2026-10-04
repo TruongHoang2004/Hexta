@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import { DefaultBrowserStorage } from "@ubi/sdk";
+import { DefaultBrowserStorage } from "@hexta/sdk";
 
 const storage = new DefaultBrowserStorage();
 
 interface User {
   id: string;
   email: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AuthState {
@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           const email = payload.email || "";
           set({ user: { id, email }, isAuthenticated: true });
           return;
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         const id = payload.sub || payload.user_id || "";
         const email = payload.email || "";
         set({ isAuthenticated: true, user: { id, email } });
-      } catch (e) {
+      } catch {
         set({ isAuthenticated: false, user: null });
       }
     } else {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Button } from "@hexta/ui";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -8,13 +8,22 @@ import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import { User, LogOut, LayoutDashboard } from "lucide-react";
 
+const emptySubscribe = () => () => {};
+
+function useIsClient() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
 export function AuthNav() {
   const { isAuthenticated, user, initialize, logout } = useAuthStore();
-  const [isClient, setIsClient] = useState(false);
+  const isClient = useIsClient();
   const router = useRouter();
 
   useEffect(() => {
-    setIsClient(true);
     initialize();
   }, [initialize]);
 

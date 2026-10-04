@@ -75,3 +75,10 @@ When executing skills (`github-task-runner`, `issue-creator`, `dev-plan`, `dev-d
 3. **Execution**: Perform the core implementation or CLI steps.
 4. **Artifact & State**: Persist reasoning to `agentic-memory/` and transition lifecycle labels.
 
+## 9. CI/CD & Automation (GitHub Actions)
+- **Backend CI** (`.github/workflows/backend-ci.yml`): Runs Go tests with race detection, `go vet`, and Atlas migration integrity validation.
+- **Frontend CI** (`.github/workflows/frontend-ci.yml`): Uses pnpm v10 and Node.js v20, builds SDK packages, checks linting, and validates Next.js production builds.
+- **Docker CI/CD** (`.github/workflows/docker-ci-cd.yml`): Builds and caches container images for `services/api`, `apps/web`, and `Dockerfile.migrate` via Docker Buildx; pushes images to GitHub Container Registry (`ghcr.io`) on `main`.
+- **Concurrency**: Workflows cancel superseded in-progress runs on pull requests (`cancel-in-progress: true`) to optimize runner resources.
+
+

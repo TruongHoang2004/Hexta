@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sdk } from "@/lib/sdk";
-import { Tenant, TenantMember, DefaultBrowserStorage } from "@ubi/sdk";
+import { Tenant, TenantMember, DefaultBrowserStorage } from "@hexta/sdk";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Building2, Users, Plus, Shield, CheckCircle2 } from "lucide-react";
@@ -39,9 +39,9 @@ export default function TenantDashboardPage() {
         setActiveTenant(null);
         setMembers([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load workspaces", err);
-      setErrorMessage(err.message || "Failed to load workspaces");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to load workspaces");
     } finally {
       setLoading(false);
     }
@@ -51,19 +51,53 @@ export default function TenantDashboardPage() {
     try {
       const tenantMembers = await sdk.identity.getUsers(tenantId);
       setMembers(tenantMembers || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to load members", err);
     }
   };
 
   useEffect(() => {
+    let ignore = false;
     const token = storage.get("auth_token") || Cookies.get("auth_token") || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
     if (!token) {
       router.push("/login");
       return;
     }
 
-    loadTenants();
+    async function initTenants() {
+      try {
+        setErrorMessage("");
+        const userTenants = await sdk.identity.getTenants();
+        if (ignore) return;
+        setTenants(userTenants || []);
+
+        if (userTenants && userTenants.length > 0) {
+          const current = userTenants[0];
+          setActiveTenant(current);
+          const tenantMembers = await sdk.identity.getUsers(current.id);
+          if (!ignore) {
+            setMembers(tenantMembers || []);
+          }
+        } else {
+          setActiveTenant(null);
+          setMembers([]);
+        }
+      } catch (err: unknown) {
+        if (!ignore) {
+          console.error("Failed to load workspaces", err);
+          setErrorMessage(err instanceof Error ? err.message : "Failed to load workspaces");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
+    initTenants();
+    return () => {
+      ignore = true;
+    };
   }, [router]);
 
   const handleSelectTenant = async (tenant: Tenant) => {
@@ -87,8 +121,8 @@ export default function TenantDashboardPage() {
       await loadTenants();
       setActiveTenant(created);
       await loadMembers(created.id);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to create workspace");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to create workspace");
     } finally {
       setCreating(false);
     }
@@ -106,8 +140,8 @@ export default function TenantDashboardPage() {
       });
       setInviteUserId("");
       await loadMembers(activeTenant.id);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to invite member");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to invite member");
     } finally {
       setInviting(false);
     }
