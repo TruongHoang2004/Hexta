@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/ecommercehub1/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"go.uber.org/fx"
 )
 

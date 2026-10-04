@@ -1,8 +1,8 @@
 package bootstrap
 
 import (
-	"gitlab.com/ecommercehub1/api/internal/present/http/controller"
-	"gitlab.com/ecommercehub1/api/internal/present/http/validator"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/controller"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/validator"
 
 	"go.uber.org/fx"
 )
@@ -12,6 +12,7 @@ func BuildController() fx.Option {
 		fx.Provide(controller.NewBaseController),
 		fx.Provide(controller.NewHealthController),
 		fx.Provide(controller.NewAuthController),
+		fx.Provide(controller.NewTenantController),
 	)
 }
 

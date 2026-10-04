@@ -1,4 +1,4 @@
-module gitlab.com/ecommercehub1/shared
+module github.com/TruongHoang2004/Hexta/packages/shared
 
 go 1.25.3
 

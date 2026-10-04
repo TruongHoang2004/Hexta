@@ -12,8 +12,12 @@ def slugify(text):
 def get_priority_weight(labels):
     label_names = [l.get("name", "").lower() for l in labels]
     
-    # Exclude issues already in-progress or blocked
-    if any(name in ["in-progress", "in progress", "wip", "blocked"] for name in label_names):
+    # Exclude issues already in-progress, in-review, or blocked
+    if any(name in ["in-progress", "in progress", "wip", "blocked", "in-review", "review", "pr-opened"] for name in label_names):
+        return -1
+
+    # Issue MUST have 'ready' label to be eligible for pickup
+    if not any(name in ["ready", "status:ready"] for name in label_names):
         return -1
 
     if any(name in ["priority:high", "high", "priority-high"] for name in label_names):

@@ -1,11 +1,10 @@
-module gitlab.com/ecommercehub1/test
+module github.com/TruongHoang2004/Hexta/test
 
 go 1.25.3
 
 require (
 	github.com/gavv/httpexpect/v2 v2.17.0
 	github.com/stretchr/testify v1.11.1
-	gitlab.com/ecommercehub1/lib v0.0.0-20260219184628-ad901abce4dd
 )
 
 require (
@@ -34,7 +33,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sanity-io/litter v1.5.5 // indirect
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/tsenart/vegeta/v12 v12.13.0
@@ -46,8 +44,6 @@ require (
 	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0 // indirect
 	github.com/yudai/gojsondiff v1.0.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
-	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect

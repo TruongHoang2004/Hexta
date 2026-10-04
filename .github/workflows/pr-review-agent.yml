@@ -1,0 +1,87 @@
+name: Autonomous PR Review & Auto-Merge Agent
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Execution mode'
+        required: true
+        type: choice
+        default: 'review-and-merge'
+        options:
+          - 'review-and-merge'
+          - 'resolve-conflicts'
+      dry_run:
+        description: 'Run in dry-run mode (preview without mutating PRs)'
+        required: false
+        type: boolean
+        default: false
+      pr_number:
+        description: 'Optional single PR number to target (leave empty for all open PRs)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  review-and-merge:
+    name: PR Review, Conflict Resolution & Merge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure Git Committer Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run PR Review Agent
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FLAGS=""
+          MODE="${{ github.event.inputs.mode || 'review-and-merge' }}"
+          if [ "$MODE" = "resolve-conflicts" ]; then
+            FLAGS="--resolve-conflicts"
+          else
+            FLAGS="--review-and-merge"
+          fi
+
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+
+          PR_NUM="${{ github.event.inputs.pr_number }}"
+          if [ -n "$PR_NUM" ]; then
+            FLAGS="$FLAGS --pr $PR_NUM"
+          fi
+
+          echo "Executing PR Review Agent with flags: $FLAGS"
+          python3 .agents/scripts/pr_review_agent.py $FLAGS | tee pr_review_report.md
+
+          if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+            cat pr_review_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload PR Review Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-review-agent-report
+          path: pr_review_report.md
+          if-no-files-found: ignore
