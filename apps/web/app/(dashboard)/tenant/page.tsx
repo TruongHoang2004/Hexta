@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sdk } from "@/lib/sdk";
-import { Tenant, TenantMember } from "@ubi/sdk";
+import { Tenant, TenantMember } from "@hexta/sdk";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Building2, Users, Plus, Shield, CheckCircle2 } from "lucide-react";

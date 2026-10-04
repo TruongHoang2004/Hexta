@@ -3,9 +3,12 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
+import { DefaultBrowserStorage } from "@hexta/sdk";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Loader2 } from "lucide-react";
 import { toast } from "@hexta/ui";
+
+const storage = new DefaultBrowserStorage();
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -13,11 +16,11 @@ function AuthCallbackContent() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
-    // Read from search params (fallback/legacy) or from secure cookie set by backend
-    const token = searchParams.get("token") || Cookies.get("auth_token");
+    // Read from search params (fallback/legacy) or from secure cookie/storage
+    const token = searchParams.get("token") || storage.get("auth_token") || Cookies.get("auth_token");
 
     if (token) {
-      // Ensure cookie is set if came from query param
+      storage.set("auth_token", token);
       Cookies.set("auth_token", token, { expires: 7, path: "/" });
       // Update auth store
       setAuth();

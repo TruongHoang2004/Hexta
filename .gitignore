@@ -30,6 +30,7 @@ infrastructure/.redis/
 
 node_modules/
 **/node_modules/
+.vite/
 
 # Python cache
 __pycache__/
@@ -38,5 +39,4 @@ __pycache__/
 
 # Temporary agent worktrees
 .worktrees_tmp*
-
 
