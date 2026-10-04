@@ -1,6 +1,6 @@
 ---
 name: dev-changelog
-description: Use this skill after modifying code or completing a task to explain changes, document architectural decisions, provide diff summaries, and outline testing verification steps. It saves the changelog to agentic-memory/changelogs/.
+description: Use this skill after modifying code or completing a task to explain changes, document architectural decisions, provide diff summaries, and outline testing verification steps. It updates the consolidated changelog at agentic-memory/CHANGELOG.md.
 ---
 
 # Development Changelog & Walkthrough Skill (`dev-changelog`)
@@ -28,9 +28,7 @@ Structure the document into:
    - Automated test commands (e.g. `go test ./...`, `npm run test`).
    - Manual verification steps (e.g., steps to reproduce/test in browser or via API calls).
 
-### 3. Persist into `agentic-memory/changelogs/`
-- Determine `<feature-name>`.
-- Get today's date in `YYYY-MM-DD` format.
-- Write the changelog to:
-  `agentic-memory/changelogs/YYYY-MM-DD_<feature-name>_changelog.md`
-- In your conversation response, provide a brief summary and a clickable link to the saved changelog file.
+### 3. Persist into `agentic-memory/CHANGELOG.md`
+- Append the structured entry under the appropriate milestone or module in `agentic-memory/CHANGELOG.md`.
+- Keep entries high-density, concise, and focused on key technical decisions, impacted paths, and verification commands to preserve reading efficiency and context budget.
+- In your conversation response, provide a brief summary and a clickable link to the consolidated changelog: [CHANGELOG.md](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/CHANGELOG.md).

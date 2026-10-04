@@ -26,8 +26,8 @@ Where `<category>` is one of:
 3. **`reviews/`**:
    - Filename: `agentic-memory/reviews/YYYY-MM-DD_<feature-name>_review.md`
    - Trigger: When running code reviews, audits, PR checks, or analyzing diffs.
-4. **`changelogs/`**:
-   - Filename: `agentic-memory/changelogs/YYYY-MM-DD_<feature-name>_changelog.md`
+4. **`changelogs`**:
+   - Filename: `agentic-memory/CHANGELOG.md` (or detailed `agentic-memory/changelogs/YYYY-MM-DD_<feature-name>_changelog.md`)
    - Trigger: After completing significant changes, explaining code modifications, or providing verification steps.
 5. **`rules/`**:
    - Filename: `agentic-memory/rules/<topic-rules>.md`
