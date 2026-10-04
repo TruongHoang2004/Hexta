@@ -1,93 +1,112 @@
-# Lib
+# Hexta Shared Packages (`packages/shared`)
 
+Centralized shared libraries, domain utilities, validation logic, observability tooling, and Protocol Buffers contracts for the [Hexta](https://github.com/TruongHoang2004/Hexta) platform.
 
+---
 
-## Getting started
+## 📦 Package Overview
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+| Package | Path | Description |
+| :--- | :--- | :--- |
+| **Errors** | [`pkg/errors`](pkg/errors) | Standardized domain error handling, HTTP status code mapping, and trace-correlated errors. |
+| **Logger** | [`pkg/logger`](pkg/logger) | Production-ready Uber Zap wrapper with structured JSON output and contextual trace logging. |
+| **Telemetry** | [`pkg/telemetry`](pkg/telemetry) | OpenTelemetry (OTel) SDK initialization, OTLP gRPC export, and Gin tracing middleware. |
+| **Validator** | [`pkg/validator`](pkg/validator) | Custom validation rules (e.g., decimals, VAT tax patterns) for `go-playground/validator`. |
+| **Common Utilities** | [`pkg/common`](pkg/common) | Shared casting and utility helpers. |
+| **Protobuf Contracts** | [`proto`](proto) / [`gen/go`](gen/go) | Protocol Buffers definitions and generated Go code (e.g. Identity v1). |
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## 🚀 Installation & Usage
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### 1. Error Handling (`pkg/errors`)
+Provides a consistent `*errors.Error` type used across service and repository layers.
 
+```go
+import "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+
+// Initialize package with service name and context trace ID key at startup
+errors.Init("api-service", "trace_id")
+
+// Return structured domain errors
+func (s *userService) FindByID(ctx context.Context, id string) (*User, error) {
+    user, err := s.repo.FindByID(ctx, id)
+    if err != nil {
+        return nil, errors.ErrNotFound(ctx, "User", "not found")
+    }
+    return user, nil
+}
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/ecommercehub1/shared.git
-git branch -M main
-git push -uf origin main
+
+### 2. Structured Logging (`pkg/logger`)
+Wraps Uber Zap with support for contextual logging (extracting trace IDs from OpenTelemetry spans):
+
+```go
+import "github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
+
+// Create a production or development logger
+log := logger.NewLogger(logger.LoggerOption{
+    IsProd: true, // JSON in prod, console encoder in dev
+})
+
+// Standard logging
+log.Info("Service started on port %d", 8080)
+
+// Context-aware logging (includes trace_id from OTel span if present)
+log.InfoC(ctx, "Processed transaction successfully")
 ```
 
-## Integrate with your tools
+### 3. OpenTelemetry Tracing (`pkg/telemetry`)
+Initializes the OpenTelemetry TracerProvider and registers trace context propagation:
 
-* [Set up project integrations](https://gitlab.com/ecommercehub1/shared/-/settings/integrations)
+```go
+import (
+    "context"
+    "github.com/TruongHoang2004/Hexta/packages/shared/pkg/telemetry"
+)
 
-## Collaborate with your team
+func main() {
+    ctx := context.Background()
+    tp, err := telemetry.InitTracer(ctx, "api-service")
+    if err != nil {
+        log.Fatalf("failed to initialize tracer: %v", err)
+    }
+    defer tp.Shutdown(ctx)
+}
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 4. Custom Request Validation (`pkg/validator`)
+Extends `go-playground/validator/v10` with custom types and domain validations:
 
-## Test and Deploy
+```go
+import (
+    "github.com/TruongHoang2004/Hexta/packages/shared/pkg/validator"
+    "github.com/gin-gonic/gin/binding"
+)
 
-Use the built-in continuous integration in GitLab.
+func SetupValidator(log *logger.Logger) {
+    v := validator.NewValidator()
+    validator.RegisterDecimalTypeFunc(v)
+    validator.RegisterValidations(v, log)
+}
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+---
 
-***
+## 🧪 Testing
 
-# Editing this README
+Run unit tests across all shared packages:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+go test ./... -v
+```
 
-## Suggestions for a good README
+---
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## 🔗 Repository & Contributing
 
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This library is part of the [Hexta monorepo](https://github.com/TruongHoang2004/Hexta).
+When introducing modifications or new shared utilities:
+1. Ensure all code adheres to English-only identifiers and documentation.
+2. Include comprehensive unit tests (`*_test.go`).
+3. Follow the 5-layer architecture rules defined in [`GEMINI.md`](../../GEMINI.md).

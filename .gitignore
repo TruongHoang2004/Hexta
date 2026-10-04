@@ -28,4 +28,15 @@ infrastructure/.redis/
 # go.work
 # go.work.sum
 
-node_modules/*
+node_modules/
+**/node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary agent worktrees
+.worktrees_tmp*
+
+

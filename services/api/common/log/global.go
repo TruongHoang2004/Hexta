@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/ecommercehub1/api/common"
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
-	"gitlab.com/ecommercehub1/shared/pkg/logger"
+	"github.com/TruongHoang2004/Hexta/services/api/common"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
 )
 
 var globalLogger *logger.Logger

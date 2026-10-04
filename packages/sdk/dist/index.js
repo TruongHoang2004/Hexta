@@ -89,13 +89,29 @@ var IdentityClient = class {
     }
   }
   // Tenant
+  async createTenant(input) {
+    const response = await this.client.post("/api/v1/tenants", input);
+    return response.data.data;
+  }
+  async getTenants() {
+    const response = await this.client.get("/api/v1/tenants");
+    return response.data.data;
+  }
   async getTenant(id) {
     const response = await this.client.get(`/api/v1/tenants/${id}`);
     return response.data.data;
   }
-  // Users
+  async updateTenant(id, input) {
+    const response = await this.client.put(`/api/v1/tenants/${id}`, input);
+    return response.data.data;
+  }
+  // Members
   async getUsers(tenantId) {
     const response = await this.client.get(`/api/v1/tenants/${tenantId}/users`);
+    return response.data.data;
+  }
+  async inviteMember(tenantId, input) {
+    const response = await this.client.post(`/api/v1/tenants/${tenantId}/invites`, input);
     return response.data.data;
   }
 };

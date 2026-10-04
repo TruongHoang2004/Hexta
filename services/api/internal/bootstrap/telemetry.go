@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/shared/pkg/telemetry"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/telemetry"
 	"go.uber.org/fx"
 )
 

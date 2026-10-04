@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"gorm.io/gorm"
 )
 

@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"gitlab.com/ecommercehub1/test/config"
+	"github.com/TruongHoang2004/Hexta/test/config"
 )
 
 type RegisterPayload struct {

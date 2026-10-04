@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/ecommercehub1/test/config"
+	"github.com/TruongHoang2004/Hexta/test/config"
 
 	"github.com/gavv/httpexpect/v2"
 	"github.com/stretchr/testify/assert"
