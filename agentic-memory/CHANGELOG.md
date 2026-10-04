@@ -10,6 +10,8 @@ This document consolidates all historical development changelogs for the Hexta p
 3. [Monorepo Architecture & Modernization](#3-monorepo-architecture--modernization)
 4. [CI/CD & DevOps Automation](#4-cicd--devops-automation)
 5. [Autonomous Agents & Repository Governance](#5-autonomous-agents--repository-governance)
+6. [Frontend & Design System](#6-frontend--design-system)
+
 
 ---
 
@@ -167,3 +169,19 @@ This document consolidates all historical development changelogs for the Hexta p
   - **Issue Formulation CLI**: Validates components, acceptance criteria, and DoD before creating GitHub issues.
   - **Execution Protocol**: Mandates pre-flight validation and context loading before any code modification.
 - **Impacted Files**: `.agents/skills/issue-creator/SKILL.md`, `.agents/scripts/create_issue.py`, `.agents/rules/skill-execution-protocol.md`, `GEMINI.md`.
+
+---
+
+## 6. Frontend & Design System
+
+### [#32] Default Light Mode with Seamless Dark Mode Toggle Support
+- **Date**: 2026-10-05 | **Scope**: `packages/ui`, `apps/web` | **PR / Issue**: [#32](https://github.com/TruongHoang2004/Hexta/issues/32)
+- **Summary**: Switched the primary interface theme to Light Mode as the default experience while preserving dark mode functionality with a responsive theme toggle mechanism.
+- **Key Technical Decisions**:
+  - **Encapsulated Theme Provider & Toggle (`packages/ui`)**: Implemented `ThemeProvider` wrapping `next-themes` and `ThemeToggle` component with Sun/Moon transition icons, client hydration guards, and accessibility attributes.
+  - **Tailwind CSS v4 Dark Variant (`apps/web/app/globals.css`)**: Configured `@custom-variant dark (&:where(.dark, .dark *));` to ensure class-based dark mode toggling works with Tailwind utilities. Defined clean slate light theme on `:root` and dark mode properties under `.dark`.
+  - **Default Light Theme Configuration (`apps/web/app/layout.tsx`)**: Configured `ThemeProvider` with `attribute="class"`, `defaultTheme="light"`, and `enableSystem={false}` to guarantee light mode renders on initial load.
+  - **Interactive Toggles in Headers**: Integrated `ThemeToggle` into both `AuthNav` and the workspace dashboard header in `tenant/page.tsx`.
+- **Impacted Files**: `packages/ui/src/components/theme-provider.tsx`, `packages/ui/src/components/theme-toggle.tsx`, `packages/ui/src/index.ts`, `apps/web/app/globals.css`, `apps/web/app/layout.tsx`, `apps/web/components/auth-nav.tsx`, `apps/web/app/(dashboard)/tenant/page.tsx`.
+- **Verification**: `pnpm --filter "./packages/*" run build`, `pnpm --filter web run lint`, and `pnpm --filter web run build` all pass with zero errors.
+
