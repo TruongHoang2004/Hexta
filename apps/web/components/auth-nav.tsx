@@ -2,11 +2,12 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Button } from "@hexta/ui";
+import { Button, ThemeToggle } from "@hexta/ui";
 import { useAuthStore } from "@/store/useAuthStore";
 import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import { User, LogOut, LayoutDashboard } from "lucide-react";
+
 
 const emptySubscribe = () => () => {};
 
@@ -36,6 +37,7 @@ export function AuthNav() {
   if (!isClient) {
     return (
       <div className="flex items-center gap-4">
+        <div className="w-9 h-9 animate-pulse bg-muted/20 rounded-full" />
         <div className="w-20 h-9 animate-pulse bg-muted/20 rounded-md" />
         <div className="w-28 h-9 animate-pulse bg-muted/20 rounded-full" />
       </div>
@@ -45,6 +47,7 @@ export function AuthNav() {
   if (isAuthenticated) {
     return (
       <div className="flex items-center gap-4">
+        <ThemeToggle />
         <div className="flex items-center gap-2 text-sm text-foreground bg-muted/10 px-3 py-1.5 rounded-full border border-border">
           <User className="w-4 h-4 text-primary" />
           <span className="font-medium truncate max-w-[150px]">
@@ -69,6 +72,7 @@ export function AuthNav() {
 
   return (
     <div className="flex items-center gap-4">
+      <ThemeToggle />
       <Button asChild variant="ghost" className="hover:text-primary transition-colors text-muted">
         <Link href="/login">Sign in</Link>
       </Button>
@@ -78,3 +82,4 @@ export function AuthNav() {
     </div>
   );
 }
+

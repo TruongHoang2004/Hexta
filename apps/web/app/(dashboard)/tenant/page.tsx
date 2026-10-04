@@ -6,6 +6,8 @@ import { Tenant, TenantMember, DefaultBrowserStorage } from "@hexta/sdk";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Building2, Users, Plus, Shield, CheckCircle2 } from "lucide-react";
+import { ThemeToggle } from "@hexta/ui";
+
 
 const storage = new DefaultBrowserStorage();
 
@@ -167,24 +169,28 @@ export default function TenantDashboardPage() {
             Manage your organizations, multi-tenant workspaces, and team memberships.
           </p>
         </div>
-        {tenants.length > 0 && (
-          <div className="flex items-center gap-2">
-            <select
-              className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
-              value={activeTenant?.id || ""}
-              onChange={(e) => {
-                const found = tenants.find((t) => t.id === e.target.value);
-                if (found) handleSelectTenant(found);
-              }}
-            >
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.slug})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {tenants.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white shadow-sm focus:border-indigo-500 focus:outline-none"
+                value={activeTenant?.id || ""}
+                onChange={(e) => {
+                  const found = tenants.find((t) => t.id === e.target.value);
+                  if (found) handleSelectTenant(found);
+                }}
+              >
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.slug})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <ThemeToggle />
+        </div>
+
       </div>
 
       {errorMessage && (
