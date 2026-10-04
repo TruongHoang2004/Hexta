@@ -68,3 +68,10 @@ All tasks, GitHub issues, and automated runners must strictly follow the defined
 - `in-review`: Code changes, unit tests, and memory artifacts are complete, and a Pull Request has been opened for human review. The runner removes `in-progress` and adds `in-review`.
 - `done`: The ticket is only counted as **Done** once the Pull Request has been **merged into `main`**. GitHub automatically closes the issue upon PR merge via `Closes #<number>`.
 
+## 8. Skill Execution & Documentation Protocol
+When executing skills (`github-task-runner`, `issue-creator`, `dev-plan`, `dev-design`, `dev-review`, `dev-changelog`), always adhere to the 4-phase sequence in `.agents/rules/skill-execution-protocol.md`:
+1. **Pre-flight Check**: Verify that all required inputs, documents, and labels exist before taking action. Never perform blind execution.
+2. **Context Loading**: Consult `GEMINI.md`, `agentic-memory/rules/`, and existing designs.
+3. **Execution**: Perform the core implementation or CLI steps.
+4. **Artifact & State**: Persist reasoning to `agentic-memory/` and transition lifecycle labels.
+
