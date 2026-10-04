@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import Cookies from "js-cookie";
+import { DefaultBrowserStorage } from "@ubi/sdk";
+
+const storage = new DefaultBrowserStorage();
 
 interface User {
   id: string;
@@ -23,33 +25,40 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (user) {
       set({ user, isAuthenticated: true });
     } else {
-      const token = Cookies.get("auth_token");
+      const token = storage.get("auth_token");
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split(".")[1]));
-          set({ user: { id: payload.sub || "", email: payload.email || "" }, isAuthenticated: true });
+          const id = payload.sub || payload.user_id || "";
+          const email = payload.email || "";
+          set({ user: { id, email }, isAuthenticated: true });
           return;
         } catch (e) {
           // ignore
         }
       }
-      set({ user: null, isAuthenticated: true });
+      set({ user: null, isAuthenticated: false });
     }
   },
 
   logout: () => {
+    storage.remove("auth_token");
     set({ user: null, isAuthenticated: false });
   },
 
   initialize: () => {
-    const token = Cookies.get("auth_token");
+    const token = storage.get("auth_token");
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        set({ isAuthenticated: true, user: { id: payload.sub || "", email: payload.email || "" } });
+        const id = payload.sub || payload.user_id || "";
+        const email = payload.email || "";
+        set({ isAuthenticated: true, user: { id, email } });
       } catch (e) {
-        set({ isAuthenticated: true });
+        set({ isAuthenticated: false, user: null });
       }
+    } else {
+      set({ isAuthenticated: false, user: null });
     }
   },
 }));

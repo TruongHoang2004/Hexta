@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { sdk } from "@/lib/sdk";
-import { Tenant, TenantMember } from "@hexta/sdk";
+import { Tenant, TenantMember, DefaultBrowserStorage } from "@ubi/sdk";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Building2, Users, Plus, Shield, CheckCircle2 } from "lucide-react";
+
+const storage = new DefaultBrowserStorage();
 
 export default function TenantDashboardPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -55,7 +57,7 @@ export default function TenantDashboardPage() {
   };
 
   useEffect(() => {
-    const token = Cookies.get("auth_token") || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
+    const token = storage.get("auth_token") || Cookies.get("auth_token") || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
     if (!token) {
       router.push("/login");
       return;

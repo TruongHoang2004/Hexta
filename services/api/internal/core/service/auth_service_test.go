@@ -293,3 +293,24 @@ func TestLogoutEnforcesSessionOwnership(t *testing.T) {
 	_, err = authSvc.ValidateAccessToken(ctx, user1Tokens.AccessToken)
 	assert.NotNil(t, err)
 }
+
+func TestAuthService_JWTClaims_EmailAndSub(t *testing.T) {
+	cfg := createTestConfig("test-jwt-secret-key-123", "test-jwt-secret-key-123", 900, 86400)
+	identityRepo := newMockIdentityRepo()
+	sessionRepo := newMockSessionRepo()
+
+	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	ctx := context.Background()
+
+	testEmail := "user@example.com"
+	tokens, err := authSvc.Register(ctx, testEmail, "password123", "device", "127.0.0.1", "agent")
+	assert.Nil(t, err)
+
+	claims, parseErr := authSvc.ParseToken(tokens.AccessToken)
+	assert.Nil(t, parseErr)
+	assert.Equal(t, tokens.SessionID, claims.SessionID)
+	assert.Equal(t, tokens.User.UserID, claims.UserID)
+	assert.Equal(t, testEmail, claims.Email)
+	assert.Equal(t, tokens.User.UserID, claims.Subject)
+}
+
