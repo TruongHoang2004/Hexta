@@ -57,4 +57,4 @@ jobs:
 
       - name: Validate Atlas Migration Directory Integrity
         run: |
-          atlas migrate hash --dir "file://migrations/api" --check
+          atlas migrate validate --dir "file://migrations/api"
