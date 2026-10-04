@@ -24,6 +24,50 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/auth/google/callback": {
+            "get": {
+                "description": "Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OAuth code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "OAuth CSRF state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/google/login": {
+            "get": {
+                "description": "Redirects to Google consent screen with secure CSRF state",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google OAuth login",
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with email and password",
@@ -44,7 +88,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest"
                         }
                     }
                 ],
@@ -52,7 +96,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse"
                         }
                     }
                 }
@@ -60,7 +104,12 @@ const docTemplate = `{
         },
         "/api/v1/auth/logout": {
             "post": {
-                "description": "Revoke the user's current session",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revoke the user's current or specified session (enforcing ownership)",
                 "consumes": [
                     "application/json"
                 ],
@@ -76,9 +125,8 @@ const docTemplate = `{
                         "description": "Logout request",
                         "name": "request",
                         "in": "body",
-                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest"
                         }
                     }
                 ],
@@ -109,7 +157,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -117,7 +165,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse"
                         }
                     }
                 }
@@ -143,7 +191,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest"
                         }
                     }
                 ],
@@ -151,7 +199,236 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all workspaces the authenticated user belongs to",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "List user workspaces",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new multi-tenant workspace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Create workspace",
+                "parameters": [
+                    {
+                        "description": "Workspace data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get details for a specific workspace (caller must be a member)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Get workspace details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update workspace details (requires owner or admin role)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Update workspace settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Workspace update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{id}/invites": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Invite a user to join the workspace (requires owner or admin role)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Invite user to workspace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Invite data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{id}/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all members belonging to a workspace",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "List workspace members",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse"
                         }
                     }
                 }
@@ -185,7 +462,43 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "slug"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                },
+                "plan": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest": {
+            "type": "object",
+            "required": [
+                "user_id"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -201,7 +514,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LoginResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -218,18 +531,15 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.LogoutRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LogoutRequest": {
             "type": "object",
-            "required": [
-                "session_id"
-            ],
             "properties": {
                 "session_id": {
                     "type": "integer"
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -240,7 +550,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RefreshTokenResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -251,7 +561,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -267,7 +577,7 @@ const docTemplate = `{
                 }
             }
         },
-        "gitlab_com_ecommercehub1_api_internal_present_http_dto.RegisterResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RegisterResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -282,6 +592,111 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string"
                 }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "plan": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "plan": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse"
+                    }
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
+                    }
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
+                },
+                "meta": {}
             }
         }
     },

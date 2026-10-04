@@ -7,14 +7,34 @@ interface Tenant {
     status: string;
     plan: string;
     owner_id: string;
+    created_at?: string;
+    updated_at?: string;
+}
+interface TenantMember {
+    id: number;
+    tenant_id: string;
+    user_id: string;
+    role: string;
+    created_at?: string;
 }
 interface User {
     id: string;
     tenant_id: string;
-    email: string;
-    full_name: string;
-    status: string;
-    role_id: string;
+    email?: string;
+    full_name?: string;
+    status?: string;
+    role_id?: string;
+    role?: string;
+    user_id?: string;
+}
+interface CreateTenantInput {
+    name: string;
+    slug: string;
+    plan?: string;
+}
+interface InviteMemberInput {
+    user_id: string;
+    role?: string;
 }
 interface StorageAdapter {
     get: (key: string) => string | null | Promise<string | null>;
@@ -38,8 +58,14 @@ declare class IdentityClient {
         token: string;
     }>;
     logout(): Promise<void>;
+    createTenant(input: CreateTenantInput): Promise<Tenant>;
+    getTenants(): Promise<Tenant[]>;
     getTenant(id: string): Promise<Tenant>;
-    getUsers(tenantId: string): Promise<User[]>;
+    updateTenant(id: string, input: Partial<CreateTenantInput> & {
+        status?: string;
+    }): Promise<Tenant>;
+    getUsers(tenantId: string): Promise<TenantMember[]>;
+    inviteMember(tenantId: string, input: InviteMemberInput): Promise<TenantMember>;
 }
 interface SDKConfig {
     apiUrl: string;
@@ -52,4 +78,4 @@ declare class EcommerceHubSDK {
     constructor(config: SDKConfig);
 }
 
-export { DefaultBrowserStorage, EcommerceHubSDK, IdentityClient, type SDKConfig, type StorageAdapter, type Tenant, type User };
+export { type CreateTenantInput, DefaultBrowserStorage, EcommerceHubSDK, IdentityClient, type InviteMemberInput, type SDKConfig, type StorageAdapter, type Tenant, type TenantMember, type User };

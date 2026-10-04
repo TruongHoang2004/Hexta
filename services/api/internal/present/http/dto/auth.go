@@ -34,5 +34,5 @@ type RefreshTokenResponse struct {
 }
 
 type LogoutRequest struct {
-	SessionID int64 `json:"session_id" validate:"required"`
+	SessionID int64 `json:"session_id,omitempty"`
 }

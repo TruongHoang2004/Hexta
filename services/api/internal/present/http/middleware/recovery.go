@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/ecommercehub1/api/common/log"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 )
 
 func Recovery() gin.HandlerFunc {

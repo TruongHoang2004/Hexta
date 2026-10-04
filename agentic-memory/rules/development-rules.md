@@ -1,6 +1,6 @@
 # Development Rules & Coding Standards
 
-This document defines the core development rules and engineering standards across the Hexta / CommerceHub codebase.
+This document defines the core development rules and engineering standards across the Hexta codebase.
 
 ---
 
@@ -19,7 +19,7 @@ This document defines the core development rules and engineering standards acros
 - **Dependency Injection**: Managed via **Uber Fx** (`fx.Provide`, `fx.Invoke` in `internal/bootstrap/`).
 - **Error Handling**:
   - Always return `*errors.Error` from service and repository layers.
-  - Use `gitlab.com/ecommercehub1/shared/pkg/errors` (or `lib/pkg/errors`).
+  - Use `github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors`.
   - Controllers map errors to corresponding HTTP status codes.
 - **DTOs & Standardized Responses**:
   - Define all requests and responses in `internal/present/http/dto/`.

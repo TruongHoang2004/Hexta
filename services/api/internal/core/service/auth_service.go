@@ -2,36 +2,61 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"gitlab.com/ecommercehub1/api/config"
-	"gitlab.com/ecommercehub1/api/internal/core/model"
-	"gitlab.com/ecommercehub1/api/internal/repository"
-	"gitlab.com/ecommercehub1/shared/pkg/errors"
-	"github.com/google/uuid"
-	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+)
+
+const (
+	OAuthStateTTL         = 5 * time.Minute
+	defaultAccessSecret   = "access-token-secret-fallback-for-dev"
+	defaultRefreshSecret  = "refresh-token-secret-fallback-for-dev"
+	defaultAccessExpire   = 15 * time.Minute
+	defaultRefreshExpire  = 7 * 24 * time.Hour
+	TokenTypeAccess       = "access"
+	TokenTypeRefresh      = "refresh"
 )
 
 type IAuthService interface {
 	Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	Login(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	GoogleLogin(ctx context.Context) (string, *errors.Error)
-	GoogleCallback(ctx context.Context, code string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
+	GoogleCallback(ctx context.Context, code string, state string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error)
 	RefreshToken(ctx context.Context, refreshTokenStr string) (*AuthTokens, *errors.Error)
-	Logout(ctx context.Context, sessionID int64) *errors.Error
+	Logout(ctx context.Context, userID string, sessionID int64) *errors.Error
+	ValidateAccessToken(ctx context.Context, tokenStr string) (*types.AuthInfo, *errors.Error)
+	ValidateAndConsumeOAuthState(ctx context.Context, state string) *errors.Error
+	GetAccessTokenExpire() time.Duration
+	GetRefreshTokenExpire() time.Duration
+	ParseToken(tokenStr string) (*JWTClaims, error)
 }
 
 type AuthService struct {
 	*baseService
-	identityRepo repository.IIdentityRepository
-	sessionRepo  repository.ISessionRepository
-	jwtSecret    []byte
+	identityRepo       repository.IIdentityRepository
+	sessionRepo        repository.ISessionRepository
+	redisClient        *cache.RedisClient
+	stateCache         sync.Map
+	accessTokenSecret  []byte
+	accessTokenExpire  time.Duration
+	refreshTokenSecret []byte
+	refreshTokenExpire time.Duration
 }
 
 type AuthTokens struct {
@@ -44,23 +69,73 @@ type AuthTokens struct {
 type JWTClaims struct {
 	SessionID int64  `json:"session_id"`
 	UserID    string `json:"user_id"`
-	Email     string `json:"email"`
+	Email     string `json:"email,omitempty"`
+	TokenType string `json:"token_type,omitempty"`
 	jwt.RegisteredClaims
 }
 
-func NewAuthService(identityRepo *repository.IdentityRepository, sessionRepo *repository.SessionRepository) *AuthService {
-	// TODO: Inject JWT secret from config
-	return &AuthService{
-		baseService:  NewBaseService(),
-		identityRepo: identityRepo,
-		sessionRepo:  sessionRepo,
-		jwtSecret:    []byte("super-secret-key-replace-me-later"),
+func NewAuthService(
+	identityRepo *repository.IdentityRepository,
+	sessionRepo *repository.SessionRepository,
+	redisClient *cache.RedisClient,
+	cfg *config.Config,
+) *AuthService {
+	return NewAuthServiceWithRepos(identityRepo, sessionRepo, redisClient, cfg)
+}
+
+func NewAuthServiceWithRepos(
+	identityRepo repository.IIdentityRepository,
+	sessionRepo repository.ISessionRepository,
+	redisClient *cache.RedisClient,
+	cfg *config.Config,
+) *AuthService {
+	if cfg == nil {
+		cfg = config.AppConfig
 	}
+
+	accessSecret := defaultAccessSecret
+	if cfg != nil && cfg.JWT.AccessTokenSecret != "" {
+		accessSecret = cfg.JWT.AccessTokenSecret
+	}
+
+	accessExpire := defaultAccessExpire
+	if cfg != nil && cfg.JWT.AccessTokenExpire > 0 {
+		accessExpire = time.Duration(cfg.JWT.AccessTokenExpire) * time.Second
+	}
+
+	refreshSecret := defaultRefreshSecret
+	if cfg != nil && cfg.JWT.RefreshTokenSecret != "" {
+		refreshSecret = cfg.JWT.RefreshTokenSecret
+	}
+
+	refreshExpire := defaultRefreshExpire
+	if cfg != nil && cfg.JWT.RefreshTokenExpire > 0 {
+		refreshExpire = time.Duration(cfg.JWT.RefreshTokenExpire) * time.Second
+	}
+
+	return &AuthService{
+		baseService:        NewBaseService(),
+		identityRepo:       identityRepo,
+		sessionRepo:        sessionRepo,
+		redisClient:        redisClient,
+		accessTokenSecret:  []byte(accessSecret),
+		accessTokenExpire:  accessExpire,
+		refreshTokenSecret: []byte(refreshSecret),
+		refreshTokenExpire: refreshExpire,
+	}
+}
+
+func (s *AuthService) GetAccessTokenExpire() time.Duration {
+	return s.accessTokenExpire
+}
+
+func (s *AuthService) GetRefreshTokenExpire() time.Duration {
+	return s.refreshTokenExpire
 }
 
 func (s *AuthService) Register(ctx context.Context, email, password string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
 	// 1. Check if email already exists
-	existing, err := s.identityRepo.GetCredentialByIdentifier(ctx, email, model.ProviderLocal)
+	existing, err := s.identityRepo.GetFirstByIdentifier(ctx, email)
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +151,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 
 	// 3. Create identity
 	userID := uuid.New().String()
+	hashedPasswordStr := string(hashedPassword)
 	identity := &model.AuthIdentities{
 		UserID:     userID,
 		Provider:   model.ProviderLocal,
 		Identifier: email,
-		Password:   string(hashedPassword),
+		Password:   &hashedPasswordStr,
 	}
 
 	identity, err = s.identityRepo.CreateIdentity(ctx, identity)
@@ -90,10 +166,10 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 
 	// 4. Create session in DB
 	now := time.Now()
-	expiresAt := now.Add(7 * 24 * time.Hour) // 7 days for refresh token
+	expiresAt := now.Add(s.refreshTokenExpire)
 	session := &model.Sessions{
 		UserID:     identity.UserID,
-		Token:      "temp", // Will update after generating JWT
+		Token:      "temp",
 		Provider:   model.ProviderLocal,
 		DeviceInfo: deviceInfo,
 		IpAddress:  ipAddress,
@@ -108,12 +184,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string, devi
 	}
 
 	// 5. Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 15*time.Minute)
+	accessToken, jwtErr := s.generateAccessToken(session.ID, identity.UserID, email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateRefreshToken(session.ID, identity.UserID, email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -132,21 +208,21 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 	if err != nil {
 		return nil, err
 	}
-	if identity == nil {
+	if identity == nil || identity.Password == nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
 	// 2. Check password
-	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(identity.Password), []byte(password)); bcryptErr != nil {
+	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(*identity.Password), []byte(password)); bcryptErr != nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid email or password")
 	}
 
 	// 3. Create session in DB
 	now := time.Now()
-	expiresAt := now.Add(7 * 24 * time.Hour) // 7 days for refresh token
+	expiresAt := now.Add(s.refreshTokenExpire)
 	session := &model.Sessions{
 		UserID:     identity.UserID,
-		Token:      "temp", // Will update after generating JWT
+		Token:      "temp",
 		Provider:   model.ProviderLocal,
 		DeviceInfo: deviceInfo,
 		IpAddress:  ipAddress,
@@ -161,20 +237,15 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 	}
 
 	// 4. Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 15*time.Minute)
+	accessToken, jwtErr := s.generateAccessToken(session.ID, identity.UserID, email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, email, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateRefreshToken(session.ID, identity.UserID, email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
-
-	// 5. Update session with refresh token
-	// TODO: add UpdateToken to session repository if needed, or just leave it for now.
-	// Actually, the model says `Token`. It usually stores the refresh token string or a hash of it.
-	// We will skip updating for brevity unless required by logic.
 
 	return &AuthTokens{
 		AccessToken:  accessToken,
@@ -185,8 +256,8 @@ func (s *AuthService) Login(ctx context.Context, email, password string, deviceI
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) (*AuthTokens, *errors.Error) {
-	// 1. Parse token
-	claims, err := s.parseToken(refreshTokenStr)
+	// 1. Parse refresh token
+	claims, err := s.parseRefreshToken(refreshTokenStr)
 	if err != nil {
 		return nil, errors.ErrUnauthorized(ctx).SetMessage("Invalid refresh token")
 	}
@@ -201,12 +272,12 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	}
 
 	// 3. Generate new tokens
-	accessToken, jwtErr := s.generateToken(session.ID, session.UserID, claims.Email, 15*time.Minute)
+	accessToken, jwtErr := s.generateAccessToken(session.ID, session.UserID, claims.Email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	newRefreshToken, jwtErr := s.generateToken(session.ID, session.UserID, claims.Email, 7*24*time.Hour)
+	newRefreshToken, jwtErr := s.generateRefreshToken(session.ID, session.UserID, claims.Email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -219,10 +290,20 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 }
 
 func (s *AuthService) getGoogleOAuthConfig() *oauth2.Config {
+	cfg := config.AppConfig
+	clientID := ""
+	clientSecret := ""
+	redirectURL := ""
+	if cfg != nil {
+		clientID = cfg.OAuth.Google.ClientID
+		clientSecret = cfg.OAuth.Google.ClientSecret
+		redirectURL = cfg.OAuth.Google.RedirectURL
+	}
+
 	return &oauth2.Config{
-		ClientID:     config.AppConfig.OAuth.Google.ClientID,
-		ClientSecret: config.AppConfig.OAuth.Google.ClientSecret,
-		RedirectURL:  config.AppConfig.OAuth.Google.RedirectURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURL,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
@@ -233,11 +314,61 @@ func (s *AuthService) getGoogleOAuthConfig() *oauth2.Config {
 
 func (s *AuthService) GoogleLogin(ctx context.Context) (string, *errors.Error) {
 	conf := s.getGoogleOAuthConfig()
-	url := conf.AuthCodeURL("state") // TODO: use secure random state
+	state, err := s.generateAndSaveOAuthState(ctx)
+	if err != nil {
+		return "", errors.ErrSystemError(ctx, "Failed to generate secure OAuth state")
+	}
+	url := conf.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	return url, nil
 }
 
-func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
+func (s *AuthService) generateAndSaveOAuthState(ctx context.Context) (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	state := base64.RawURLEncoding.EncodeToString(b)
+
+	if s.redisClient != nil {
+		key := fmt.Sprintf("oauth_state:%s", state)
+		if err := s.redisClient.Set(ctx, key, []byte("1"), OAuthStateTTL); err != nil {
+			return "", err
+		}
+	} else {
+		s.stateCache.Store(state, time.Now().Add(OAuthStateTTL))
+	}
+	return state, nil
+}
+
+func (s *AuthService) ValidateAndConsumeOAuthState(ctx context.Context, state string) *errors.Error {
+	if state == "" {
+		return errors.ErrUnauthorized(ctx).SetMessage("Missing OAuth state parameter")
+	}
+
+	if s.redisClient != nil {
+		key := fmt.Sprintf("oauth_state:%s", state)
+		val, err := s.redisClient.Get(ctx, key)
+		if err != nil || len(val) == 0 {
+			return errors.ErrUnauthorized(ctx).SetMessage("Invalid or expired OAuth state")
+		}
+		_ = s.redisClient.Delete(ctx, key)
+		return nil
+	}
+
+	if exp, ok := s.stateCache.LoadAndDelete(state); ok {
+		if expireTime, ok := exp.(time.Time); ok && expireTime.After(time.Now()) {
+			return nil
+		}
+	}
+	return errors.ErrUnauthorized(ctx).SetMessage("Invalid or expired OAuth state")
+}
+
+func (s *AuthService) GoogleCallback(ctx context.Context, code string, state string, deviceInfo, ipAddress, userAgent string) (*AuthTokens, *errors.Error) {
+	// 1. Validate and consume OAuth state (CSRF protection)
+	if err := s.ValidateAndConsumeOAuthState(ctx, state); err != nil {
+		return nil, err
+	}
+
 	conf := s.getGoogleOAuthConfig()
 
 	token, err := conf.Exchange(ctx, code)
@@ -261,19 +392,29 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 		return nil, errors.ErrSystemError(ctx, "Failed to parse user info")
 	}
 
-	// Find identity by email
+	// 2. Find identity by email under Google provider
 	identity, dbErr := s.identityRepo.GetCredentialByIdentifier(ctx, userInfo.Email, model.ProviderGoogle)
 	if dbErr != nil {
 		return nil, dbErr
 	}
 
 	if identity == nil {
-		// Auto-register
+		// Check for existing local account to link
+		localIdentity, err := s.identityRepo.GetCredentialByIdentifier(ctx, userInfo.Email, model.ProviderLocal)
+		if err != nil {
+			return nil, err
+		}
+
+		userID := uuid.New().String()
+		if localIdentity != nil {
+			userID = localIdentity.UserID
+		}
+
 		identity = &model.AuthIdentities{
-			UserID:     uuid.New().String(),
+			UserID:     userID,
 			Provider:   model.ProviderGoogle,
 			Identifier: userInfo.Email,
-			Password:   "oauth2-dummy", // Dummy password for OAuth
+			Password:   nil,
 		}
 		identity, dbErr = s.identityRepo.CreateIdentity(ctx, identity)
 		if dbErr != nil {
@@ -281,9 +422,9 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 		}
 	}
 
-	// Create session
+	// 3. Create session
 	now := time.Now()
-	expiresAt := now.Add(7 * 24 * time.Hour)
+	expiresAt := now.Add(s.refreshTokenExpire)
 	session := &model.Sessions{
 		UserID:     identity.UserID,
 		Token:      "temp",
@@ -300,13 +441,13 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 		return nil, dbErr
 	}
 
-	// Generate JWT tokens
-	accessToken, jwtErr := s.generateToken(session.ID, identity.UserID, userInfo.Email, 15*time.Minute)
+	// 4. Generate JWT tokens
+	accessToken, jwtErr := s.generateAccessToken(session.ID, identity.UserID, userInfo.Email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate access token")
 	}
 
-	refreshToken, jwtErr := s.generateToken(session.ID, identity.UserID, userInfo.Email, 7*24*time.Hour)
+	refreshToken, jwtErr := s.generateRefreshToken(session.ID, identity.UserID, userInfo.Email)
 	if jwtErr != nil {
 		return nil, errors.ErrSystemError(ctx, "Failed to generate refresh token")
 	}
@@ -319,16 +460,65 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, deviceInf
 	}, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, sessionID int64) *errors.Error {
+func (s *AuthService) Logout(ctx context.Context, userID string, sessionID int64) *errors.Error {
+	session, err := s.sessionRepo.GetSessionByID(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return errors.ErrNotFound(ctx, "Session", "Session not found")
+	}
+
+	if session.UserID != userID {
+		return errors.ErrForbidden(ctx).SetDetail("You are not authorized to revoke this session")
+	}
+
 	return s.sessionRepo.RevokeSession(ctx, sessionID)
 }
 
-func (s *AuthService) generateToken(sessionID int64, userID string, email string, ttl time.Duration) (string, error) {
+func (s *AuthService) ValidateAccessToken(ctx context.Context, tokenStr string) (*types.AuthInfo, *errors.Error) {
+	claims, err := s.parseAccessToken(tokenStr)
+	if err != nil {
+		return nil, errors.ErrUnauthorized(ctx).SetDetail(err.Error())
+	}
+
+	session, dbErr := s.sessionRepo.GetSessionByID(ctx, claims.SessionID)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+	if session == nil || !session.IsActive || session.ExpiresAt.Before(time.Now()) {
+		return nil, errors.ErrUnauthorized(ctx).SetDetail("Session is expired or revoked")
+	}
+
+	return &types.AuthInfo{
+		UserID:    claims.UserID,
+		SessionID: claims.SessionID,
+	}, nil
+}
+
+func (s *AuthService) generateAccessToken(sessionID int64, userID string, email ...string) (string, error) {
+	e := ""
+	if len(email) > 0 {
+		e = email[0]
+	}
+	return s.generateToken(sessionID, userID, e, TokenTypeAccess, s.accessTokenSecret, s.accessTokenExpire)
+}
+
+func (s *AuthService) generateRefreshToken(sessionID int64, userID string, email ...string) (string, error) {
+	e := ""
+	if len(email) > 0 {
+		e = email[0]
+	}
+	return s.generateToken(sessionID, userID, e, TokenTypeRefresh, s.refreshTokenSecret, s.refreshTokenExpire)
+}
+
+func (s *AuthService) generateToken(sessionID int64, userID string, email string, tokenType string, secret []byte, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
 		SessionID: sessionID,
 		UserID:    userID,
 		Email:     email,
+		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -337,20 +527,35 @@ func (s *AuthService) generateToken(sessionID int64, userID string, email string
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
+	return token.SignedString(secret)
 }
 
-func (s *AuthService) parseToken(tokenStr string) (*JWTClaims, error) {
+func (s *AuthService) parseAccessToken(tokenStr string) (*JWTClaims, error) {
+	return s.parseTokenWithSecret(tokenStr, s.accessTokenSecret, TokenTypeAccess)
+}
+
+func (s *AuthService) parseRefreshToken(tokenStr string) (*JWTClaims, error) {
+	return s.parseTokenWithSecret(tokenStr, s.refreshTokenSecret, TokenTypeRefresh)
+}
+
+func (s *AuthService) ParseToken(tokenStr string) (*JWTClaims, error) {
+	return s.parseAccessToken(tokenStr)
+}
+
+func (s *AuthService) parseTokenWithSecret(tokenStr string, secret []byte, expectedType string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return s.jwtSecret, nil
+		return secret, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		if claims.TokenType != "" && claims.TokenType != expectedType {
+			return nil, fmt.Errorf("invalid token type: expected %s, got %s", expectedType, claims.TokenType)
+		}
 		return claims, nil
 	}
 	return nil, fmt.Errorf("invalid token claims")

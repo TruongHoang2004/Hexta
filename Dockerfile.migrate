@@ -1,5 +1,7 @@
 # Use golang alpine as the base so you have Go, apk, and a shell
-FROM golang:1.22-alpine
+FROM golang:alpine
+
+ENV GOTOOLCHAIN=auto
 
 # Install git and certificates
 RUN apk add --no-cache ca-certificates git

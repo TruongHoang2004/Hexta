@@ -1,4 +1,4 @@
-# Main Makefile for CommerceHub Backend
+# Main Makefile for Hexta Platform
 
 .PHONY: debug infra-up infra-down local-up local-down clean
 
