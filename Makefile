@@ -93,14 +93,14 @@ ts-install:
 	@pnpm install
 
 # Add a package to a specific workspace (Usage: make ts-add pkg=axios filter=web)
-# Note: filter can be the package name (e.g., web, @ubi/sdk) or folder path (e.g., ./apps/web)
+# Note: filter can be the package name (e.g., web, @hexta/sdk) or folder path (e.g., ./apps/web)
 ts-add:
 	@if [ -z "$(pkg)" ] || [ -z "$(filter)" ]; then echo "Error: pkg and filter are required (e.g. make ts-add pkg=axios filter=web)"; exit 1; fi
 	@pnpm add $(pkg) --filter $(filter)
 
-# Add a dev dependency to a specific workspace (Usage: make ts-add-dev pkg=typescript filter=@ubi/sdk)
+# Add a dev dependency to a specific workspace (Usage: make ts-add-dev pkg=typescript filter=@hexta/sdk)
 ts-add-dev:
-	@if [ -z "$(pkg)" ] || [ -z "$(filter)" ]; then echo "Error: pkg and filter are required (e.g. make ts-add-dev pkg=typescript filter=@ubi/sdk)"; exit 1; fi
+	@if [ -z "$(pkg)" ] || [ -z "$(filter)" ]; then echo "Error: pkg and filter are required (e.g. make ts-add-dev pkg=typescript filter=@hexta/sdk)"; exit 1; fi
 	@pnpm add -D $(pkg) --filter $(filter)
 
 # Add a dev package to the workspace root (Usage: make ts-add-root pkg=prettier)

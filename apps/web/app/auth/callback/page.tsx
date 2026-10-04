@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
-import { DefaultBrowserStorage } from "@ubi/sdk";
+import { DefaultBrowserStorage } from "@hexta/sdk";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Loader2 } from "lucide-react";
 import { toast } from "@hexta/ui";

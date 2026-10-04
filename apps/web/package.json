@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hexta/ui": "workspace:*",
-    "@ubi/sdk": "workspace:*",
+    "@hexta/sdk": "workspace:*",
     "js-cookie": "^3.0.8",
     "lucide-react": "^1.31.0",
     "next": "16.3.0",
