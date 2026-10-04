@@ -38,7 +38,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: 'go.work'
           cache: true
           cache-dependency-path: go.work.sum
 
@@ -50,7 +50,7 @@ jobs:
 
       - name: Run Backend Tests
         run: |
-          go test -v -race -coverprofile=coverage.out ./services/api/... ./packages/shared/...
+          go test -v -race ./services/api/... ./packages/shared/...
 
       - name: Setup Atlas CLI
         uses: ariga/setup-atlas@v0

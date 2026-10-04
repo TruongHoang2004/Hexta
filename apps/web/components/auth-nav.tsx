@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Button } from "@hexta/ui";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -8,13 +8,22 @@ import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import { User, LogOut, LayoutDashboard } from "lucide-react";
 
+const emptySubscribe = () => () => {};
+
+function useIsClient() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
+
 export function AuthNav() {
   const { isAuthenticated, user, initialize, logout } = useAuthStore();
-  const [isClient, setIsClient] = useState(false);
+  const isClient = useIsClient();
   const router = useRouter();
 
   useEffect(() => {
-    setIsClient(true);
     initialize();
   }, [initialize]);
 
@@ -52,7 +61,7 @@ export function AuthNav() {
 
         <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-full shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all">
           <LogOut className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Đăng xuất</span>
+          <span className="hidden sm:inline">Logout</span>
         </Button>
       </div>
     );
@@ -61,10 +70,10 @@ export function AuthNav() {
   return (
     <div className="flex items-center gap-4">
       <Button asChild variant="ghost" className="hover:text-primary transition-colors text-muted">
-        <Link href="/login">Đăng nhập</Link>
+        <Link href="/login">Sign in</Link>
       </Button>
       <Button asChild className="rounded-full shadow-lg shadow-primary/25 transition-all">
-        <Link href="/register">Bắt đầu ngay</Link>
+        <Link href="/register">Get Started</Link>
       </Button>
     </div>
   );

@@ -47,7 +47,7 @@ jobs:
 
       - name: Build Shared Packages
         run: |
-          pnpm --filter @ubi/sdk run build
+          pnpm --filter "./packages/*" --if-present run build
 
       - name: Lint Applications
         run: |

@@ -24,8 +24,8 @@ export default function LoginPage() {
       await sdk.identity.login(email, password);
       setAuth();
       router.push("/tenant");
-    } catch (err: any) {
-      toast.error(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Sign in failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }

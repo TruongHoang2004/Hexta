@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 interface User {
   id: string;
   email: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AuthState {
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           const payload = JSON.parse(atob(token.split(".")[1]));
           set({ user: { id: payload.sub || "", email: payload.email || "" }, isAuthenticated: true });
           return;
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         set({ isAuthenticated: true, user: { id: payload.sub || "", email: payload.email || "" } });
-      } catch (e) {
+      } catch {
         set({ isAuthenticated: true });
       }
     }

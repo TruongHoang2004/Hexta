@@ -37,8 +37,8 @@ export default function RegisterPage() {
       await sdk.identity.register(email, password);
       setAuth();
       router.push("/tenant");
-    } catch (err: any) {
-      toast.error(err.message || "Đăng ký thất bại. Vui lòng thử lại sau.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
