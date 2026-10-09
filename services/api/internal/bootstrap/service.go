@@ -10,6 +10,7 @@ func BuildService() fx.Option {
 	return fx.Provide(
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
+		service.NewHealthService,
 		service.NewAuthService,
 		service.NewTenantService,
 	)

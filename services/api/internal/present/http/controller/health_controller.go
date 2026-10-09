@@ -1,31 +1,26 @@
 package controller
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/response"
-	"gorm.io/gorm"
 )
 
 type HealthController struct {
 	*baseController
-	db    *gorm.DB
-	redis *cache.RedisClient
+	healthService service.IHealthService
 }
 
 func NewHealthController(
 	validate *validator.Validate,
-	db *gorm.DB,
-	redis *cache.RedisClient,
+	healthService service.IHealthService,
 ) *HealthController {
 	return &HealthController{
 		baseController: NewBaseController(validate),
-		db:             db,
-		redis:          redis,
+		healthService:  healthService,
 	}
 }
 
@@ -38,36 +33,15 @@ func NewHealthController(
 // @Success 200 {object} map[string]string
 // @Router /health [get]
 func (h *HealthController) HealthCheck(c *gin.Context) {
-	status := "up"
-	details := make(map[string]string)
-
-	// Check Database
-	sqlDB, err := h.db.DB()
-	if err != nil {
-		status = "down"
-		details["database"] = "unreachable"
-	} else if err := sqlDB.Ping(); err != nil {
-		status = "down"
-		details["database"] = "ping failed"
-	} else {
-		details["database"] = "ok"
-	}
-
-	// Check Redis
-	if err := h.redis.Client.Ping(context.Background()).Err(); err != nil {
-		status = "down"
-		details["redis"] = "ping failed"
-	} else {
-		details["redis"] = "ok"
-	}
+	result := h.healthService.CheckHealth(c.Request.Context())
 
 	httpStatus := http.StatusOK
-	if status == "down" {
+	if result.Status == "down" {
 		httpStatus = http.StatusServiceUnavailable
 	}
 
 	c.JSON(httpStatus, response.NewSuccessResponse(gin.H{
-		"status":  status,
-		"details": details,
+		"status":  result.Status,
+		"details": result.Details,
 	}, nil))
 }

@@ -185,3 +185,9 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `packages/ui/src/components/theme-provider.tsx`, `packages/ui/src/components/theme-toggle.tsx`, `packages/ui/src/index.ts`, `apps/web/app/globals.css`, `apps/web/app/layout.tsx`, `apps/web/components/auth-nav.tsx`, `apps/web/app/(dashboard)/tenant/page.tsx`.
 - **Verification**: `pnpm --filter "./packages/*" run build`, `pnpm --filter web run lint`, and `pnpm --filter web run build` all pass with zero errors.
 
+
+### [Task] Changelog: Health Controller 5-Layer Architecture Boundary Resolution
+- **Date**: 2026-10-09 | **Scope**: `packages/`, `apps/`
+
+### [Task] Changelog: Repository Layer Test Coverage Expansion
+- **Date**: 2026-10-09 | **Scope**: `packages/`, `apps/`
