@@ -46,10 +46,10 @@ Hexta is architected with a decoupled frontend, high-throughput Go backend servi
 └───────┬──────────────┬──────────────┬──────────────┬───────────┬───────┘
         │              │              │              │           │
         ▼              ▼              ▼              ▼           ▼
-┌──────────────┐ ┌───────────┐ ┌────────────┐ ┌────────────┐ ┌──────────┐
-│  PostgreSQL  │ │   Redis   │ │Elasticsearch││  MinIO S3  │ │  Kafka   │
-│  Port: 5433  │ │ Port: 6379│ │ Port: 9200 │ │  Port: 9000│ │Port: 9092│
-└──────────────┘ └───────────┘ └────────────┘ └────────────┘ └──────────┘
+┌──────────────┐ ┌───────────┐ ┌─────────────┐ ┌──────────┐ ┌──────────┐
+│  PostgreSQL  │ │   Redis   │ │ Elasticsearch│ │  Kafka   │ │  Qdrant  │
+│  Port: 5433  │ │ Port: 6379│ │  Port: 9200  │ │Port: 9092│ │Port: 6333│
+└──────────────┘ └───────────┘ └─────────────┘ └──────────┘ └──────────┘
 ```
 
 ### Monorepo Structure
@@ -64,7 +64,7 @@ Hexta is architected with a decoupled frontend, high-throughput Go backend servi
   - `packages/sdk`: `@ubi/sdk` TypeScript client SDK with silent token refresh interceptors
   - `packages/ui`: `@hexta/ui` shared React/Tailwind component library
   - `packages/shared`: Go shared packages (`gitlab.com/ecommercehub1/shared`) for telemetry and errors
-- **`infrastructure/`**: Docker Compose configuration for PostgreSQL, Redis, MinIO, Elasticsearch, Kafka, and Qdrant
+- **`infrastructure/`**: Docker Compose configuration for PostgreSQL, Redis, Elasticsearch, Kafka, and Qdrant
 - **`migrations/`**: Declarative schema migrations managed via Atlas CLI
 
 ---
@@ -93,8 +93,6 @@ All external ports exposed during local execution:
 | **PostgreSQL 17** | `5433` | TCP | `postgres / postgres`<br/>DBs: `api`, `user`, `catalog`, `dev`, `order` | Relational persistence |
 | **Redis** | `6379` | TCP | No password default | Cache and session storage |
 | **Elasticsearch 8** | `9200` | HTTP | `http://localhost:9200` (xpack disabled) | Full-text search engine |
-| **MinIO API** | `9000` | HTTP | User: `minioadmin`<br/>Pass: `minioadmin` | S3-compatible asset storage |
-| **MinIO Console** | `9001` | HTTP | `http://localhost:9001` | Web storage dashboard |
 | **Apache Kafka** | `9092` | TCP | PLAINTEXT | Event streaming broker |
 | **Qdrant Vector DB** | `6333` | HTTP | `http://localhost:6333/dashboard` | AI vector embeddings & search |
 | **RedisInsight** | `5540` | HTTP | `http://localhost:5540` | Redis visual inspector |
@@ -133,7 +131,7 @@ make local-down
 This mode runs the data tier in Docker while running Go backend and Next.js frontend applications natively on your host machine. This enables hot-reload, instant rebuilds, and interactive debugging via Delve.
 
 #### Step 1: Start Infrastructure Services
-Start PostgreSQL, Redis, MinIO, Elasticsearch, Kafka, and Qdrant in detached mode:
+Start PostgreSQL, Redis, Elasticsearch, Kafka, and Qdrant in detached mode:
 ```bash
 make infra-up
 ```
@@ -205,8 +203,6 @@ Default configuration values:
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_MULTIPLE_DATABASES=user,api,catalog,dev,order
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin
 ```
 
 ### 2. Backend Service (`services/api/.env`)
