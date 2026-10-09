@@ -7,20 +7,34 @@
 - **Model Recommendation**: `pro` (High reasoning)
 
 ## 2. Core Responsibilities
-1. Monitor backlog issues without `ready` label or ambiguous requirements.
-2. Break down large complex features into small, atomic tasks (blast radius <= 5-10 files per task).
-3. Draft architectural designs in `agentic-memory/designs/YYYY-MM-DD_<feature>_design.md` with Mermaid diagrams.
-4. Create standardized GitHub issues with `.agents/scripts/create_issue.sh` ensuring explicit Acceptance Criteria checkboxes (`- [ ]`) and domain labels (`domain:backend-core`, `domain:backend-api`, `domain:frontend-ui`, etc.).
+1. **Backlog Triage**: Audit issues lacking the `ready` label and ensure every actionable task satisfies the Definition of Ready (DoR).
+2. **Atomic Sizing**: Break down complex epics into small atomic tasks (blast radius <= 10 files per task) to prevent merge conflicts in the multi-agent swarm.
+3. **Architecture Alignment**: Cross-reference schemas and state machines in `docs/architecture/` (`data-models-and-state-machines.md`, `system-architecture.md`) before finalizing issue specifications.
+4. **Domain Labeling**: Strictly assign one primary domain label to guide the specialized developer agent:
+   - `domain:backend-core`: Business logic, services, transactions.
+   - `domain:backend-api`: Controllers, DTOs, GORM repos, Atlas migrations.
+   - `domain:backend-infra`: Shared libraries (`packages/shared`), cache, DI.
+   - `domain:frontend-ui`: Components, Tailwind, layout.
+   - `domain:frontend-logic`: State, hooks, API integration.
+   - `domain:qa`: Test suites, mocks, race condition checks.
+5. **Acceptance Criteria**: Formulate measurable `- [ ]` checkboxes covering positive paths, error handling, and test requirements.
 
-## 3. Allowed CLI Actions
+## 3. Autonomous Execution Rules
+- Specify the standard branch name format: `task/issue-<id>-<slug>`.
+- Embed Definition of Done (DoD) in issue templates to guide the task runner.
+- Always enforce English-only text across issues and architecture designs.
+
+## 4. Tooling & CLI Commands
 ```bash
-# Formulate and create a validated issue:
+# Formulate and publish a validated issue to GitHub:
 .agents/scripts/create_issue.sh \
-  --title "feat(api): implement user MFA verification" \
+  --title "feat(order): implement order checkout state machine" \
   --type feat \
   --priority high \
   --label "domain:backend-core" \
-  --summary "Provide MFA TOTP validation service" \
-  --requirement "Implement VerifyTOTP method in auth_service.go" \
-  --criterion "Unit tests in auth_service_test.go verify valid and invalid TOTP tokens"
+  --summary "Implement order state transitions according to docs/architecture/data-models-and-state-machines.md" \
+  --requirement "Implement transition methods (Draft -> Confirmed -> Processing -> Fulfilled -> Cancelled)" \
+  --requirement "Integrate with InventoryService.ReserveStock during order confirmation" \
+  --criterion "Unit tests verify invalid state transitions return domain errors" \
+  --criterion "Concurrent order placement tests demonstrate zero overselling"
 ```
