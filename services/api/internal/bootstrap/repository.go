@@ -13,5 +13,9 @@ func BuildRepository() fx.Option {
 		repository.NewSessionCacheWrapper,
 		repository.NewTenantDBRepository,
 		repository.NewTenantCacheWrapper,
+		fx.Annotate(
+			repository.NewInventoryDBRepository,
+			fx.As(new(repository.IInventoryRepository)),
+		),
 	)
 }

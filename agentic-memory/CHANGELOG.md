@@ -85,6 +85,16 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `services/api/internal/core/model/{products,inventory,orders,customers,audit_logs,ai_drafts}.go`, `services/api/cmd/tools/main.go`, `migrations/api/20261009180000_create_core_business_schema.sql`.
 - **Verification**: `go build ./services/api/...` and `atlas migrate validate --dir file://migrations/api`.
 
+### [#35] Inventory Repository, Stock Reservation, and Movement Tracking
+- **Date**: 2026-10-09 | **Scope**: `services/api` | **PR / Issue**: [#35](https://github.com/TruongHoang2004/Hexta/issues/35)
+- **Summary**: Implemented the Inventory Management System (IMS) persistence and service layers with atomic two-phase stock reservations and movement tracking.
+- **Key Technical Decisions**:
+  - **Atomic Conditional Updates**: Implemented `WHERE tenant_id = ? AND variant_id = ? AND available_qty >= ?` atomic conditional SQL updates to prevent race conditions and overselling.
+  - **Immutable Stock Movement Ledger**: Automatically recorded outbound fulfillment and adjustment movements within the same transaction.
+  - **Uber Fx Injection**: Provided `IInventoryRepository` and `IInventoryService` in `internal/bootstrap/`.
+- **Impacted Files**: `services/api/internal/repository/inventory_repository*.go`, `services/api/internal/core/service/inventory_service*.go`, `services/api/internal/bootstrap/{repository,service}.go`.
+- **Verification**: `go test -v ./services/api/internal/core/service/... ./services/api/internal/repository/...`.
+
 ---
 
 ## 3. Monorepo Architecture & Modernization
