@@ -1,4 +1,5 @@
-h1:0poW9VuG80G0auuYCWjCYz7mik1ISLYT+IayCVhzRWE=
+h1:VXCIDwBJnOrDngPkhAPX/XCPD7cUoC2A79apv+HZ9pw=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
+20261009180000_create_core_business_schema.sql h1:EQAPJTivrMg0SnnaxejovMbv0nPHF7agoeHzV/KpzAQ=
