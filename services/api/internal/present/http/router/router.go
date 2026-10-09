@@ -15,6 +15,7 @@ func RegisterRoutes(
 	healthController *controller.HealthController,
 	authController *controller.AuthController,
 	tenantController *controller.TenantController,
+	orderController *controller.OrderController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Root level public routes
@@ -49,6 +50,16 @@ func RegisterRoutes(
 		tenantGroup.PUT("/:id", tenantController.UpdateTenant)
 		tenantGroup.GET("/:id/users", tenantController.ListMembers)
 		tenantGroup.POST("/:id/invites", tenantController.InviteMember)
+	}
+
+	// Order routes (protected by AuthMiddleware)
+	orderGroup := params.Public.Group("/orders", authMiddleware.RequireAuth())
+	{
+		orderGroup.POST("", orderController.CreateOrder)
+		orderGroup.GET("", orderController.ListOrders)
+		orderGroup.GET("/:id", orderController.GetOrder)
+		orderGroup.PATCH("/:id/status", orderController.TransitionStatus)
+		orderGroup.PATCH("/:id/payment", orderController.UpdatePaymentStatus)
 	}
 
 	// Swagger UI

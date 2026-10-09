@@ -1,5 +1,85 @@
 basePath: /api/v1
 definitions:
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource:
+    enum:
+    - web_form
+    - ai_draft
+    - api
+    - import
+    type: string
+    x-enum-varnames:
+    - OrderSourceWebForm
+    - OrderSourceAIDraft
+    - OrderSourceAPI
+    - OrderSourceImport
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus:
+    enum:
+    - draft
+    - confirmed
+    - processing
+    - fulfilled
+    - cancelled
+    - returned
+    type: string
+    x-enum-varnames:
+    - OrderStatusDraft
+    - OrderStatusConfirmed
+    - OrderStatusProcessing
+    - OrderStatusFulfilled
+    - OrderStatusCancelled
+    - OrderStatusReturned
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus:
+    enum:
+    - unpaid
+    - partially_paid
+    - paid
+    - refunded
+    type: string
+    x-enum-varnames:
+    - PaymentStatusUnpaid
+    - PaymentStatusPartiallyPaid
+    - PaymentStatusPaid
+    - PaymentStatusRefunded
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest:
+    properties:
+      quantity:
+        minimum: 1
+        type: integer
+      unit_price:
+        type: number
+      variant_id:
+        type: string
+    required:
+    - quantity
+    - unit_price
+    - variant_id
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest:
+    properties:
+      auto_confirm:
+        type: boolean
+      customer_id:
+        type: string
+      discount:
+        type: number
+      draft_id:
+        type: string
+      employee_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest'
+        minItems: 1
+        type: array
+      notes:
+        type: string
+      source:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
+      tenant_id:
+        type: string
+    required:
+    - items
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest:
     properties:
       name:
@@ -51,6 +131,75 @@ definitions:
     properties:
       session_id:
         type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      line_total:
+        type: number
+      quantity:
+        type: integer
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+      variant_id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: string
+      discount:
+        type: number
+      draft_id:
+        type: string
+      employee_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse'
+        type: array
+      notes:
+        type: string
+      order_number:
+        type: string
+      payment_status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
+      source:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
+      subtotal:
+        type: number
+      tenant_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest:
     properties:
@@ -120,6 +269,20 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest:
+    properties:
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
+    required:
+    - status
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest:
+    properties:
+      payment_status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
+    required:
+    - payment_status
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest:
     properties:
       name:
@@ -143,6 +306,18 @@ definitions:
         items:
           $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse'
         type: array
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse
@@ -288,6 +463,177 @@ paths:
       summary: Register user
       tags:
       - Auth
+  /api/v1/orders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated orders for a workspace
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Filter by order status
+        in: query
+        name: status
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20)'
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse'
+      security:
+      - BearerAuth: []
+      summary: List orders
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Create order draft or auto-confirm with stock reservation
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Order creation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new order
+      tags:
+      - Orders
+  /api/v1/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific order by ID
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Get order details
+      tags:
+      - Orders
+  /api/v1/orders/{id}/payment:
+    patch:
+      consumes:
+      - application/json
+      description: Update payment status of an order
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payment status payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Update order payment status
+      tags:
+      - Orders
+  /api/v1/orders/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Transition order status following FSM rules (draft -> confirmed
+        -> processing -> fulfilled/cancelled)
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Transition order lifecycle state
+      tags:
+      - Orders
   /api/v1/tenants:
     get:
       consumes:

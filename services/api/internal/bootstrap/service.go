@@ -17,5 +17,9 @@ func BuildService() fx.Option {
 			service.NewInventoryService,
 			fx.As(new(service.IInventoryService)),
 		),
+		fx.Annotate(
+			service.NewOrderService,
+			fx.As(new(service.IOrderService)),
+		),
 	)
 }
