@@ -74,6 +74,17 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `services/api/internal/core/model/tenants.go`, `services/api/internal/repository/tenant_*.go`, `services/api/internal/core/service/tenant_service.go`, `apps/web/app/(dashboard)/tenant/page.tsx`.
 - **Verification**: `go test -v ./services/api/internal/core/service/...`.
 
+### [#34] Core Business Schema Migrations & GORM Models
+- **Date**: 2026-10-09 | **Scope**: `services/api`, `migrations/api` | **PR / Issue**: [#34](https://github.com/TruongHoang2004/Hexta/issues/34)
+- **Summary**: Implemented relational schema migrations and GORM models for Product Catalog, Inventory, Order, Customer, and Audit/AI domains.
+- **Key Technical Decisions**:
+  - **Monetary Precision**: Applied `decimal.Decimal` (`numeric(15,2)`) across all prices, subtotals, and discounts.
+  - **Tenant Scoping**: Embedded indexed `tenant_id` on all tables for defense-in-depth data isolation.
+  - **Two-Phase Inventory Tracking**: Defined `inventory_items` with available, reserved, and on-hand quantities to prevent overselling.
+  - **Atlas Integration**: Generated migration `20261009180000_create_core_business_schema.sql` and validated checksums via `atlas migrate validate`.
+- **Impacted Files**: `services/api/internal/core/model/{products,inventory,orders,customers,audit_logs,ai_drafts}.go`, `services/api/cmd/tools/main.go`, `migrations/api/20261009180000_create_core_business_schema.sql`.
+- **Verification**: `go build ./services/api/...` and `atlas migrate validate --dir file://migrations/api`.
+
 ---
 
 ## 3. Monorepo Architecture & Modernization
