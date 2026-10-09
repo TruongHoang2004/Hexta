@@ -14,6 +14,7 @@ func BuildController() fx.Option {
 		fx.Provide(controller.NewAuthController),
 		fx.Provide(controller.NewTenantController),
 		fx.Provide(controller.NewOrderController),
+		fx.Provide(controller.NewAIController),
 	)
 }
 

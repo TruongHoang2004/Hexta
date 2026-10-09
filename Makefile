@@ -14,7 +14,7 @@ local-down:
 debug:
 	@./scripts/debug-all.sh
 
-# Start only infrastructure (Postgres, Redis, Elasticsearch, Minio)
+# Start only infrastructure (Postgres, Redis, Elasticsearch, Kafka, Qdrant)
 infra-up:
 	@cd infrastructure && docker compose up -d
 

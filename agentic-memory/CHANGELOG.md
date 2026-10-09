@@ -106,6 +106,18 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `services/api/internal/repository/order_repository.go`, `services/api/internal/core/service/order_service*.go`, `services/api/internal/present/http/dto/order_dto.go`, `services/api/internal/present/http/controller/order_controller.go`, `services/api/internal/present/http/router/router.go`, `services/api/internal/bootstrap/{repository,service,controller}.go`, `services/api/docs/*`, `Makefile`.
 - **Verification**: `go test -count=1 -race ./services/api/internal/core/service/...`, `go build ./services/api/...`, `make swagger`.
 
+### [#37] AI Agent Engine with Tool Calling Registry and Draft Proposal Flow
+- **Date**: 2026-10-09 | **Scope**: `services/api` | **PR / Issue**: [#37](https://github.com/TruongHoang2004/Hexta/issues/37)
+- **Summary**: Implemented the conversational AI Agent service and HTTP SSE handlers in Go connecting to Google Gemini API via official SDK, establishing schema-governed tool calling registry, Redis draft caching (30-min TTL), and Server-Sent Events (SSE) streaming.
+- **Key Technical Decisions**:
+  - **Zero Direct DB Mutations**: Enforced invariant that AI Agent never executes direct database mutations. All purchase intent is captured as an Order Draft proposal for human review.
+  - **Tool Calling Registry**: Defined schema-governed functions (`search_products`, `check_stock_availability`, `propose_order_draft`) with dynamic argument extraction and multi-tenant validation.
+  - **Redis Draft Caching**: Cached proposed drafts under `hexta:draft:<tenant_id>:<draft_id>` with 30-minute TTL and unique UUIDs.
+  - **Real-Time SSE Streaming**: Implemented `POST /api/v1/ai/agent/converse` emitting structured events (`token`, `tool_call`, `draft_proposed`, `done`).
+  - **Multi-Tenant Boundary Enforcement**: Injected and verified `tenant_id` from JWT session context into all tool executions and draft lookups.
+- **Impacted Files**: `services/api/internal/infrastructure/gemini/client.go`, `services/api/internal/core/service/ai_agent_service*.go`, `services/api/internal/present/http/dto/ai_dto.go`, `services/api/internal/present/http/controller/ai_controller.go`, `services/api/internal/present/http/router/router.go`, `services/api/internal/bootstrap/{service,controller}.go`, `services/api/docs/*`.
+- **Verification**: `go test -race ./...` in `services/api` (All PASSED), `go vet ./...`.
+
 ---
 
 ## 3. Monorepo Architecture & Modernization
