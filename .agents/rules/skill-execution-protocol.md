@@ -48,6 +48,8 @@ This matrix specifies the **exact required inputs** needed before starting a ski
 | **`commit-message-generator`** | `/commit-message-generator` | Staged changes in git (`git diff --cached`). | 1. Staged git diff<br>2. Issue number reference | - Conventional Commit message formatted as `type(scope): summary (refs #<num>)`. |
 | **`issue-lifecycle-manager`** | `/issue-lifecycle-manager` | Existing GitHub issues or Pull Requests needing status sync, triage, or stale lock recovery. | 1. `agentic-memory/rules/github-workflow.md` | - Issue labels updated (`ready`, `in-review`, closed cleanup)<br>- Stale locks unlocked. |
 | **`pr-review-agent`** | `/pr-review-agent` | An open Pull Request targeting `main`. | 1. PR diff & commit history<br>2. Memory artifacts linked in PR body | - PR review comment / approval<br>- Auto squash-merge or tag `needs-human-review`. |
+| **`memory-consolidator`** | `/memory-consolidator` | Accumulated task plans, code reviews, changelogs, or recurring weekly audits in `agentic-memory/`. | 1. `agentic-memory/README.md`<br>2. `agentic-memory/CHANGELOG.md` | - `agentic-memory/CHANGELOG.md` synthesized<br>- `agentic-memory/ARCHIVE_INDEX.md` updated<br>- Stale plans, reviews, audits pruned. |
+
 
 ---
 
