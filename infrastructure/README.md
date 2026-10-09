@@ -14,7 +14,6 @@ The local infrastructure stack runs via Docker Compose and provides all dependen
 | **Redis** | `6379:6379` | In-memory session store & cache | No auth (local) |
 | **Kafka** | `9092:9092` | Event streaming and asynchronous messaging | `PLAINTEXT://localhost:9092` |
 | **Elasticsearch** | `9200`, `9300` | Search indexing and document store | No auth (local dev) |
-| **MinIO** | `9000`, `9001` | S3-compatible object storage (API + Console) | `minioadmin` / `minioadmin` |
 | **Qdrant** | `6333`, `6334` | Vector database for embeddings and similarity search | HTTP `6333`, gRPC `6334` |
 | **Grafana** | `3000` | Observability dashboards (traces, logs, metrics) | `admin` / `admin` |
 | **Prometheus** | `9090` | Time-series metrics collection | Web UI `9090` |
@@ -25,7 +24,7 @@ The local infrastructure stack runs via Docker Compose and provides all dependen
 
 ## 📁 Compose Configurations
 
-- **`docker-compose.yml`**: Core infrastructure stack (Postgres, Redis, Kafka, Elasticsearch, MinIO, Qdrant).
+- **`docker-compose.yml`**: Core infrastructure stack (Postgres, Redis, Kafka, Elasticsearch, Qdrant).
 - **`docker-compose.migrate.yml`**: Atlas migration runner for declarative and version-controlled database schemas.
 - **`docker-compose.log.yml`**: Full observability pipeline (Grafana, Loki, Promtail, Prometheus, Tempo, OTel Collector).
 - **`docker-compose.ui.yml`**: Local management UIs (Adminer, Redis Commander).
