@@ -17,5 +17,9 @@ func BuildRepository() fx.Option {
 			repository.NewInventoryDBRepository,
 			fx.As(new(repository.IInventoryRepository)),
 		),
+		fx.Annotate(
+			repository.NewOrderDBRepository,
+			fx.As(new(repository.IOrderRepository)),
+		),
 	)
 }

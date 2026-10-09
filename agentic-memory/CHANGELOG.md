@@ -95,6 +95,17 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `services/api/internal/repository/inventory_repository*.go`, `services/api/internal/core/service/inventory_service*.go`, `services/api/internal/bootstrap/{repository,service}.go`.
 - **Verification**: `go test -v ./services/api/internal/core/service/... ./services/api/internal/repository/...`.
 
+### [#36] Order State Machine, Pricing, and REST Endpoints
+- **Date**: 2026-10-09 | **Scope**: `services/api` | **PR / Issue**: [#36](https://github.com/TruongHoang2004/Hexta/issues/36)
+- **Summary**: Implemented the Order Management System (OMS) service, repository, and REST endpoints enforcing the order lifecycle state machine with stock reservation coordination and decimal pricing.
+- **Key Technical Decisions**:
+  - **FSM State Invariants**: Enforced lifecycle state machine (`Draft` -> `Confirmed` -> `Processing` -> `Fulfilled` / `Cancelled`) with invalid transitions returning HTTP 400 Bad Request.
+  - **IMS Coordination**: Integrated with `IInventoryService` to reserve stock upon order confirmation, release upon cancellation, and permanently deduct with outbound movement records upon fulfillment. Guaranteed atomic rollback if any item fails reservation.
+  - **Monetary Precision**: Applied `decimal.Decimal` across line totals, subtotal, discount, and total amount.
+  - **REST Endpoints & Swagger**: Added `POST /api/v1/orders`, `GET /api/v1/orders`, `GET /api/v1/orders/:id`, `PATCH /api/v1/orders/:id/status`, and `PATCH /api/v1/orders/:id/payment` with full Swagger annotations and `response.Response[T]` DTO wrappers.
+- **Impacted Files**: `services/api/internal/repository/order_repository.go`, `services/api/internal/core/service/order_service*.go`, `services/api/internal/present/http/dto/order_dto.go`, `services/api/internal/present/http/controller/order_controller.go`, `services/api/internal/present/http/router/router.go`, `services/api/internal/bootstrap/{repository,service,controller}.go`, `services/api/docs/*`, `Makefile`.
+- **Verification**: `go test -count=1 -race ./services/api/internal/core/service/...`, `go build ./services/api/...`, `make swagger`.
+
 ---
 
 ## 3. Monorepo Architecture & Modernization

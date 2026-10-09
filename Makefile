@@ -83,6 +83,14 @@ migrate-hash: check-svc
 	$(DOCKER_MIGRATE) migrate hash --dir file://migrations/$(svc)
 
 # ==============================
+# API Documentation (Swagger)
+# ==============================
+
+.PHONY: swagger
+swagger:
+	@cd services/api && swag init -g cmd/main.go -o docs --parseDependency --parseInternal
+
+# ==============================
 # Frontend / TypeScript (pnpm)
 # ==============================
 
