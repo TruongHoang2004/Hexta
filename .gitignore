@@ -39,4 +39,6 @@ __pycache__/
 
 # Temporary agent worktrees
 .worktrees_tmp*
+.agents/.alert_history.json
+.agents/*.json
 

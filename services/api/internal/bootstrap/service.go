@@ -13,5 +13,9 @@ func BuildService() fx.Option {
 		service.NewHealthService,
 		service.NewAuthService,
 		service.NewTenantService,
+		fx.Annotate(
+			service.NewInventoryService,
+			fx.As(new(service.IInventoryService)),
+		),
 	)
 }
