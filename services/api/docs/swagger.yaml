@@ -40,6 +40,30 @@ definitions:
     - PaymentStatusPartiallyPaid
     - PaymentStatusPaid
     - PaymentStatusRefunded
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest:
+    properties:
+      conversation_id:
+        example: conv_12345
+        type: string
+      history:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage'
+        type: array
+      prompt:
+        example: Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp
+        type: string
+    required:
+    - prompt
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage:
+    properties:
+      content:
+        example: Tôi muốn đặt 2 hộp sữa bắp
+        type: string
+      role:
+        example: user
+        type: string
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest:
     properties:
       quantity:
@@ -96,6 +120,31 @@ definitions:
     - name
     - slug
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO:
+    properties:
+      product_id:
+        example: prod_123
+        type: string
+      product_name:
+        example: Sữa bắp non 500ml
+        type: string
+      quantity:
+        example: 2
+        minimum: 1
+        type: integer
+      subtotal:
+        example: 50000
+        type: number
+      unit_price:
+        example: 25000
+        type: number
+      variant:
+        example: Chai 500ml
+        type: string
+    required:
+    - product_name
+    - quantity
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest:
     properties:
       role:
@@ -131,6 +180,44 @@ definitions:
     properties:
       session_id:
         type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO:
+    properties:
+      created_at:
+        type: string
+      customer_name:
+        example: Anh Nam
+        type: string
+      customer_phone:
+        example: "0912345678"
+        type: string
+      draft_id:
+        example: draft_8f3a9b21-4c5d
+        type: string
+      expires_at:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO'
+        type: array
+      notes:
+        example: Giao hàng giờ hành chính
+        type: string
+      payment_method:
+        example: cod
+        type: string
+      shipping_address:
+        example: 123 Lê Lợi, Q1, TP.HCM
+        type: string
+      status:
+        example: proposed
+        type: string
+      tenant_id:
+        example: tenant_123
+        type: string
+      total_amount:
+        example: 50000
+        type: number
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse:
     properties:
@@ -308,6 +395,12 @@ definitions:
         type: array
       meta: {}
     type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO'
+      meta: {}
+    type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse
   : properties:
       data:
@@ -346,6 +439,71 @@ info:
   title: CommerceHub API
   version: "1.0"
 paths:
+  /api/v1/ai/agent/converse:
+    post:
+      consumes:
+      - application/json
+      description: Stream interactive conversational turns and order drafts via Server-Sent
+        Events (SSE)
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Conversational prompt and history
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Server-Sent Event stream emitting JSON dto.SSEEvent chunks
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Converse with AI Agent
+      tags:
+      - AI Agent
+  /api/v1/ai/agent/drafts/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a Redis-cached order draft by draft ID for human review
+        and confirmation
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Draft ID (e.g. draft_8f3a9b21-4c5d)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO'
+      security:
+      - BearerAuth: []
+      summary: Retrieve interactive order draft
+      tags:
+      - AI Agent
   /api/v1/auth/google/callback:
     get:
       description: Handles Google OAuth callback, validates state, and redirects to
