@@ -67,13 +67,18 @@ def matches_domain(labels: List[Dict[str, Any]], target_domain: Optional[str]) -
     return any(d == target for d in domain_labels)
 
 
-def fetch_open_issues(repo: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_clean_env() -> Dict[str, str]:
+    import os
+    return {k: v for k, v in os.environ.items() if not k.lower().endswith('_proxy')}
+
+
+def fetch_open_issues(repo: Optional[str] = "TruongHoang2004/Hexta") -> List[Dict[str, Any]]:
     cmd = ["gh", "issue", "list", "--state", "open", "--json", "number,title,body,labels,createdAt", "--limit", "100"]
     if repo:
         cmd.extend(["--repo", repo])
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=get_clean_env())
         return json.loads(result.stdout or "[]")
     except subprocess.CalledProcessError as e:
         logger.error("Failed to run gh command: %s", e.stderr)
@@ -83,7 +88,7 @@ def fetch_open_issues(repo: Optional[str] = None) -> List[Dict[str, Any]]:
         raise RuntimeError("gh CLI not found on PATH.")
 
 
-def claim_issue(issue_number: int, agent_id: str, repo: Optional[str] = None, dry_run: bool = False) -> bool:
+def claim_issue(issue_number: int, agent_id: str, repo: Optional[str] = "TruongHoang2004/Hexta", dry_run: bool = False) -> bool:
     cmd = [
         "gh", "issue", "edit", str(issue_number),
         "--remove-label", "ready",
@@ -97,7 +102,7 @@ def claim_issue(issue_number: int, agent_id: str, repo: Optional[str] = None, dr
         return True
 
     try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        subprocess.run(cmd, capture_output=True, text=True, check=True, env=get_clean_env())
         logger.info("Successfully claimed issue #%d for agent '%s'", issue_number, agent_id)
         return True
     except subprocess.CalledProcessError as e:
@@ -109,7 +114,7 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch and optionally claim the next eligible issue.")
     parser.add_argument("--domain", help="Target domain (e.g. backend-core, frontend-ui, qa)")
     parser.add_argument("--claim-by", help="Agent identifier to atomically claim the task")
-    parser.add_argument("--repo", default=None, help="GitHub repository slug (e.g. TruongHoang2004/Hexta)")
+    parser.add_argument("--repo", default="TruongHoang2004/Hexta", help="GitHub repository slug (e.g. TruongHoang2004/Hexta)")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without claiming")
     args = parser.parse_args()
 

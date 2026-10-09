@@ -166,7 +166,7 @@ def resolve_labels(
     return sorted(list(labels))
 
 
-def execute_gh_create(draft: IssueDraft, dry_run: bool = False) -> Dict[str, Any]:
+def execute_gh_create(draft: IssueDraft, repo: Optional[str] = "TruongHoang2004/Hexta", dry_run: bool = False) -> Dict[str, Any]:
     """Calls `gh issue create` or simulates during dry-run."""
     valid, errors = draft.validate()
     if not valid:
@@ -175,6 +175,8 @@ def execute_gh_create(draft: IssueDraft, dry_run: bool = False) -> Dict[str, Any
         raise ValueError(err_msg)
 
     cmd = ["gh", "issue", "create", "--title", draft.title, "--body", draft.body]
+    if repo:
+        cmd.extend(["--repo", repo])
     for lbl in draft.labels:
         cmd.extend(["--label", lbl])
 
@@ -189,8 +191,9 @@ def execute_gh_create(draft: IssueDraft, dry_run: bool = False) -> Dict[str, Any
         }
 
     logger.info("Executing gh issue create: '%s' with labels %s", draft.title, draft.labels)
+    clean_env = {k: v for k, v in os.environ.items() if not k.lower().endswith('_proxy')}
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=True, env=clean_env)
         output = proc.stdout.strip()
         logger.info("GitHub Issue created successfully: %s", output)
 
@@ -265,6 +268,7 @@ def parse_args():
         action="store_true",
         help="Do NOT add 'ready' label immediately (keep in backlog for manual triage)",
     )
+    parser.add_argument("--repo", default="TruongHoang2004/Hexta", help="Target GitHub repository")
     parser.add_argument("--dry-run", action="store_true", help="Preview output without creating issue")
     parser.add_argument("--json", action="store_true", help="Print JSON output format")
     return parser.parse_args()
@@ -310,7 +314,7 @@ def main():
     draft = IssueDraft(title=title, body=body, labels=labels)
 
     try:
-        result = execute_gh_create(draft, dry_run=args.dry_run)
+        result = execute_gh_create(draft, repo=args.repo, dry_run=args.dry_run)
         if args.json:
             print(json.dumps(result, indent=2))
         else:
