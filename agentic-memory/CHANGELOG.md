@@ -140,6 +140,16 @@ This document consolidates all historical development changelogs for the Hexta p
   - **Environment Templates**: Added `.env.example` templates across all sub-apps.
 - **Impacted Files**: `README.md`, `docs/local-development-guide.md`, `infrastructure/.env.example`, `services/api/.env.example`, `apps/web/.env.example`.
 
+### [#28] 5-Layer Clean Architecture Boundary Resolution in API Controllers
+- **Date**: 2026-10-10 | **Scope**: `services/api` | **PR / Issue**: [#28](https://github.com/TruongHoang2004/Hexta/issues/28)
+- **Summary**: Enforced strict 5-layer Clean Architecture boundaries in API presentation controllers by isolating database access to repository/service layers and standardizing response DTOs.
+- **Key Technical Decisions**:
+  - **Controller Isolation**: Removed direct database client references (`*gorm.DB`) from HTTP controllers, ensuring handlers exclusively orchestrate via core services.
+  - **Standardized DTO Wrapper**: Introduced `HealthCheckResponse` DTO wrapped in `response.Response[T]` for consistent OpenAPI schema documentation.
+  - **Automated Test Coverage**: Added controller unit test suite verifying healthy (200 OK) and degraded (503 Service Unavailable) responses under race detection.
+- **Impacted Files**: `services/api/internal/present/http/controller/health_controller*.go`, `services/api/internal/present/http/dto/health_dto.go`, `services/api/docs/*`.
+- **Verification**: `go vet ./services/api/... ./packages/shared/...`, `go test -race ./services/api/... ./packages/shared/...`, `make swagger`.
+
 ---
 
 ## 4. CI/CD & DevOps Automation

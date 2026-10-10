@@ -719,10 +719,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_HealthCheckResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_HealthCheckResponse"
                         }
                     }
                 }
@@ -857,6 +860,21 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 100,
                     "minLength": 2
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthCheckResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "example": "up"
                 }
             }
         },
@@ -1180,6 +1198,15 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
                     }
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_HealthCheckResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthCheckResponse"
                 },
                 "meta": {}
             }

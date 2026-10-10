@@ -18,10 +18,16 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
 import logging
+import os
 import re
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+
+def get_clean_env() -> Dict[str, str]:
+    return {k: v for k, v in os.environ.items() if not k.lower().endswith('_proxy')}
+
 
 # Configure logging
 logging.basicConfig(

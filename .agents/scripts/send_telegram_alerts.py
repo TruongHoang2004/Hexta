@@ -146,6 +146,7 @@ def send_to_telegram(token: str, chat_id: str, text: str) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Hexta Hourly Telegram Alert Monitor")
     parser.add_argument("--dry-run", action="store_true", help="Print alerts without sending")
+    parser.add_argument("--force", "-f", action="store_true", help="Bypass throttling and send alert immediately")
     parser.add_argument("--force-test", action="store_true", help="Send a test alert immediately")
     args = parser.parse_args()
 
@@ -174,6 +175,7 @@ def main():
         for af in audit_findings:
             all_alerts.append(f"  • {af}")
 
+    force_send = args.force or args.force_test
     if args.force_test and not all_alerts:
         all_alerts.append("🔔 *Test Thông Báo Cảnh Báo*: Kênh cảnh báo Telegram đang hoạt động bình thường và sẵn sàng giám sát 24/7.")
 
@@ -187,8 +189,8 @@ def main():
     history = load_history()
     last_sent = history.get(alert_hash)
 
-    # Throttle: don't resend identical alert if sent within last 6 hours (unless force-test)
-    if not args.force_test and last_sent:
+    # Throttle: don't resend identical alert if sent within last 6 hours (unless force or dry-run)
+    if not force_send and not args.dry_run and last_sent:
         try:
             last_dt = datetime.fromisoformat(last_sent)
             if (now_vn - last_dt) < timedelta(hours=6):
