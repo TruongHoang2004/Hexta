@@ -229,6 +229,16 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `packages/ui/src/components/theme-provider.tsx`, `packages/ui/src/components/theme-toggle.tsx`, `packages/ui/src/index.ts`, `apps/web/app/globals.css`, `apps/web/app/layout.tsx`, `apps/web/components/auth-nav.tsx`, `apps/web/app/(dashboard)/tenant/page.tsx`.
 - **Verification**: `pnpm --filter "./packages/*" run build`, `pnpm --filter web run lint`, and `pnpm --filter web run build` all pass with zero errors.
 
+### [#38] Interactive Draft Card and Chat Assistant Interface in Next.js
+- **Date**: 2026-10-09 | **Scope**: `apps/web` | **PR / Issue**: [#38](https://github.com/TruongHoang2004/Hexta/issues/38)
+- **Summary**: Implemented the conversational assistant interface in Next.js featuring real-time SSE stream rendering, an Interactive Order Draft Review Card with Human-in-the-Loop "Confirm Order" action, inline item quantity and variant editing, and silent token refresh.
+- **Key Technical Decisions**:
+  - **Human-in-the-Loop Confirmation**: Created `InteractiveDraftCard` component with visual hierarchy, item breakdown, inline +/- quantity adjustments, and explicit "Confirm Order" button that calls `POST /api/v1/orders`.
+  - **Resilient SSE Streaming**: Built `AIAgentService.converseStream` and `useAIAgent` hook supporting stream chunking, tool call indicators, and silent token renewal via `@hexta/sdk` on HTTP 401.
+  - **Collapsible Floating Drawer**: Built `ChatDrawer` floating trigger pill and expandable assistant window with suggested prompts and auto-scrolling message stream.
+  - **Global Mounting**: Embedded `ChatDrawer` within `ThemeProvider` in root `apps/web/app/layout.tsx`.
+- **Impacted Files**: `apps/web/lib/services/ai-agent-service.ts`, `apps/web/hooks/use-ai-agent.ts`, `apps/web/components/assistant/interactive-draft-card.tsx`, `apps/web/components/assistant/chat-drawer.tsx`, `apps/web/app/layout.tsx`.
+- **Verification**: Backend endpoints tested with `go test -race ./...`, strict TypeScript types validated.
 
 ### [Task] Changelog: Health Controller 5-Layer Architecture Boundary Resolution
 - **Date**: 2026-10-09 | **Scope**: `packages/`, `apps/`
