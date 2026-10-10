@@ -273,4 +273,161 @@ describe("HextaSDK and Interceptors", () => {
       expect(refreshCount).toBe(1); // Not retried in an infinite loop
     });
   });
+
+  describe("Tenant Operations", () => {
+    it("creates a new tenant", async () => {
+      const input = { name: "Acme Corp", slug: "acme-corp", plan: "pro" };
+      mock.onPost("/api/v1/tenants").reply((config) => {
+        const body = JSON.parse(config.data);
+        expect(body.name).toBe("Acme Corp");
+        expect(body.slug).toBe("acme-corp");
+        return [
+          201,
+          {
+            data: {
+              id: "tenant-acme",
+              name: "Acme Corp",
+              slug: "acme-corp",
+              status: "active",
+              plan: "pro",
+              owner_id: "user-1",
+            },
+          },
+        ];
+      });
+
+      const res = await sdk.identity.createTenant(input);
+      expect(res.id).toBe("tenant-acme");
+      expect(res.name).toBe("Acme Corp");
+      expect(res.plan).toBe("pro");
+    });
+
+    it("fetches list of tenants", async () => {
+      mock.onGet("/api/v1/tenants").reply(200, {
+        data: [
+          { id: "t-1", name: "Tenant One", slug: "t-1", status: "active", plan: "free", owner_id: "u-1" },
+          { id: "t-2", name: "Tenant Two", slug: "t-2", status: "active", plan: "pro", owner_id: "u-2" },
+        ],
+      });
+
+      const list = await sdk.identity.getTenants();
+      expect(list.length).toBe(2);
+      expect(list[0].id).toBe("t-1");
+      expect(list[1].name).toBe("Tenant Two");
+    });
+
+    it("fetches single tenant by ID", async () => {
+      mock.onGet("/api/v1/tenants/t-1").reply(200, {
+        data: { id: "t-1", name: "Tenant One", slug: "t-1", status: "active", plan: "enterprise", owner_id: "u-1" },
+      });
+
+      const tenant = await sdk.identity.getTenant("t-1");
+      expect(tenant.id).toBe("t-1");
+      expect(tenant.plan).toBe("enterprise");
+    });
+
+    it("updates tenant by ID", async () => {
+      mock.onPut("/api/v1/tenants/t-1").reply((config) => {
+        const body = JSON.parse(config.data);
+        expect(body.name).toBe("Updated Tenant");
+        return [
+          200,
+          {
+            data: { id: "t-1", name: "Updated Tenant", slug: "t-1", status: "active", plan: "pro", owner_id: "u-1" },
+          },
+        ];
+      });
+
+      const updated = await sdk.identity.updateTenant("t-1", { name: "Updated Tenant" });
+      expect(updated.name).toBe("Updated Tenant");
+    });
+  });
+
+  describe("Member Operations", () => {
+    it("fetches team members for a tenant", async () => {
+      mock.onGet("/api/v1/tenants/t-1/users").reply(200, {
+        data: [
+          { id: 1, tenant_id: "t-1", user_id: "u-1", role: "owner" },
+          { id: 2, tenant_id: "t-1", user_id: "u-2", role: "admin" },
+        ],
+      });
+
+      const users = await sdk.identity.getUsers("t-1");
+      expect(users.length).toBe(2);
+      expect(users[0].role).toBe("owner");
+      expect(users[1].user_id).toBe("u-2");
+    });
+
+    it("invites a member to a tenant", async () => {
+      mock.onPost("/api/v1/tenants/t-1/invites").reply((config) => {
+        const body = JSON.parse(config.data);
+        expect(body.user_id).toBe("u-3");
+        expect(body.role).toBe("member");
+        return [
+          201,
+          {
+            data: { id: 3, tenant_id: "t-1", user_id: "u-3", role: "member" },
+          },
+        ];
+      });
+
+      const invite = await sdk.identity.inviteMember("t-1", { user_id: "u-3", role: "member" });
+      expect(invite.id).toBe(3);
+      expect(invite.user_id).toBe("u-3");
+      expect(invite.role).toBe("member");
+    });
+  });
+
+  describe("Storage and Configuration", () => {
+    it("exposes configured storage adapter via getStorage", () => {
+      expect(sdk.getStorage()).toBe(storage);
+    });
+
+    it("clears tokens via sdk.clearTokens()", async () => {
+      await storage.set("auth_token", "test-access");
+      await storage.set("refresh_token", "test-refresh");
+
+      await sdk.clearTokens();
+
+      expect(await storage.get("auth_token")).toBeNull();
+      expect(await storage.get("refresh_token")).toBeNull();
+    });
+
+    it("MemoryStorage clear method purges all stored items", () => {
+      const mem = new MemoryStorage();
+      mem.set("a", "1");
+      mem.set("b", "2");
+      expect(mem.get("a")).toBe("1");
+      mem.clear();
+      expect(mem.get("a")).toBeNull();
+      expect(mem.get("b")).toBeNull();
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("unwraps API error messages and codes correctly", async () => {
+      mock.onGet("/api/v1/error-test").reply(400, {
+        message: "Invalid tenant slug",
+        code: "INVALID_SLUG",
+      });
+
+      try {
+        await sdk.client.get("/api/v1/error-test");
+        expect.fail("Should have thrown error");
+      } catch (err: any) {
+        expect(err.message).toBe("Invalid tenant slug");
+        expect(err.status).toBe(400);
+        expect(err.code).toBe("INVALID_SLUG");
+      }
+    });
+
+    it("falls back to detail or default message when message is absent", async () => {
+      mock.onGet("/api/v1/error-detail").reply(422, {
+        detail: "Unprocessable entity payload",
+      });
+
+      await expect(sdk.client.get("/api/v1/error-detail")).rejects.toThrow("Unprocessable entity payload");
+    });
+  });
 });
+
