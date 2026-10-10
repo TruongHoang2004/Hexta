@@ -233,5 +233,12 @@ This document consolidates all historical development changelogs for the Hexta p
 ### [Task] Changelog: Health Controller 5-Layer Architecture Boundary Resolution
 - **Date**: 2026-10-09 | **Scope**: `packages/`, `apps/`
 
-### [Task] Changelog: Repository Layer Test Coverage Expansion
-- **Date**: 2026-10-09 | **Scope**: `packages/`, `apps/`
+### [#29] Comprehensive Unit Test Suites for Critical Core Services and SDK
+- **Date**: 2026-10-10 | **Scope**: `services/api`, `packages/sdk` | **PR / Issue**: [#29](https://github.com/TruongHoang2004/Hexta/issues/29)
+- **Summary**: Implemented unit and integration test suites for uncovered repository operations and TypeScript SDK clients, eliminating codebase coverage gaps.
+- **Key Technical Decisions**:
+  - **OrderRepository Test Coverage**: Added `TestOrderRepository_CRUD` verifying transactional order creation, item eager-loading, filterable list queries, and status/payment updates.
+  - **SDK Test Expansion**: Expanded `@hexta/sdk` test suite to cover tenant lifecycle methods, member invites, token clears, and API error formatting.
+- **Impacted Files**: `services/api/internal/repository/order_repository_test.go`, `packages/sdk/src/index.test.ts`.
+- **Verification**: `go test -race ./services/api/... ./packages/shared/...` and `pnpm --filter @hexta/sdk test --run` pass with 100% success; `audit_codebase.py` coverage findings reduced to 0.
+
