@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Toaster, ThemeProvider } from "@hexta/ui";
+import { ChatDrawer } from "@/components/assistant/chat-drawer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           disableTransitionOnChange
         >
           {children}
+          <ChatDrawer />
           <Toaster />
         </ThemeProvider>
       </body>
