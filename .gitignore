@@ -18,11 +18,13 @@ infrastructure/.redis/
 *.a
 *.so
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
+*/.DS_Store
 
 # Go workspace
 # go.work
