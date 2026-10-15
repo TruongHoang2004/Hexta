@@ -230,3 +230,21 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Impacted Files**: `services/api/internal/repository/order_repository_test.go`, `packages/sdk/src/index.test.ts`.
 - **Verification**: `go test -race ./services/api/... ./packages/shared/...` and `pnpm --filter @hexta/sdk test --run` pass with 100% success; `audit_codebase.py` coverage findings reduced to 0.
 
+### [Docs] Vietnamese graduation thesis LaTeX scaffold
+- **Date**: 2026-10-12 | **Scope**: `graduation thesis/`
+- **Summary**: Added an editable scaffold following the supplied thesis PDF's cover, preliminary pages, five chapters, bibliography and appendices.
+- **Files**: [NEW] `graduation thesis/main.tex`, `graduation thesis/README.md`, `graduation thesis/.gitignore`.
+- **Decisions**: Single standalone XeLaTeX source; Vietnamese Unicode and TeX Gyre fonts; centralized cover metadata; optional official logo with placeholder fallback; continuous Arabic page numbering from abstract. Content and references remain clearly marked placeholders. Margins approximate the reference rather than claim institutional compliance.
+- **Walkthrough**: Edit metadata, replace placeholders, add `assets/logo.png`, and compile twice to resolve generated lists and cross-references. Examples cover figures, tables, equations and numeric citations.
+- **Verification**: Static checks passed for balanced environments, unique labels and all reference/citation keys. Built-in LaTeX compiler validation requested; see session outcome for compilation status. Manual review: compile with XeLaTeX using README instructions and inspect cover, lists and chapter breaks.
+
+### [Docs] Thesis compiler compatibility
+- **Date**: 2026-10-12 | **Files**: `graduation thesis/main.tex`, `graduation thesis/README.md`.
+- **Fix**: Select UTF-8/T5/Latin Modern under pdfLaTeX; load fontspec only for XeLaTeX/LuaLaTeX. Use explicit TeX font filenames to avoid relying on system font discovery.
+- **Verification**: Built-in compiler invoked after edits; initial diagnostic identified missing system font lookup and prompted explicit font file configuration. Final result recorded in chat.
+
+### [Docs] Split thesis into editable LaTeX components
+- **Date**: 2026-10-12 | **Scope**: `graduation thesis/`
+- **Changes**: Main document now inputs 15 files across `config`, `frontmatter`, `chapters`, `backmatter`, and `appendices`. README documents editing locations, root-file directives, image paths and local compilation.
+- **Decision**: Use `input` to preserve the original page-break behavior and keep the existing main.tex entry point. No thesis content changed.
+- **Verification**: Expanded component files matched the original source exactly before saving. Built-in compiler was invoked but cannot access project files (`config/preamble.tex` not found in its isolated compilation). Local XeLaTeX/MacTeX is not installed yet, so multi-file compilation remains to be verified locally or on Overleaf.
