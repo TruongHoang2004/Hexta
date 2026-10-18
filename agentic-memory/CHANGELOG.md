@@ -4,6 +4,34 @@ This document consolidates all historical development changelogs for the Hexta p
 
 ---
 
+## 2026-10-18 — AI bootstrap review fixes
+
+- **Summary/files:** Updated `services/ai/hexta_ai/graph.py`, `rpc.py` and HTTP/gRPC regression tests to address the supplied review.
+- **Behavior:** Strip whitespace before validating message/script fields; whitespace-only values now fail HTTP 422 or gRPC INVALID_ARGUMENT. Construct a complete protobuf candidate privately and replace the stored run only after successful conversion, so serialization failures cannot expose partial text. Preserve cancellation if an adapter raises after cancellation. Synchronize graph-level and result-level steps. Keep the task done callback as the sole normal cleanup path, including tasks cancelled before their coroutine starts.
+- **Verification:** 21 Python tests passed, including parameterized whitespace rejection over both transports, consistent graph steps, and an injected protobuf serialization failure after valid candidate fields. Existing authentication/idempotency/cancellation cases remain green. Rebuilt Docker stack is healthy; HTTP smoke and real Go-to-Python gRPC smoke passed after the fixes. The unrelated pre-existing `.gitkeep` change is preserved.
+
+---
+
+## 2026-10-18 — Go/Python gRPC simulation boundary
+
+- **Summary:** Implemented owner-approved internal gRPC with StartRun/GetRun/CancelRun; HTTP health/preview and frontend HTTP/SSE remain separate. This is a verified simulation boundary, not the business-worker integration.
+- **Files:** [NEW] `proto/hexta/ai/v1/service.proto`, `proto/README.md`, generated Python and Go bindings, `services/ai/hexta_ai/rpc.py`, `services/ai/tests/test_rpc.py`, `services/api/cmd/ai-smoke/main.go`; [MODIFY] AI app lifespan, runtime dependencies/uv lock, Dockerfile, Compose gRPC loopback mapping, READMEs, HEX-8/9 designs and HEX-10 plan.
+- **Decisions/walkthrough:** StartRun validates the authorized snapshot, hashes the request under `(tenant_id, run_id)` and schedules one async graph task; same ID with changed input returns ALREADY_EXISTS. GetRun/CancelRun authenticate metadata and qualify tenant lookup. Cancellation suppresses even a late candidate from a runner that catches cancellation. Result echoes context/control revisions for the future Go acceptance gate. Errors are sanitized. A bounded 1000-run single-process RAM registry exercises the contract; restart loses results/idempotency and capacity includes finished runs. Durable acceptance, leases/checkpoints, provider adapters, trace exporter and business send policy remain pending. Plaintext gRPC is local/private only, not a public VPS profile.
+- **Verification:** 11 Python tests passed (`cd services/ai && .venv/bin/python -m pytest -q`), covering authentication, validation, tenant-qualified lookup, request idempotency/conflict, completion, capacity, sanitized failure, cancellation and late output suppression. `go test ./internal/infrastructure/ai/rpc ./cmd/ai-smoke` compiled both packages. Docker build/start passed with all three containers healthy; actual `go run ./cmd/ai-smoke` passed Go/Python auth/idempotency/candidate interoperability. HTTP smoke still passed. Lock check and Python compile passed. Initial runtime build caught missing protobuf in production dependencies; added it explicitly and rebuilt successfully. No paid inference or customer messages.
+- **Verification boundary:** Full-repo whitespace check reports an existing trailing blank line in the user's `graduation thesis/assets/.gitkeep`; that unrelated change was preserved. No full-app test result is claimed. HEX-10 remains in progress.
+
+---
+
+## 2026-10-18 — HEX-10 local AI environment bootstrap
+
+- **Summary:** Added an isolated local Compose stack for PostgreSQL, Redis and a fake-only FastAPI/LangGraph service. Existing Go/web configs and user changes were preserved; no provider keys, hosted tracing or real sending are used.
+- **Files:** `services/ai/` (project/uv lockfile, graph, protected preview endpoint, Dockerfile, tests and HTTP smoke script); `infrastructure/compose.demo.yml`; `infrastructure/README.demo.md`; `.gitignore` excludes Python environments/test caches. Plan: `agentic-memory/plans/2026-10-18_hex-10-local-ai-bootstrap_plan.md`.
+- **Decisions:** Preview is a synchronous environment probe, not the durable runs API. Only an unambiguous active exact-match script renders; unknown/ambiguous or unresolved-variable cases return human handoff. Explicit fake mode prevents accidental real inference, and tracing is disabled around the simulation graph. Containers bind localhost ports 55433/56379/58000, use a separate Compose project/DB volume and leave the database initially empty.
+- **Verification:** Python 3.14.5: `services/ai/.venv/bin/python -m pytest -q` passed 6 tests. `uv lock --check --offline` passed. Compose config validation and `up --build -d --wait` passed; all three containers healthy. `python3 services/ai/smoke.py` passed over real container HTTP for simulated readiness, authenticated script preview and unauthenticated rejection. No paid/provider requests were made.
+- **Limits:** Go/web, business migrations, provider adapters, durable AI jobs/checkpoints, Pancake event/send simulation and Langfuse are not integrated in this stack yet. HEX-10 stays in progress. The Compose file is local-only and is not a VPS deployment profile. Docker Desktop was started for verification; the three local demo containers remain running.
+
+---
+
 ## Table of Contents
 1. [Security, Authentication & Identity](#1-security-authentication--identity)
 2. [Multi-Tenancy & Core Domain](#2-multi-tenancy--core-domain)

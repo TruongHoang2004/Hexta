@@ -35,6 +35,8 @@ node_modules/
 .vite/
 
 # Python cache
+.venv/
+.pytest_cache/
 __pycache__/
 *.py[cod]
 *$py.class

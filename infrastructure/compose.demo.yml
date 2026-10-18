@@ -1,0 +1,50 @@
+# Standalone local dependencies; does not load the root .env or existing volumes.
+name: hexta-demo
+services:
+  postgres:
+    image: postgres:17.7-alpine3.23
+    environment:
+      POSTGRES_DB: hexta_demo
+      POSTGRES_USER: hexta_demo
+      POSTGRES_PASSWORD: local-demo-only
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - demo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hexta_demo -d hexta_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  ai:
+    build:
+      context: ../services/ai
+    environment:
+      AI_PROVIDER: fake
+      AI_INTERNAL_TOKEN: ${DEMO_AI_INTERNAL_TOKEN:?Set DEMO_AI_INTERNAL_TOKEN to a random local service token}
+      LANGSMITH_TRACING: "false"
+    ports:
+      - "127.0.0.1:58000:8000"
+      - "127.0.0.1:55051:50051"
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  demo_postgres:
