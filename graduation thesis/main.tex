@@ -1,0 +1,39 @@
+% !TeX program = xelatex
+% Hỗ trợ pdfLaTeX, XeLaTeX và LuaLaTeX; biên dịch hai lần để cập nhật mục lục.
+\documentclass[12pt,a4paper,oneside]{report}
+\input{config/preamble}
+
+\input{config/metadata}
+
+\begin{document}
+\input{frontmatter/cover}
+
+% Mẫu đánh số Ả Rập liên tục từ trang Tóm tắt, không hiện số trên bìa.
+\pagenumbering{arabic}
+\input{frontmatter/abstract}
+
+\input{frontmatter/acknowledgements}
+
+\input{frontmatter/declaration}
+
+\input{frontmatter/contents}
+
+\input{chapters/01-introduction}
+
+\input{chapters/02-background}
+
+\input{chapters/03-system-design}
+
+\input{chapters/04-implementation-evaluation}
+
+\input{chapters/05-conclusion}
+
+\input{backmatter/references}
+
+\appendix
+\titleformat{\chapter}[hang]{\bfseries\fontsize{16}{20}\selectfont}{Phụ lục \thechapter.}{0.6em}{}
+\input{appendices/database}
+
+\input{appendices/installation}
+
+\end{document}

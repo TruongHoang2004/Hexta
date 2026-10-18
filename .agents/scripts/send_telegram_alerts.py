@@ -146,6 +146,7 @@ def send_to_telegram(token: str, chat_id: str, text: str) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Hexta Hourly Telegram Alert Monitor")
     parser.add_argument("--dry-run", action="store_true", help="Print alerts without sending")
+    parser.add_argument("--force", action="store_true", help="Bypass 6-hour throttle and dispatch alerts immediately")
     parser.add_argument("--force-test", action="store_true", help="Send a test alert immediately")
     args = parser.parse_args()
 
@@ -187,8 +188,8 @@ def main():
     history = load_history()
     last_sent = history.get(alert_hash)
 
-    # Throttle: don't resend identical alert if sent within last 6 hours (unless force-test)
-    if not args.force_test and last_sent:
+    # Throttle: don't resend identical alert if sent within last 6 hours (unless forced)
+    if not (args.force or args.force_test) and last_sent:
         try:
             last_dt = datetime.fromisoformat(last_sent)
             if (now_vn - last_dt) < timedelta(hours=6):

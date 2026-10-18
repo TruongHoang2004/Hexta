@@ -18,11 +18,13 @@ infrastructure/.redis/
 *.a
 *.so
 
-# IDE
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
+*/.DS_Store
 
 # Go workspace
 # go.work
@@ -34,6 +36,8 @@ node_modules/
 packages/sdk/node_modules/
 
 # Python cache
+.venv/
+.pytest_cache/
 __pycache__/
 *.py[cod]
 *$py.class

@@ -1,0 +1,23 @@
+% !TeX root = ../main.tex
+% ================= THÔNG TIN KHÓA LUẬN =================
+% Sửa các trường dưới đây; thông tin trường đang lấy theo bố cục mẫu.
+\newcommand{\University}{ĐẠI HỌC QUỐC GIA HÀ NỘI}
+\newcommand{\School}{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ}
+\newcommand{\ThesisTitle}{TÊN ĐỀ TÀI KHÓA LUẬN\\DÒNG THỨ HAI NẾU CẦN}
+\newcommand{\Major}{Công nghệ thông tin}
+\newcommand{\StudentName}{[Họ và tên sinh viên]}
+\newcommand{\StudentClass}{[Lớp]}
+\newcommand{\Supervisor}{[Học hàm, học vị và họ tên]}
+\newcommand{\ThesisCity}{Hà Nội}
+\newcommand{\ThesisYear}{2026}
+\newcommand{\ThesisDate}{ngày [dd] tháng [mm] năm \ThesisYear}
+% Chép logo chính thức của trường vào assets/logo.png để tự động thay ô giữ chỗ.
+\newcommand{\SchoolLogo}{%
+  \IfFileExists{assets/logo.png}{\includegraphics[height=3.2cm]{assets/logo.png}}{%
+    \fbox{\parbox[c][3cm][c]{3cm}{\centering\small LOGO\\TRƯỜNG}}}}
+\newcommand{\placeholder}[1]{\textit{[#1]}}
+\newcommand{\FrontPage}[1]{%
+  \clearpage\phantomsection\addcontentsline{toc}{chapter}{#1}%
+  \begin{center}\bfseries\fontsize{16}{20}\selectfont #1\end{center}\vspace{12pt}}
+\hypersetup{pdftitle={Khung khóa luận tốt nghiệp},pdfauthor={}}
+

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package hexta.ai.v1;
+option go_package = "github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1";
+
+// Internal service-to-service contract. Go authorizes tenant snapshots and sending.
+service AIService {
+  rpc StartRun(StartRunRequest) returns (Run);
+  rpc GetRun(RunRequest) returns (Run);
+  rpc CancelRun(RunRequest) returns (Run);
+}
+
+message Script {
+  string id = 1;
+  string trigger = 2;
+  string text = 3;
+  bool active = 4;
+}
+
+message StartRunRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+  string turn_id = 3;
+  int64 context_revision = 4;
+  int64 control_generation = 5;
+  string message = 6;
+  repeated Script scripts = 7;
+}
+
+message RunRequest {
+  string tenant_id = 1;
+  string run_id = 2;
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_QUEUED = 1;
+  RUN_STATUS_RUNNING = 2;
+  RUN_STATUS_SUCCEEDED = 3;
+  RUN_STATUS_FAILED = 4;
+  RUN_STATUS_CANCELLED = 5;
+}
+
+message Run {
+  string tenant_id = 1;
+  string run_id = 2;
+  string turn_id = 3;
+  int64 context_revision = 4;
+  int64 control_generation = 5;
+  RunStatus status = 6;
+  bool simulated = 7;
+  string route = 8;
+  string text = 9;
+  string script_id = 10;
+  string reason = 11;
+  repeated string steps = 12;
+  string error_code = 13;
+}
