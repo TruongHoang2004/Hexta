@@ -24,6 +24,106 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/ai/agent/converse": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stream interactive conversational turns and order drafts via Server-Sent Events (SSE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "AI Agent"
+                ],
+                "summary": "Converse with AI Agent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Conversational prompt and history",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server-Sent Event stream emitting JSON dto.SSEEvent chunks",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/agent/drafts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a Redis-cached order draft by draft ID for human review and confirmation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI Agent"
+                ],
+                "summary": "Retrieve interactive order draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Draft ID (e.g. draft_8f3a9b21-4c5d)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/google/callback": {
             "get": {
                 "description": "Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies",
@@ -779,6 +879,41 @@ const docTemplate = `{
                 "PaymentStatusRefunded"
             ]
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest": {
+            "type": "object",
+            "required": [
+                "prompt"
+            ],
+            "properties": {
+                "conversation_id": {
+                    "type": "string",
+                    "example": "conv_12345"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage"
+                    }
+                },
+                "prompt": {
+                    "type": "string",
+                    "example": "Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Tôi muốn đặt 2 hộp sữa bắp"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest": {
             "type": "object",
             "required": [
@@ -860,6 +995,40 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO": {
+            "type": "object",
+            "required": [
+                "product_name",
+                "quantity"
+            ],
+            "properties": {
+                "product_id": {
+                    "type": "string",
+                    "example": "prod_123"
+                },
+                "product_name": {
+                    "type": "string",
+                    "example": "Sữa bắp non 500ml"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 2
+                },
+                "subtotal": {
+                    "type": "number",
+                    "example": 50000
+                },
+                "unit_price": {
+                    "type": "number",
+                    "example": 25000
+                },
+                "variant": {
+                    "type": "string",
+                    "example": "Chai 500ml"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest": {
             "type": "object",
             "required": [
@@ -912,6 +1081,59 @@ const docTemplate = `{
             "properties": {
                 "session_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string",
+                    "example": "Anh Nam"
+                },
+                "customer_phone": {
+                    "type": "string",
+                    "example": "0912345678"
+                },
+                "draft_id": {
+                    "type": "string",
+                    "example": "draft_8f3a9b21-4c5d"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO"
+                    }
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Giao hàng giờ hành chính"
+                },
+                "payment_method": {
+                    "type": "string",
+                    "example": "cod"
+                },
+                "shipping_address": {
+                    "type": "string",
+                    "example": "123 Lê Lợi, Q1, TP.HCM"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "proposed"
+                },
+                "tenant_id": {
+                    "type": "string",
+                    "example": "tenant_123"
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 50000
                 }
             }
         },
@@ -1180,6 +1402,15 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
                     }
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO"
                 },
                 "meta": {}
             }

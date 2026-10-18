@@ -16,6 +16,7 @@ func RegisterRoutes(
 	authController *controller.AuthController,
 	tenantController *controller.TenantController,
 	orderController *controller.OrderController,
+	aiController *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Root level public routes
@@ -60,6 +61,13 @@ func RegisterRoutes(
 		orderGroup.GET("/:id", orderController.GetOrder)
 		orderGroup.PATCH("/:id/status", orderController.TransitionStatus)
 		orderGroup.PATCH("/:id/payment", orderController.UpdatePaymentStatus)
+	}
+
+	// AI Agent routes (protected by AuthMiddleware)
+	aiGroup := params.Public.Group("/ai/agent", authMiddleware.RequireAuth())
+	{
+		aiGroup.POST("/converse", aiController.Converse)
+		aiGroup.GET("/drafts/:id", aiController.GetDraft)
 	}
 
 	// Swagger UI

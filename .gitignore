@@ -33,6 +33,7 @@ infrastructure/.redis/
 node_modules/
 **/node_modules/
 .vite/
+packages/sdk/node_modules/
 
 # Python cache
 .venv/
