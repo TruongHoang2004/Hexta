@@ -19,11 +19,14 @@ def create_app(internal_token: str | None = None) -> FastAPI:
     if os.getenv("AI_PROVIDER", "fake") != "fake":
         raise RuntimeError("This bootstrap supports AI_PROVIDER=fake only")
 
+    runtime = {}
+
     @asynccontextmanager
     async def lifespan(app):
         server = service = None
         if os.getenv("AI_GRPC_ENABLED", "true").lower() == "true":
             server, service = await start_server(token, os.getenv("AI_GRPC_ADDRESS", "0.0.0.0:50051"))
+        runtime["service"] = service
         try:
             yield
         finally:
@@ -42,7 +45,13 @@ def create_app(internal_token: str | None = None) -> FastAPI:
         return {"status": "ok", "provider": "fake", "simulated": True}
 
     @app.get("/health/ready")
-    def ready() -> dict:
+    async def ready() -> dict:
+        service = runtime.get("service")
+        if service and hasattr(service, "ready"):
+            try:
+                await service.ready()
+            except Exception:
+                raise HTTPException(status_code=503, detail="AI runtime unavailable") from None
         return {"status": "ready", "provider": "fake", "simulated": True}
 
     @app.post("/internal/v1/preview", response_model=PreviewResult,

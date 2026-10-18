@@ -47,3 +47,5 @@ __pycache__/
 .agents/.alert_history.json
 .agents/*.json
 
+
+infrastructure/.env.local*

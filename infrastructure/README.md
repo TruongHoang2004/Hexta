@@ -1,3 +1,5 @@
+> For the current complete local application stack and Docker-only startup, see [README.demo.md](README.demo.md). The legacy infrastructure below is separate.
+
 # Hexta Infrastructure & Local Environment
 
 Orchestration, backing services, and observability tooling for local development across the [Hexta](https://github.com/TruongHoang2004/Hexta) platform.

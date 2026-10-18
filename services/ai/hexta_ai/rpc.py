@@ -1,7 +1,8 @@
-"""Simulation RPC adapter. Run storage is bounded, volatile, and single-process."""
+"""Shared RPC validation and offline memory adapter; runtime selects durable storage."""
 
 import asyncio
 import hashlib
+import os
 import re
 import secrets
 from collections.abc import Awaitable, Callable
@@ -53,6 +54,9 @@ class AIService(rpc.AIServiceServicer):
             } for script in request.scripts])
         except ValidationError:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid preview input")
+        return await self.submit(request, preview, context)
+
+    async def submit(self, request, preview, context):
         key = (request.tenant_id, request.run_id)
         digest = hashlib.sha256(request.SerializeToString(deterministic=True)).digest()
         if key in self.runs:
@@ -125,7 +129,14 @@ class AIService(rpc.AIServiceServicer):
 
 
 async def start_server(token: str, address: str, service: AIService | None = None):
-    service = service or AIService(token)
+    if service is None:
+        dsn = os.getenv("AI_DATABASE_URL")
+        if not dsn:
+            raise RuntimeError("AI_DATABASE_URL is required for the gRPC runtime")
+        from hexta_ai.durable import DurableAIService
+        from hexta_ai.store import RunStore
+        service = DurableAIService(token, RunStore(dsn))
+        await service.start()
     server = grpc.aio.server(options=[("grpc.max_receive_message_length", 1024 * 1024)])
     rpc.add_AIServiceServicer_to_server(service, server)
     if not server.add_insecure_port(address):
