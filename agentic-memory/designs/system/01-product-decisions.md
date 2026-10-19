@@ -74,3 +74,11 @@ Workflow definitions should be versioned; optional steps such as packing/deliver
 ## Still open
 
 Provider/model choices, cost/concurrency budgets, deployment secret provisioning, real Pancake webhook/send capabilities, media processing/storage details, VPS/domain sizing, retention/backup policy, production broker topology and measurable SLOs. Ten-tree dataset task HEX-42 was still missing in the earlier planning context; verify Notion status before scheduling around it.
+
+## Tenant commercial boundary and onboarding — owner correction 2026-10-19
+
+DECIDED: tenant is the paying business customer and top-level customer-product boundary; orders, chat, products, customers, members and settings belong within it. Customers apply to register a tenant; Hexta reviews and approves before owner access is granted. Tenant owners invite employees by email; recipients sign in and accept before active membership. Account registration alone grants no tenant access. The initial owner's membership is provisioned by approval as the onboarding bootstrap interpretation. No unrestricted create-and-open workflow is approved by this correction.
+
+TARGET route/data/authority changes and remaining OPEN delivery/billing details are recorded in [the tenant-first framework plan](../../plans/2026-10-19_tenant-first-framework_plan.md). Payment integration, pricing, email delivery/verification, operator bootstrap and suspension policy are not implemented or silently decided by this clarification.
+
+IMPLEMENTED locally/unmerged: approval-first onboarding, route-qualified tenant resources, operator CLI authority and email-addressed manual invitations with explicit acceptance. Seven-day expiry is an implementation default. Email provider/mailbox verification, billing automation and broader suspension policy remain OPEN. Existing tenants are preserved. See [implementation design](../2026-10-19_tenant-onboarding_design.md).

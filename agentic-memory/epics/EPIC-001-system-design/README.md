@@ -1,7 +1,7 @@
 ---
 epic: EPIC-001
 title: System design and repository context
-status: in-review
+status: in-progress
 completed: false
 updated: 2026-10-19
 ---
@@ -49,3 +49,27 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Remaining work and next handoff
 
 PR #52 is confirmed merged on 2026-10-19; PR #53 now targets main. Resolve/review its documentation merge with main and confirm #53 merge/CI before completing this epic.
+
+## 2026-10-19 planning follow-up
+
+PR #52 and #53 merge is now verified; their reported checks succeeded. Earlier pending-merge notes above remain historical. New [backlog session](sessions/2026-10-19_next-work-backlog.md) is in-review, completed: false, with a [proposed implementation sequence](../../plans/2026-10-19_next-work-backlog_plan.md). The new planning artifact still requires delivery; implementation epics are not completed by this reconciliation.
+
+## Owner-directed demo-first revision
+
+[Reprioritization session](sessions/2026-10-19_demo-first-reprioritization.md) — in-review; completed: false. The active backlog now prioritizes manual workspace/customer/product/order code, followed by responsibility workflows and a real-data overview. Key/mock-data projects and Kafka/AI infrastructure are deferred from the first-demo critical path. This supersedes the simulator-first recommendation for immediate execution, without removing approved future scope.
+
+## Manual sales implementation follow-up
+
+The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's primary session](../EPIC-007-orders-workflows/sessions/2026-10-19_manual-sales-demo.md). Shared architecture modules and the active plan now reflect the current sales boundary. This is unmerged delivery and does not complete planning or implementation epics.
+
+## Tenant-first framework correction
+
+[2026-10-19_tenant-first-framework](sessions/2026-10-19_tenant-first-framework.md) — in-progress; completed: false. Owner confirmed approval-first tenant registration and owner-issued email invitations with explicit recipient acceptance. Tenant is the paying business boundary; the proposed nested route/permission framework replaces the previous unrestricted create-and-open onboarding direction. No implementation in this session.
+
+## Tenant-first implementation follow-up
+
+[Implementation session](sessions/2026-10-19_tenant-first-implementation.md) — in-progress; completed: false. Approval-first onboarding, manual email-addressed invitation acceptance, independent operator authority and tenant-qualified sales navigation/API are implemented locally. Automated checks pass; live privileged approval verification and delivery review/merge remain open. This supersedes previous pending-build/direct-create entry descriptions without rewriting their sessions.
+
+## Theme-aware branding
+
+[Branding session](sessions/2026-10-19_theme-aware-branding.md) — in-review; completed: false. Approved light/dark logo PNGs and shared theme-aware web component integrated; lint, TypeScript and landing/login browser checks passed. Local/unmerged.

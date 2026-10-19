@@ -31,6 +31,7 @@ export function AuthNav() {
   const handleLogout = async () => {
     await sdk.identity.logout();
     logout();
+    sessionStorage.removeItem("hexta.workspace");
     router.push("/");
   };
 
@@ -56,9 +57,9 @@ export function AuthNav() {
         </div>
         
         <Button asChild variant="ghost" size="sm" className="hover:text-primary transition-colors text-muted hidden sm:flex">
-          <Link href="/tenant">
+          <Link href="/tenants">
             <LayoutDashboard className="w-4 h-4 mr-2" />
-            Dashboard
+            My tenants
           </Link>
         </Button>
 

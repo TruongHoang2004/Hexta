@@ -325,3 +325,51 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Changes**: Main document now inputs 15 files across `config`, `frontmatter`, `chapters`, `backmatter`, and `appendices`. README documents editing locations, root-file directives, image paths and local compilation.
 - **Decision**: Use `input` to preserve the original page-break behavior and keep the existing main.tex entry point. No thesis content changed.
 - **Verification**: Expanded component files matched the original source exactly before saving. Built-in compiler was invoked but cannot access project files (`config/preamble.tex` not found in its isolated compilation). Local XeLaTeX/MacTeX is not installed yet, so multi-file compilation remains to be verified locally or on Overleaf.
+
+## 2026-10-19 — Proposed next-work backlog
+
+- Compared selected live Notion requirements/tasks against router, fake graph, legacy order DTO/AI, frontend inventory and epic context. Added a prioritized plan with dependencies, acceptance criteria, existing HEX task mappings and dataset/evaluation work.
+- Added an EPIC-001 session and navigation; appended current #52/#53 merge/check evidence to epic/operations notes without rewriting historical sessions or claiming target implementation.
+- Verification: read-only GitHub/Notion/code checks, local Markdown targets and git diff --check. No runtime tests rerun; no external tracker writes. New planning delivery remains in-review until merged.
+
+## 2026-10-19 — Demo-first backlog revision
+
+- Revised the active plan at the owner's direction: defer keys, mock-data work and first-demo infrastructure dependencies; deliver vertical workspace/customer/product/order slices, then configurable responsibility handoff and factual overview. Manual conversation records follow feedback; no fake customer-send action is proposed.
+- Preserved earlier scope/evidence, added a separate EPIC-001 session and updated epic/index/operations sequencing. No code or external tracker changes.
+- Verification: whitespace and new local links; application tests not rerun for this documentation-only revision.
+
+## 2026-10-19 — First manual sales demo (D1–D3, local/unmerged)
+
+- **Outcome:** Implemented workspace selection/team, customer/product entry/edit/archive and order draft/edit/assigned-sale confirmation UI. Records persist in PostgreSQL; no key, dataset preparation, channel simulator or external sending is required.
+- **Files:** Added sales service/repository/controller/DTO/types and web sales components/client; updated Fx/router, existing models, SDK error detail handling and generated Swagger. Removed the obsolete HTTP order controller/status/payment mutation routes. Added migration 20261019030000 and sales/CORS/owner-invitation checks. Updated canonical architecture/DB/API/workflow/operations docs and local runbook; progress is recorded in the EPIC-007 session.
+- **Decisions:** Transactional membership/reference/actor checks, batched product locks, order versions, missing-price flags and audited confirmation replace public auto-confirm/inventory behavior. Partial phone uniqueness permits customers without phone. Primary product variant is editable; additional variants/history are retained. CORS includes bearer/workspace headers with explicit origins. Confirmed orders are read-only in this slice.
+- **Verification:** Go race suite and vet; 25 SDK tests; web lint/type checks; Swagger regeneration and Atlas integrity; fresh PostgreSQL migrations and existing local upgrade; six PostgreSQL sales scenarios including concurrent confirm/edit; API/web Docker production builds and healthy runtime; local HTTP and browser end-to-end smoke through reload of a confirmed order. The inherited make migrate-diff host configuration failed on Docker-only hostname resolution; the narrow migration was scoped manually and applied/validated through Atlas without reset.
+- **Handoff:** Open http://localhost:3000/orders, register/sign in and enter records through the forms. Start/rebuild with scripts/local.sh up --build -d --wait api web. Next scope is D4 responsibility handoff after demo feedback. Delivery is not merged; no broad epic/Notion completion is claimed. New-create request idempotency and full workflow/cases/dashboard remain open.
+
+## 2026-10-19 — Explicit workspace selection before orders
+
+- Added a standalone workspace chooser, workspace cards/create-and-open action, and Change workspace navigation. Authentication and entry links now open /workspaces. Removed automatic first-tenant/localStorage fallback; explicit tab-session selection gates management screens and clears on login/logout.
+- Verification: web lint/type checks passed. Local Docker rebuild was not executed: automatic approval review failed twice at model capacity, rather than rejecting the action as unsafe. The previous demo stays running; new browser verification is pending rebuild. No backend/schema change. See the dedicated EPIC-007 session; delivery remains incomplete/unmerged.
+
+## 2026-10-19 — Tenant-first framework plan
+
+- Captured owner-confirmed tenant hierarchy and commercial boundary: customer registration request requires Hexta approval; owners invite employees by email and recipients accept before access. Added a source-grounded plan for distinct platform/applicant/member authority, nested business routes, approval and invitation lifecycle, migration risks and acceptance criteria.
+- Preserved existing sales code and all uncommitted work. Current direct create/add-member/plan mutation behavior is explicitly a gap; no payment engine, email provider, production capability or implementation completion is claimed. Updated EPIC-001 primary session, cross-epic handoff/index and canonical product/architecture decisions.
+- Verification: read-only code inspection, local links and git whitespace. Planning only; no application tests/build or external tracker changes.
+
+## 2026-10-19 — Tenant-first foundation (local/unmerged)
+
+- **Outcome:** Account hub /tenants precedes tenant-qualified orders/catalog/settings. Customers apply; Hexta operator approval provisions owner access atomically. Owners issue email-addressed private invitations; matching recipients explicitly accept before membership.
+- **Files:** [NEW] onboarding model/repository/service/controller/DTO/tests, additive migration 20261019040000, trusted operator CLI, web application/review/invitation/settings pages and client. [MODIFY] router/Fx, tenant commercial guard, SDK/generated dist, Swagger, Dockerfile, shell/auth navigation, Python smoke source and local runbook. See the [primary implementation session](epics/EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md).
+- **Decisions/walkthrough:** Apply stores pending state; operator review locks request and provisions tenant/owner in one transaction. Invitations store only token digests, default seven-day expiry, serialize tenant before invitation and require explicit accept. Manual links clearly say no email sent. Path tenant context replaces tab selector state; old direct create/add/global sales and legacy AI routes are unregistered. Existing data remains intact; owner plan/status writes rejected.
+- **Verification:** Full Go race suite/vet; isolated HTTP onboarding workflow; eleven PostgreSQL sales/onboarding scenarios including concurrency; 25 SDK tests; web lint/type checks; regenerated Swagger and Atlas integrity; six fresh migrations and existing-volume upgrade. Browser checked pending application/no extra access, existing tenant navigation and confirmed-order persistence. Revised Python smoke syntax passes; runtime not rerun. Final Docker rebuild result is recorded in the session.
+- **Limit:** Automatic approval review rejected a temporary live operator grant for missing explicit privilege-change authorization; no grant executed. Live review/accept verification remains pending, separate from passing isolated tests. Email/payment/provider integrations and expanded workflows remain deferred. No commit/PR/merge or external tracker completion claimed.
+
+- **Final runtime:** API/web production rebuild passed; web/API/PostgreSQL/Redis healthy, init/migrate exited successfully. Final browser reload verified chooser, nested orders/data preservation and manual-invitation notice; disposable test DB stopped. Operator binary presence checked without granting access.
+
+## 2026-10-19 — Theme-aware Hexta logo
+
+- [NEW] apps/web/public/brand/hexta-light.png and hexta-dark.png: approved generated transparent PNGs, retained unchanged. [NEW] apps/web/components/brand-logo.tsx: accessible shared logo with CSS theme switching and a fixed frame for transparent margins.
+- [MODIFY] landing navigation/footer, login/register, workspace shell and invitation entry replace placeholder branding. Existing sales/onboarding edits preserved. No API/schema changes.
+- Verification: web lint and tsc --noEmit passed; git diff --check passed. Browser checked landing light/dark switching and dark login on local dev server. Authenticated workspace not runtime-tested.
+- Manual check: open home, toggle theme, then visit login/register and tenant/invitation headers. Local/unmerged; see [session](epics/EPIC-001-system-design/sessions/2026-10-19_theme-aware-branding.md).

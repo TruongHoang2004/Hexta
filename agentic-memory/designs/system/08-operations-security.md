@@ -88,3 +88,23 @@ Next recommended work is a messaging/Kafka ingress vertical slice with inbox/out
 ## Definition of architecture documentation maintenance
 
 After schema/API/RPC/event changes, update database/HTTP/gRPC/Kafka modules and the affected epic/session records. After policy changes, update product/workflows and tests. After infrastructure work, update the runbook and actual verification evidence. Mark unfinished slices accurately. Link the PR and relevant file paths; never depend on chat history alone.
+
+## 2026-10-19 delivery-state reconciliation
+
+GitHub CLI verified PR #52 and #53 merged into main; #52 reported successful backend/frontend/container checks and #53 successful lifecycle checks. Earlier roadmap merge gates are satisfied for those PRs. This is not a fresh local runtime verification or completion of target epics. See the [proposed next-work backlog](../../plans/2026-10-19_next-work-backlog_plan.md) for the bounded simulator-first sequence and current Notion dependencies.
+
+## Owner-directed first-demo sequencing
+
+The owner deferred key and mock-data tickets and prioritized code for early product feedback. The active plan now starts with user-entered customer/product/order flows, then responsibility handoff and an overview; manual conversation UI follows. Kafka, model integration, simulators and trace infrastructure are not first-demo prerequisites. This changes delivery order, not the approved target architecture or sending authorization boundaries. See the active sequence in the linked next-work plan.
+
+## Manual sales demo verification — 2026-10-19
+
+Local unmerged D1–D3 code now provides workspace/team, customer/product CRUD/archive and order draft/edit/explicit-confirmation screens. API/web built and started through scripts/local.sh up --build -d --wait api web; PostgreSQL/Redis healthy and init/migrate exited successfully. Fresh Atlas application to a disposable PostgreSQL DB passed in addition to upgrade of the existing local volume. Browser verification created/edited records, saved an empty draft, completed it, confirmed as the assigned actor and reloaded the confirmed result. No model or connector was used. Test-only records are labeled verification, not business evidence. See the EPIC-007 session for exact checks and remaining delivery work.
+
+## Tenant-first verification — 2026-10-19 local/unmerged
+
+Go race suite and vet passed; 25 SDK tests, web lint/type checks and production build passed. Isolated HTTP-controller tests cover application/review/invitation/acceptance including wrong actors. Eleven PostgreSQL sales/onboarding scenarios passed, including concurrent review/accept and draft/confirmation races. Atlas integrity and six fresh migrations passed; demo upgrade preserves prior accounts/orders. Browser verified pending application without added tenant access and existing tenant nested navigation/order persistence.
+
+Automatic approval review rejected a proposed temporary operator grant in the running demo because this live privileged change lacked explicit authorization. No grant was performed. Full approval/acceptance is tested in isolated fixtures; live operator review remains a separate authorized verification step. The trusted operator CLI is packaged in the API image; no public bootstrap endpoint or automatic first-user promotion exists. Email is manual private-link delivery; no email/payment/provider integration is claimed. See [implementation session](../../epics/EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md).
+
+Final tenant-first API/web rebuild passed, all required services healthy; browser rechecked the rebuilt chooser/orders/member screen. Executable operator CLI is packaged, but no grant was run. Disposable test PostgreSQL was stopped; application volume preserved.

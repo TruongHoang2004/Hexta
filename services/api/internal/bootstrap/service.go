@@ -9,8 +9,10 @@ import (
 
 func BuildService() fx.Option {
 	return fx.Provide(
+		service.NewTenantOnboardingService,
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
+		service.NewSalesService,
 		service.NewHealthService,
 		service.NewAuthService,
 		service.NewTenantService,

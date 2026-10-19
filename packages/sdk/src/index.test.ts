@@ -275,31 +275,15 @@ describe("HextaSDK and Interceptors", () => {
   });
 
   describe("Tenant Operations", () => {
-    it("creates a new tenant", async () => {
-      const input = { name: "Acme Corp", slug: "acme-corp", plan: "pro" };
-      mock.onPost("/api/v1/tenants").reply((config) => {
-        const body = JSON.parse(config.data);
-        expect(body.name).toBe("Acme Corp");
-        expect(body.slug).toBe("acme-corp");
-        return [
-          201,
-          {
-            data: {
-              id: "tenant-acme",
-              name: "Acme Corp",
-              slug: "acme-corp",
-              status: "active",
-              plan: "pro",
-              owner_id: "user-1",
-            },
-          },
-        ];
+    it("requests a tenant without activating it", async () => {
+      const input = { name: "Acme Corp", slug: "acme-corp" };
+      mock.onPost("/api/v1/tenant-requests").reply(config => {
+        expect(JSON.parse(config.data)).toEqual(input);
+        return [200, { data: { id: "request-acme", ...input, status: "pending", tenant_id: null } }];
       });
-
-      const res = await sdk.identity.createTenant(input);
-      expect(res.id).toBe("tenant-acme");
-      expect(res.name).toBe("Acme Corp");
-      expect(res.plan).toBe("pro");
+      const result = await sdk.identity.requestTenant(input);
+      expect(result.status).toBe("pending");
+      expect(result.tenant_id).toBeNull();
     });
 
     it("fetches list of tenants", async () => {
@@ -358,23 +342,15 @@ describe("HextaSDK and Interceptors", () => {
       expect(users[1].user_id).toBe("u-2");
     });
 
-    it("invites a member to a tenant", async () => {
-      mock.onPost("/api/v1/tenants/t-1/invites").reply((config) => {
-        const body = JSON.parse(config.data);
-        expect(body.user_id).toBe("u-3");
-        expect(body.role).toBe("member");
-        return [
-          201,
-          {
-            data: { id: 3, tenant_id: "t-1", user_id: "u-3", role: "member" },
-          },
-        ];
+    it("creates an email invitation without an active membership", async () => {
+      mock.onPost("/api/v1/tenants/t-1/invitations").reply(config => {
+        expect(JSON.parse(config.data)).toEqual({ email: "employee@example.test" });
+        return [200, { data: { invitation: { id: "invite-1", tenant_id: "t-1", email: "employee@example.test", role: "member", status: "pending" }, token: "one-time-token", delivery: "manual_link_not_emailed" } }];
       });
-
-      const invite = await sdk.identity.inviteMember("t-1", { user_id: "u-3", role: "member" });
-      expect(invite.id).toBe(3);
-      expect(invite.user_id).toBe("u-3");
-      expect(invite.role).toBe("member");
+      const result = await sdk.identity.createEmailInvitation("t-1", "employee@example.test");
+      expect(result.invitation.status).toBe("pending");
+      expect(result.delivery).toBe("manual_link_not_emailed");
+      expect(result).not.toHaveProperty("user_id");
     });
   });
 

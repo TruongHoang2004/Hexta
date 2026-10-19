@@ -70,3 +70,17 @@ HTTP mutations return after a local state/job/outbox transaction. Webhook acknow
 ## Dependency failure behavior
 
 DB unavailable: no new durable acknowledgement; return retryable error. Kafka unavailable: committed outbox waits, user commands can still commit within configured capacity. Python unavailable: Go job retains the deterministic run ID and queries/retries acceptance. Trace exporter unavailable: business work continues with safe local metadata. External send uncertain: mark unknown and reconcile, never assume safe resend. Exact live behavior for unimplemented components requires failure tests before rollout.
+
+## Local manual sales slice — 2026-10-19
+
+The web now has a shared workspace shell and customer/product/order pages. Authenticated sales HTTP commands use SalesController -> SalesService -> ISalesRepository, with database transactions, current membership checks, tenant-scoped references, order versions and audits. Legacy order stock/payment behavior is not the new confirmation path. This local slice has no queue, external sending or model dependency. Its delivery is unmerged; conversation/workflow automation remains target scope.
+
+## Tenant-first onboarding — implemented locally, 2026-10-19
+
+The account hub is /tenants. Business routes use /tenants/{tenantId}/{orders|customers|products|settings/...}, with route-bound membership loading and a keyed resource subtree. Separate tabs need no shared tenant selector. Former workspace/global business URLs redirect to the account hub.
+
+TenantOnboardingController -> TenantOnboardingService -> TenantOnboardingRepository provides pending applications, explicitly authorized platform review and atomic tenant/owner provisioning. Owner email invitations activate only after signed-in recipient acceptance. Platform authority is independent of tenant membership and provisioned only by a trusted database CLI. The manual private-link delivery clearly states that no email was sent. Existing tenants/data are retained. Public direct creation/direct membership invitations and legacy AI routes are unregistered; owners cannot change plan/status. See [the implementation design](../2026-10-19_tenant-onboarding_design.md). Delivery remains local/unmerged.
+
+## Shared web branding — 2026-10-19
+
+IMPLEMENTED locally/unmerged: apps/web/components/brand-logo.tsx renders approved PNG assets from public/brand with class-based light/dark selection. Landing, authentication, account/workspace shell and invitations share the component. It requires no theme hook or API contract change.

@@ -27,14 +27,28 @@ interface User {
     role?: string;
     user_id?: string;
 }
-interface CreateTenantInput {
+interface TenantApplicationInput {
     name: string;
     slug: string;
-    plan?: string;
 }
-interface InviteMemberInput {
-    user_id: string;
-    role?: string;
+interface TenantApplication {
+    id: string;
+    name: string;
+    slug: string;
+    status: "pending" | "approved" | "rejected";
+    tenant_id: string | null;
+}
+interface PendingTenantInvitation {
+    invitation: {
+        id: string;
+        tenant_id: string;
+        email: string;
+        role: string;
+        status: string;
+        expires_at: string;
+    };
+    token: string;
+    delivery: string;
 }
 interface TokenPair {
     access_token: string;
@@ -86,14 +100,14 @@ declare class IdentityClient {
     clearTokens(): Promise<void>;
     getAccessToken(): Promise<string | null>;
     getRefreshToken(): Promise<string | null>;
-    createTenant(input: CreateTenantInput): Promise<Tenant>;
+    requestTenant(input: TenantApplicationInput): Promise<TenantApplication>;
     getTenants(): Promise<Tenant[]>;
     getTenant(id: string): Promise<Tenant>;
-    updateTenant(id: string, input: Partial<CreateTenantInput> & {
-        status?: string;
+    updateTenant(id: string, input: {
+        name?: string;
     }): Promise<Tenant>;
     getUsers(tenantId: string): Promise<TenantMember[]>;
-    inviteMember(tenantId: string, input: InviteMemberInput): Promise<TenantMember>;
+    createEmailInvitation(tenantId: string, email: string): Promise<PendingTenantInvitation>;
 }
 interface SDKConfig {
     apiUrl: string;
@@ -119,4 +133,4 @@ declare class HextaSDK {
     getStorage(): StorageAdapter;
 }
 
-export { type CreateTenantInput, DefaultBrowserStorage, HextaSDK as EcommerceHubSDK, HextaSDK, IdentityClient, type InviteMemberInput, MemoryStorage, type SDKConfig, type StorageAdapter, type StorageOptions, type Tenant, type TenantMember, type TokenPair, type User };
+export { DefaultBrowserStorage, HextaSDK as EcommerceHubSDK, HextaSDK, IdentityClient, MemoryStorage, type PendingTenantInvitation, type SDKConfig, type StorageAdapter, type StorageOptions, type Tenant, type TenantApplication, type TenantApplicationInput, type TenantMember, type TokenPair, type User };

@@ -6,6 +6,14 @@ IMPLEMENTED: one local PostgreSQL instance/database `hexta_demo`, Atlas-owned `p
 
 Atlas business migrations live in `migrations/api`; Python version-001 DDL lives in `services/ai/hexta_ai/migrations/001_runs.sql`. Atlas uses public search_path and an explicit atlas_schema_revisions metadata schema. There is no implicit Go AutoMigrate in the local launcher. New Python schema revisions need versioned migrations rather than silently mutating 001. No runtime data is deleted by this documentation.
 
+## Sales demo additive schema (implemented locally, 2026-10-19)
+
+[Migration 20261019030000](../../../migrations/api/20261019030000_sales_demo.sql) adds orders.version (bigint default 1), requires_delivery (boolean default false), delivery_address (text default empty), and price_provided on product_variants/order_items (boolean default false). Historic non-draft lines are marked as legacy price-provided; historic draft prices require explicit review. No existing business records are deleted. Unit price stays numeric(15,2); the presence flag distinguishes omitted from explicit zero without changing legacy Go decimal fields.
+
+The customer phone unique index is now partial on (tenant_id,phone) where phone is nonempty and deleted_at is null, allowing multiple customers without phone and reuse after archive. The models match the new index definition. Customer archive is soft deletion; product archive retains variants/history. Order save, related-tenant/current-member/active-product checks and audit inserts share one transaction. Row locks plus order version fencing serialize edit/confirm races. Product references are validated and locked in a batch, not queried per line. Broad tenant-FK retrofits remain target work; these service gates are not a claim of new database constraints.
+
+The catalog below remains the original baseline; apply this overlay and all migration files to interpret the current physical schema. Fresh PostgreSQL application and existing local DB upgrade both passed. The existing make migrate-diff configuration resolves a legacy Docker hostname postgres; host invocation failed DNS resolution. The additive SQL was scoped manually and checksummed/validated/applied with Atlas through the local profile, avoiding unrelated historical Gorm drift.
+
 ## Existing public table catalog (IMPLEMENTED)
 
 The following columns/constraints are extracted from CREATE TABLE blocks in ordered API migrations at baseline 01b2e11. They are a readable catalog, not executable migration instructions. Apply all ALTER/index migrations too; specifically identities.password becomes nullable and identity uniqueness changes to (provider,identifier). SQL and Atlas history remain the authoritative installed-schema definition. Timestamp types below reflect historical SQL, not a claim they already follow the target UTC convention.
@@ -356,3 +364,7 @@ This is TARGET logical structure, not an ERD asserting every relationship alread
 Add schema incrementally: grants/settings/connectors -> threads/turns/messages -> scripts/versions -> decisions/proposals/intents/attempts -> inbox/outbox/jobs -> workflow/exception tables. Reconcile ordering with the Kafka vertical slice. Generate/apply Atlas business changes, validate atlas.sum and upgrade a populated fixture. Preserve legacy APIs/data until an explicit compatibility/backfill plan exists.
 
 Claim/reassign/return/resolve/expiry/message-context changes serialize on the affected turn/thread and compare version. Send dispatch initiation uses the same gate. Outbox insertion belongs to the same transaction as each domain change. Do not hold DB transactions during model calls, broker publication, media fetches or Pancake sends. Cache invalidation follows committed versioned events. Keep business drafts/history after turn closure; retention is a separate policy.
+
+## Tenant onboarding migration — local/unmerged
+
+20261019040000 adds platform_operators, tenant_registration_requests and tenant_invitations. Applications record applicant/reviewer/decision/time/tenant; non-rejected slug requests are unique. Pending invitations are unique by tenant/email; only SHA-256 token digests persist, with status/expiry/recipient metadata and tenant FKs. Raw private tokens never enter audit payloads. Existing tenant/membership/business data is preserved. Approval and acceptance are transactional; invitation writes lock tenant before invitation. Fresh Atlas application and existing-volume upgrade passed. See [implementation design](../2026-10-19_tenant-onboarding_design.md).

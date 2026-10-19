@@ -26,7 +26,8 @@ function AuthCallbackContent() {
       setAuth();
 
       toast.success("Login successful!");
-      router.push("/tenant");
+      sessionStorage.removeItem("hexta.workspace");
+      router.push(sessionStorage.getItem("hexta.invitation") ? "/invitations" : "/tenants");
     } else {
       toast.error("Authentication failed: token not found.");
       router.push("/login");

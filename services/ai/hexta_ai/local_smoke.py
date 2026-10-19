@@ -1,4 +1,4 @@
-"""Docker-only diagnostics. Creates a disposable local account/tenant, never sends messages."""
+"""Docker-only diagnostics. Creates a disposable local account/application, never grants tenant access or sends messages."""
 
 import asyncio
 import json
@@ -32,10 +32,11 @@ def application_check():
     http("http://api:8080/api/v1/auth/register", credentials)
     login = http("http://api:8080/api/v1/auth/login", credentials)
     token = login["data"]["access_token"]
-    created = http("http://api:8080/api/v1/tenants", {"name": "Local smoke", "slug": "smoke-" + unique}, token)
+    created = http("http://api:8080/api/v1/tenant-requests", {"name": "Local smoke", "slug": "smoke-" + unique}, token)
     tenants = http("http://api:8080/api/v1/tenants", token=token)
-    assert created["data"]["id"] in [tenant["id"] for tenant in tenants["data"]]
-    print("PASS: web login page, API DB/cache health, register/login, authenticated tenant create/list")
+    assert created["data"]["status"] == "pending"
+    assert not tenants["data"]
+    print("PASS: web login page, API DB/cache health, register/login, pending tenant application, no active membership")
 
 
 async def run_check(phase, run_id):

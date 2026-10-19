@@ -14,30 +14,38 @@ Base is `/api/v1`. Actual routing: [router.go](../../../services/api/internal/pr
 | POST /auth/logout | optional session_id | IMPLEMENTED authenticated session logout; ownership checks apply |
 | GET /auth/google/login | none | IMPLEMENTED OAuth redirect/state; local profile has no OAuth credentials |
 | GET /auth/google/callback | provider code/state | IMPLEMENTED account linking; not configured in local smoke |
-| POST /tenants | name, slug, plan | IMPLEMENTED authenticated tenant create |
-| GET /tenants | none | IMPLEMENTED list caller's tenants |
-| GET /tenants/{id} | tenant ID | IMPLEMENTED tenant query |
-| PUT /tenants/{id} | optional name, plan, status | IMPLEMENTED update; inspect service role checks |
-| GET /tenants/{id}/users | tenant ID | IMPLEMENTED members list |
-| POST /tenants/{id}/invites | user_id, role | IMPLEMENTED current membership API; not the target fine-grained script-grant API |
-| POST /orders | CreateOrderRequest | IMPLEMENTED legacy create; not the target incomplete-draft contract |
-| GET /orders | tenant context/pagination | IMPLEMENTED legacy order list |
-| GET /orders/{id} | tenant context + order ID | IMPLEMENTED legacy order query |
-| PATCH /orders/{id}/status | status | IMPLEMENTED legacy state transition |
-| PATCH /orders/{id}/payment | payment_status | IMPLEMENTED legacy metadata; payment execution is outside approved MVP |
-| POST /ai/agent/converse | prompt, conversation_id?, history[] | IMPLEMENTED legacy Gemini order-assistant SSE; not Python messaging gRPC |
-| GET /ai/agent/drafts/{id} | tenant context + draft ID | IMPLEMENTED legacy Redis order draft lookup |
+| GET /tenants | none | Current memberships only; account signup creates none |
+| GET /tenants/{tenantID} | tenant ID | Current member query |
+| PUT /tenants/{tenantID} | optional name | Owner update; supplied plan/status changes rejected |
+| GET /tenants/{tenantID}/users | tenant ID | Current member list |
+| GET/POST /tenant-requests | none / name, slug | Own applications / pending application |
+| GET /platform/access | none | Caller operator flag; no privilege grant |
+| GET /platform/tenant-requests | none | Explicit platform operator only |
+| POST /platform/tenant-requests/{id}/review | decision, reason | Operator approval/rejection; approval atomically provisions owner |
+| GET/POST /tenants/{tenantID}/invitations | none / email | Owner list/create; returns private token once, manual_link_not_emailed |
+| POST /tenants/{tenantID}/invitations/{id}/revoke | none | Owner, same tenant, pending invitation |
+| POST /invitations/preview | token | Signed-in matching recipient, no membership effect |
+| POST /invitations/accept | token | Active tenant, current token/expiry/recipient; atomic member activation |
+| POST /invitations/decline | token | Matching recipient declines |
+| GET/POST /tenants/{tenantID}/customers | pagination / SalesCustomerRequest | Current member list/create |
+| PUT/DELETE /tenants/{tenantID}/customers/{id} | fields / ID | Update/archive with retained references |
+| GET/POST /tenants/{tenantID}/products | pagination / SalesProductRequest | Current member list/create |
+| PUT/DELETE /tenants/{tenantID}/products/{id} | fields / ID | Primary variant edit / archive |
+| GET/POST /tenants/{tenantID}/orders | pagination / SalesDraftRequest | Current member list/incomplete draft |
+| GET/PUT /tenants/{tenantID}/orders/{id} | ID / draft + version | Tenant-qualified read / actor/version guarded edit |
+| POST /tenants/{tenantID}/orders/{id}/confirm | version | Assigned-sale guarded confirmation; no stock/payment effects |
 | GET /swagger/*any | none | IMPLEMENTED public reference under base |
 
-Current order/legacy AI controllers accept `X-Tenant-ID` or tenant query/body context depending on action; these values are claims to authorize, not proof of membership. Read the exact controller/service before extending it. Target messaging routes use an explicit tenant path with server-side membership/resource checks. No security audit of every existing endpoint is implied by this inventory.
+Tenant identity comes from the path. A conflicting X-Tenant-ID is rejected on sales routes; current membership and references are checked transactionally. Direct POST /tenants, old /invites, global sales/status/payment and legacy Gemini HTTP routes are removed. Internal legacy services remain. SDK clients now use requestTenant/createEmailInvitation and nested sales paths. See generated Swagger and [onboarding design](../2026-10-19_tenant-onboarding_design.md).
 
 ## Existing DTO details and compatibility gaps
 
 - Register/login: email required/valid, password required min 6; response data carries access_token, refresh_token, session_id, user_id (refresh response has tokens). Preserve existing SDK/session behavior; design changes to cookie handling explicitly.
-- Tenant create: name/slug required, length 2..100, optional plan. Tenant update: optional name/plan/status. Invite: required user_id, optional role.
-- CreateOrderRequest: tenant_id, optional customer_id/employee_id, required nonempty items `{variant_id,quantity>=1,unit_price}`, discount, source, draft_id, notes, auto_confirm. Decimal validation currently differs from the approved explicit-nonnegative-price requirement; do not assume zero/missing semantics are correct without tests.
-- Order response: identity/tenant/number, customer/employee, status/payment_status, subtotal/discount/total_amount, source/draft/notes/items and timestamps. List wraps items,total,page,size,total_pages.
-- Legacy AI request history entries are role/content. SSE events are token, draft_proposed, tool_call, error, done. Draft includes customer/contact/address/items/price/payment_method/expiry. This is not the future reply-proposal schema.
+- Application: name/slug required; service normalizes and validates slug. Review is approve/reject, with rejection reason. Invitation accepts email only and fixes role to member. Tenant owner update permits name; commercial plan/access changes are rejected.
+- Sales draft requests allow empty items and absent customer/employee/price; supplied lines require a valid active tenant product and positive quantity. Missing unit_price sets price_provided=false while explicit zero sets true. Updates replace editable fields and require the current version. Draft assignment to another member or clearing an assignment requires owner; members may self-assign an unassigned draft. Another sale's draft is read-only to non-owners.
+- Confirmation requires the assigned actor, customer name/contact, at least one item with explicit nonnegative prices, and an address only for delivery. Both edits and confirmation lock the current draft and increment version; stale/non-draft commands return 409. Confirmed records are read-only in the current UI.
+- Sales responses expose version, requires_delivery, delivery_address and line price_provided. Empty order items remain an array. Lists wrap items,total,page,size (maximum 100); the API's decimal serialization can return numeric values, so the web client normalizes editable prices to strings. Old order DTO/service types remain internal legacy code, not the public HTTP command contract.
+- Unregistered legacy AI request history entries are role/content. SSE events are token, draft_proposed, tool_call, error, done. Draft includes customer/contact/address/items/price/payment_method/expiry. This is not the future reply-proposal schema.
 - Standard Go success wrapper is `response.Response[T]` with `data` and `meta`. Pagination DTOs differ by existing endpoint; keep compatibility until a migration plan standardizes them. Use typed shared errors from `packages/shared/pkg/errors`; do not invent one universal legacy error JSON shape.
 
 ## Target HTTP contract conventions
@@ -80,10 +88,10 @@ Cursor pagination for conversations/messages/scripts must have a stable order an
 | POST /tenants/{tenant}/work-items/{id}/handoff | next recipient, expected_version | actor/recipient checks; direct or awaiting acceptance |
 | POST /tenants/{tenant}/work-items/{id}/accept | expected_version | nominated recipient only |
 | POST /tenants/{tenant}/work-items/{id}/assign | user_id, expected_version | owner; does not change workflow version |
-| POST /orders, GET /orders, GET /orders/{id} | draft creation permits partial fields; paginated reads | review compatibility with existing stricter create DTO; never implicitly auto-confirm |
-| PATCH /orders/{id} | partial draft fields, expected_version | permit incomplete business information while validating supplied values/types/tenant references |
-| POST /orders/{id}/confirm | expected_version | assigned sale only; customer name + contact, at least one product with positive quantity and explicit nonnegative unit price, assigned sale, and address if delivery is required; scope audit stock coupling first |
-| POST /orders/{id}/exception-cases | kind, reason, line quantities | operational case, not refund |
+| POST /tenants/{tenant}/orders, GET /tenants/{tenant}/orders, GET /tenants/{tenant}/orders/{id} | draft creation permits partial fields; paginated reads | review compatibility with existing stricter create DTO; never implicitly auto-confirm |
+| PATCH /tenants/{tenant}/orders/{id} | partial draft fields, expected_version | permit incomplete business information while validating supplied values/types/tenant references |
+| POST /tenants/{tenant}/orders/{id}/confirm | expected_version | assigned sale only; customer name + contact, at least one product with positive quantity and explicit nonnegative unit price, assigned sale, and address if delivery is required; scope audit stock coupling first |
+| POST /tenants/{tenant}/orders/{id}/exception-cases | kind, reason, line quantities | operational case, not refund |
 | POST /exception-cases/{id}/receive | line quantities/condition/version | employee assigned to the case updates progress; guard duplicate receipt and original line quantity |
 | POST /exception-cases/{id}/resolve | result, expected_version | business owner confirms final cancellation/return outcome; progress update permission does not grant finalization |
 
@@ -108,3 +116,7 @@ Real webhook provider payload/ack/authentication are OPEN pending entitlement an
 Simulator endpoints must require development credentials and an explicit simulated connector. Simulator data can exercise the full target event pipeline but cannot reach a real sender. A simulated send result must remain visibly marked, never presented as delivered to a customer.
 
 Customer/product CRUD, metrics/dashboard definitions, media upload and richer workflow endpoints need their own compatible DTO specification. They are not registered public CRUD APIs simply because corresponding DB tables exist.
+
+## Browser sales access (implemented local slice, 2026-10-19)
+
+CORS permits the configured frontend origin and, outside production, localhost/127.0.0.1:3000; allowed request headers include Authorization and X-Tenant-ID. It does not use wildcard credentialed access. Email invitations require an active owner and explicit recipient acceptance. The first-demo flow is documented in the local runbook; messaging target routes below remain unimplemented. The sales slice is local/unmerged, not a production release.

@@ -146,8 +146,8 @@ var IdentityClient = class {
     return await this.storage.get(this.refreshTokenKey) || null;
   }
   // Tenant
-  async createTenant(input) {
-    const response = await this.client.post("/api/v1/tenants", input);
+  async requestTenant(input) {
+    const response = await this.client.post("/api/v1/tenant-requests", input);
     return response.data.data;
   }
   async getTenants() {
@@ -167,8 +167,8 @@ var IdentityClient = class {
     const response = await this.client.get(`/api/v1/tenants/${tenantId}/users`);
     return response.data.data;
   }
-  async inviteMember(tenantId, input) {
-    const response = await this.client.post(`/api/v1/tenants/${tenantId}/invites`, input);
+  async createEmailInvitation(tenantId, email) {
+    const response = await this.client.post(`/api/v1/tenants/${tenantId}/invitations`, { email });
     return response.data.data;
   }
 };
@@ -307,7 +307,7 @@ var HextaSDK = class {
   handleApiError(error) {
     if (error.response && error.response.data) {
       const apiError = error.response.data;
-      const msg = typeof apiError === "string" ? apiError : apiError.message || apiError.detail || "API Error";
+      const msg = typeof apiError === "string" ? apiError : apiError.detail || apiError.message || "API Error";
       const err = new Error(msg);
       err.response = error.response;
       err.status = error.response.status;

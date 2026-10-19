@@ -1,7 +1,7 @@
 ---
 epic: EPIC-007
 title: Approved order scope and flexible business workflows
-status: not-started
+status: in-progress
 completed: false
 updated: 2026-10-19
 ---
@@ -21,8 +21,8 @@ Adapt legacy order code to approved incomplete-draft/explicit-confirmation rules
 
 ## Acceptance checklist
 
-- [ ] Compatibility/scope audit and migration plan for legacy order services/DTOs.
-- [ ] Incomplete draft update and explicit guarded confirmation.
+- [x] Local compatibility/scope audit and additive migration for legacy order services/DTOs; unmerged.
+- [x] Local incomplete draft update and explicit guarded confirmation, PostgreSQL race checks and browser demo; unmerged.
 - [ ] Versioned optional workflows, handoff/accept/assignment and audit history.
 - [ ] Cancellation/return quantity/ownership/finalization cases and tests.
 
@@ -34,14 +34,30 @@ Adapt legacy order code to approved incomplete-draft/explicit-confirmation rules
 
 ## Evidence and verification boundary
 
-Existing merged order foundations are not completion of this approved-scope adaptation. No new implementation session yet.
+The manual D1–D3 sales slice is implemented and locally verified on codex/manual-sales-demo; merge/review remain pending. Existing merged foundations do not complete the parent epic.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
 
 ## Sessions
 
-No work session recorded yet. Implementation has not started; do not invent historical progress.
+- [2026-10-19_manual-sales-demo](sessions/2026-10-19_manual-sales-demo.md) — in-progress; completed: false.
 
 ## Remaining work and next handoff
 
-Audit existing order code before reuse; agree detailed case transitions/stock implications without silently importing payment or auto-confirm scope.
+Review/merge the manual sales slice. Next product slice is configurable responsibility handoff (D4), after feedback on the order demo. Cancellation/return cases and dashboard remain separate; do not inherit legacy stock/payment effects.
+
+## Workspace-first follow-up
+
+[2026-10-19_workspace-first-entry](sessions/2026-10-19_workspace-first-entry.md) — in-progress, completed: false. Explicit chooser and route gating implemented; lint/type checks pass. Runtime rebuild/browser verification pending because automatic approval review failed at model capacity, not because the action was deemed unsafe.
+
+## Tenant-first planning dependency
+
+The owner's corrected onboarding/product hierarchy is recorded in [EPIC-001's framework session](../EPIC-001-system-design/sessions/2026-10-19_tenant-first-framework.md). Preserve the sales implementation, but complete the approved tenant registration/approval/invitation foundation and tenant-scoped navigation before expanding workflows. No duplicate implementation session is recorded here.
+
+## Tenant-first implementation follow-up
+
+[Implementation session](../EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md) — in-progress; completed: false. Approval-first onboarding, manual email-addressed invitation acceptance, independent operator authority and tenant-qualified sales navigation/API are implemented locally. Automated checks pass; live privileged approval verification and delivery review/merge remain open. This supersedes previous pending-build/direct-create entry descriptions without rewriting their sessions.
+
+## Shared branding follow-up
+
+[EPIC-001 branding session](../EPIC-001-system-design/sessions/2026-10-19_theme-aware-branding.md) records the light/dark shared logo applied to the workspace shell. No sales behavior changes; local/unmerged.

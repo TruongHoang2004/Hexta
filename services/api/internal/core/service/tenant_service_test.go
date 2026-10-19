@@ -9,9 +9,9 @@ import (
 )
 
 type mockTenantRepo struct {
-	tenants  map[string]*model.Tenant
-	slugs    map[string]*model.Tenant
-	members  map[string]*model.TenantMember
+	tenants    map[string]*model.Tenant
+	slugs      map[string]*model.Tenant
+	members    map[string]*model.TenantMember
 	memberList map[string][]*model.TenantMember
 }
 
@@ -164,6 +164,16 @@ func TestTenantService_InviteMember(t *testing.T) {
 	}
 	if newMember.Role != model.RoleMember || newMember.UserID != "invited-user" {
 		t.Fatalf("unexpected member data: %+v", newMember)
+	}
+
+	// Admin membership does not grant the owner's permission-management power.
+	_, err = svc.InviteMember(ctx, "owner-user", tenant.ID, "admin-user", model.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.InviteMember(ctx, "admin-user", tenant.ID, "another-user", model.RoleMember)
+	if err == nil || err.GetHttpStatus() != 403 {
+		t.Fatal("admin must not grant membership")
 	}
 
 	// Cannot invite same user twice
