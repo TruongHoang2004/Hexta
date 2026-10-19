@@ -1,28 +1,61 @@
 % !TeX root = ../main.tex
 \chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}\label{chap:design}
 \section{Tổng quan hệ thống}
-\placeholder{Mô tả mục đích, tác nhân và các chức năng chính.}
+Hexta hỗ trợ chủ doanh nghiệp và nhân viên quản lý dữ liệu bán hàng cùng tiến độ xử lý. Chủ doanh nghiệp quản lý thành viên, cấu hình và phân công; nhân viên thực hiện nghiệp vụ trong phạm vi quyền. Người vận hành nền tảng là tác nhân riêng của quy trình xét duyệt đăng ký doanh nghiệp, không đồng nhất với chủ doanh nghiệp. Khách hàng tương tác qua kênh hội thoại; AI là thành phần hỗ trợ, không phải người dùng được tự cấp quyền.
+
+Hệ thống được chia thành nền tảng đang triển khai và các phân hệ mục tiêu. Nền tảng hiện có gồm tài khoản, doanh nghiệp, khách hàng, sản phẩm, đơn nháp và xác nhận. Hội thoại, script có phiên bản, quy trình trách nhiệm và tích hợp kênh là thiết kế mở rộng. Việc mô tả các thành phần mở rộng nhằm làm rõ hợp đồng và điều kiện an toàn, không thể hiện rằng mọi chức năng đã sẵn sàng sử dụng.
+
 \section{Phân tích yêu cầu}
 \subsection{Yêu cầu chức năng}
-\placeholder{Mô tả các chức năng và luồng nghiệp vụ.}
+Doanh nghiệp quản lý khách hàng, thông tin liên hệ, sản phẩm và giá đã cung cấp. Khách ưu tiên do nhân viên đánh dấu, không suy ra tự động từ số tin nhắn. Đơn nháp được lưu thiếu thông tin; khi xác nhận phải có tên khách và ít nhất một cách liên hệ, nhân viên phụ trách, ít nhất một dòng hàng với số lượng dương và đơn giá được cung cấp. Giá không âm; chưa có giá khác với giá bằng không. Địa chỉ chỉ bắt buộc khi cần giao hàng. Sale chỉ xác nhận đơn mình phụ trách, sau khi server kiểm tra lại điều kiện hiện tại.
+
+Quy trình mục tiêu cho phép thêm, bớt, đổi tên và sắp thứ tự bước tuần tự. Chủ doanh nghiệp phân công người phụ trách và chọn chuyển trực tiếp hoặc chờ xác nhận nhận. Công việc đang chạy giữ phiên bản quy trình lúc khởi tạo. Đổi người phụ trách không tự thay phiên bản; đổi tên bước không thay điều kiện xác nhận hoặc hủy đơn.
+
+Phân hệ tư vấn mục tiêu chọn script đang bật, tạo ứng viên AI, hỏi làm rõ hoặc chuyển người xử lý. Chủ doanh nghiệp bật chế độ đề xuất thì kết quả chờ sale duyệt; tắt đề xuất có nghĩa cho phép tự gửi trong điều kiện hợp lệ. Sale tiếp nhận luôn dừng tự gửi, kể cả khi cấu hình doanh nghiệp cho phép. Chỉ sale phụ trách chủ động giao lại cho hệ thống mới khôi phục khả năng tự xử lý theo cấu hình. Nội dung thiếu dữ liệu doanh nghiệp không được tự điền bằng suy đoán.
+
+Quản lý script có bốn quyền độc lập: tạo, sửa, bật/tắt và lưu trữ. Script mới mặc định tắt; sửa bản đang hoạt động tạo phiên bản nháp, không thay nội dung phục vụ khách cho đến khi được kích hoạt. Chỉ chủ doanh nghiệp cấp hoặc thu hồi quyền. Lưu trữ ngăn lựa chọn mới nhưng giữ lịch sử phiên bản đã dùng.
+
+Lượt tư vấn mục tiêu tự kết thúc sau 24 giờ không hoạt động, ngoại trừ trạng thái cần người xử lý. Tin khách mới hoặc tin gửi thành công cập nhật mốc hoạt động; đọc hội thoại, sửa nháp và gửi lỗi không cập nhật mốc. Khách nhắn sau khi lượt kết thúc tạo lượt mới chưa phân công. Quy tắc 24 giờ là chính sách quản lý nội bộ, không phải quyền gửi của nhà cung cấp. Hội thoại, đơn hàng và công việc giữ vòng đời riêng.
+
+Hủy và trả hàng là yêu cầu mở rộng có phân công và lịch sử. Người được giao cập nhật tiến độ; chủ doanh nghiệp xác nhận kết quả cuối. Yêu cầu hủy chưa đồng nghĩa hủy thành công; yêu cầu trả chưa đồng nghĩa đã nhận hàng. Dashboard mục tiêu tổng hợp bước, người phụ trách và số đơn theo trạng thái từ dữ liệu đã ghi. Giá trị đơn không được gọi là doanh thu thực thu.
+
 \subsection{Yêu cầu phi chức năng}
-\placeholder{Nêu yêu cầu về hiệu năng, bảo mật, khả dụng và khả năng mở rộng.}
+Tính đúng đắn đòi hỏi mọi lệnh ghi kiểm tra tenant, người thực hiện, tham chiếu và trạng thái trong server. Tính truy vết yêu cầu lưu tác nhân, thời điểm và biến đổi quan trọng. Tính nhất quán yêu cầu việc xác nhận không dùng dữ liệu cũ sau khi đơn bị sửa, nhân viên mất quyền hoặc sản phẩm không còn hợp lệ. Kiểm tra ở giao diện chỉ hỗ trợ trải nghiệm và không thay thế kiểm tra server.
+
+Độ tin cậy của AI được xem xét ở hai mức: thực thi tác vụ và giá trị nội dung. Tác vụ đã tiếp nhận phải có trạng thái có thể tra cứu; kết quả cũ không được ghi đè bản sale đã sửa. Nội dung phải có nguồn dữ liệu phù hợp và chuyển người xử lý khi không đủ thông tin.
+
+Dữ liệu xác thực, khóa nhà cung cấp và thông tin nhạy cảm không xuất hiện trong giao diện lỗi, log hoặc tài liệu. Trạng thái gửi phải phân biệt đang gửi, được nhà cung cấp chấp nhận, lỗi và chưa xác định. Timeout không đủ để khẳng định chưa gửi; đối soát phải đi trước gửi lại khi kết quả không rõ.
+
 \section{Kiến trúc hệ thống}
 \begin{figure}[htbp]
   \centering
   \fbox{\parbox[c][4cm][c]{0.85\linewidth}{\centering
-    Vị trí chèn sơ đồ kiến trúc hệ thống\\
-    \small Thay khung này bằng lệnh \texttt{\string\includegraphics}.}}
-  \caption{Khung minh họa sơ đồ kiến trúc hệ thống}\label{fig:architecture}
+    Giao diện Next.js $\longleftrightarrow$ API nghiệp vụ Go\\[5pt]
+    Go $\longleftrightarrow$ PostgreSQL / Redis\\[5pt]
+    Go $\overset{\text{gRPC}}{\longleftrightarrow}$ Bộ thực thi AI Python\\[5pt]
+    \small Mục tiêu mở rộng: hội thoại, quy trình, Kafka, Pancake}}
+  \caption{Kiến trúc Hexta và ranh giới mở rộng}\label{fig:architecture}
 \end{figure}
-Hình~\ref{fig:architecture} là vị trí dành cho sơ đồ kiến trúc.
-\section{Thiết kế cơ sở dữ liệu}
-\placeholder{Chèn sơ đồ ERD, giải thích các thực thể, quan hệ và ràng buộc dữ liệu.}
-\section{Thiết kế giải pháp và luồng xử lý}
-\placeholder{Mô tả thuật toán hoặc quy trình chính, giả mã và phân tích độ phức tạp nếu phù hợp.}
-Ví dụ cách trình bày công thức (thay bằng công thức của đề tài):
-\begin{equation}\label{eq:objective}
-  \min_{x\in\mathcal{X}} f(x).
-\end{equation}
-Trong công thức~\eqref{eq:objective}, $\mathcal{X}$ là tập phương án khả thi và $f$ là hàm mục tiêu.
+Hình~\ref{fig:architecture} thể hiện ranh giới trách nhiệm. Next.js nhận thao tác người dùng; Go xác thực, phân quyền và thực hiện nghiệp vụ. Python chỉ xử lý ảnh chụp ngữ cảnh đã được cho phép và trả ứng viên. Go kiểm tra lại kết quả trước lưu hoặc gửi. Python không có quyền tự gửi qua Pancake hoặc sửa tùy ý dữ liệu nghiệp vụ.
 
+Hợp đồng AI hiện có ba RPC: \texttt{StartRun}, \texttt{GetRun} và \texttt{CancelRun}. Yêu cầu chứa tenant, run, lượt tư vấn, phiên bản ngữ cảnh và thế hệ điều khiển. Kết quả có trạng thái, nhánh lựa chọn, nội dung, script, lý do và dấu mô phỏng. Các trường phiên bản cho phép lớp nhận kết quả phát hiện ngữ cảnh đã thay đổi; việc có trường trong hợp đồng không chứng minh toàn bộ cổng chặn gửi đã hoàn thành.
+
+Phương án tích hợp mục tiêu nhận sự kiện từ Pancake, xác định doanh nghiệp qua cấu hình kết nối, lưu dữ liệu rồi tạo tác vụ. Khi gửi, Go kiểm tra quyền cuối cùng và lưu ý định gửi trước tác động bên ngoài. Kafka và mẫu outbox/inbox được thiết kế cho các bước bất đồng bộ; chưa được đưa vào kết quả triển khai hiện tại. Không giữ giao dịch cơ sở dữ liệu trong suốt thời gian chờ mô hình hoặc nhà cung cấp phản hồi.
+
+\section{Thiết kế cơ sở dữ liệu}
+Lược đồ hiện tại có các nhóm bảng tài khoản và phiên đăng nhập; doanh nghiệp và thành viên; khách hàng, sản phẩm và biến thể; đơn và dòng hàng; lịch sử và nền tảng kho. Các migration mới bổ sung đơn đăng ký doanh nghiệp, lời mời thành viên, phiên bản đơn, yêu cầu giao hàng và cờ đã cung cấp giá. Bảng \texttt{ai\_runtime.runs} do Python sở hữu lưu trạng thái tác vụ; lược đồ nghiệp vụ do Atlas quản lý.
+
+Quan hệ nghiệp vụ cơ bản là doanh nghiệp có nhiều thành viên, khách hàng, sản phẩm và đơn hàng; sản phẩm có nhiều biến thể; đơn có nhiều dòng hàng tham chiếu biến thể. Mã tenant phải được kiểm tra trên cả đơn và các bản ghi liên quan. Một số khóa ngoại hiện có chỉ tham chiếu định danh; vì vậy không được suy ra mọi quan hệ đã có khóa ngoại ghép tenant. Bổ sung ràng buộc dữ liệu cần migration riêng và kiểm tra tương thích dữ liệu cũ.
+
+Đơn có trường phiên bản để chặn sửa hoặc xác nhận từ ảnh chụp cũ. Dòng hàng giữ thông tin giá tại thời điểm nghiệp vụ; cờ \texttt{price\_provided} phân biệt giá chưa nhập với giá không đồng. Khách hàng và sản phẩm được lưu trữ mềm để không làm mất quan hệ lịch sử. Lời mời chỉ lưu giá trị băm token và thông tin trạng thái; liên kết riêng không được đưa vào log.
+
+Mô hình mục tiêu bổ sung chuỗi hội thoại, lượt xử lý, tin nhắn, quyết định định tuyến, script và phiên bản, đề xuất phản hồi, ý định gửi và lần gửi. Tách các thực thể này giúp tránh đồng nhất một kết quả AI với một tin đã gửi. Công việc tham chiếu phiên bản quy trình bất biến; lịch sử bàn giao được lưu cùng giao dịch đổi trách nhiệm. Các bảng mục tiêu chưa phải lược đồ đã cài đặt.
+
+\section{Thiết kế giải pháp và luồng xử lý}
+Luồng đơn hàng bắt đầu từ bản nháp có thể lưu từng phần. Khi nhận lệnh xác nhận, server xác thực người dùng, xác định tenant, khóa đơn, so sánh phiên bản và kiểm tra người phụ trách. Sau đó kiểm tra khách hàng, dòng hàng, giá và địa chỉ theo điều kiện giao hàng. Chỉ khi mọi điều kiện hợp lệ mới cập nhật trạng thái và ghi lịch sử trong cùng giao dịch. Yêu cầu dựa trên phiên bản cũ phải bị từ chối để người dùng tải lại dữ liệu.
+
+Luồng tư vấn mục tiêu nhận tin khách, cập nhật ngữ cảnh rồi định tuyến. Nếu sản phẩm hoặc script chưa rõ, hệ thống hỏi làm rõ theo chế độ gửi hiện tại; khi vẫn thiếu thông tin thì chuyển người xử lý. Nếu thiếu chính sách hoặc giá của doanh nghiệp, không dùng hỏi khách như cách thay thế nguồn dữ liệu nghiệp vụ. Script được điền từ dữ liệu đã biết; kết quả AI phải được kiểm tra cấu trúc và nguồn trước khi trở thành đề xuất.
+
+Khi sale tiếp nhận, thế hệ điều khiển thay đổi để kết quả đang tạo không còn quyền tự gửi. Nếu yêu cầu đã rời hệ thống trước thời điểm tiếp nhận, không mặc định thu hồi được; lần gửi phải được ghi nhận để đối soát. Khi kết quả gửi chưa xác định, không tự thử lại như một lỗi chắc chắn. Việc nhà cung cấp chấp nhận chỉ là mức xác nhận của API, không khẳng định khách đã nhận hoặc đọc.
+
+Với bàn giao công việc, hệ thống khóa bản ghi công việc, kiểm tra phiên bản, người giao và người nhận được phân công. Chuyển trực tiếp cập nhật người chịu trách nhiệm trong giao dịch bàn giao. Chờ nhận chỉ ghi người nhận dự kiến; trách nhiệm hiện tại được giữ cho tới khi xác nhận tiếp nhận hợp lệ. Lịch sử cần lưu cả hai thời điểm để dashboard không trình bày một đơn đang chờ nhận như đã chuyển xong.

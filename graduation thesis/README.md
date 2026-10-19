@@ -49,7 +49,6 @@ chapters/04-implementation-evaluation.tex
 chapters/05-conclusion.tex
 backmatter/references.tex        # Tài liệu tham khảo
 appendices/database.tex
-appendices/installation.tex
 assets/                         # Logo và hình ảnh
 ```
 

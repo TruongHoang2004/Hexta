@@ -83,3 +83,19 @@ The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's
 [Delivery session](sessions/2026-10-19_demo-pr-handoff.md) tracks the icon commit, full demo PR and [manual checklist](../../../infrastructure/TESTING.demo.md). Review/manual acceptance/merge remain pending.
 
 [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54) is open/mergeable at publication; checks pending. Handoff session is in-review, completed false; parent epic remains in-progress.
+
+## Thesis continuation
+
+[Thesis session](sessions/2026-10-19_thesis-continuation.md) — in-review; completed: false. Existing Vietnamese LaTeX chapters populated from current Notion decisions and code evidence; structure and formatting configuration preserved. Compilation and heading/citation checks passed; author details, empirical results and final PDF visual review remain.
+
+## Thesis author correction and official emblem
+
+[Evidence/logo session](sessions/2026-10-19_thesis-evidence-logo.md) — in-review; completed: false. Owner clarified Notion is their own work; bibliography/citations removed. Insufficiently supported sections left empty, historical counts and invented methodology removed, and official-site UET emblem added at the existing cover slot. Existing LaTeX project compiles; heading order and layout files preserved. This supersedes the earlier thesis session's populated bibliography/results decisions.
+
+## Thesis installation appendix removed
+
+[Removal session](sessions/2026-10-19_thesis-remove-installation.md) — in-review; completed: false. Owner requested UI-only end-user scope; installation appendix and dangling reference removed. Existing main.tex compiles. No claim of completed cloud deployment.
+
+## Thesis delivery request
+
+[Delivery session](sessions/2026-10-19_thesis-delivery.md) — in-review; completed: false at commit. PR #54 is verified merged; thesis changes are delivered separately from current main. The owner explicitly authorized commit and merge; GitHub PR state records final delivery.

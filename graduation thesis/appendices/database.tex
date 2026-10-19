@@ -1,14 +1,19 @@
 % !TeX root = ../main.tex
 \chapter{CHI TIẾT CƠ SỞ DỮ LIỆU}\label{app:database}
+Bảng~\ref{tab:schema} mô tả các trường của bảng đơn hàng liên quan trực tiếp đến lưu nháp và xác nhận. Đây là phần trích lược để giải thích nghiệp vụ, không thay thế toàn bộ định nghĩa trong migration. Các bảng hội thoại và quy trình mục tiêu ở Chương~\ref{chap:design} chưa được coi là lược đồ đã triển khai.
 \begin{table}[htbp]
   \centering
-  \caption{Khung mô tả cấu trúc một bảng dữ liệu}\label{tab:schema}
+  \caption{Các thuộc tính liên quan đến kiểm soát đơn hàng}\label{tab:schema}
   \begin{tabularx}{\linewidth}{@{}llX@{}}
     \toprule
     Thuộc tính & Kiểu dữ liệu & Mô tả \\
     \midrule
-    \texttt{id} & \placeholder{Kiểu} & \placeholder{Khóa chính} \\
-    \texttt{name} & \placeholder{Kiểu} & \placeholder{Ý nghĩa và ràng buộc} \\
+    \texttt{id} & varchar(36) & Định danh đơn hàng, khóa chính. \\
+    \texttt{tenant\_id} & varchar(36) & Doanh nghiệp sở hữu; mọi thao tác phải kiểm tra phạm vi. \\
+    \texttt{version} & bigint & Phiên bản dùng kiểm soát cập nhật cạnh tranh. \\
+    \texttt{requires\_delivery} & boolean & Xác định có bắt buộc địa chỉ khi xác nhận. \\
+    \texttt{delivery\_address} & text & Địa chỉ giao nhận nếu cần giao hàng. \\
     \bottomrule
   \end{tabularx}
 \end{table}
+Dòng hàng và biến thể sản phẩm có cờ \texttt{price\_provided}; giá trị tiền dùng kiểu số thập phân. Không suy ra một dòng có giá mặc định bằng không là đã được người dùng nhập giá. Migration bán hàng ngày 19/10/2026 bổ sung các trường này theo hướng bảo toàn dữ liệu cũ. Lược đồ onboarding bổ sung đơn đăng ký, người vận hành và lời mời; token lời mời chỉ được lưu dạng băm. Lược đồ \texttt{ai\_runtime} có lịch sử migration riêng do Python quản lý.

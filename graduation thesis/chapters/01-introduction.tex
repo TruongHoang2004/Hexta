@@ -1,15 +1,33 @@
 % !TeX root = ../main.tex
 \chapter{GIỚI THIỆU}\label{chap:introduction}
 \section{Đặt vấn đề}
-\placeholder{Trình bày bối cảnh, nhu cầu thực tế, hạn chế của giải pháp hiện tại và lý do chọn đề tài.}
+Trong hoạt động bán hàng, thông tin khách hàng, sản phẩm, nội dung tư vấn và tiến độ đơn hàng có quan hệ chặt chẽ. Khi một công việc được chuyển từ người tư vấn sang người thực hiện, hệ thống cần thể hiện rõ bước hiện tại, người chịu trách nhiệm và điều kiện hoàn thành. Nếu trách nhiệm chỉ được trao đổi qua tin nhắn, việc xác định ai đang xử lý và đối chiếu lịch sử có thể trở nên khó khăn. Hexta được xây dựng nhằm hỗ trợ quản lý dữ liệu và trách nhiệm xử lý trong các tình huống này.
+
+Một nhu cầu liên quan là chuẩn bị câu trả lời cho khách hỏi về sản phẩm. Tình huống đối chứng được dự án xác định là nhân viên dùng lệnh gọi nội dung trả lời nhanh, thay vì luôn soạn thủ công từ đầu. AI có thể hỗ trợ chọn hoặc diễn đạt nội dung theo ngữ cảnh; tuy nhiên, câu trả lời vẫn phải dựa trên dữ liệu sản phẩm và chính sách đã được doanh nghiệp cung cấp. Thiếu giá, quy cách hoặc chính sách không phải là lý do để mô hình tự bổ sung thông tin. Vì vậy, đánh giá AI phải tính cả thời gian đọc, kiểm tra và sửa đề xuất.
+
+Hexta được định hướng phục vụ nhiều doanh nghiệp trên một nền tảng. Việc người dùng đã đăng nhập không đủ để cho phép đọc hoặc sửa mọi dữ liệu: mỗi thao tác còn phụ thuộc doanh nghiệp hiện tại, vai trò, người phụ trách và trạng thái bản ghi. Với AI, yêu cầu này trở nên rõ hơn vì một kết quả đúng về ngôn ngữ vẫn có thể không còn hợp lệ khi dữ liệu hoặc quyền xử lý đã thay đổi.
+
+Từ đó, khóa luận tập trung vào thiết kế hệ thống liên kết quản lý dữ liệu, quy trình trách nhiệm và hỗ trợ tư vấn có kiểm soát.
+
 \section{Mục tiêu và phạm vi nghiên cứu}
-\placeholder{Nêu mục tiêu có thể đánh giá, đối tượng nghiên cứu, phạm vi triển khai và các giới hạn.}
+Mục tiêu tổng quát là thiết kế, xây dựng và đánh giá hệ thống hỗ trợ doanh nghiệp quản lý khách hàng, đơn hàng và trách nhiệm qua quy trình tùy chỉnh, kết hợp AI hỗ trợ tư vấn. Các câu hỏi nghiên cứu gồm:
+\begin{enumerate}
+  \item Quy trình tùy chỉnh có biểu diễn được các cách tổ chức công việc khác nhau và xác định rõ bước xử lý, người phụ trách hay không?
+  \item AI soạn nháp có giảm thời gian và thao tác chuẩn bị phản hồi so với lệnh trả lời nhanh, tính cả công kiểm tra, sửa và chất lượng thông tin hay không?
+  \item Hệ thống có bảo đảm phân quyền, tách dữ liệu doanh nghiệp và lưu lịch sử thay đổi trong các kịch bản thử nghiệm hay không?
+\end{enumerate}
+Phạm vi thiết kế bao gồm định tuyến script/AI/người xử lý và chế độ đề xuất hoặc tự gửi; câu hỏi thứ hai vẫn tập trung đánh giá chế độ soạn nháp có người duyệt để có đối chứng rõ ràng. Tự gửi cần bộ kiểm chứng an toàn riêng, không được suy ra là có hiệu quả từ kết quả thử nghiệm nháp.
+
+Đối tượng nghiên cứu gồm mô hình dữ liệu đa doanh nghiệp, điều kiện xác nhận đơn, chuyển giao trách nhiệm, hợp đồng thực thi AI và cơ chế kiểm tra trước tác động bên ngoài. Phạm vi thực nghiệm là demo và kịch bản có kiểm soát. Dữ liệu mô phỏng phải được gắn nhãn; chưa coi đó là hội thoại hoặc giao dịch thật. Kết nối Pancake phụ thuộc quyền tài khoản và khả năng API thực tế; thiết kế kết nối không đồng nghĩa đã triển khai thành công.
+
+Hệ thống không xử lý thu tiền, hoàn tiền hay nghiệp vụ kế toán đầy đủ. Kho toàn diện, chấm công, lương, phân tích quảng cáo sâu, quy trình rẽ nhánh hoặc song song và triển khai vận hành quy mô lớn không thuộc phần kết quả hiện tại.
+
 \section{Nội dung khóa luận}
-\placeholder{Liệt kê các công việc nghiên cứu, thiết kế, triển khai và đánh giá thực hiện trong khóa luận.}
+Nội dung khóa luận tập trung vào phân tích yêu cầu, thiết kế mô hình dữ liệu đa doanh nghiệp, điều kiện xác nhận đơn hàng, trách nhiệm bàn giao công việc và kiến trúc hỗ trợ tư vấn bằng AI. Phần triển khai mô tả các chức năng hiện có trong mã nguồn.
+
 \section{Cấu trúc khóa luận}
 Khóa luận gồm năm chương. Chương~\ref{chap:introduction} giới thiệu đề tài.
 Chương~\ref{chap:background} trình bày cơ sở lý thuyết.
 Chương~\ref{chap:design} trình bày phân tích và thiết kế hệ thống.
 Chương~\ref{chap:evaluation} trình bày triển khai và đánh giá.
 Chương~\ref{chap:conclusion} tổng kết và đề xuất hướng phát triển.
-

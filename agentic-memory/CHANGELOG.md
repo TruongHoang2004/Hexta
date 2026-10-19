@@ -389,3 +389,31 @@ This document consolidates all historical development changelogs for the Hexta p
 - **Publication:** dc37ab3 commits latest icon/checklist; 0cf11e0 incorporates main with no application content changes. [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54) opened and attached; mergeable, CI pending at publication. Manual acceptance/merge remain open.
 
 - **Evening-test runtime:** rebuilt current API/web successfully; all required services healthy. HTTP icon/favicon content byte-matches the committed assets; existing demo data retained.
+
+
+## 2026-10-19 — Thesis continuation from Notion
+
+- Summary: populated the existing Vietnamese LaTeX abstract, five chapters, two appendices and bibliography from Notion rationale/PRD/HEX-3/HEX-5 and inspected repository evidence.
+- Components: nine modified files under `graduation thesis/`; [session](epics/EPIC-001-system-design/sessions/2026-10-19_thesis-continuation.md), epic summary and index updated.
+- Decisions/walkthrough: replaced placeholders within existing sections; retained main/preamble/metadata/cover/contents and all heading order. Separate target messaging/workflows from implemented code, historical checks and unmeasured AI outcomes. No architecture/API/schema change.
+- Verification: desktop LaTeX compilation succeeded; Python comparison against HEAD confirmed every existing chapter/section/subsection unchanged and all citation keys resolved. Preview opening queued. No exported PDF/page-image visual QA or fresh application test run; final pagination requires author review.
+- Delivery: local/unmerged; personal details, academic literature and empirical evaluation remain.
+
+## 2026-10-19 — Thesis author correction and UET emblem
+
+- Summary: removed thesis bibliography/citations because Notion records the author's own thinking. Left related work, experiment data/scenarios, evaluation, abstract and conclusion/future-work empty; removed unsupported historical-test narrative, proposed methodology and editorial equation. Body placeholder instructions removed.
+- Components: existing graduation thesis TeX sources; new assets/logo.png; metadata provenance comments; [session](epics/EPIC-001-system-design/sessions/2026-10-19_thesis-evidence-logo.md) and epic/index updates. No architecture/schema/API change.
+- Decision/walkthrough: preserve every existing chapter/section and the references include, but references.tex emits no content. Original SchoolLogo macro loads the official UET-site emblem at its existing size. No replacement document, exported PDF or new tab.
+- Verification: desktop compilation of the saved main.tex succeeded; heading comparison against HEAD and absence of citations/bibliography/body placeholders passed. Downloaded 512px emblem visually inspected. Main/preamble/cover/contents unchanged. Full rendered-page review and application tests not run.
+- Delivery: local/unmerged; missing author inputs and empirical results intentionally remain blank.
+
+## 2026-10-19 — Remove thesis installation/use appendix
+
+- Removed the installation include from existing main.tex and deleted appendices/installation.tex; removed chapter 4's dangling reference and README inventory entry. Owner expects cloud users to work through the UI; deployment completion is not claimed. Other thesis structure/formatting preserved.
+- Verification: built-in compilation of the saved main.tex succeeded. Document-only edit; no application tests or separate PDF export.
+- [Session](epics/EPIC-001-system-design/sessions/2026-10-19_thesis-remove-installation.md): local/unmerged, in-review; completed false.
+
+## 2026-10-19 — Thesis delivery preparation
+
+- Consolidated the owner-approved thesis changes on codex/thesis-content from origin/main 5a1e719. PR #54 already merged with successful CI; no application changes included.
+- Verification: current thesis project compiled through the open chapter; git diff --check passed. [Delivery session](epics/EPIC-001-system-design/sessions/2026-10-19_thesis-delivery.md) records scope and merge authorization. PR merge state is authoritative for completion.

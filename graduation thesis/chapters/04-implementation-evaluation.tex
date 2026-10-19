@@ -8,16 +8,26 @@
     \toprule
     Thành phần & Cấu hình / phiên bản \\
     \midrule
-    Phần cứng & \placeholder{CPU, RAM, thiết bị} \\
-    Hệ điều hành & \placeholder{Tên và phiên bản} \\
-    Công nghệ & \placeholder{Ngôn ngữ, framework, cơ sở dữ liệu} \\
+    Phần cứng &  \\
+    Hệ điều hành & Môi trường phát triển macOS; dịch vụ chạy qua Docker Compose. \\
+    Công nghệ & Next.js, TypeScript, Go, Python, gRPC, PostgreSQL, Redis và Atlas; phiên bản tái lập theo manifest và tệp khóa trong repository. \\
     \bottomrule
   \end{tabularx}
 \end{table}
+Môi trường cục bộ gồm web, API Go, bộ thực thi Python, PostgreSQL và Redis; các bước khởi tạo vai trò và migration chạy trước dịch vụ phụ thuộc. Các cổng được công bố trên loopback. Cấu hình AI dùng chế độ giả lập, không yêu cầu khóa mô hình và không gửi tới khách thật.
+
+Mã nguồn được tổ chức tại \texttt{apps/web}, \texttt{services/api}, \texttt{services/ai} và các gói dùng chung. Môi trường được khởi động qua \texttt{scripts/local.sh}.
+
 \section{Dữ liệu và kịch bản thực nghiệm}
-\placeholder{Mô tả nguồn dữ liệu, cách chuẩn bị, điều kiện thử nghiệm và tiêu chí đánh giá.}
+
 \section{Cài đặt các chức năng chính}
-\placeholder{Mô tả các chức năng đã triển khai, giao diện, API và liên hệ với thiết kế.}
+Router API và giao diện hiện có nhóm chức năng tài khoản, doanh nghiệp, khách hàng, sản phẩm và đơn hàng. Quy trình đăng ký doanh nghiệp sử dụng yêu cầu chờ người vận hành xét duyệt. Thành viên được mời theo email và cần chấp nhận lời mời. Việc có tài khoản không tự tạo quyền vận hành nền tảng hoặc quyền sở hữu một doanh nghiệp.
+
+Các API bán hàng được đặt dưới đường dẫn có tenant. Controller tiếp nhận và kiểm tra dữ liệu, service áp dụng điều kiện nghiệp vụ, repository thực hiện truy cập và giao dịch. API đơn hàng có các lệnh tạo nháp, danh sách, chi tiết, sửa và xác nhận riêng. Khách hàng, sản phẩm có chức năng tạo, sửa và lưu trữ. Kiểm tra tham chiếu bảo đảm các đối tượng được chọn thuộc doanh nghiệp hiện tại; kiểm tra phiên bản xử lý tình huống một màn hình đang giữ thông tin cũ.
+
+Bản triển khai cục bộ cho phép lưu nháp chưa đầy đủ. Khi xác nhận, server kiểm tra các điều kiện nghiệp vụ thay vì buộc mọi trường ngay ở lúc tạo. Giá đã được cung cấp có cờ riêng; địa chỉ phụ thuộc lựa chọn giao hàng. Trạng thái xác nhận được lưu cùng lịch sử trong giao dịch.
+
+Bộ thực thi AI Python lưu run trong PostgreSQL và cung cấp RPC tra cứu, hủy. Worker xử lý run đã tiếp nhận theo trạng thái và thời hạn thuê; kiểm tra danh tính lần thuê giúp ngăn worker cũ ghi kết quả sau khi tác vụ đã được worker khác nhận. Chế độ giả lập trả nhánh và nội dung xác định để kiểm tra hợp đồng.
+
 \section{Kết quả và đánh giá}
-\placeholder{Điền số liệu đo thực tế, bảng so sánh và biểu đồ. Phân tích kết quả, hạn chế và tính hợp lệ của thực nghiệm.}
 
