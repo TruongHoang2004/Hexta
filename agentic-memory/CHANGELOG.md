@@ -4,6 +4,14 @@ This document consolidates all historical development changelogs for the Hexta p
 
 ---
 
+## 2026-10-19 — Resolve PR #53 documentation conflicts
+
+- Merged origin/main (9784695, merged PR #52) into the documentation branch without rewriting published history. Resolved four documentation conflicts by preserving new changelog entries, historical-design notices and the correct API-prefixed Swagger URL alongside the implementation baseline.
+- Added a dedicated EPIC-001 conflict-resolution session and refreshed its handoff/architecture base evidence. Documentation PR #53 now targets main; parent dependency is satisfied, but documentation completion remains false until its own confirmed merge.
+- Verification: no unmerged paths/markers, Markdown link/fence and metadata consistency, whitespace and remote PR mergeability checks. Runtime code is unchanged; no runtime test claim added.
+
+---
+
 ## 2026-10-19 — Canonical agent rules and epic-scoped sessions
 
 - **Summary:** Moved all nine engineering-rule sections from GEMINI.md to root AGENTS.md. GEMINI.md is now only a read-AGENTS.md instruction; AGENTS.md is the canonical automatic entry point and contains the complete shared rules. The canonical rules describe epic/session startup and maintenance.

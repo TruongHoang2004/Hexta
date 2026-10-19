@@ -44,6 +44,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 - [2026-10-19_documentation-pr](sessions/2026-10-19_documentation-pr.md) — in-review; completed: false.
 
+- [2026-10-19_pr-53-conflicts](sessions/2026-10-19_pr-53-conflicts.md) — in-review; completed: false.
+
 ## Remaining work and next handoff
 
-Review the dedicated documentation PR from codex/system-design-epic-memory, stacked on the verified-open PR #52 branch. Merge the parent first, retarget/rebase as needed, then confirm documentation merge before completion.
+PR #52 is confirmed merged on 2026-10-19; PR #53 now targets main. Resolve/review its documentation merge with main and confirm #53 merge/CI before completing this epic.

@@ -1,6 +1,6 @@
 # Hexta system design: canonical entry point
 
-Last reconciled: 2026-10-18. Code baseline: `01b2e11` on `codex/durable-ai-local-stack`; [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) was opened, merge status must be checked at the next session. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
+Last reconciled: 2026-10-18. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) now targets main and remains under review. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
 
 ## Read order
 
