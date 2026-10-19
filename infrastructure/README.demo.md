@@ -19,7 +19,7 @@ Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atl
 | --- | --- | --- |
 | Web | http://localhost:3000 | Register/login and current tenant UI |
 | Go API | http://localhost:8080/api/v1/health | Business API and DB/Redis health |
-| Swagger | http://localhost:8080/swagger/index.html | Existing HTTP API reference |
+| Swagger | http://localhost:8080/api/v1/swagger/index.html | Existing HTTP API reference |
 | AI HTTP | http://localhost:58000/health/ready | Runtime/DB/worker readiness and offline preview |
 | AI gRPC | 127.0.0.1:55051 | Internal StartRun/GetRun/CancelRun |
 | PostgreSQL | 127.0.0.1:55433 | Database hexta_demo; local-only user hexta_demo/password local-demo-only |
