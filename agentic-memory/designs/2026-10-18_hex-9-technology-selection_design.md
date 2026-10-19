@@ -72,3 +72,7 @@ No tests were run: this change only records a proposal. Review manifests and arc
 - https://www.postgresql.org/docs/current/sql-select.html (SKIP LOCKED supports queue-like access, not general consistent reads)
 
 Provider/model, operational frontend app, media storage and final deployment topology remain open. No vendor expenditure or infrastructure provisioning is authorized by this document.
+
+## Owner update: Kafka backbone draft
+
+The owner now requests Kafka for high-volume messages/events. This supersedes the earlier optional-broker recommendation. Draft use cases, topics, partition keys, inbox/outbox delivery, retries, replay and rollout are in `2026-10-18_kafka-event-backbone_design.md`. Kafka implementation and sizing remain a subsequent slice; the current durable AI run store stays PostgreSQL-authoritative.

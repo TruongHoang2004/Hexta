@@ -12,6 +12,9 @@ COPY . .
 # Install dependencies using pnpm cache
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Build workspace packages first, then the web app
 RUN pnpm --filter "./packages/*" --if-present run build
 RUN pnpm --filter web run build

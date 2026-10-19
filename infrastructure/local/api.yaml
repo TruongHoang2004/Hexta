@@ -1,0 +1,26 @@
+server:
+  name: hexta_local
+  port: 8080
+  production: false
+  trace: false
+  frontend_url: http://localhost:3000
+database:
+  url: postgresql://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable
+redis:
+  addr: redis:6379
+jwt:
+  access_token_secret: ${JWT_ACCESS_TOKEN_SECRET}
+  access_token_expire: 3600
+  refresh_token_secret: ${JWT_REFRESH_TOKEN_SECRET}
+  refresh_token_expire: 604800
+oauth:
+  google:
+    client_id: ''
+    client_secret: ''
+    redirect_url: http://localhost:8080/api/v1/auth/google/callback
+ai:
+  provider: fake
+  base_url: http://127.0.0.1:1
+  timeout: 30
+  max_tokens: 512
+  temperature: 0

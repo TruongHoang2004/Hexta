@@ -21,3 +21,11 @@ infrastructure/.prometheus
 
 # Temporary files
 /tmp/
+
+# Host environments, local state and credentials must never enter build contexts.
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.env
+**/.env.*
+infrastructure/volumes/

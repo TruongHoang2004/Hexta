@@ -25,10 +25,69 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  db-init:
+    image: postgres:17.7-alpine3.23
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: local-demo-only
+    volumes:
+      - ./local/init.sql:/init.sql:ro
+    entrypoint: ["psql", "-h", "postgres", "-U", "hexta_demo", "-d", "hexta_demo", "-v", "ON_ERROR_STOP=1", "-f", "/init.sql"]
+  migrate:
+    image: arigaio/atlas:latest
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../migrations/api:/migrations:ro
+    command: ["migrate", "apply", "--revisions-schema", "atlas_schema_revisions", "--dir", "file:///migrations", "--url", "postgres://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public"]
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
+      JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
+    volumes:
+      - ./local/api.yaml:/app/config/config.yaml:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
   ai:
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
     build:
       context: ../services/ai
     environment:
+      AI_DATABASE_URL: postgresql://hexta_ai:local-ai-only@postgres:5432/hexta_demo?sslmode=disable
       AI_PROVIDER: fake
       AI_INTERNAL_TOKEN: ${DEMO_AI_INTERNAL_TOKEN:?Set DEMO_AI_INTERNAL_TOKEN to a random local service token}
       LANGSMITH_TRACING: "false"
@@ -46,5 +105,29 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+  test-postgres:
+    profiles: ["test"]
+    image: postgres:17.7-alpine3.23
+    environment:
+      POSTGRES_USER: ai_test
+      POSTGRES_PASSWORD: test-only
+      POSTGRES_DB: ai_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ai_test", "-d", "ai_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+  ai-tests:
+    profiles: ["test"]
+    build:
+      context: ../services/ai
+      target: test
+    environment:
+      AI_TEST_DATABASE_URL: postgresql://ai_test:test-only@test-postgres:5432/ai_test
+    depends_on:
+      test-postgres:
+        condition: service_healthy
 volumes:
   demo_postgres:

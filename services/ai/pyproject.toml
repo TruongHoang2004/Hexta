@@ -10,6 +10,7 @@ dependencies = [
   "langsmith>=0.14,<1",
   "grpcio>=1.84,<2",
   "protobuf>=7.36.2,<8",
+  "psycopg[binary]>=3.2,<4",
 ]
 
 [dependency-groups]

@@ -10,6 +10,7 @@ Install Python 3.12–3.14 and uv 0.11.11. From this directory:
 uv sync --frozen
 uv run pytest
 export AI_PROVIDER=fake
+export AI_DATABASE_URL="postgresql://hexta_ai:local-ai-only@127.0.0.1:55433/hexta_demo?sslmode=disable"
 export AI_INTERNAL_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 PYTHONPATH=generated AI_GRPC_ADDRESS=127.0.0.1:55051 uv run uvicorn hexta_ai.app:create_app --factory --host 127.0.0.1 --port 58000
 ```
@@ -29,7 +30,7 @@ POST it to `/internal/v1/preview`. Unknown or ambiguous inputs and unresolved te
 
 ## Limits and next slices
 
-No durable jobs/checkpoints, provider adapters, Langfuse exporter, business-worker integration, customer UI or send endpoint is implemented here. The fake matcher is an environment probe, not a trained router or a product capability claim. Real-provider configuration is deliberately rejected until the adapters and contract tests exist. The approved OpenAI/Anthropic/Gemini support remains implementation work.
+Durable whole-run jobs are implemented in PostgreSQL. Node checkpoints, provider adapters, Langfuse exporter, business-worker integration, customer UI and send endpoints remain pending. The fake matcher is an environment probe, not a trained router or a product capability claim. Real-provider configuration is deliberately rejected until the adapters and contract tests exist. The approved OpenAI/Anthropic/Gemini support remains implementation work.
 
 Do not put API keys in this README, request body or shell command history. Deployment secrets and self-hosted tracing will be configured separately. No API key is needed for these tests.
 
@@ -39,7 +40,9 @@ Do not put API keys in this README, request body or shell command history. Deplo
 
 StartRun returns queued/current status without waiting for graph completion. `(tenant_id, run_id)` identifies a run; identical requests return the existing run, changed input returns ALREADY_EXISTS. Get/Cancel require the tenant. Context revision and control generation are echoed so the future Go acceptance gate can reject stale results. Cancel is best effort; completed results remain completed. It never authorizes an outbound send.
 
-**Bootstrap storage is in memory, limited to 1000 runs per process including completed runs. Restart clears all runs and idempotency history.** At capacity StartRun returns RESOURCE_EXHAUSTED; restart only the simulation service to clear it. No durable acknowledgement, crash recovery, multi-worker coordination or checkpoint persistence is claimed. Run one process; do not add uvicorn workers. Production persistence must replace this registry before real inference/sending.
+**Runtime storage is PostgreSQL**, configured by mandatory `AI_DATABASE_URL`. StartRun commits before acknowledgement. The Python-owned ai_runtime schema stores requests, digests, results, attempts and fenced renewable leases. Expired jobs can be reclaimed, up to three recovery attempts; exhausted runs fail safely. Cancellation persists and prevents publication by old workers. Graceful shutdown requeues active work. Restart retains successful/cancelled results and idempotency history. The in-memory adapter remains solely for isolated unit tests.
+
+The initial schema is provisioned by `scripts/local.sh`; version-001 table SQL is applied idempotently at startup. No automatic retention deletion is enabled yet: disk usage must be monitored. A run stores the authorized input snapshot and output, so treat DB/backups as sensitive. This is whole-graph replay for a deterministic fake provider, not LangGraph node checkpoint recovery or exactly-once paid inference. Runtime processes one leased run at a time; scale/quotas are future work.
 
 The local profile uses plaintext on loopback/private Docker networking only. Do not publish gRPC publicly; configure authenticated TLS or mTLS if crossing hosts. HTTP remains for health and offline preview, while browser business APIs remain in Go.
 
