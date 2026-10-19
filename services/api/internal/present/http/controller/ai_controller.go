@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
 	_ "github.com/TruongHoang2004/Hexta/services/api/internal/present/http/response"
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type AIController struct {
@@ -21,7 +21,7 @@ type AIController struct {
 func NewAIController(validate *validator.Validate, aiService service.IAIAgentService) *AIController {
 	return &AIController{
 		baseController: NewBaseController(validate),
-		aiService:     aiService,
+		aiService:      aiService,
 	}
 }
 
@@ -34,10 +34,10 @@ func (ctrl *AIController) getTenantID(c *gin.Context) string {
 }
 
 func (ctrl *AIController) getAuthUserID(c *gin.Context) string {
-    if info, ok := common.GetAuthInfo(c.Request.Context()); ok && info.UserID != "" {
-        return info.UserID
-    }
-    return c.GetString("userID")
+	if info, ok := common.GetAuthInfo(c.Request.Context()); ok && info.UserID != "" {
+		return info.UserID
+	}
+	return c.GetString("userID")
 }
 
 // Converse
@@ -51,7 +51,6 @@ func (ctrl *AIController) getAuthUserID(c *gin.Context) string {
 // @Param tenant_id query string false "Tenant Workspace ID"
 // @Param request body dto.AIConverseRequest true "Conversational prompt and history"
 // @Success 200 {string} string "Server-Sent Event stream emitting JSON dto.SSEEvent chunks"
-// @Router /api/v1/ai/agent/converse [post]
 func (ctrl *AIController) Converse(c *gin.Context) {
 	tenantID := ctrl.getTenantID(c)
 	if tenantID == "" {
@@ -107,7 +106,6 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 // @Param tenant_id query string false "Tenant Workspace ID"
 // @Param id path string true "Draft ID (e.g. draft_8f3a9b21-4c5d)"
 // @Success 200 {object} response.Response[dto.OrderDraftDTO]
-// @Router /api/v1/ai/agent/drafts/{id} [get]
 func (ctrl *AIController) GetDraft(c *gin.Context) {
 	tenantID := ctrl.getTenantID(c)
 	if tenantID == "" {

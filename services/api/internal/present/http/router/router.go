@@ -1,12 +1,12 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "github.com/TruongHoang2004/Hexta/services/api/docs"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/controller"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/middleware"
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/fx"
 )
 
@@ -15,8 +15,8 @@ func RegisterRoutes(
 	healthController *controller.HealthController,
 	authController *controller.AuthController,
 	tenantController *controller.TenantController,
-	orderController *controller.OrderController,
-	aiController *controller.AIController,
+	salesController *controller.SalesController,
+	onboarding *controller.TenantOnboardingController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Root level public routes
@@ -42,33 +42,43 @@ func RegisterRoutes(
 		authPrivate.POST("/logout", authController.Logout)
 	}
 
-	// Tenant routes (protected by AuthMiddleware)
-	tenantGroup := params.Public.Group("/tenants", authMiddleware.RequireAuth())
-	{
-		tenantGroup.POST("", tenantController.CreateTenant)
-		tenantGroup.GET("", tenantController.GetUserTenants)
-		tenantGroup.GET("/:id", tenantController.GetTenant)
-		tenantGroup.PUT("/:id", tenantController.UpdateTenant)
-		tenantGroup.GET("/:id/users", tenantController.ListMembers)
-		tenantGroup.POST("/:id/invites", tenantController.InviteMember)
-	}
-
-	// Order routes (protected by AuthMiddleware)
-	orderGroup := params.Public.Group("/orders", authMiddleware.RequireAuth())
-	{
-		orderGroup.POST("", orderController.CreateOrder)
-		orderGroup.GET("", orderController.ListOrders)
-		orderGroup.GET("/:id", orderController.GetOrder)
-		orderGroup.PATCH("/:id/status", orderController.TransitionStatus)
-		orderGroup.PATCH("/:id/payment", orderController.UpdatePaymentStatus)
-	}
-
-	// AI Agent routes (protected by AuthMiddleware)
-	aiGroup := params.Public.Group("/ai/agent", authMiddleware.RequireAuth())
-	{
-		aiGroup.POST("/converse", aiController.Converse)
-		aiGroup.GET("/drafts/:id", aiController.GetDraft)
-	}
+	account := params.Public.Group("", authMiddleware.RequireAuth())
+	account.GET("/tenant-requests", onboarding.MyApplications)
+	account.POST("/tenant-requests", onboarding.ApplyForTenant)
+	account.GET("/platform/access", onboarding.PlatformAccess)
+	account.GET("/platform/tenant-requests", onboarding.PlatformApplications)
+	account.POST("/platform/tenant-requests/:id/review", onboarding.ReviewApplication)
+	account.POST("/invitations/preview", onboarding.PreviewInvitation)
+	account.POST("/invitations/accept", onboarding.AcceptInvitation)
+	account.POST("/invitations/decline", onboarding.DeclineInvitation)
+	tenantGroup := account.Group("/tenants")
+	tenantGroup.GET("", tenantController.GetUserTenants)
+	tenantGroup.GET("/:tenantID", tenantController.GetTenant)
+	tenantGroup.PUT("/:tenantID", tenantController.UpdateTenant)
+	tenantGroup.GET("/:tenantID/users", tenantController.ListMembers)
+	tenantGroup.POST("/:tenantID/invitations", onboarding.CreateEmailInvitation)
+	tenantGroup.GET("/:tenantID/invitations", onboarding.ListInvitations)
+	tenantGroup.POST("/:tenantID/invitations/:id/revoke", onboarding.RevokeInvitation)
+	resources := tenantGroup.Group("/:tenantID")
+	resources.Use(func(c *gin.Context) {
+		if header := c.GetHeader("X-Tenant-ID"); header != "" && header != c.Param("tenantID") {
+			c.AbortWithStatusJSON(400, gin.H{"detail": "tenant route and header conflict"})
+			return
+		}
+	})
+	resources.POST("/orders", salesController.CreateOrder)
+	resources.GET("/orders", salesController.ListOrders)
+	resources.GET("/orders/:id", salesController.GetOrder)
+	resources.PUT("/orders/:id", salesController.UpdateOrder)
+	resources.POST("/orders/:id/confirm", salesController.ConfirmOrder)
+	resources.GET("/customers", salesController.ListCustomers)
+	resources.POST("/customers", salesController.CreateCustomer)
+	resources.PUT("/customers/:id", salesController.UpdateCustomer)
+	resources.DELETE("/customers/:id", salesController.ArchiveCustomer)
+	resources.GET("/products", salesController.ListProducts)
+	resources.POST("/products", salesController.CreateProduct)
+	resources.PUT("/products/:id", salesController.UpdateProduct)
+	resources.DELETE("/products/:id", salesController.ArchiveProduct)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

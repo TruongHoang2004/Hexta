@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/google/uuid"
 )
 
 type ITenantService interface {
@@ -107,8 +107,8 @@ func (s *TenantService) InviteMember(ctx context.Context, currentUserID, tenantI
 	if err != nil {
 		return nil, err
 	}
-	if callerMember == nil || (callerMember.Role != model.RoleOwner && callerMember.Role != model.RoleAdmin) {
-		return nil, errors.ErrForbidden(ctx).SetDetail("only owner or admin can invite members")
+	if callerMember == nil || callerMember.Role != model.RoleOwner {
+		return nil, errors.ErrForbidden(ctx).SetDetail("only the owner can invite members")
 	}
 
 	if targetUserID == "" {
@@ -140,6 +140,10 @@ func (s *TenantService) InviteMember(ctx context.Context, currentUserID, tenantI
 }
 
 func (s *TenantService) UpdateTenant(ctx context.Context, currentUserID, tenantID string, name *string, plan *string, status *string) (*model.Tenant, *errors.Error) {
+	if plan != nil || status != nil {
+		return nil, errors.ErrForbidden(ctx).SetDetail("plan and access status are managed by Hexta")
+	}
+
 	callerMember, err := s.tenantRepo.GetTenantMember(ctx, tenantID, currentUserID)
 	if err != nil {
 		return nil, err

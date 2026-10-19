@@ -24,106 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/ai/agent/converse": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Stream interactive conversational turns and order drafts via Server-Sent Events (SSE)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "AI Agent"
-                ],
-                "summary": "Converse with AI Agent",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Conversational prompt and history",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Server-Sent Event stream emitting JSON dto.SSEEvent chunks",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/ai/agent/drafts/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieve a Redis-cached order draft by draft ID for human review and confirmation",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "AI Agent"
-                ],
-                "summary": "Retrieve interactive order draft",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Draft ID (e.g. draft_8f3a9b21-4c5d)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/auth/google/callback": {
             "get": {
                 "description": "Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies",
@@ -305,14 +205,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/orders": {
-            "get": {
+        "/api/v1/invitations/accept": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve paginated orders for a workspace",
+                "description": "Tenant approval or invitation operation with server-side actor checks",
                 "consumes": [
                     "application/json"
                 ],
@@ -320,46 +220,233 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Tenant onboarding"
                 ],
-                "summary": "List orders",
+                "summary": "AcceptInvitation",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by order status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page number (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page size (default: 20)",
-                        "name": "size",
-                        "in": "query"
+                        "description": "Request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/invitations/decline": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "DeclineInvitation",
+                "parameters": [
+                    {
+                        "description": "Request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/invitations/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "PreviewInvitation",
+                "parameters": [
+                    {
+                        "description": "Request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/platform/access": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "PlatformAccess",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_PlatformAccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/platform/tenant-requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "PlatformApplications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/platform/tenant-requests/{id}/review": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "ReviewApplication",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Request or invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenant-requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "MyApplications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse"
                         }
                     }
                 }
@@ -370,7 +457,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create order draft or auto-confirm with stock reservation",
+                "description": "Tenant approval or invitation operation with server-side actor checks",
                 "consumes": [
                     "application/json"
                 ],
@@ -378,23 +465,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Tenant onboarding"
                 ],
-                "summary": "Create a new order",
+                "summary": "ApplyForTenant",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "description": "Order creation payload",
+                        "description": "Request data",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest"
                         }
                     }
                 ],
@@ -402,172 +483,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieve a specific order by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Get order details",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/{id}/payment": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update payment status of an order",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Update order payment status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Payment status payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/{id}/status": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Transition order status following FSM rules (draft -\u003e confirmed -\u003e processing -\u003e fulfilled/cancelled)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Transition order lifecycle state",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "X-Tenant-ID",
-                        "in": "header"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tenant Workspace ID",
-                        "name": "tenant_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target status",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse"
                         }
                     }
                 }
@@ -599,46 +515,9 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new multi-tenant workspace",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Tenants"
-                ],
-                "summary": "Create workspace",
-                "parameters": [
-                    {
-                        "description": "Workspace data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse"
-                        }
-                    }
-                }
             }
         },
-        "/api/v1/tenants/{id}": {
+        "/api/v1/tenants/{tenantID}": {
             "get": {
                 "security": [
                     {
@@ -660,7 +539,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Tenant ID",
-                        "name": "id",
+                        "name": "tenantID",
                         "in": "path",
                         "required": true
                     }
@@ -695,7 +574,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Tenant ID",
-                        "name": "id",
+                        "name": "tenantID",
                         "in": "path",
                         "required": true
                     },
@@ -719,14 +598,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tenants/{id}/invites": {
-            "post": {
+        "/api/v1/tenants/{tenantID}/customers": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Invite a user to join the workspace (requires owner or admin role)",
+                "description": "List workspace customers",
                 "consumes": [
                     "application/json"
                 ],
@@ -734,24 +613,71 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Tenants"
+                    "Sales"
                 ],
-                "summary": "Invite user to workspace",
+                "summary": "List workspace customers",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Tenant ID",
-                        "name": "id",
+                        "name": "tenantID",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Invite data",
+                        "type": "integer",
+                        "description": "Page (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (1-100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomersResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create customer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Create customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest"
                         }
                     }
                 ],
@@ -759,13 +685,662 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse"
                         }
                     }
                 }
             }
         },
-        "/api/v1/tenants/{id}/users": {
+        "/api/v1/tenants/{tenantID}/customers/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update customer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Update customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Archive without deleting historical order references",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Archive customer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/invitations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "ListInvitations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationsResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "CreateEmailInvitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantEmailInvitationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/invitations/{id}/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant approval or invitation operation with server-side actor checks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenant onboarding"
+                ],
+                "summary": "RevokeInvitation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Request or invitation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantRevokedResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List workspace orders",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "List workspace orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (1-100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrdersResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Save draft fields and optional line prices; update requires the current version. Confirmation is a separate assigned-sale action.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Save an incomplete order draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get workspace order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Get workspace order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Save draft fields and optional line prices; update requires the current version. Confirmation is a separate assigned-sale action.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Save an incomplete order draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/orders/{id}/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Validate current version, customer/contact, products, explicit prices, sale and optional delivery address; audit atomically without stock or payment side effects.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Confirm an order as the assigned sale",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesConfirmRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List workspace products",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "List workspace products",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (1-100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductsResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create product",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Create product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/products/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update product",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Update product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Record data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Archive without deleting historical order references",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales"
+                ],
+                "summary": "Archive product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Record ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/users": {
             "get": {
                 "security": [
                     {
@@ -787,7 +1362,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Tenant ID",
-                        "name": "id",
+                        "name": "tenantID",
                         "in": "path",
                         "required": true
                     }
@@ -830,6 +1405,141 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Customer": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Order": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "delivery_address": {
+                    "type": "string"
+                },
+                "discount": {
+                    "type": "number"
+                },
+                "draft_id": {
+                    "type": "string"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem"
+                    }
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus"
+                },
+                "requires_delivery": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "line_total": {
+                    "type": "number"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "price_provided": {
+                    "type": "boolean"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource": {
             "type": "string",
             "enum": [
@@ -879,6 +1589,169 @@ const docTemplate = `{
                 "PaymentStatusRefunded"
             ]
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Product": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant"
+                    }
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "archived"
+            ],
+            "x-enum-varnames": [
+                "ProductStatusActive",
+                "ProductStatusArchived"
+            ]
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant": {
+            "type": "object",
+            "properties": {
+                "barcode": {
+                    "type": "string"
+                },
+                "cost_price": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "price_provided": {
+                    "type": "boolean"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "sku": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variant_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation": {
+            "type": "object",
+            "properties": {
+                "accepted_by": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invited_by": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantRegistration": {
+            "type": "object",
+            "properties": {
+                "applicant_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "review_reason": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "reviewed_by": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest": {
             "type": "object",
             "required": [
@@ -914,87 +1787,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest": {
-            "type": "object",
-            "required": [
-                "quantity",
-                "unit_price",
-                "variant_id"
-            ],
-            "properties": {
-                "quantity": {
-                    "type": "integer",
-                    "minimum": 1
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "variant_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest": {
-            "type": "object",
-            "required": [
-                "items"
-            ],
-            "properties": {
-                "auto_confirm": {
-                    "type": "boolean"
-                },
-                "customer_id": {
-                    "type": "string"
-                },
-                "discount": {
-                    "type": "number"
-                },
-                "draft_id": {
-                    "type": "string"
-                },
-                "employee_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest"
-                    }
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "source": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource"
-                },
-                "tenant_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest": {
-            "type": "object",
-            "required": [
-                "name",
-                "slug"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 2
-                },
-                "plan": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 2
-                }
-            }
-        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO": {
             "type": "object",
             "required": [
@@ -1026,20 +1818,6 @@ const docTemplate = `{
                 "variant": {
                     "type": "string",
                     "example": "Chai 500ml"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest": {
-            "type": "object",
-            "required": [
-                "user_id"
-            ],
-            "properties": {
-                "role": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
                 }
             }
         },
@@ -1137,108 +1915,11 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse": {
             "type": "object",
             "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "line_total": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "variant_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "size": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
-                    "type": "integer"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "customer_id": {
-                    "type": "string"
-                },
-                "discount": {
-                    "type": "number"
-                },
-                "draft_id": {
-                    "type": "string"
-                },
-                "employee_id": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse"
-                    }
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "order_number": {
-                    "type": "string"
-                },
-                "payment_status": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus"
-                },
-                "source": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource"
-                },
-                "status": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "tenant_id": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
+                "operator": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1297,6 +1978,459 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesArchiveResponse": {
+            "type": "object",
+            "properties": {
+                "archived": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesConfirmRequest": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest": {
+            "type": "object",
+            "required": [
+                "full_name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 5000
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "phone": {
+                    "type": "string",
+                    "maxLength": 32
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomersResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Customer"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftItemRequest": {
+            "type": "object",
+            "required": [
+                "variant_id"
+            ],
+            "properties": {
+                "quantity": {
+                    "type": "integer",
+                    "maximum": 1000000,
+                    "minimum": 1
+                },
+                "unit_price": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string",
+                    "maxLength": 36
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest": {
+            "type": "object",
+            "properties": {
+                "auto_confirm": {
+                    "description": "Legacy callers must not silently bypass explicit confirmation.",
+                    "type": "boolean"
+                },
+                "customer_id": {
+                    "type": "string",
+                    "maxLength": 36
+                },
+                "delivery_address": {
+                    "type": "string",
+                    "maxLength": 5000
+                },
+                "employee_id": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "items": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftItemRequest"
+                    }
+                },
+                "notes": {
+                    "type": "string",
+                    "maxLength": 10000
+                },
+                "requires_delivery": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrderResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_id": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "delivery_address": {
+                    "type": "string"
+                },
+                "discount": {
+                    "type": "number"
+                },
+                "draft_id": {
+                    "type": "string"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem"
+                    }
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus"
+                },
+                "requires_delivery": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Order"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "sku",
+                "variant_name"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 10000
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "price": {
+                    "type": "string"
+                },
+                "sku": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "variant_name": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant"
+                    }
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Product"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "slug"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                },
+                "slug": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationResponse": {
+            "type": "object",
+            "properties": {
+                "applicant_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "review_reason": {
+                    "type": "string"
+                },
+                "reviewed_at": {
+                    "type": "string"
+                },
+                "reviewed_by": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantRegistration"
+                    }
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantEmailInvitationRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationResponse": {
+            "type": "object",
+            "properties": {
+                "delivery": {
+                    "type": "string"
+                },
+                "invitation": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation"
+                },
+                "tenant_name": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation"
+                    }
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse": {
             "type": "object",
             "properties": {
@@ -1346,25 +2480,30 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantReviewRequest": {
             "type": "object",
             "required": [
-                "status"
+                "decision"
             ],
             "properties": {
-                "status": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus"
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "rejected"
+                    ]
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 2000
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantRevokedResponse": {
             "type": "object",
-            "required": [
-                "payment_status"
-            ],
             "properties": {
-                "payment_status": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus"
+                "revoked": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1415,29 +2554,110 @@ const docTemplate = `{
                 "meta": {}
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_PlatformAccessResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse"
                 },
                 "meta": {}
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesArchiveResponse"
                 },
                 "meta": {}
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomersResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrderResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrdersResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductsResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationsResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationsResponse"
                 },
                 "meta": {}
             }
@@ -1449,6 +2669,27 @@ const docTemplate = `{
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse"
                 },
                 "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantRevokedResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantRevokedResponse"
+                },
+                "meta": {}
+            }
+        },
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
             }
         }
     },

@@ -4,13 +4,13 @@ Updated: 2026-10-19. This is navigation/status only. Read the selected epic READ
 
 | Epic | Scope | Status | Completed |
 | --- | --- | --- | --- |
-| [EPIC-001](EPIC-001-system-design/README.md) | System design and repository context | in-review | false |
+| [EPIC-001](EPIC-001-system-design/README.md) | System design, tenant-first framework, demo-first backlog and web branding/favicon | in-progress | false |
 | [EPIC-002](EPIC-002-ai-runtime/README.md) | Python AI runtime and durable gRPC jobs | in-progress | false |
 | [EPIC-003](EPIC-003-local-docker/README.md) | Complete current local Docker runtime | in-review | false |
 | [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and reply/send policy | not-started | false |
 | [EPIC-005](EPIC-005-kafka/README.md) | Kafka event backbone | not-started | false |
 | [EPIC-006](EPIC-006-provider-observability/README.md) | Real AI providers, checkpoints and self-host traces | not-started | false |
-| [EPIC-007](EPIC-007-orders-workflows/README.md) | Approved order scope and flexible business workflows | not-started | false |
+| [EPIC-007](EPIC-007-orders-workflows/README.md) | Orders, workspace-first demo and flexible business workflows | in-progress | false |
 | [EPIC-008](EPIC-008-integrations-deployment/README.md) | Real Pancake connector and eventual VPS deployment | not-started | false |
 
 ## Status rules

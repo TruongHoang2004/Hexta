@@ -25,7 +25,7 @@ Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atl
 | PostgreSQL | 127.0.0.1:55433 | Database hexta_demo; local-only user hexta_demo/password local-demo-only |
 | Redis | 127.0.0.1:56379 | Local application cache |
 
-Open `/register`, create an account, sign in, and open `/tenant`. No initial owner account or production seed data is injected. `NEXT_PUBLIC_API_URL` is baked into the web image as `http://localhost:8080`; changing it requires a web rebuild. Browser localhost and container names are different: API connects to `postgres:5432` and `redis:6379`, never host loopback. Google login is not configured in this profile. The legacy Go AI draft endpoint has its model URL set to an unreachable loopback endpoint to prevent provider calls; it is not the Python messaging integration.
+Open `/register`, create an account, sign in, and open `/tenants`. No initial owner account or production seed data is injected. `NEXT_PUBLIC_API_URL` is baked into the web image as `http://localhost:8080`; changing it requires a web rebuild. Browser localhost and container names are different: API connects to `postgres:5432` and `redis:6379`, never host loopback. Google login is not configured in this profile. Legacy Go AI HTTP routes are unregistered in this keyless demo; Python messaging integration remains separate.
 
 ## Verify the stack using only Docker
 
@@ -37,7 +37,7 @@ Open `/register`, create an account, sign in, and open `/tenant`. No initial own
 ./scripts/local.sh exec -T ai /app/.venv/bin/python -m hexta_ai.local_smoke check local-restart-check
 ```
 
-The first smoke creates a disposable local account and tenant, checks web login, API health, registration/login and authenticated tenant create/list. It prints no tokens/passwords. The next commands verify an accepted completed run survives service restart and StartRun remains idempotent. Reusing this run ID is safe. Unit/integration tests separately exercise recovery of an unfinished leased run and rejection of a stale worker's completion. These checks never call a provider or send a customer message.
+The source smoke creates a disposable local account and pending tenant application, checks web login/API health and verifies no active membership. Rebuild the AI image before using this revised smoke with the tenant-first API. It prints no tokens/passwords. The next commands verify an accepted completed run survives service restart and StartRun remains idempotent. Reusing this run ID is safe. Unit/integration tests separately exercise recovery of an unfinished leased run and rejection of a stale worker's completion. These checks never call a provider or send a customer message.
 
 Run all AI tests, including an isolated real PostgreSQL integration database:
 
@@ -73,3 +73,33 @@ The dump includes local data and should be stored privately. **Destructive reset
 - Kafka and Langfuse are **not started by this profile yet**. Kafka use cases and implementation sequence are drafted in `agentic-memory/designs/2026-10-18_kafka-event-backbone_design.md`. The legacy infrastructure's Kafka advertised localhost listener is not suitable for container clients.
 
 This starts all currently runnable application components, not all planned MVP features. Python runs a fake script/human graph, replays whole runs after lease recovery, and does not yet persist LangGraph node checkpoints. Go's future conversation worker, current-context send gate, Pancake webhook/send integration, three real-provider adapters, messaging UI and self-hosted Langfuse remain pending. Orders and messaging remain separate. No live connectors, paid inference, VPS deployment or domain is configured here. All published ports bind to loopback; do not deploy this profile unchanged on a public server.
+
+
+## Manual sales demo (no provider keys or prepared dataset)
+
+Start only the required application services, preserving the existing local volume:
+
+```sh
+./scripts/local.sh up --build -d --wait api web
+```
+
+Open http://localhost:3000/tenants. Register/sign in, submit a tenant application and wait for Hexta approval. Existing approved memberships remain available; choose a tenant card to enter its Orders, Customers, Products, Members & invitations and Service plan. Resource URLs include the tenant ID and support independent tabs/deep links. Old global page URLs redirect to the chooser.
+
+Hexta review is at /platform and requires explicit platform operator authority. Trusted administrators provision an existing account through the packaged CLI, using a privately supplied database URL (never commit/print it):
+
+```sh
+# Export PLATFORM_DATABASE_URL securely in the operator environment first.
+./scripts/local.sh exec -T -e PLATFORM_DATABASE_URL api ./platform-operator -user-id '<existing account ID>'
+# Remove that authority when no longer needed.
+./scripts/local.sh exec -T -e PLATFORM_DATABASE_URL api ./platform-operator -user-id '<existing account ID>' -revoke
+```
+
+This is a privileged administrator action, not a signup step. No first-user auto-grant exists. Approval provisions the tenant and initial owner atomically; ordinary applicants cannot approve themselves or change plan/status.
+
+Inside a tenant, enter customers/products, save an incomplete order draft, choose customer/sale/items and explicitly enter prices. Save before confirming. Confirmation requires customer name/contact, priced item and delivery address when delivery is selected. Zero price is valid; blank is missing. Only the assigned sale confirms. Confirmed orders remain read-only; refresh verifies persistence.
+
+Owners create email-addressed invitations in Members & invitations. The UI returns a private link and explicitly states **no email was sent**. Share privately with that recipient; they sign in with the matching email and explicitly accept. Opening the link alone grants no membership. Links expire after seven days; reissue revokes the old pending link and owner revocation is available. Real email delivery/verification remains deferred. Service plan is read-only and no payment collection is implied.
+
+The first demo stops at confirmation. Workflow/handoff, cancellation/return cases, dashboard, messaging and AI/channel integration are later slices. No stock reservation, payment collection, customer sending, key setup or generated data is required. The previous generic order status/payment HTTP routes are removed; API clients must use explicit draft save and confirmation. Swagger documents the current routes.
+
+Step-by-step acceptance checks for an evening test session: [manual demo checklist](TESTING.demo.md).

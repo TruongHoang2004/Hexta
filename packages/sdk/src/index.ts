@@ -31,16 +31,9 @@ export interface User {
   user_id?: string;
 }
 
-export interface CreateTenantInput {
-  name: string;
-  slug: string;
-  plan?: string;
-}
-
-export interface InviteMemberInput {
-  user_id: string;
-  role?: string;
-}
+export interface TenantApplicationInput { name: string; slug: string; }
+export interface TenantApplication { id: string; name: string; slug: string; status: "pending" | "approved" | "rejected"; tenant_id: string | null; }
+export interface PendingTenantInvitation { invitation: { id: string; tenant_id: string; email: string; role: string; status: string; expires_at: string }; token: string; delivery: string; }
 
 export interface TokenPair {
   access_token: string;
@@ -202,8 +195,8 @@ export class IdentityClient {
   }
 
   // Tenant
-  async createTenant(input: CreateTenantInput): Promise<Tenant> {
-    const response = await this.client.post<{ data: Tenant }>("/api/v1/tenants", input);
+  async requestTenant(input: TenantApplicationInput): Promise<TenantApplication> {
+    const response = await this.client.post<{ data: TenantApplication }>("/api/v1/tenant-requests", input);
     return response.data.data;
   }
 
@@ -217,7 +210,7 @@ export class IdentityClient {
     return response.data.data;
   }
 
-  async updateTenant(id: string, input: Partial<CreateTenantInput> & { status?: string }): Promise<Tenant> {
+  async updateTenant(id: string, input: { name?: string }): Promise<Tenant> {
     const response = await this.client.put<{ data: Tenant }>(`/api/v1/tenants/${id}`, input);
     return response.data.data;
   }
@@ -228,10 +221,11 @@ export class IdentityClient {
     return response.data.data;
   }
 
-  async inviteMember(tenantId: string, input: InviteMemberInput): Promise<TenantMember> {
-    const response = await this.client.post<{ data: TenantMember }>(`/api/v1/tenants/${tenantId}/invites`, input);
+  async createEmailInvitation(tenantId: string, email: string): Promise<PendingTenantInvitation> {
+    const response = await this.client.post<{ data: PendingTenantInvitation }>(`/api/v1/tenants/${tenantId}/invitations`, { email });
     return response.data.data;
   }
+
 }
 
 export interface SDKConfig {
@@ -423,7 +417,7 @@ export class HextaSDK {
   private handleApiError(error: any): never {
     if (error.response && error.response.data) {
       const apiError = error.response.data;
-      const msg = typeof apiError === "string" ? apiError : (apiError.message || apiError.detail || "API Error");
+      const msg = typeof apiError === "string" ? apiError : (apiError.detail || apiError.message || "API Error");
       const err = new Error(msg);
       (err as any).response = error.response;
       (err as any).status = error.response.status;

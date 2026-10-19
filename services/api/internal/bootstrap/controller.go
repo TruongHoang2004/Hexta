@@ -10,10 +10,11 @@ import (
 func BuildController() fx.Option {
 	return fx.Options(
 		fx.Provide(controller.NewBaseController),
+		fx.Provide(controller.NewSalesController),
 		fx.Provide(controller.NewHealthController),
 		fx.Provide(controller.NewAuthController),
 		fx.Provide(controller.NewTenantController),
-		fx.Provide(controller.NewOrderController),
+		fx.Provide(controller.NewTenantOnboardingController),
 		fx.Provide(controller.NewAIController),
 	)
 }

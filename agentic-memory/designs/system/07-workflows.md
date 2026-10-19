@@ -80,7 +80,7 @@ Confirmed customer activity and successful sale/system messages advance last_act
 
 ## 6. Orders, exceptions and configurable work
 
-Order draft may be incomplete; confirmation is explicit and validates customer/contact/product/quantity/explicit price/assigned sale and delivery address when required. Current legacy order auto-confirm/stock/payment paths differ; migrate compatibly after scope audit. Conversation control never implies order confirmation.
+Order draft may be incomplete; confirmation is explicit and validates customer/contact/product/quantity/explicit price/assigned sale and delivery address when required. The current sales HTTP boundary now implements incomplete drafts and explicit assigned-sale confirmation without inventory/payment side effects. Versioned edits and confirmation reject stale commands; current customer/member/active-product references are checked transactionally. The legacy auto-confirm/stock/payment service remains internal; its HTTP mutation routes were removed. Conversation control never implies order confirmation.
 
 Cancellation/return opens an operational case referencing original order/lines. Assigned handler records progress/received quantities/condition; guard duplicate receipt and quantities exceeding original items. Business owner finalizes the outcome; no financial refund execution. Final state transitions and stock implications need detailed compatible implementation before adopting old service behavior.
 
@@ -97,3 +97,7 @@ Workflow version contains ordered steps and handoff policy; an instance records 
 - Return-line over-receipt, missing confirmation data, zero versus omitted price and optional delivery/packing.
 
 These are required acceptance cases, not claims of test coverage already present.
+
+## Tenant onboarding — implemented local slice
+
+Account signup -> pending registration request -> explicit Hexta operator review -> tenant + initial owner in one transaction. Approval locks the request; repeated same decision is idempotent, opposite final decision conflicts. Owner-issued email invitation -> manual private link -> signed-in matching recipient preview -> explicit accept/decline. Preview has no activation effect. Acceptance checks active tenant, recipient, token status and seven-day expiry and creates membership atomically. Repeated accept never restores subsequently removed membership. Reissue revokes the prior pending link; owner may revoke. Tenant-before-invitation lock ordering serializes acceptance/revocation. PostgreSQL concurrent approval/accept tests pass; real email delivery remains deferred.

@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { ArrowRight, Shield, Zap, LayoutDashboard, Smartphone } from "lucide-react";
 import { Button } from "@hexta/ui";
@@ -9,12 +10,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex gap-2 items-center">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-white font-bold text-xl leading-none">H</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">Hexta</span>
-          </div>
+          <Link href="/" aria-label="Hexta home"><BrandLogo /></Link>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted">
             <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
             <Link href="#solutions" className="hover:text-foreground transition-colors">Solutions</Link>
@@ -52,7 +48,7 @@ export default function LandingPage() {
                 <Link href="/register">Get started free <ArrowRight className="w-4 h-4 ml-2" /></Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 text-base rounded-full bg-surface hover:bg-muted/10">
-                <Link href="#demo">View Demo</Link>
+                <Link href="/tenants">Open workspace</Link>
               </Button>
             </div>
           </div>
@@ -110,12 +106,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border bg-background py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex gap-2 items-center">
-             <div className="w-6 h-6 rounded bg-foreground flex items-center justify-center">
-              <span className="text-background font-bold text-sm leading-none">H</span>
-            </div>
-            <span className="font-bold text-lg tracking-tight">Hexta</span>
-          </div>
+          <Link href="/" aria-label="Hexta home"><BrandLogo /></Link>
           <p className="text-sm text-muted">© {new Date().getFullYear()} Hexta Inc. All rights reserved.</p>
           <div className="flex items-center gap-6 text-sm text-muted">
             <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>

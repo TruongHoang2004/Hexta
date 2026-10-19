@@ -23,6 +23,7 @@ COPY services/api ./services/api
 # Build the api service
 WORKDIR /app/services/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/api ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/platform-operator ./cmd/platform-operator
 
 FROM alpine:latest
 
@@ -31,6 +32,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /app/bin/api .
+COPY --from=builder /app/bin/platform-operator .
 COPY --from=builder /app/services/api/config ./config
 
 EXPOSE 8080

@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { useState } from "react";
 import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,8 @@ export default function LoginPage() {
     try {
       await sdk.identity.login(email, password);
       setAuth();
-      router.push("/tenant");
+      sessionStorage.removeItem("hexta.workspace");
+      router.push(sessionStorage.getItem("hexta.invitation") ? "/invitations" : "/tenants");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Sign in failed. Please check your credentials.");
     } finally {
@@ -51,9 +53,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[400px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                <span className="text-white font-bold text-2xl leading-none">H</span>
-              </div>
+              <BrandLogo className="w-44" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in to Hexta</h1>
             <p className="text-muted">Enter your email and password to access your workspace</p>

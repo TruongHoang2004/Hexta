@@ -1,25 +1,25 @@
 package bootstrap
 
 import (
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/telemetry"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/constant"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/middleware"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/router"
-	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/telemetry"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
+	"strings"
 )
 
-
-
 var RouterModule = fx.Options(
-	fx.Provide(func(logger *zap.SugaredLogger) *gin.Engine {
+	fx.Provide(func(logger *zap.SugaredLogger, cfg *config.Config) *gin.Engine {
 		r := gin.Default()
 
-		r.Use(cors.Default())
+		r.Use(cors.New(browserCORSConfig(cfg)))
 		r.Use(middleware.Recovery())
 		r.Use(otelgin.Middleware(constant.ServiceName))
 		r.Use(telemetry.GinMiddleware(logger))
@@ -41,4 +41,18 @@ type Params struct {
 
 	Public  *gin.RouterGroup `name:"public"`
 	Private *gin.RouterGroup `name:"private"`
+}
+
+// Browser requests use explicit bearer authorization and a workspace header.
+func browserCORSConfig(cfg *config.Config) cors.Config {
+	result := cors.DefaultConfig()
+	origin := strings.TrimRight(cfg.Server.FrontendURL, "/")
+	if origin != "" {
+		result.AllowOrigins = []string{origin}
+	}
+	if !cfg.Server.Production {
+		result.AllowOrigins = append(result.AllowOrigins, "http://localhost:3000", "http://127.0.0.1:3000")
+	}
+	result.AllowHeaders = append(result.AllowHeaders, "Authorization", "X-Tenant-ID")
+	return result
 }

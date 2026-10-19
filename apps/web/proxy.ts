@@ -6,7 +6,7 @@ export function proxy(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith("/login") || request.nextUrl.pathname.startsWith("/register");
   
   // Example protected route paths
-  const isProtectedRoute = request.nextUrl.pathname.startsWith("/tenant") || request.nextUrl.pathname.startsWith("/dashboard");
+  const isProtectedRoute = request.nextUrl.pathname.startsWith("/platform") || request.nextUrl.pathname.startsWith("/workspaces") || request.nextUrl.pathname.startsWith("/tenant") || request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/orders") || request.nextUrl.pathname.startsWith("/customers") || request.nextUrl.pathname.startsWith("/products");
 
   if (!token && isProtectedRoute) {
     // Redirect to login if accessing protected route without token
@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   if (token && isAuthPage) {
     // Redirect to home or dashboard if accessing auth pages while already logged in
     // Change this to your default authenticated route
-    return NextResponse.redirect(new URL("/tenant", request.url));
+    return NextResponse.redirect(new URL("/tenants", request.url));
   }
 
   return NextResponse.next();

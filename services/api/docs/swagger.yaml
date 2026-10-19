@@ -1,5 +1,94 @@
 basePath: /api/v1
 definitions:
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Customer:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      phone:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Order:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      delivery_address:
+        type: string
+      discount:
+        type: number
+      draft_id:
+        type: string
+      employee_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem'
+        type: array
+      notes:
+        type: string
+      order_number:
+        type: string
+      payment_status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
+      requires_delivery:
+        type: boolean
+      source:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
+      subtotal:
+        type: number
+      tenant_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      line_total:
+        type: number
+      order_id:
+        type: string
+      price_provided:
+        type: boolean
+      quantity:
+        type: integer
+      tenant_id:
+        type: string
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+      variant_id:
+        type: string
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource:
     enum:
     - web_form
@@ -40,6 +129,114 @@ definitions:
     - PaymentStatusPartiallyPaid
     - PaymentStatusPaid
     - PaymentStatusRefunded
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Product:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus'
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      variants:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus:
+    enum:
+    - active
+    - archived
+    type: string
+    x-enum-varnames:
+    - ProductStatusActive
+    - ProductStatusArchived
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant:
+    properties:
+      barcode:
+        type: string
+      cost_price:
+        type: number
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: string
+      price:
+        type: number
+      price_provided:
+        type: boolean
+      product_id:
+        type: string
+      sku:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      variant_name:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation:
+    properties:
+      accepted_by:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      invited_by:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantRegistration:
+    properties:
+      applicant_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      review_reason:
+        type: string
+      reviewed_at:
+        type: string
+      reviewed_by:
+        type: string
+      slug:
+        type: string
+      status:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest:
     properties:
       conversation_id:
@@ -63,62 +260,6 @@ definitions:
       role:
         example: user
         type: string
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest:
-    properties:
-      quantity:
-        minimum: 1
-        type: integer
-      unit_price:
-        type: number
-      variant_id:
-        type: string
-    required:
-    - quantity
-    - unit_price
-    - variant_id
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest:
-    properties:
-      auto_confirm:
-        type: boolean
-      customer_id:
-        type: string
-      discount:
-        type: number
-      draft_id:
-        type: string
-      employee_id:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderItemRequest'
-        minItems: 1
-        type: array
-      notes:
-        type: string
-      source:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
-      tenant_id:
-        type: string
-    required:
-    - items
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest:
-    properties:
-      name:
-        maxLength: 100
-        minLength: 2
-        type: string
-      plan:
-        type: string
-      slug:
-        maxLength: 100
-        minLength: 2
-        type: string
-    required:
-    - name
-    - slug
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO:
     properties:
@@ -144,15 +285,6 @@ definitions:
     required:
     - product_name
     - quantity
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest:
-    properties:
-      role:
-        type: string
-      user_id:
-        type: string
-    required:
-    - user_id
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest:
     properties:
@@ -219,74 +351,10 @@ definitions:
         example: 50000
         type: number
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse:
     properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      line_total:
-        type: number
-      quantity:
-        type: integer
-      unit_price:
-        type: number
-      updated_at:
-        type: string
-      variant_id:
-        type: string
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse'
-        type: array
-      page:
-        type: integer
-      size:
-        type: integer
-      total:
-        type: integer
-      total_pages:
-        type: integer
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse:
-    properties:
-      created_at:
-        type: string
-      customer_id:
-        type: string
-      discount:
-        type: number
-      draft_id:
-        type: string
-      employee_id:
-        type: string
-      id:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderItemResponse'
-        type: array
-      notes:
-        type: string
-      order_number:
-        type: string
-      payment_status:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
-      source:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
-      status:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
-      subtotal:
-        type: number
-      tenant_id:
-        type: string
-      total_amount:
-        type: number
-      updated_at:
-        type: string
+      operator:
+        type: boolean
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.RefreshTokenRequest:
     properties:
@@ -324,6 +392,311 @@ definitions:
       user_id:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesArchiveResponse:
+    properties:
+      archived:
+        type: boolean
+      id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesConfirmRequest:
+    properties:
+      version:
+        minimum: 1
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest:
+    properties:
+      address:
+        maxLength: 5000
+        type: string
+      email:
+        maxLength: 255
+        type: string
+      full_name:
+        maxLength: 255
+        type: string
+      phone:
+        maxLength: 32
+        type: string
+    required:
+    - full_name
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerResponse:
+    properties:
+      address:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      phone:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomersResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Customer'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftItemRequest:
+    properties:
+      quantity:
+        maximum: 1000000
+        minimum: 1
+        type: integer
+      unit_price:
+        type: string
+      variant_id:
+        maxLength: 36
+        type: string
+    required:
+    - variant_id
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest:
+    properties:
+      auto_confirm:
+        description: Legacy callers must not silently bypass explicit confirmation.
+        type: boolean
+      customer_id:
+        maxLength: 36
+        type: string
+      delivery_address:
+        maxLength: 5000
+        type: string
+      employee_id:
+        maxLength: 255
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftItemRequest'
+        maxItems: 100
+        type: array
+      notes:
+        maxLength: 10000
+        type: string
+      requires_delivery:
+        type: boolean
+      version:
+        minimum: 0
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrderResponse:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      delivery_address:
+        type: string
+      discount:
+        type: number
+      draft_id:
+        type: string
+      employee_id:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem'
+        type: array
+      notes:
+        type: string
+      order_number:
+        type: string
+      payment_status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
+      requires_delivery:
+        type: boolean
+      source:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderSource'
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
+      subtotal:
+        type: number
+      tenant_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrdersResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Order'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest:
+    properties:
+      category:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 10000
+        type: string
+      name:
+        maxLength: 255
+        type: string
+      price:
+        type: string
+      sku:
+        maxLength: 64
+        type: string
+      variant_name:
+        maxLength: 128
+        type: string
+    required:
+    - name
+    - sku
+    - variant_name
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductResponse:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductStatus'
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      variants:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.ProductVariant'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.Product'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      slug:
+        maxLength: 100
+        minLength: 2
+        type: string
+    required:
+    - name
+    - slug
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationResponse:
+    properties:
+      applicant_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      review_reason:
+        type: string
+      reviewed_at:
+        type: string
+      reviewed_by:
+        type: string
+      slug:
+        type: string
+      status:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantRegistration'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantEmailInvitationRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+    required:
+    - email
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationResponse:
+    properties:
+      delivery:
+        type: string
+      invitation:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation'
+      tenant_name:
+        type: string
+      token:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.TenantInvitation'
+        type: array
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse:
     properties:
       created_at:
@@ -356,19 +729,23 @@ definitions:
       updated_at:
         type: string
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantReviewRequest:
     properties:
-      status:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderStatus'
+      decision:
+        enum:
+        - approved
+        - rejected
+        type: string
+      reason:
+        maxLength: 2000
+        type: string
     required:
-    - status
+    - decision
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantRevokedResponse:
     properties:
-      payment_status:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.PaymentStatus'
-    required:
-    - payment_status
+      revoked:
+        type: boolean
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest:
     properties:
@@ -401,22 +778,76 @@ definitions:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO'
       meta: {}
     type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_PlatformAccessResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderListResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse'
       meta: {}
     type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesArchiveResponse'
       meta: {}
     type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantMemberResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomersResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomersResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrderResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrdersResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesOrdersResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductsResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationsResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationsResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse
@@ -424,6 +855,20 @@ definitions:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantResponse'
       meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantRevokedResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantRevokedResponse'
+      meta: {}
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
     type: object
 host: localhost:9090
 info:
@@ -439,71 +884,6 @@ info:
   title: CommerceHub API
   version: "1.0"
 paths:
-  /api/v1/ai/agent/converse:
-    post:
-      consumes:
-      - application/json
-      description: Stream interactive conversational turns and order drafts via Server-Sent
-        Events (SSE)
-      parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Conversational prompt and history
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest'
-      produces:
-      - text/event-stream
-      responses:
-        "200":
-          description: Server-Sent Event stream emitting JSON dto.SSEEvent chunks
-          schema:
-            type: string
-      security:
-      - BearerAuth: []
-      summary: Converse with AI Agent
-      tags:
-      - AI Agent
-  /api/v1/ai/agent/drafts/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve a Redis-cached order draft by draft ID for human review
-        and confirmation
-      parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Draft ID (e.g. draft_8f3a9b21-4c5d)
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO'
-      security:
-      - BearerAuth: []
-      summary: Retrieve interactive order draft
-      tags:
-      - AI Agent
   /api/v1/auth/google/callback:
     get:
       description: Handles Google OAuth callback, validates state, and redirects to
@@ -621,177 +1001,189 @@ paths:
       summary: Register user
       tags:
       - Auth
-  /api/v1/orders:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve paginated orders for a workspace
-      parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Filter by order status
-        in: query
-        name: status
-        type: string
-      - description: 'Page number (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - description: 'Page size (default: 20)'
-        in: query
-        name: size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderListResponse'
-      security:
-      - BearerAuth: []
-      summary: List orders
-      tags:
-      - Orders
+  /api/v1/invitations/accept:
     post:
       consumes:
       - application/json
-      description: Create order draft or auto-confirm with stock reservation
+      description: Tenant approval or invitation operation with server-side actor
+        checks
       parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Order creation payload
+      - description: Request data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateOrderRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse'
       security:
       - BearerAuth: []
-      summary: Create a new order
+      summary: AcceptInvitation
       tags:
-      - Orders
-  /api/v1/orders/{id}:
+      - Tenant onboarding
+  /api/v1/invitations/decline:
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      parameters:
+      - description: Request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse'
+      security:
+      - BearerAuth: []
+      summary: DeclineInvitation
+      tags:
+      - Tenant onboarding
+  /api/v1/invitations/preview:
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      parameters:
+      - description: Request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantInvitationTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse'
+      security:
+      - BearerAuth: []
+      summary: PreviewInvitation
+      tags:
+      - Tenant onboarding
+  /api/v1/platform/access:
     get:
       consumes:
       - application/json
-      description: Retrieve a specific order by ID
-      parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: string
+      description: Tenant approval or invitation operation with server-side actor
+        checks
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_PlatformAccessResponse'
       security:
       - BearerAuth: []
-      summary: Get order details
+      summary: PlatformAccess
       tags:
-      - Orders
-  /api/v1/orders/{id}/payment:
-    patch:
+      - Tenant onboarding
+  /api/v1/platform/tenant-requests:
+    get:
       consumes:
       - application/json
-      description: Update payment status of an order
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse'
+      security:
+      - BearerAuth: []
+      summary: PlatformApplications
+      tags:
+      - Tenant onboarding
+  /api/v1/platform/tenant-requests/{id}/review:
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
       parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Order ID
+      - description: Request or invitation ID
         in: path
         name: id
         required: true
         type: string
-      - description: Payment status payload
+      - description: Request data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdatePaymentStatusRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantReviewRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse'
       security:
       - BearerAuth: []
-      summary: Update order payment status
+      summary: ReviewApplication
       tags:
-      - Orders
-  /api/v1/orders/{id}/status:
-    patch:
+      - Tenant onboarding
+  /api/v1/tenant-requests:
+    get:
       consumes:
       - application/json
-      description: Transition order status following FSM rules (draft -> confirmed
-        -> processing -> fulfilled/cancelled)
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationsResponse'
+      security:
+      - BearerAuth: []
+      summary: MyApplications
+      tags:
+      - Tenant onboarding
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
       parameters:
-      - description: Tenant Workspace ID
-        in: header
-        name: X-Tenant-ID
-        type: string
-      - description: Tenant Workspace ID
-        in: query
-        name: tenant_id
-        type: string
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Target status
+      - description: Request data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateOrderStatusRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse'
       security:
       - BearerAuth: []
-      summary: Transition order lifecycle state
+      summary: ApplyForTenant
       tags:
-      - Orders
+      - Tenant onboarding
   /api/v1/tenants:
     get:
       consumes:
@@ -809,30 +1201,7 @@ paths:
       summary: List user workspaces
       tags:
       - Tenants
-    post:
-      consumes:
-      - application/json
-      description: Create a new multi-tenant workspace
-      parameters:
-      - description: Workspace data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.CreateTenantRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantResponse'
-      security:
-      - BearerAuth: []
-      summary: Create workspace
-      tags:
-      - Tenants
-  /api/v1/tenants/{id}:
+  /api/v1/tenants/{tenantID}:
     get:
       consumes:
       - application/json
@@ -840,7 +1209,7 @@ paths:
       parameters:
       - description: Tenant ID
         in: path
-        name: id
+        name: tenantID
         required: true
         type: string
       produces:
@@ -862,7 +1231,7 @@ paths:
       parameters:
       - description: Tenant ID
         in: path
-        name: id
+        name: tenantID
         required: true
         type: string
       - description: Workspace update data
@@ -883,36 +1252,487 @@ paths:
       summary: Update workspace settings
       tags:
       - Tenants
-  /api/v1/tenants/{id}/invites:
-    post:
+  /api/v1/tenants/{tenantID}/customers:
+    get:
       consumes:
       - application/json
-      description: Invite a user to join the workspace (requires owner or admin role)
+      description: List workspace customers
       parameters:
       - description: Tenant ID
         in: path
-        name: id
+        name: tenantID
         required: true
         type: string
-      - description: Invite data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.InviteMemberRequest'
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomersResponse'
       security:
       - BearerAuth: []
-      summary: Invite user to workspace
+      summary: List workspace customers
       tags:
-      - Tenants
-  /api/v1/tenants/{id}/users:
+      - Sales
+    post:
+      consumes:
+      - application/json
+      description: Create customer
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse'
+      security:
+      - BearerAuth: []
+      summary: Create customer
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/customers/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Archive without deleting historical order references
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse'
+      security:
+      - BearerAuth: []
+      summary: Archive customer
+      tags:
+      - Sales
+    put:
+      consumes:
+      - application/json
+      description: Update customer
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesCustomerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesCustomerResponse'
+      security:
+      - BearerAuth: []
+      summary: Update customer
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/invitations:
+    get:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationsResponse'
+      security:
+      - BearerAuth: []
+      summary: ListInvitations
+      tags:
+      - Tenant onboarding
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantEmailInvitationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantInvitationResponse'
+      security:
+      - BearerAuth: []
+      summary: CreateEmailInvitation
+      tags:
+      - Tenant onboarding
+  /api/v1/tenants/{tenantID}/invitations/{id}/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Tenant approval or invitation operation with server-side actor
+        checks
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Request or invitation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantRevokedResponse'
+      security:
+      - BearerAuth: []
+      summary: RevokeInvitation
+      tags:
+      - Tenant onboarding
+  /api/v1/tenants/{tenantID}/orders:
+    get:
+      consumes:
+      - application/json
+      description: List workspace orders
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrdersResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspace orders
+      tags:
+      - Sales
+    post:
+      consumes:
+      - application/json
+      description: Save draft fields and optional line prices; update requires the
+        current version. Confirmation is a separate assigned-sale action.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Save an incomplete order draft
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get workspace order
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Get workspace order
+      tags:
+      - Sales
+    put:
+      consumes:
+      - application/json
+      description: Save draft fields and optional line prices; update requires the
+        current version. Confirmation is a separate assigned-sale action.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Save an incomplete order draft
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/orders/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Validate current version, customer/contact, products, explicit
+        prices, sale and optional delivery address; audit atomically without stock
+        or payment side effects.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesConfirmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirm an order as the assigned sale
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/products:
+    get:
+      consumes:
+      - application/json
+      description: List workspace products
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductsResponse'
+      security:
+      - BearerAuth: []
+      summary: List workspace products
+      tags:
+      - Sales
+    post:
+      consumes:
+      - application/json
+      description: Create product
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse'
+      security:
+      - BearerAuth: []
+      summary: Create product
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/products/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Archive without deleting historical order references
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesArchiveResponse'
+      security:
+      - BearerAuth: []
+      summary: Archive product
+      tags:
+      - Sales
+    put:
+      consumes:
+      - application/json
+      description: Update product
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Record data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_SalesProductResponse'
+      security:
+      - BearerAuth: []
+      summary: Update product
+      tags:
+      - Sales
+  /api/v1/tenants/{tenantID}/users:
     get:
       consumes:
       - application/json
@@ -920,7 +1740,7 @@ paths:
       parameters:
       - description: Tenant ID
         in: path
-        name: id
+        name: tenantID
         required: true
         type: string
       produces:

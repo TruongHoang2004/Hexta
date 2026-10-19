@@ -1,6 +1,6 @@
 # Hexta system design: canonical entry point
 
-Last reconciled: 2026-10-18. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) now targets main and remains under review. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
+Last reconciled: 2026-10-19. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) merged on 2026-10-19. The manual sales demo on codex/manual-sales-demo is locally implemented and verified, but unmerged; current sales additions are recorded in the architecture/DB/API/workflow modules. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
 
 ## Read order
 
@@ -30,10 +30,10 @@ Product decisions come from the owner's conversation and approved Notion require
 
 Hexta is a tenant-isolated sales/operations application. Messaging assistance is initially integrated through Pancake; order/workflow operations are separate. Go owns business authorization and sending. Python owns AI execution behind gRPC. Kafka is the owner-selected future event backbone. PostgreSQL owns business truth and AI run state. Redis is a cache, not the durable event/job authority. AI observability will be self-hosted.
 
-The current local stack runs Next.js, Go API, Python fake AI, PostgreSQL, Redis, role/schema initialization and Atlas migrations. Authentication/tenant pages and legacy order/AI-draft APIs exist. The new conversation model, Go conversation worker, real provider adapters, Kafka producers/consumers, Pancake connector and Langfuse are not implemented in this slice.
+The current local stack runs Next.js, Go API, Python fake AI, PostgreSQL, Redis, role/schema initialization and Atlas migrations. Authentication/tenant pages and legacy order/AI-draft foundations exist. A local unmerged follow-up adds customer/product/order pages and a guarded incomplete-draft/explicit-confirmation HTTP boundary. The new conversation model, Go conversation worker, real provider adapters, Kafka producers/consumers, Pancake connector and Langfuse are not implemented in this slice.
 
 ## Maintenance contract
 
 When changing a schema, endpoint, RPC, event or business rule, update its corresponding module and the affected epic/session records in the same change. Keep target and implemented sections separate. Do not add a new dated design that silently contradicts this pack; link the decision and amend the relevant section. Keep secret values out of all documents. Record validation in CHANGELOG.md with the actual command/result, not an assumed test outcome.
 
-This is a documentation consolidation only. It does not create database tables, expose target endpoints, grant permissions or enable real sending.
+The original consolidation was documentation only. Local unmerged sales/tenant-first follow-ups now add schema, API and UI as explicitly recorded in the modules; future messaging/sending capabilities remain targets.
