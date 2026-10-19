@@ -1,10 +1,21 @@
 % !TeX root = ../main.tex
 \chapter{CƠ SỞ LÝ THUYẾT}\label{chap:background}
 \section{Tổng quan bài toán}
-\placeholder{Định nghĩa bài toán, thuật ngữ, đầu vào, đầu ra và các ràng buộc.}
-\section{Các nghiên cứu và giải pháp liên quan}
-\placeholder{Tổng hợp nguồn thực tế, so sánh cách tiếp cận và xác định khoảng trống nghiên cứu.}
-\section{Công nghệ và phương pháp sử dụng}
-\placeholder{Giải thích nguyên lý và lý do lựa chọn những công nghệ liên quan trực tiếp đến đề tài.}
-Ví dụ cú pháp trích dẫn tài liệu: \cite{reference-placeholder}.
+Bài toán được xem xét theo ba nhóm dữ liệu: dữ liệu chủ như khách hàng và sản phẩm; dữ liệu giao dịch như đơn hàng và dòng hàng; dữ liệu điều phối như bước công việc, người phụ trách và lịch sử. Một doanh nghiệp được biểu diễn bằng một tenant. Thành viên có thể thuộc nhiều tenant, nhưng quyền truy cập được xác định riêng trong từng tenant. Mã định danh bản ghi không thay thế điều kiện kiểm tra phạm vi doanh nghiệp.
 
+Đơn nháp là bản ghi đang chuẩn bị, cho phép thiếu một số thông tin nghiệp vụ. Xác nhận là một lệnh có điều kiện làm thay đổi trạng thái chính thức. Hai khái niệm này cần tách biệt để người dùng lưu công việc dở mà hệ thống không phải tự tạo dữ liệu còn thiếu. Cùng nguyên tắc đó, đề xuất phản hồi là nội dung chưa gửi, khác với tin nhắn đã được nhà cung cấp tiếp nhận.
+
+Quy trình tuần tự là chuỗi bước có thứ tự, mỗi bước gắn tên, người phụ trách và chế độ bàn giao. Với chuyển trực tiếp, trách nhiệm chuyển khi bàn giao hợp lệ. Với chế độ chờ nhận, trách nhiệm vẫn thuộc người hiện tại đến khi người được chỉ định chấp nhận. Một phiên bản quy trình xác định cách vận hành của các công việc khởi tạo từ phiên bản đó; sửa cấu hình không được âm thầm làm thay đổi công việc đang chạy.
+
+Trong hỗ trợ tư vấn, script là nội dung mẫu có điều kiện áp dụng và biến dữ liệu. Bộ định tuyến lựa chọn script, gọi bộ sinh AI, hỏi làm rõ hoặc chuyển người xử lý. Đầu vào gồm tin khách, ngữ cảnh hiện hành và dữ liệu được phép sử dụng; đầu ra là một ứng viên xử lý cùng lý do và tham chiếu. Quyết định thực hiện vẫn thuộc lớp nghiệp vụ. Cách phân chia này cho phép kiểm tra độc lập tính hợp lệ của kết quả và quyền tạo tác động.
+
+\section{Các nghiên cứu và giải pháp liên quan}
+
+\section{Công nghệ và phương pháp sử dụng}
+Hệ thống hiện tổ chức theo monorepo. Giao diện dùng Next.js và TypeScript; Go triển khai dịch vụ nghiệp vụ với Gin cho HTTP, Fx cho khởi tạo phụ thuộc, Gorm cho truy cập dữ liệu và Zap cho ghi log. Việc tách controller, service, repository và infrastructure giúp điều kiện nghiệp vụ không bị gắn trực tiếp với giao thức HTTP hoặc cách kết nối cơ sở dữ liệu.
+
+PostgreSQL lưu dữ liệu nghiệp vụ và trạng thái tác vụ bền vững. Giao dịch cơ sở dữ liệu được dùng để gộp thay đổi trạng thái với lịch sử liên quan. Khi nhiều yêu cầu cùng sửa một đơn, khóa bản ghi và phiên bản đơn hỗ trợ phát hiện yêu cầu dựa trên dữ liệu cũ. Redis được dùng cho bộ nhớ đệm; mất bộ nhớ đệm không được xem là lý do làm mất bản nháp hay trạng thái tác vụ đã chấp nhận.
+
+Python cung cấp bộ thực thi AI qua hợp đồng Protobuf/gRPC. Các thao tác khởi tạo, đọc và hủy run tách biệt với vòng đời yêu cầu giao diện. Run được lưu trong PostgreSQL, có trạng thái, lần thử và cơ chế thuê xử lý có thời hạn. Cách này cho phép kiểm thử khởi động lại hoặc thay worker mà không phụ thuộc vào một biến trong bộ nhớ tiến trình. Chế độ AI hiện dùng là giả lập; tính đúng hợp đồng chưa chứng minh chất lượng sinh ngôn ngữ của một mô hình thật.
+
+Atlas quản lý thay đổi lược đồ nghiệp vụ. Docker cung cấp môi trường chạy cục bộ có thể tái lập. Kafka là hướng thiết kế cho truyền sự kiện bền vững trong tương lai; outbox dự kiến gắn việc ghi sự kiện với giao dịch nghiệp vụ, còn inbox hỗ trợ nhận biết sự kiện đã xử lý. Các thành phần này chưa được coi là đã triển khai trong môi trường hiện tại.
