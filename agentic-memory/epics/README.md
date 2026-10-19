@@ -4,7 +4,7 @@ Updated: 2026-10-19. This is navigation/status only. Read the selected epic READ
 
 | Epic | Scope | Status | Completed |
 | --- | --- | --- | --- |
-| [EPIC-001](EPIC-001-system-design/README.md) | System design, tenant-first framework, demo-first backlog and web branding | in-progress | false |
+| [EPIC-001](EPIC-001-system-design/README.md) | System design, tenant-first framework, demo-first backlog and web branding/favicon | in-progress | false |
 | [EPIC-002](EPIC-002-ai-runtime/README.md) | Python AI runtime and durable gRPC jobs | in-progress | false |
 | [EPIC-003](EPIC-003-local-docker/README.md) | Complete current local Docker runtime | in-review | false |
 | [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and reply/send policy | not-started | false |

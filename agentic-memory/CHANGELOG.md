@@ -373,3 +373,15 @@ This document consolidates all historical development changelogs for the Hexta p
 - [MODIFY] landing navigation/footer, login/register, workspace shell and invitation entry replace placeholder branding. Existing sales/onboarding edits preserved. No API/schema changes.
 - Verification: web lint and tsc --noEmit passed; git diff --check passed. Browser checked landing light/dark switching and dark login on local dev server. Authenticated workspace not runtime-tested.
 - Manual check: open home, toggle theme, then visit login/register and tenant/invitation headers. Local/unmerged; see [session](epics/EPIC-001-system-design/sessions/2026-10-19_theme-aware-branding.md).
+
+## 2026-10-19 — Icon-only Hexta favicon
+
+- [NEW] apps/web/public/brand/hexta-icon.png: transparent icon-only master generated with ImageGen from approved logo; no wordmark. [NEW] apps/web/app/icon.png: 192px PNG. [MODIFY] apps/web/app/favicon.ico: 16/32/48px frames replace starter favicon. Sharp handles resize/format packaging.
+- Next.js discovers icon files and emits versioned metadata links; no runtime theme hooks. Blue emblem works on light/dark tabs.
+- Verification: web lint, tsc --noEmit and git diff --check passed. Browser confirmed both icon links and rendered PNG. ICO frame directory validated. Manual check: refresh/open tab and confirm blue Hexta emblem.
+- Local/unmerged; [session](epics/EPIC-001-system-design/sessions/2026-10-19_brand-favicon.md).
+
+## 2026-10-19 — Demo PR and manual test handoff
+
+- Package the latest icon/favicon assets with their existing memory and add infrastructure/TESTING.demo.md, linked from the runbook and affected epics. The checklist covers setup/resume, tenant boundaries, incomplete drafts/confirmation, validation/concurrency, approval authority, invitations and issue reporting. No new business behavior or live operator grant.
+- Verification: current web lint/TypeScript checks, icon file format inspection and whitespace validation. Prior implementation test evidence remains scoped to its recorded snapshot. Manual scenarios are pending human execution; delivery review/merge remains open. See the primary handoff session for PR evidence.

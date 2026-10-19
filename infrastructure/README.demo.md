@@ -101,3 +101,5 @@ Inside a tenant, enter customers/products, save an incomplete order draft, choos
 Owners create email-addressed invitations in Members & invitations. The UI returns a private link and explicitly states **no email was sent**. Share privately with that recipient; they sign in with the matching email and explicitly accept. Opening the link alone grants no membership. Links expire after seven days; reissue revokes the old pending link and owner revocation is available. Real email delivery/verification remains deferred. Service plan is read-only and no payment collection is implied.
 
 The first demo stops at confirmation. Workflow/handoff, cancellation/return cases, dashboard, messaging and AI/channel integration are later slices. No stock reservation, payment collection, customer sending, key setup or generated data is required. The previous generic order status/payment HTTP routes are removed; API clients must use explicit draft save and confirmation. Swagger documents the current routes.
+
+Step-by-step acceptance checks for an evening test session: [manual demo checklist](TESTING.demo.md).

@@ -84,3 +84,5 @@ TenantOnboardingController -> TenantOnboardingService -> TenantOnboardingReposit
 ## Shared web branding — 2026-10-19
 
 IMPLEMENTED locally/unmerged: apps/web/components/brand-logo.tsx renders approved PNG assets from public/brand with class-based light/dark selection. Landing, authentication, account/workspace shell and invitations share the component. It requires no theme hook or API contract change.
+
+The icon-only master is public/brand/hexta-icon.png. app/icon.png and app/favicon.ico use Next.js metadata file conventions for browser icons; the same blue emblem serves both themes. Locally verified, merge pending.

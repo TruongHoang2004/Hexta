@@ -73,3 +73,11 @@ The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's
 ## Theme-aware branding
 
 [Branding session](sessions/2026-10-19_theme-aware-branding.md) — in-review; completed: false. Approved light/dark logo PNGs and shared theme-aware web component integrated; lint, TypeScript and landing/login browser checks passed. Local/unmerged.
+
+## Icon-only branding and favicon
+
+[Favicon session](sessions/2026-10-19_brand-favicon.md) — in-review; completed: false. Icon-only transparent master, 192px app icon and multi-size ICO implemented and verified locally.
+
+## PR and evening test handoff
+
+[Delivery session](sessions/2026-10-19_demo-pr-handoff.md) tracks the icon commit, full demo PR and [manual checklist](../../../infrastructure/TESTING.demo.md). Review/manual acceptance/merge remain pending.
