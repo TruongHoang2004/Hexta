@@ -1,3 +1,5 @@
+> Historical source: the consolidated [system design](2026-10-18_system-design_design.md) is the current interpretation/navigation baseline. Preserve this document for decision history; use the canonical modules to resolve stale implementation claims.
+
 # Durable AI runs and local application stack
 
 ## Summary and boundary

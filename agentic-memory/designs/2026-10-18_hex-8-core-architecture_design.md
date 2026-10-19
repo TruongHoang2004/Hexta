@@ -1,3 +1,5 @@
+> Historical source: the consolidated [system design](2026-10-18_system-design_design.md) is the current interpretation/navigation baseline. Preserve this document for decision history; use the canonical modules to resolve stale implementation claims.
+
 # HEX-8: Core MVP architecture, logical schema and API contracts
 
 Status: architecture documentation baseline completed on 2026-10-18 after owner decisions. Product rules come from approved Notion HEX-6/7 and technology baseline HEX-9. No application code or migrations changed. Deployment prerequisites and detailed implementation choices remain explicit below; completion does not establish runtime compatibility or live integration.

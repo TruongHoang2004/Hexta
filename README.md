@@ -1,3 +1,5 @@
+> Project architecture and assistant handoff: [canonical system design](agentic-memory/designs/2026-10-18_system-design_design.md) · [epics and sessions](agentic-memory/epics/README.md) · [local Docker runbook](infrastructure/README.demo.md).
+
 # Hexta Monorepo
 
 [![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=flat&logo=go)](https://go.dev/)

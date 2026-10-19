@@ -1,3 +1,5 @@
+> Historical source: the consolidated [system design](2026-10-18_system-design_design.md) is the current interpretation/navigation baseline. Preserve this document for decision history; use the canonical modules to resolve stale implementation claims.
+
 # HEX-9: MVP technology selection proposal
 
 Status: baseline approved by the project owner on 2026-10-18. No implementation or dependency changes. AI provider/model, frontend application selection, media storage and deployment details remain open; approval does not imply a dependency upgrade or proven runtime compatibility.

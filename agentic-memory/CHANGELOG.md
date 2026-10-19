@@ -4,6 +4,32 @@ This document consolidates all historical development changelogs for the Hexta p
 
 ---
 
+## 2026-10-19 — Resolve PR #53 documentation conflicts
+
+- Merged origin/main (9784695, merged PR #52) into the documentation branch without rewriting published history. Resolved four documentation conflicts by preserving new changelog entries, historical-design notices and the correct API-prefixed Swagger URL alongside the implementation baseline.
+- Added a dedicated EPIC-001 conflict-resolution session and refreshed its handoff/architecture base evidence. Documentation PR #53 now targets main; parent dependency is satisfied, but documentation completion remains false until its own confirmed merge.
+- Verification: no unmerged paths/markers, Markdown link/fence and metadata consistency, whitespace and remote PR mergeability checks. Runtime code is unchanged; no runtime test claim added.
+
+---
+
+## 2026-10-19 — Canonical agent rules and epic-scoped sessions
+
+- **Summary:** Moved all nine engineering-rule sections from GEMINI.md to root AGENTS.md. GEMINI.md is now only a read-AGENTS.md instruction; AGENTS.md is the canonical automatic entry point and contains the complete shared rules. The canonical rules describe epic/session startup and maintenance.
+- **Memory layout:** Added eight epic directories with individual context/acceptance/remaining-work READMEs, separate dated session records, explicit status/completed fields, a status index and session template. Historical PR #51 bootstrap is done based on owner-confirmed merge; PR #52 slices retain last-known review status, and future feature epics remain incomplete. A session's completion does not complete its parent epic.
+- **Navigation:** Replaced the global SESSION_CONTEXT.md with a short legacy redirect and updated root/memory README and system-design references. Shared architecture modules and the consolidated changelog remain references, not a combined session context. Preserved earlier design work and unrelated files.
+- **Verification:** Documentation-only: check migrated nine-section rule content, epic/index/session metadata and completion consistency, local navigation links, redirect-only GEMINI.md, and git whitespace. No application runtime changes or new runtime test claims. Delivery is being committed on codex/system-design-epic-memory as a documentation-only PR stacked on the verified-open PR #52 branch; review/merge remain pending.
+
+---
+
+## 2026-10-18 — Canonical system design and session handoff
+
+- **Summary:** Consolidated the complete system design into a dated index and eight focused modules: product decisions, component ownership, actual/target DB, implemented/target HTTP, exact Protobuf/AI lifecycle, Kafka events, workflows/concurrency, and operations/security/roadmap. Existing migration CREATE TABLE definitions and actual router/Protobuf code were inspected; approved requirements and unimplemented contracts are explicitly labeled.
+- **Navigation:** New root AGENTS.md and agentic-memory/SESSION_CONTEXT.md direct future sessions to the canonical pack; GEMINI.md, root README and memory README link the same entry. Historical dated designs remain intact with a supersession notice. The handoff records branch/PR baseline, actual verification limits and open product/deployment inputs without relying on chat history.
+- **Corrections:** Documented current Swagger route under /api/v1/swagger/index.html and corrected the local runbook. Clarified that PostgreSQL runs are whole-graph replay, memory adapter is test-only, Go conversation worker/Kafka/providers/checkpoints/Langfuse remain absent, and legacy order AI drafts are not messaging proposals. Memory files are persistent repository context, not magically auto-loaded Markdown.
+- **Verification:** Documentation-only work: compare physical catalog to migration blocks, route inventory to router, wire field tags to Protobuf and runtime semantics to store/worker; check local Markdown links, duplicate headings/fences, secret-file exclusions and git whitespace. No new runtime test outcome is claimed; baseline 22-test/Docker evidence is historical.
+
+---
+
 ## 2026-10-18 — Durable AI runs, complete local Docker profile and Kafka draft
 
 - **Summary:** Runtime gRPC now commits accepted simulation runs in PostgreSQL and executes them with renewable fenced leases. Added one-command local web/API/AI/PostgreSQL/Redis startup and a draft Kafka use-case design requested by the owner.
