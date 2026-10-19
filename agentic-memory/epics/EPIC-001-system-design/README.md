@@ -81,3 +81,5 @@ The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's
 ## PR and evening test handoff
 
 [Delivery session](sessions/2026-10-19_demo-pr-handoff.md) tracks the icon commit, full demo PR and [manual checklist](../../../infrastructure/TESTING.demo.md). Review/manual acceptance/merge remain pending.
+
+[PR #54](https://github.com/TruongHoang2004/Hexta/pull/54) is open/mergeable at publication; checks pending. Handoff session is in-review, completed false; parent epic remains in-progress.

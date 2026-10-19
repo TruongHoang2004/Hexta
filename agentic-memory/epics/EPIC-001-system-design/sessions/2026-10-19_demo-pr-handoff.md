@@ -1,7 +1,7 @@
 ---
 epic: EPIC-001
 session: 2026-10-19_demo-pr-handoff
-status: in-progress
+status: in-review
 completed: false
 date: 2026-10-19
 ---
@@ -23,3 +23,9 @@ Current web lint/TypeScript and whitespace checks run before commit. PNG/ICO for
 ## Remaining work and handoff
 
 Human manual testing, PR checks/review and main merge remain pending. Live operator approval still requires separately authorized setup; no email/payment/provider integration is claimed. Parent epic stays in-progress, completed false.
+
+## Publication evidence
+
+Latest icon/checklist commit: dc37ab3. Main synchronization: 0cf11e0; baseline tree was verified identical to the branch parent before resolving duplicate squash-history document conflicts, and merge changed no application content. [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54) is OPEN and MERGEABLE. At creation, backend/frontend/container/lifecycle CI was queued or running; no successful final CI/merge claim is made. Current web lint and TypeScript passed. Review/manual acceptance/merge remain pending.
+
+Final icon demo rebuild passed. API/web/PostgreSQL/Redis are healthy; init/migrate exited successfully. HTTP-served icon.png and favicon.ico byte-match the committed files. Existing volume retained.

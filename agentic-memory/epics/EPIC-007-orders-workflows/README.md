@@ -63,3 +63,5 @@ The owner's corrected onboarding/product hierarchy is recorded in [EPIC-001's fr
 [EPIC-001 branding session](../EPIC-001-system-design/sessions/2026-10-19_theme-aware-branding.md) records the light/dark shared logo applied to the workspace shell. No sales behavior changes; local/unmerged.
 
 Manual acceptance and PR delivery are tracked in the [primary handoff session](../EPIC-001-system-design/sessions/2026-10-19_demo-pr-handoff.md); use the [checklist](../../../infrastructure/TESTING.demo.md) for sales, tenant and invitation checks.
+
+Sales/tenant/branding delivery is in [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54), open with CI pending at publication. Manual acceptance and merge are not complete; broader workflow scope remains in-progress.

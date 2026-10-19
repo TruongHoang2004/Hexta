@@ -385,3 +385,7 @@ This document consolidates all historical development changelogs for the Hexta p
 
 - Package the latest icon/favicon assets with their existing memory and add infrastructure/TESTING.demo.md, linked from the runbook and affected epics. The checklist covers setup/resume, tenant boundaries, incomplete drafts/confirmation, validation/concurrency, approval authority, invitations and issue reporting. No new business behavior or live operator grant.
 - Verification: current web lint/TypeScript checks, icon file format inspection and whitespace validation. Prior implementation test evidence remains scoped to its recorded snapshot. Manual scenarios are pending human execution; delivery review/merge remains open. See the primary handoff session for PR evidence.
+
+- **Publication:** dc37ab3 commits latest icon/checklist; 0cf11e0 incorporates main with no application content changes. [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54) opened and attached; mergeable, CI pending at publication. Manual acceptance/merge remain open.
+
+- **Evening-test runtime:** rebuilt current API/web successfully; all required services healthy. HTTP icon/favicon content byte-matches the committed assets; existing demo data retained.
