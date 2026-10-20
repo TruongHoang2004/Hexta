@@ -1,7 +1,7 @@
 ---
 epic: EPIC-003
 session: 2026-10-20_atlas-all-services
-status: in-progress
+status: in-review
 completed: false
 date: 2026-10-20
 ---
@@ -45,3 +45,7 @@ Stopped the task-owned hexta-atlas-tests container (auto-removed) and Compose te
 ## PR preparation follow-up
 
 Owner explicitly requested a PR. Prepare a scoped Atlas commit and publish the combined D4 + Atlas branch against current main. The earlier thesis commit is already squash-merged; rebase unpublished feature commits onto current main to exclude duplicate thesis changes. Preserve unrelated ERD/reconciliation/manual evidence outside commits. Existing tests remain the evidence; browser D4 acceptance remains NOT RUN. Final PR URL/state is recorded after publication; completed stays false until merge.
+
+## PR publication
+
+Owner-authorized [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) is OPEN against main, containing D4 and Atlas-only migrations. Unpublished commits rebased onto main 4a32f5a: D4 is now 3bfab63 and Atlas 74dd65a; application contents unchanged by rebase, which adds only main's existing audit record. Duplicate already-merged thesis changes excluded. All 23 unrelated local files restored byte-for-byte after temporary stashing. Initial CI jobs started on 74dd65a; no success or merge claimed. Publication metadata is committed as a follow-up. Status in-review, completed false; D4 manual browser acceptance remains NOT RUN.

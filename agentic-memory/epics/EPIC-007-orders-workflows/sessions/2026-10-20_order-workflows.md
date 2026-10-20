@@ -1,7 +1,7 @@
 ---
 epic: EPIC-007
 session: 2026-10-20_order-workflows
-status: in-progress
+status: in-review
 completed: false
 date: 2026-10-20
 ---
@@ -44,3 +44,7 @@ Browser verification/evidence remains blocked by unavailable computer-use browse
 ## Commit preparation follow-up
 
 Owner explicitly requested committing the D4 implementation. Prepare a scoped feat(workflows) commit including code, tests, migration, generated Swagger and D4-only documentation. Preserve earlier reconciliation and sales screenshot changes outside the commit. Existing automated results remain the verification evidence; no new application code changes or test rerun during commit preparation. Browser verification, PR and merge remain open; status stays in-progress/completed false.
+
+## PR publication follow-up
+
+Owner-authorized [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) is OPEN against main and includes this D4 slice plus Atlas migration setup. D4 rebased commit is 3bfab63 (original af06cf4); code unchanged. Automated verification remains recorded above; manual D4 browser acceptance remains NOT RUN. Review/merge pending, completed false.
