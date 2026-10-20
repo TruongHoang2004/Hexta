@@ -21,14 +21,14 @@ func TestBrowserPreflightAllowsAuthenticatedWorkspaceRequests(t *testing.T) {
 	request := httptest.NewRequest(http.MethodOptions, "/orders", nil)
 	request.Header.Set("Origin", cfg.Server.FrontendURL)
 	request.Header.Set("Access-Control-Request-Method", "GET")
-	request.Header.Set("Access-Control-Request-Headers", "authorization,x-tenant-id")
+	request.Header.Set("Access-Control-Request-Headers", "authorization,x-tenant-id,idempotency-key")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("preflight status %d", response.Code)
 	}
 	headers := strings.ToLower(response.Header().Get("Access-Control-Allow-Headers"))
-	if !strings.Contains(headers, "authorization") || !strings.Contains(headers, "x-tenant-id") {
+	if !strings.Contains(headers, "authorization") || !strings.Contains(headers, "x-tenant-id") || !strings.Contains(headers, "idempotency-key") {
 		t.Fatalf("missing workspace headers: %s", headers)
 	}
 	request.Header.Set("Origin", "https://unrelated.example.test")

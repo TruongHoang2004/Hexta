@@ -237,6 +237,20 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.WorkflowStepInput:
+    properties:
+      handoff_mode:
+        enum:
+        - direct
+        - acceptance
+        type: string
+      name:
+        maxLength: 120
+        type: string
+    required:
+    - handoff_mode
+    - name
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest:
     properties:
       conversation_id:
@@ -756,6 +770,131 @@ definitions:
       status:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCommandRequest:
+    properties:
+      expected_version:
+        minimum: 1
+        type: integer
+      recipient_id:
+        maxLength: 255
+        type: string
+      responsible_id:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - expected_version
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCreateRequest:
+    properties:
+      order_id:
+        type: string
+      responsible_id:
+        maxLength: 255
+        type: string
+      workflow_version_id:
+        type: string
+    required:
+    - order_id
+    - responsible_id
+    - workflow_version_id
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkItemsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkItem'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      current_step:
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkEvent'
+        type: array
+      id:
+        type: string
+      order_id:
+        type: string
+      recipient_id:
+        type: string
+      responsible_id:
+        type: string
+      state:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      workflow:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowVersion'
+      workflow_version_id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowRequest:
+    properties:
+      expected_version:
+        minimum: 0
+        type: integer
+      name:
+        maxLength: 120
+        type: string
+      steps:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.WorkflowStepInput'
+        maxItems: 30
+        minItems: 1
+        type: array
+    required:
+    - name
+    - steps
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      versions:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowVersion'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowsResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowDefinition'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-array_github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantMemberResponse
   : properties:
       data:
@@ -861,6 +1000,145 @@ definitions:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantRevokedResponse'
       meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkItemsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkItemsResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkflowResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkflowsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowsResponse'
+      meta: {}
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkEvent:
+    properties:
+      action:
+        type: string
+      actor_id:
+        type: string
+      created_at:
+        type: string
+      current_step:
+        type: integer
+      from_responsible_id:
+        type: string
+      from_step:
+        type: integer
+      id:
+        type: string
+      recipient_id:
+        type: string
+      responsible_id:
+        type: string
+      state:
+        type: string
+      tenant_id:
+        type: string
+      version:
+        type: integer
+      work_item_id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkItem:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      current_step:
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkEvent'
+        type: array
+      id:
+        type: string
+      order_id:
+        type: string
+      recipient_id:
+        type: string
+      responsible_id:
+        type: string
+      state:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      workflow:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowVersion'
+      workflow_version_id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowDefinition:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      versions:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowVersion'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowStep:
+    properties:
+      handoff_mode:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      ordinal:
+        type: integer
+      tenant_id:
+        type: string
+      workflow_version_id:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowVersion:
+    properties:
+      created_at:
+        type: string
+      definition_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      number:
+        type: integer
+      steps:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_repository_workflowmodel.WorkflowStep'
+        type: array
+      tenant_id:
+        type: string
     type: object
   gorm.DeletedAt:
     properties:
@@ -1755,6 +2033,339 @@ paths:
       summary: List workspace members
       tags:
       - Tenants
+  /api/v1/tenants/{tenantID}/work-items:
+    get:
+      consumes:
+      - application/json
+      description: Includes current responsibility, step and pending handoff recipient.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkItemsResponse'
+      security:
+      - BearerAuth: []
+      summary: List tenant work and pinned workflow steps
+      tags:
+      - Workflows
+    post:
+      consumes:
+      - application/json
+      description: Pins a published workflow version and nominates an initial current
+        member.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: UUID creation key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Confirmed order, workflow version and responsible member
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Explicitly create work from a confirmed order as tenant owner
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/work-items/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns pinned workflow steps and the latest 100 transition events.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Work item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tenant work detail and recent history
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/work-items/{id}/accept:
+    post:
+      consumes:
+      - application/json
+      description: Atomically advances one step and transfers responsibility after
+        checking current membership.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Work item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected version
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Accept a pending handoff as the nominated recipient
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/work-items/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      description: Retains the current step and pinned workflow; cancels any pending
+        nomination.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Work item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected version and nullable responsible_id
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Reassign or unassign work as tenant owner
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/work-items/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      description: Completes operational work without changing the order, payment,
+        inventory or messages.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Work item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected version
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Complete the final step as its current responsible member
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/work-items/{id}/handoff:
+    post:
+      consumes:
+      - application/json
+      description: Source step policy selects direct transfer or nominated acceptance
+        while retaining current responsibility.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Work item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected version and recipient_id
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkResponse'
+      security:
+      - BearerAuth: []
+      summary: Hand work to the next step as its current responsible member
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/workflow-definitions:
+    get:
+      consumes:
+      - application/json
+      description: Returns the latest immutable version and ordered steps for each
+        definition.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkflowsResponse'
+      security:
+      - BearerAuth: []
+      summary: List current tenant workflow definitions
+      tags:
+      - Workflows
+    post:
+      consumes:
+      - application/json
+      description: The UUID creation key is durable; changed payload reuse conflicts.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: UUID creation key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Named ordered steps
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkflowResponse'
+      security:
+      - BearerAuth: []
+      summary: Create and publish a workflow as tenant owner
+      tags:
+      - Workflows
+  /api/v1/tenants/{tenantID}/workflow-definitions/{id}/versions:
+    post:
+      consumes:
+      - application/json
+      description: Existing work keeps its pinned version; stale expected_version
+        conflicts.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Definition ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected version and replacement steps
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.WorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_WorkflowResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish a new immutable workflow version as tenant owner
+      tags:
+      - Workflows
   /health:
     get:
       consumes:

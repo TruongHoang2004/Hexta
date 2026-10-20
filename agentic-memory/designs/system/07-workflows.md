@@ -1,6 +1,6 @@
 # Business workflows, state transitions and concurrency
 
-Status: TARGET unless explicitly described as implemented in the gRPC module. These workflows implement approved product decisions; the messaging schema/Go dispatcher/send gate are not present yet.
+Status: TARGET unless explicitly labeled as implemented below or in the gRPC module. These workflows implement approved product decisions; the messaging schema/Go dispatcher/send gate are not present yet.
 
 ## Independent state dimensions
 
@@ -101,3 +101,7 @@ These are required acceptance cases, not claims of test coverage already present
 ## Tenant onboarding — implemented local slice
 
 Account signup -> pending registration request -> explicit Hexta operator review -> tenant + initial owner in one transaction. Approval locks the request; repeated same decision is idempotent, opposite final decision conflicts. Owner-issued email invitation -> manual private link -> signed-in matching recipient preview -> explicit accept/decline. Preview has no activation effect. Acceptance checks active tenant, recipient, token status and seven-day expiry and creates membership atomically. Repeated accept never restores subsequently removed membership. Reissue revokes the prior pending link; owner may revoke. Tenant-before-invitation lock ordering serializes acceptance/revocation. PostgreSQL concurrent approval/accept tests pass; real email delivery remains deferred.
+
+## D4 responsibility transitions — implemented locally 2026-10-20
+
+Owner publishes user-named ordered steps (no mandatory packing/shipping) and explicitly creates linked work from a confirmed order. A work item pins the chosen immutable version. Its current responsible member nominates another current member; source-step direct mode transfers/advances immediately, while acceptance mode retains old owner/step in waiting until nominated current recipient accepts. Owner reassignment/unassignment cancels pending nomination and retains the step; old acceptance then conflicts/is forbidden. Only current responsible actor completes an active final step. Completed work is terminal; order/stock/payment/messages unchanged. Each successful transition increments expected version and appends history atomically. PostgreSQL accept-versus-assign and same-key creation races passed. [D4 session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md) records remaining browser/delivery boundaries. Cancellation/return workflows remain TARGET.

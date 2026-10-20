@@ -65,6 +65,8 @@ export function Workspace({ children }: { children: React.ReactNode }) {
     [`${base}/orders`, "Orders"],
     [`${base}/customers`, "Customers"],
     [`${base}/products`, "Products"],
+    [`${base}/work`, "Work"],
+    [`${base}/workflows`, "Workflows"],
     [`${base}/settings/members`, "Members & invitations"],
     [`${base}/settings/subscription`, "Service plan"],
   ];

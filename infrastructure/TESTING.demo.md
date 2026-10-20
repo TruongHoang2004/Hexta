@@ -76,3 +76,16 @@ Seven-day expiry and concurrent approval/acceptance are covered by isolated auto
 ## Report an issue
 
 Record case ID, account role (no password/token), tenant name, exact steps, expected/actual behavior and whether reload changes it. Attach a screenshot without invitation links/authentication values. Example: `V-6 FAIL — second tab overwrites first tab after stale save; reproducible twice`. Keep environment/log details separate from business observations.
+
+## D4 configurable work (local workflow slice)
+
+1. As a tenant owner, open Workflows. Publish named steps with acceptance followed by direct handoff; add/remove/rename/reorder before publishing. No packing/shipping step is mandatory.
+2. Open Work. Explicitly create work from a confirmed test order with a workflow and initial responsible member. Confirmation alone must not create work.
+3. As the responsible member, nominate another current employee. Acceptance policy must show waiting, retaining the original responsible member/current step after reload.
+4. In a separate authenticated employee profile, accept the nominated handoff. Responsibility transfers and advances one step; wrong actors cannot accept. Reload and inspect history.
+5. A direct handoff advances immediately. Only current responsible member completes the final step; completion leaves the original confirmed order unchanged.
+6. Owner reassigns a waiting item (or clears it to the unassigned queue). Pending nomination disappears without advancing the step; old recipient cannot accept. Owner can assign an unassigned item.
+7. Publish edited/reordered workflow steps as a new version. Existing work retains old version/steps; new work can select the latest version.
+8. Open one item in two browser profiles; acceptance versus reassignment using the old work version must produce one success and one stale conflict. Refresh before retrying.
+
+Record PASS/FAIL/NOT RUN with screenshots excluding private invitation links or credentials. Workflow history displays latest 100 events; older entries are retained. This slice has no cancellation/return, payment, stock or customer-send execution.
