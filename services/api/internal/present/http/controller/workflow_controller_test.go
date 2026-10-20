@@ -15,12 +15,10 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 func TestWorkflowHTTPValidationAndTransitions(t *testing.T) {
@@ -30,16 +28,7 @@ func TestWorkflowHTTPValidationAndTransitions(t *testing.T) {
 	}
 	applog.GetLogger()
 	t.Cleanup(func() { config.AppConfig = previous })
-	db, err := gorm.Open(sqlite.Open("file:workflow_http_"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sqlDB, _ := db.DB()
-	sqlDB.SetMaxOpenConns(1)
-	defer sqlDB.Close()
-	if err := db.AutoMigrate(&model.Tenant{}, &model.TenantMember{}, &model.Order{}, &model.OrderItem{}, &model.AuditLog{}, &repository.WorkflowDefinition{}, &repository.WorkflowVersion{}, &repository.WorkflowStep{}, &repository.WorkItem{}, &repository.WorkEvent{}); err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.Database(t)
 	tenant, order := uuid.NewString(), uuid.NewString()
 	for _, row := range []any{&model.Tenant{ID: tenant, Name: "HTTP", Slug: tenant, OwnerID: "owner", Status: model.TenantStatusActive}, &model.TenantMember{TenantID: tenant, UserID: "owner"}, &model.TenantMember{TenantID: tenant, UserID: "employee"}, &model.Order{ID: order, TenantID: tenant, OrderNumber: order, Status: model.OrderStatusConfirmed}} {
 		if err := db.Create(row).Error; err != nil {

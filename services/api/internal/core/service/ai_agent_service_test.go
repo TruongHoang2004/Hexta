@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -68,19 +68,7 @@ func (m *mockAIGeminiClient) StreamGenerateContent(ctx context.Context, req *gem
 }
 
 func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-
-	err = db.AutoMigrate(
-		&model.Product{},
-		&model.ProductVariant{},
-		&model.InventoryItem{},
-		&model.Customer{},
-		&model.Order{},
-		&model.OrderItem{},
-	)
-	require.NoError(t, err)
-	return db
+	return testutil.Database(t)
 }
 
 func TestAIAgentService_ZeroDBMutations(t *testing.T) {
@@ -201,7 +189,7 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 		Name:     "Sữa bắp non",
 		Status:   model.ProductStatusActive,
 	}
-	db.Create(&prodAlpha)
+	require.NoError(t, db.Create(&prodAlpha).Error)
 
 	variantAlpha := model.ProductVariant{
 		ID:          "pv-alpha-1",
@@ -212,7 +200,7 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 		Price:       decimal.NewFromInt(25000),
 		Barcode:     "8930001",
 	}
-	db.Create(&variantAlpha)
+	require.NoError(t, db.Create(&variantAlpha).Error)
 
 	invAlpha := model.InventoryItem{
 		ID:           "inv-1",
@@ -221,7 +209,7 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 		OnHandQty:    50,
 		AvailableQty: 45,
 	}
-	db.Create(&invAlpha)
+	require.NoError(t, db.Create(&invAlpha).Error)
 
 	// Seed catalog in tenant-beta (should be isolated!)
 	prodBeta := model.Product{
@@ -230,14 +218,14 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 		Name:     "Sữa bắp non Beta",
 		Status:   model.ProductStatusActive,
 	}
-	db.Create(&prodBeta)
+	require.NoError(t, db.Create(&prodBeta).Error)
 
 	geminiMock := &mockAIGeminiClient{}
 	aiService := NewAIAgentService(db, redisMock, geminiMock)
 
 	// Execute search_products in tenantAlpha
 	resAlpha, err := aiService.toolSearchProducts(context.Background(), tenantAlpha, map[string]interface{}{
-		"query": "sữa bắp",
+		"query": "bắp",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, resAlpha["matches"])

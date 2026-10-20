@@ -2,9 +2,9 @@
 
 ## Ownership and migration boundaries
 
-IMPLEMENTED: one local PostgreSQL instance/database `hexta_demo`, Atlas-owned `public` business tables, Python-owned `ai_runtime.runs`. Local Go uses the demo DB owner; Python connects as `hexta_ai`, owns only ai_runtime and has no general public table write grant. Production should also restrict the Go runtime role and separate migration credentials. Local setup role/password constants are for loopback demo only; never reuse them publicly.
+IMPLEMENTED: one local PostgreSQL instance/database `hexta_demo`, Atlas-owned `public` business tables, AI-owned `ai_runtime.runs`, both migrated explicitly through Atlas. Local Go uses the demo DB owner; Python connects as `hexta_ai`, owns only ai_runtime and has no general public table write grant. Production should also restrict the Go runtime role and separate migration credentials. Local setup role/password constants are for loopback demo only; never reuse them publicly.
 
-Atlas business migrations live in `migrations/api`; Python version-001 DDL lives in `services/ai/hexta_ai/migrations/001_runs.sql`. Atlas uses public search_path and an explicit atlas_schema_revisions metadata schema. There is no implicit Go AutoMigrate in the local launcher. New Python schema revisions need versioned migrations rather than silently mutating 001. No runtime data is deleted by this documentation.
+Atlas business migrations live in `migrations/api`; AI versioned DDL lives in `migrations/ai`, with desired SQL under `migrations/schema` and canonical root `atlas.hcl`. Atlas uses public search_path and an explicit atlas_schema_revisions metadata schema. There is no implicit Go AutoMigrate in the local launcher. API and AI revision metadata use independent atlas_schema_revisions and atlas_ai_revisions schemas. Neither application startup nor tests may use automatic model/schema synchronization. No runtime data is deleted by this documentation.
 
 ## Sales demo additive schema (implemented locally, 2026-10-19)
 
@@ -372,3 +372,7 @@ Claim/reassign/return/resolve/expiry/message-context changes serialize on the af
 ## D4 sequential work — implemented locally 2026-10-20
 
 Atlas migration 20261020075908 adds workflow_definitions, workflow_versions, workflow_steps, work_items and work_events. Versions/steps are immutable through public APIs; instances pin a version/current ordinal. Composite tenant/reference foreign keys cover version/definition, step/version, work/order/version/current step and event/work; unique work version enforces one event per transition. Definitions retain creation digests; work stores tenant+actor+request key/digest for replay. State checks distinguish active/waiting/completed and require retained responsibility during waiting. Reassignment/unassignment preserves history; no delete endpoint. Existing orders get a tenant+id unique index without row changes. Models reside in repository/workflowmodel; exact constraint SQL is authoritative. Fresh Atlas application and populated demo upgrade passed; actual-schema transition/FK checks passed. [Design](../2026-10-20_order-workflows_design.md), [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Local/unmerged; exception cases remain TARGET.
+
+## Atlas-only migration ownership — 2026-10-20
+
+Current API and AI schemas use root Atlas environments, reviewed versioned SQL and explicit migration jobs; Python startup DDL and test AutoMigrate removed. New AI 20261020100000 validates/adopts the existing compatible runs schema without data loss; physical business columns are unchanged. API history/checksums retained. Go tests apply actual API migrations to disposable PostgreSQL databases; Python integration tests wait for Atlas. [Design](../2026-10-20_atlas-all-services_design.md), [verification session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md).

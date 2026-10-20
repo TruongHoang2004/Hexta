@@ -41,3 +41,7 @@ The original consolidation was documentation only. Local unmerged sales/tenant-f
 ## D4 local implementation — 2026-10-20
 
 Configurable sequential workflow versions, explicit order-linked work, direct/accepted handoff, owner reassignment/unassigned queue and work history are now implemented locally on codex/order-workflows. Database/API/workflow/operations modules contain the current boundary. [Design](2026-10-20_order-workflows_design.md), [session](../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Automated checks/build/upgrade passed; browser verification and review/merge remain. D5 overview and exceptions/messaging remain separate.
+
+## Atlas-only migration ownership — 2026-10-20
+
+Owner requires explicit Atlas migration for all current database services (api/public and ai/ai_runtime), including migration-backed tests. Python startup SQL and Go test AutoMigrate removed. Root atlas.hcl and migrations/schema define desired state; independent histories/job gates preserve existing data. [Design](2026-10-20_atlas-all-services_design.md), [primary session](../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md). Local verification passed; review/merge remains.

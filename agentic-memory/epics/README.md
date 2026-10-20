@@ -6,7 +6,7 @@ Updated: 2026-10-19. This is navigation/status only. Read the selected epic READ
 | --- | --- | --- | --- |
 | [EPIC-001](EPIC-001-system-design/README.md) | System design, tenant-first framework, demo-first backlog, web branding/favicon and thesis documentation (author evidence correction; UET emblem; installation appendix removed) | in-progress | false |
 | [EPIC-002](EPIC-002-ai-runtime/README.md) | Python AI runtime and durable gRPC jobs | in-progress | false |
-| [EPIC-003](EPIC-003-local-docker/README.md) | Complete current local Docker runtime | in-review | false |
+| [EPIC-003](EPIC-003-local-docker/README.md) | Complete current local Docker runtime | in-progress | false |
 | [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and reply/send policy | not-started | false |
 | [EPIC-005](EPIC-005-kafka/README.md) | Kafka event backbone | not-started | false |
 | [EPIC-006](EPIC-006-provider-observability/README.md) | Real AI providers, checkpoints and self-host traces | not-started | false |
@@ -28,3 +28,5 @@ New work: create a new session from [the template](_SESSION_TEMPLATE.md) in the 
 Current D4 implementation: [2026-10-20 workflow session](EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Local workflow/work vertical slice implemented and automated checks/build/upgrade passed; browser/review/merge remain. Epic states unchanged.
 
 D4 browser attempt ended NOT RUN (IAB unavailable/native Chrome did not return UI state); local implementation and automated evidence are retained, manual/review/merge gates remain open.
+
+Current migration ownership: [Atlas-only API/AI session](EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md), local implementation verified; EPIC-003 in-progress, no automatic schema updates or parent completion.

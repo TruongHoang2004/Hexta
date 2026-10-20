@@ -27,9 +27,7 @@ def test_durable_submission_recovery_fencing_and_cancellation():
                 if attempts:
                     await db.execute("UPDATE ai_runtime.runs SET attempts=%s WHERE tenant_id=%s AND run_id=%s",
                                      (attempts, tenant, row["run_id"]))
-        async with await store.connect() as db:
-            await db.execute("CREATE SCHEMA IF NOT EXISTS ai_runtime")
-        await store.migrate()
+        await store.ping()  # The explicit Atlas test job provisions the schema.
         try:
             # Concurrent acceptance creates exactly one durable identity.
             results = await asyncio.gather(*[store.submit(request()) for _ in range(4)])

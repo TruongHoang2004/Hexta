@@ -14,14 +14,12 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-// This is an isolated in-memory HTTP test. No operator or membership in the
+// This is an isolated Atlas-migrated PostgreSQL HTTP test. No operator or membership in the
 // running demo is changed by its fixtures.
 func TestTenantOnboardingHTTPWorkflow(t *testing.T) {
 	previous := config.AppConfig
@@ -30,16 +28,7 @@ func TestTenantOnboardingHTTPWorkflow(t *testing.T) {
 	}
 	applog.GetLogger()
 	t.Cleanup(func() { config.AppConfig = previous })
-	db, err := gorm.Open(sqlite.Open("file:onboarding_http?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sqlDB, _ := db.DB()
-	sqlDB.SetMaxOpenConns(1)
-	defer sqlDB.Close()
-	if err := db.AutoMigrate(&model.AuthIdentities{}, &model.PlatformOperator{}, &model.Tenant{}, &model.TenantMember{}, &model.TenantRegistration{}, &model.TenantInvitation{}, &model.AuditLog{}); err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.Database(t)
 	if err := db.Create(&model.PlatformOperator{UserID: "test-operator"}).Error; err != nil {
 		t.Fatal(err)
 	}

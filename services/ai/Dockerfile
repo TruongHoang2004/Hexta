@@ -15,6 +15,7 @@ CMD ["/app/.venv/bin/uvicorn", "hexta_ai.app:create_app", "--factory", "--host",
 
 FROM runtime AS test
 USER root
+COPY --from=arigaio/atlas:latest /atlas /usr/local/bin/atlas
 RUN uv sync --frozen --no-install-project
 COPY tests ./tests
 USER app

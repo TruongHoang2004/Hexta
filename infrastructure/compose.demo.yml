@@ -36,13 +36,45 @@ services:
       - ./local/init.sql:/init.sql:ro
     entrypoint: ["psql", "-h", "postgres", "-U", "hexta_demo", "-d", "hexta_demo", "-v", "ON_ERROR_STOP=1", "-f", "/init.sql"]
   migrate:
-    image: arigaio/atlas:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
     depends_on:
       db-init:
         condition: service_completed_successfully
+    environment:
+      MIGRATE_TARGET: api
+      API_DATABASE_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public
     volumes:
-      - ../migrations/api:/migrations:ro
-    command: ["migrate", "apply", "--revisions-schema", "atlas_schema_revisions", "--dir", "file:///migrations", "--url", "postgres://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public"]
+      - ../atlas.hcl:/workspace/atlas.hcl:ro
+      - ../migrations:/workspace/migrations:ro
+  migrate-ai:
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      MIGRATE_TARGET: ai
+      AI_DATABASE_URL: postgres://hexta_ai:local-ai-only@postgres:5432/hexta_demo?sslmode=disable
+    volumes:
+      - ../atlas.hcl:/workspace/atlas.hcl:ro
+      - ../migrations:/workspace/migrations:ro
+  migrator:
+    profiles: [tools]
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
+    environment:
+      MIGRATE_TARGET: all
+      API_DATABASE_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public
+      AI_DATABASE_URL: postgres://hexta_ai:local-ai-only@postgres:5432/hexta_demo?sslmode=disable
+      API_DEV_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_atlas_dev_api?sslmode=disable&search_path=public
+      AI_DEV_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_atlas_dev_ai?sslmode=disable
+    volumes:
+      - ../atlas.hcl:/workspace/atlas.hcl:ro
+      - ../migrations:/workspace/migrations
   api:
     build:
       context: ..
@@ -82,7 +114,7 @@ services:
       retries: 15
   ai:
     depends_on:
-      db-init:
+      migrate-ai:
         condition: service_completed_successfully
     build:
       context: ../services/ai
@@ -119,15 +151,31 @@ services:
       interval: 2s
       timeout: 2s
       retries: 15
+  test-migrate-ai:
+    profiles: [test]
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
+    environment:
+      MIGRATE_TARGET: ai
+      AI_DATABASE_URL: postgres://ai_test:test-only@test-postgres:5432/ai_test?sslmode=disable
+    depends_on:
+      test-postgres:
+        condition: service_healthy
   ai-tests:
     profiles: ["test"]
     build:
       context: ../services/ai
       target: test
+    volumes:
+      - ../atlas.hcl:/workspace/atlas.hcl:ro
+      - ../migrations:/workspace/migrations:ro
+      - ../scripts/migrate.sh:/workspace/scripts/migrate.sh:ro
     environment:
-      AI_TEST_DATABASE_URL: postgresql://ai_test:test-only@test-postgres:5432/ai_test
+      ATLAS_PROJECT_ROOT: /workspace
+      AI_TEST_DATABASE_URL: postgresql://ai_test:test-only@test-postgres:5432/ai_test?sslmode=disable
     depends_on:
-      test-postgres:
-        condition: service_healthy
+      test-migrate-ai:
+        condition: service_completed_successfully
 volumes:
   demo_postgres:

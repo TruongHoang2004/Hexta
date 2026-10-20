@@ -1,4 +1,5 @@
-CREATE TABLE IF NOT EXISTS ai_runtime.runs (
+CREATE SCHEMA IF NOT EXISTS ai_runtime;
+CREATE TABLE ai_runtime.runs (
     tenant_id text NOT NULL,
     run_id text NOT NULL,
     request bytea NOT NULL,
@@ -14,4 +15,4 @@ CREATE TABLE IF NOT EXISTS ai_runtime.runs (
     PRIMARY KEY (tenant_id, run_id),
     CHECK ((status = 2) = (lease_token IS NOT NULL AND lease_until IS NOT NULL))
 );
-CREATE INDEX IF NOT EXISTS runs_queue ON ai_runtime.runs(status, lease_until, created_at);
+CREATE INDEX runs_queue ON ai_runtime.runs(status, lease_until, created_at);

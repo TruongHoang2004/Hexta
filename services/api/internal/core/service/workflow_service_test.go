@@ -9,10 +9,9 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/google/uuid"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type workflowFixture struct {
@@ -25,9 +24,6 @@ type workflowFixture struct {
 func workflowTestFixture(t *testing.T, mode string) workflowFixture {
 	t.Helper()
 	f := salesTestFixture(t)
-	if err := f.db.AutoMigrate(&repository.WorkflowDefinition{}, &repository.WorkflowVersion{}, &repository.WorkflowStep{}, &repository.WorkItem{}, &repository.WorkEvent{}); err != nil {
-		t.Fatal(err)
-	}
 	s := NewWorkflowService(repository.NewWorkflowRepository(f.db))
 	ctx := context.Background()
 	d, err := s.Publish(ctx, f.tenant, f.owner, "", uuid.NewString(), types.WorkflowInput{Name: "Service", Steps: []types.WorkflowStepInput{{Name: "Prepare", HandoffMode: mode}, {Name: "Review", HandoffMode: "direct"}, {Name: "Finish", HandoffMode: "direct"}}})
@@ -249,7 +245,7 @@ func TestWorkflowPublicationValidationAndReplay(t *testing.T) {
 	}
 }
 func TestWorkflowConcurrentAcceptanceAndReassignmentPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("requires disposable PostgreSQL row locks")
 	}
 	f := workflowTestFixture(t, "acceptance")
@@ -293,7 +289,7 @@ func TestWorkflowConcurrentAcceptanceAndReassignmentPostgres(t *testing.T) {
 }
 
 func TestWorkflowConcurrentCreationReplayPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("requires disposable PostgreSQL row locks")
 	}
 	f := workflowTestFixture(t, "direct")
@@ -323,18 +319,10 @@ func TestWorkflowConcurrentCreationReplayPostgres(t *testing.T) {
 }
 
 // This check uses the actual Atlas schema, including composite foreign keys,
-// instead of the AutoMigrate schemas used by the portable service fixtures.
+// and additionally probes constraint rejection on an explicit pre-migrated database.
 func TestWorkflowMigratedSchemaPostgres(t *testing.T) {
-	dsn := os.Getenv("WORKFLOW_MIGRATION_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("requires an isolated database with all Atlas migrations applied")
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		t.Fatal("migration test database unavailable")
-	}
-	sqlDB, _ := db.DB()
-	defer sqlDB.Close()
+	db := testutil.Database(t)
+	var err error
 	tx := db.Begin()
 	if tx.Error != nil {
 		t.Fatal(tx.Error)

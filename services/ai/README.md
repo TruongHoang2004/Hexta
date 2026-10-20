@@ -9,6 +9,7 @@ Install Python 3.12–3.14 and uv 0.11.11. From this directory:
 ```sh
 uv sync --frozen
 uv run pytest
+# Apply Atlas AI migrations before starting a database-backed runtime.
 export AI_PROVIDER=fake
 export AI_DATABASE_URL="postgresql://hexta_ai:local-ai-only@127.0.0.1:55433/hexta_demo?sslmode=disable"
 export AI_INTERNAL_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
@@ -42,7 +43,7 @@ StartRun returns queued/current status without waiting for graph completion. `(t
 
 **Runtime storage is PostgreSQL**, configured by mandatory `AI_DATABASE_URL`. StartRun commits before acknowledgement. The Python-owned ai_runtime schema stores requests, digests, results, attempts and fenced renewable leases. Expired jobs can be reclaimed, up to three recovery attempts; exhausted runs fail safely. Cancellation persists and prevents publication by old workers. Graceful shutdown requeues active work. Restart retains successful/cancelled results and idempotency history. The in-memory adapter remains solely for isolated unit tests.
 
-The initial schema is provisioned by `scripts/local.sh`; version-001 table SQL is applied idempotently at startup. No automatic retention deletion is enabled yet: disk usage must be monitored. A run stores the authorized input snapshot and output, so treat DB/backups as sensitive. This is whole-graph replay for a deterministic fake provider, not LangGraph node checkpoint recovery or exactly-once paid inference. Runtime processes one leased run at a time; scale/quotas are future work.
+Atlas applies `migrations/ai` before AI starts; `make migrate svc=ai` runs the explicit job. The service only checks storage readiness and starts its worker; it never creates schemas/tables. Root `atlas.hcl` and `migrations/schema/ai.sql` define the migration workflow. Existing compatible pre-Atlas run tables are validated and adopted without deleting runs; incompatible schemas fail migration. No automatic retention deletion is enabled yet: disk usage must be monitored. A run stores the authorized input snapshot and output, so treat DB/backups as sensitive. This is whole-graph replay for a deterministic fake provider, not LangGraph node checkpoint recovery or exactly-once paid inference. Runtime processes one leased run at a time; scale/quotas are future work.
 
 The local profile uses plaintext on loopback/private Docker networking only. Do not publish gRPC publicly; configure authenticated TLS or mTLS if crossing hosts. HTTP remains for health and offline preview, while browser business APIs remain in Go.
 
@@ -53,3 +54,8 @@ With Compose running, from repository root:
 ```
 
 Use the same exported DEMO_AI_INTERNAL_TOKEN as Compose. This command checks Go/Python interoperability, rejects missing auth, retries the same run ID, polls a candidate, and never sends a customer message. See `proto/README.md` for code generation.
+
+## Migration-backed tests
+
+From repository root, run `./scripts/local.sh --profile test run --build --rm ai-tests`.
+An Atlas test job creates the isolated AI schema before pytest. The test image includes Atlas only for disposable-database adoption tests; the production image has no migration command. Host tests with AI_TEST_DATABASE_URL additionally require Atlas on PATH and access to the repository Atlas config. No explicit database URL means database tests skip; offline tests still run. Use a dedicated test server with database-creation rights, never the demo/application URL.

@@ -10,7 +10,7 @@ import (
 )
 
 func NewDatabase() (*gorm.DB, error) {
-	log.Printf("🔌 Connecting to database %s", config.AppConfig.Database.Url)
+	log.Println("Connecting to database")
 	db, err := gorm.Open(postgres.Open(config.AppConfig.Database.Url), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect database: %w", err)

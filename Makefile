@@ -31,56 +31,43 @@ clean:
 # Database migrations (Atlas)
 # ==============================
 
-.PHONY: migrate-init migrate-diff migrate-apply migrate-status migrate-hash
+.PHONY: migrate migrate-init migrate-diff migrate-apply migrate-apply-local migrate-status migrate-hash migrate-validate migration-db
 
-# Check if svc is provided
+# Current database-owning services are api and ai. Use a private migrator URL.
+# Docker commands reuse the local stack; host commands use exported URLs.
+DOCKER_MIGRATE = ./scripts/local.sh run --build --rm --no-deps --entrypoint atlas migrator
+
 check-svc:
-	@if [ -z "$(svc)" ]; then echo "Error: svc is required (e.g. make migrate-diff svc=api name=init_schema)"; exit 1; fi
+	@case "$(svc)" in api|ai) ;; *) echo "svc must be api or ai" >&2; exit 1;; esac
 
-# Helper to run atlas in docker
-# We use the migrator image, but override the entrypoint to run specific atlas commands
-# The working directory in container is /workspace (which is the platform folder)
-DOCKER_MIGRATE = cd infrastructure && docker compose -f docker-compose.yml -f docker-compose.migrate.yml run --rm --entrypoint atlas migrator
-
-# Create new migration
 migrate-init: check-svc
-	@if [ -z "$(name)" ]; then read -p "Enter migration name: " name_val; else name_val="$(name)"; fi; \
-	$(DOCKER_MIGRATE) migrate new $$name_val --config file://migrations/$(svc)/atlas.hcl --env gorm
+	@test -n "$(name)" || { echo "name is required" >&2; exit 1; }
+	$(DOCKER_MIGRATE) migrate new "$(name)" --env "$(svc)"
 
-# Generate migration diff
-migrate-diff: check-svc
-	@if [ -z "$(name)" ]; then read -p "Enter migration name: " name_val; else name_val="$(name)"; fi; \
-	$(DOCKER_MIGRATE) migrate diff $$name_val --config file://migrations/$(svc)/atlas.hcl --env gorm
+migrate-diff: check-svc migration-db
+	@test -n "$(name)" || { echo "name is required" >&2; exit 1; }
+	$(DOCKER_MIGRATE) migrate diff "$(name)" --env "$(svc)"
 
-# Apply migrations for one service or all supported services through the migration image.
-# Usage: make migrate-apply svc=all
-#        make migrate-apply svc=user
-migrate-apply:
-	@cd infrastructure && MIGRATE_TARGET="$(if $(svc),$(svc),all)" docker compose -f docker-compose.yml -f docker-compose.migrate.yml run --rm migrator
+migration-db:
+	@case "$(if $(svc),$(svc),all)" in api|ai|all) ;; *) echo "svc must be api, ai or all" >&2; exit 1;; esac
+	./scripts/local.sh up -d --wait postgres
+	./scripts/local.sh run --rm --no-deps db-init
 
-# Apply migrations locally without Docker
-# Usage: make migrate-apply-local svc=all
-#        make migrate-apply-local svc=user
+migrate migrate-apply: migration-db
+	@case "$(if $(svc),$(svc),all)" in api|ai|all) ;; *) echo "svc must be api, ai or all" >&2; exit 1;; esac
+	./scripts/local.sh run --build --rm --no-deps -e MIGRATE_TARGET="$(if $(svc),$(svc),all)" migrator
+
 migrate-apply-local:
-	@if [ -z "$(svc)" ] || [ "$(svc)" = "all" ]; then \
-		echo "Applying migrations for user..."; \
-		atlas migrate apply --dir "file://migrations/user" --url "postgres://postgres:postgres@localhost:5433/user?sslmode=disable"; \
-		echo "Applying migrations for api..."; \
-		atlas migrate apply --dir "file://migrations/api" --url "postgres://postgres:postgres@localhost:5433/api?sslmode=disable"; \
-		echo "Applying migrations for catalog..."; \
-		atlas migrate apply --dir "file://migrations/catalog" --url "postgres://postgres:postgres@localhost:5433/catalog?sslmode=disable"; \
-	else \
-		echo "Applying migrations for $(svc)..."; \
-		atlas migrate apply --dir "file://migrations/$(svc)" --url "postgres://postgres:postgres@localhost:5433/$(svc)?sslmode=disable"; \
-	fi
+	MIGRATE_TARGET="$(if $(svc),$(svc),all)" ./scripts/migrate.sh apply
 
-# Show migration status
-migrate-status: check-svc
-	$(DOCKER_MIGRATE) migrate status --config file://migrations/$(svc)/atlas.hcl --env gorm
+migrate-status: migration-db
+	./scripts/local.sh run --build --rm --no-deps -e MIGRATE_TARGET="$(if $(svc),$(svc),all)" migrator status
 
-# Hash migrations
-migrate-hash: check-svc
-	$(DOCKER_MIGRATE) migrate hash --dir file://migrations/$(svc)
+migrate-hash:
+	MIGRATE_TARGET="$(if $(svc),$(svc),all)" ./scripts/migrate.sh hash
+
+migrate-validate:
+	MIGRATE_TARGET="$(if $(svc),$(svc),all)" ./scripts/migrate.sh validate
 
 # ==============================
 # API Documentation (Swagger)

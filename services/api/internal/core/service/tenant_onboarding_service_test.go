@@ -15,9 +15,6 @@ import (
 func onboardingFixture(t *testing.T) (salesFixture, *TenantOnboardingService) {
 	t.Helper()
 	f := salesTestFixture(t)
-	if err := f.db.AutoMigrate(&model.AuthIdentities{}, &model.TenantRegistration{}, &model.TenantInvitation{}, &model.PlatformOperator{}); err != nil {
-		t.Fatal(err)
-	}
 	for _, user := range []string{f.owner, f.sale, f.peer} {
 		if err := f.db.Create(&model.AuthIdentities{UserID: user, Identifier: user + "@example.test", Provider: model.ProviderLocal}).Error; err != nil {
 			t.Fatal(err)
@@ -153,7 +150,7 @@ func TestOnboardingRevokedExpiredAndReissuedInvitations(t *testing.T) {
 	requireSalesStatus(t, err, 409)
 }
 func TestOnboardingConcurrentApprovalPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("requires PostgreSQL row locks")
 	}
 	f, s := onboardingFixture(t)
@@ -189,7 +186,7 @@ func TestOnboardingConcurrentApprovalPostgres(t *testing.T) {
 	}
 }
 func TestOnboardingConcurrentAcceptPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("requires PostgreSQL row locks")
 	}
 	f, s := onboardingFixture(t)
