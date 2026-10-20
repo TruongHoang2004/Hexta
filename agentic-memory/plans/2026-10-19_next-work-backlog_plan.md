@@ -90,3 +90,7 @@ For each implementation slice: scoped unit/integration tests and applicable Go r
 ## D1–D3 local implementation handoff
 
 D1–D3 are now implemented and locally verified on codex/manual-sales-demo; they are not merged/done. See [the EPIC-007 session](../epics/EPIC-007-orders-workflows/sessions/2026-10-19_manual-sales-demo.md) for exact checks and limitations. The demo ends at confirmation; D4/D5 and the deferred queue remain unimplemented. No Notion ticket or issue lifecycle state was changed.
+
+## D4 implementation follow-up — 2026-10-20
+
+After bounded manual D1–D3 browser checks, owner requested moving straight to the next work. The D4 workflow/work-item vertical slice is implemented locally on codex/order-workflows; [session](../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md) records automated/database/build/upgrade checks and pending browser/delivery gates. Earlier D4-unimplemented wording is historical. D5 remains the next separate feature after D4 review; remaining earlier manual cases are still open. No parent task completion or external tracker write.

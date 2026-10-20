@@ -1,21 +1,3 @@
+# Compatibility entry point; database-owning services are api and ai.
 include:
-  - docker-compose.yml
-
-services:
-  migrator:
-    build:
-      context: ..
-      dockerfile: Dockerfile.migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      MIGRATE_TARGET: ${MIGRATE_TARGET:-all}
-    volumes:
-      - ..:/workspace
-    networks:
-      - hexta_network
-
-networks:
-  hexta_network:
-    driver: bridge
+  - compose.demo.yml

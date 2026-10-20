@@ -1,7 +1,6 @@
 """PostgreSQL authority for durable run state. No graph work holds DB locks."""
 
 import hashlib
-from pathlib import Path
 from uuid import uuid4
 
 from psycopg import AsyncConnection
@@ -21,11 +20,6 @@ class RunStore:
 
     async def connect(self):
         return await AsyncConnection.connect(self.dsn, row_factory=dict_row, connect_timeout=5)
-
-    async def migrate(self):
-        async with await self.connect() as db:
-            # Separate schema/owner: never run this migration over Go business tables.
-            await db.execute((Path(__file__).parent / "migrations/001_runs.sql").read_text())
 
     async def ping(self):
         async with await self.connect() as db:

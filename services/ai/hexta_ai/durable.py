@@ -22,7 +22,7 @@ class DurableAIService(AIService):
         self.worker = None
 
     async def start(self):
-        await self.store.migrate()
+        await self.store.ping()  # Atlas must apply schema changes before service startup.
         self.worker = asyncio.create_task(self.work())
 
     async def ready(self):

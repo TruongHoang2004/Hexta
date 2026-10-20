@@ -13,6 +13,7 @@ func BuildService() fx.Option {
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
 		service.NewSalesService,
+		service.NewWorkflowService,
 		service.NewHealthService,
 		service.NewAuthService,
 		service.NewTenantService,

@@ -112,3 +112,7 @@ Persistent LangGraph node checkpoints and AI result outbox are TARGET. Current r
 ## Internal HTTP diagnostic endpoints
 
 GET /health/live reports process/fake mode; GET /health/ready checks durable runtime dependencies when enabled. POST /internal/v1/preview requires Bearer token and invokes the fake graph synchronously without creating a durable run. Docs UI is disabled. HTTP preview is never the new business reply API. Test-only AI_GRPC_ENABLED=false allows offline HTTP tests.
+
+## Explicit schema migration — 2026-10-20
+
+AI startup now checks storage readiness and starts its worker only after a successful explicit Atlas migrations/ai job; RunStore has no migrate method or bundled startup DDL. Durable run/RPC/lease contracts unchanged. Existing compatible rows retained and verified; 27 Python tests passed. See [primary session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md).

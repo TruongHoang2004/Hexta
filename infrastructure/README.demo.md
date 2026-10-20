@@ -13,7 +13,7 @@ Install Docker Engine/Desktop with Compose v2, start the engine, and open a POSI
 
 The launcher generates three random local service/JWT secrets in `infrastructure/.env.local` on first use using a temporary Python container. It preserves that file on subsequent runs; do not commit or share it. No provider keys or Google OAuth credentials are needed. If launching from PowerShell, use WSL or create the equivalent env file and invoke `docker compose --env-file infrastructure/.env.local -f infrastructure/compose.demo.yml ...`.
 
-Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atlas applies the existing Go business migrations to `public` with explicit revision metadata scope. The AI service applies its own idempotent version-001 SQL migration only to its schema. `db-init` and `migrate` exiting with code 0 is expected; five long-running services should be healthy. Existing `hexta-demo` PostgreSQL volume is retained and initialized in place; no root/legacy database is used.
+Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atlas applies the existing Go business migrations to `public` with explicit revision metadata scope. A separate Atlas `migrate-ai` job applies the AI history; the Python service performs no startup DDL. API and AI use independent revision schemas. `db-init` and `migrate` exiting with code 0 is expected; five long-running services should be healthy. The separate `migrate-ai` job also exits 0 before AI starts. Existing `hexta-demo` PostgreSQL volume is retained and initialized in place; no root/legacy database is used.
 
 | Service | Host address | Purpose |
 | --- | --- | --- |
@@ -103,3 +103,22 @@ Owners create email-addressed invitations in Members & invitations. The UI retur
 The first demo stops at confirmation. Workflow/handoff, cancellation/return cases, dashboard, messaging and AI/channel integration are later slices. No stock reservation, payment collection, customer sending, key setup or generated data is required. The previous generic order status/payment HTTP routes are removed; API clients must use explicit draft save and confirmation. Swagger documents the current routes.
 
 Step-by-step acceptance checks for an evening test session: [manual demo checklist](TESTING.demo.md).
+
+## Atlas for all current services
+
+The supported migration targets are `api`, `ai` and `all`; legacy `user`/`catalog` directories do not exist. Root `atlas.hcl` defines the environments. API migrations own public; AI migrations own ai_runtime. API revisions stay in atlas_schema_revisions; AI revisions use atlas_ai_revisions. db-init provisions the local AI role/schema and dedicated developer databases; application processes never migrate.
+
+```sh
+make migrate svc=all
+make migrate-status svc=all
+# Edit migrations/schema/api.sql or migrations/schema/ai.sql first.
+make migrate-diff svc=api name=your_change
+make migrate-validate
+make migrate svc=api
+```
+
+`make migrate-diff` starts the dedicated developer databases and runs Atlas in the migration image. It does not connect a dev-schema cleanup to the application database. Review generated SQL; never edit old applied migrations. New migrations and their atlas.sum must be delivered together. GORM models must match the reviewed schema but are not a runtime migration source.
+
+For host execution, privately export API_DATABASE_URL and AI_DATABASE_URL, then run `make migrate-apply-local svc=all`. API URL selects public with search_path=public; AI migration URL is database-level (no search_path), permitting the first explicit migration to create ai_runtime. Migration credentials must have the required schema/revision permissions. Existing local schema owners are supported without database-wide CREATE grants. The guarded AI initial migration uses --allow-dirty only to adopt the known pre-Atlas table and rejects incompatible columns/constraints/indexes; API never uses that flag.
+
+Go integration tests require Atlas on PATH and API_TEST_DATABASE_URL pointing at a dedicated test PostgreSQL server with CREATE DATABASE privileges. Tests create randomly named databases, apply actual API history and drop those databases on cleanup; no GORM AutoMigrate or SQLite schema substitute. Python tests wait for test-migrate-ai and additionally exercise legacy adoption, incompatible rejection and independent histories in disposable databases. Offline database-free tests remain available without database URLs.

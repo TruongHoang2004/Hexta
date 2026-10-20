@@ -63,10 +63,10 @@ Keep IMPLEMENTED, VERIFIED, DECIDED, TARGET and OPEN distinct. Go owns business 
 - Run `make swagger` after adding or updating endpoints.
 
 ## 4. Database & Migrations
-- Use **Atlas** for migrations.
+- Use **Atlas versioned SQL histories** for all database-owning services (`api` and `ai`). Applications and tests must never call GORM AutoMigrate or apply startup DDL.
 - Models should be defined in the repository layer using Gorm tags.
-- Run `make migrate-diff` to generate new migrations and `make migrate-apply` to apply them.
-- Use `make migrate svc=all` to apply every supported database migration through the migration image, or `make migrate svc=user` for a single database.
+- Update `migrations/schema/<service>.sql`, run `make migrate-diff svc=<api|ai> name=<change>`, review the generated SQL, and run `make migrate-validate` before applying. Root `atlas.hcl` is the canonical configuration; keep API and AI revision schemas independent.
+- Use `make migrate svc=all` (or `make migrate svc=api` / `svc=ai`) for explicit Docker migration jobs. Host apply uses private API_DATABASE_URL/AI_DATABASE_URL with `make migrate-apply-local`. Missing legacy user/catalog targets are unsupported. Go database tests use an explicit API_TEST_DATABASE_URL and disposable databases migrated with Atlas; Python integration tests wait for the Atlas AI test job.
 
 ## 5. Frontend (Next.js)
 - Use **TypeScript** with strict types.

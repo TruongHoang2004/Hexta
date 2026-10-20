@@ -1,38 +1,30 @@
 #!/bin/sh
-
+# Explicit migrations only; no schema mutation from application processes.
 set -eu
+cd "${MIGRATION_ROOT:-$(dirname "$0")/..}"
+target=${MIGRATE_TARGET:-all}
+action=${1:-apply}
+case "$target" in api|ai|all) ;; *) echo "Unknown migration target: $target (use api, ai or all)" >&2; exit 1;; esac
+case "$action" in apply|status|validate|hash) ;; *) echo "Unknown migration action: $action" >&2; exit 1;; esac
 
-TARGET="${MIGRATE_TARGET:-all}"
-
-run_migration() {
-	service_name="$1"
-	case "$service_name" in
-		user)
-			migration_dir="migrations/user"
-			database_url="postgres://postgres:postgres@postgres:5432/user?sslmode=disable"
-			;;
-		api)
-			migration_dir="migrations/api"
-			database_url="postgres://postgres:postgres@postgres:5432/api?sslmode=disable"
-			;;
-		catalog)
-			migration_dir="migrations/catalog"
-			database_url="postgres://postgres:postgres@postgres:5432/catalog?sslmode=disable"
-			;;
-		*)
-			echo "Unknown migration target: $service_name" >&2
-			exit 1
-			;;
-	esac
-
-	echo "Applying migrations for $service_name"
-	atlas migrate apply --dir "file://$migration_dir" --url "$database_url"
-}
-
-if [ "$TARGET" = "all" ]; then
-	for service_name in user api catalog; do
-		run_migration "$service_name"
-	done
-else
-	run_migration "$TARGET"
-fi
+# Validate inputs for every selected service before applying any migration.
+for service_name in api ai; do
+    [ "$target" = all ] || [ "$target" = "$service_name" ] || continue
+    [ -d "migrations/$service_name" ] || { echo "Missing migration directory: $service_name" >&2; exit 1; }
+    if [ "$action" = apply ] || [ "$action" = status ]; then
+        case "$service_name" in api) test -n "${API_DATABASE_URL:-}" || { echo 'API_DATABASE_URL is required' >&2; exit 1; };; ai) test -n "${AI_DATABASE_URL:-}" || { echo 'AI_DATABASE_URL is required' >&2; exit 1; };; esac
+    fi
+done
+for service_name in api ai; do
+    [ "$target" = all ] || [ "$target" = "$service_name" ] || continue
+    echo "Atlas $action: $service_name"
+    if [ "$action" = validate ] || [ "$action" = hash ]; then
+        atlas migrate "$action" --dir "file://migrations/$service_name"
+    elif [ "$action" = apply ] && [ "$service_name" = ai ]; then
+        # The initial migration validates and adopts the exact pre-Atlas AI table.
+        # API history is never baselined or allowed dirty.
+        atlas migrate apply --env ai --allow-dirty
+    else
+        atlas migrate "$action" --env "$service_name"
+    fi
+done

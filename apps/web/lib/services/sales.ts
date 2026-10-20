@@ -84,7 +84,7 @@ export const sales = {
     return res.data.data;
   },
   async all<T>(
-    resource: "customers" | "products",
+    resource: "customers" | "products" | "orders",
     tenant: string,
     signal?: AbortSignal,
   ): Promise<T[]> {

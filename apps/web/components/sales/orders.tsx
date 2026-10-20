@@ -175,6 +175,14 @@ function OrderEditor({
             : "Only the assigned sale or workspace owner can edit this draft."}
         </p>
       )}
+      {order?.status === "confirmed" && (
+        <Link
+          href={`/tenants/${tenant?.id}/work`}
+          className="inline-block text-sm text-primary underline"
+        >
+          Create or view linked work
+        </Link>
+      )}
       <form onSubmit={save} className="space-y-5">
         <fieldset disabled={busy || readonly} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">

@@ -108,3 +108,13 @@ Go race suite and vet passed; 25 SDK tests, web lint/type checks and production 
 Automatic approval review rejected a proposed temporary operator grant in the running demo because this live privileged change lacked explicit authorization. No grant was performed. Full approval/acceptance is tested in isolated fixtures; live operator review remains a separate authorized verification step. The trusted operator CLI is packaged in the API image; no public bootstrap endpoint or automatic first-user promotion exists. Email is manual private-link delivery; no email/payment/provider integration is claimed. See [implementation session](../../epics/EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md).
 
 Final tenant-first API/web rebuild passed, all required services healthy; browser rechecked the rebuilt chooser/orders/member screen. Executable operator CLI is packaged, but no grant was run. Disposable test PostgreSQL was stopped; application volume preserved.
+
+## D4 local implementation checks — 2026-10-20
+
+Workflow implementation passed API/shared Go race tests and vet, seven PostgreSQL workflow scenarios (including actual Atlas constraints and accept/assign/create concurrency), isolated HTTP DTO/transition tests, web lint/type checks, Atlas integrity/fresh application and existing-volume upgrade. API/web Docker builds and Next.js production build succeeded; required demo services healthy. No model/channel/payment/inventory effect invoked. Browser acceptance pending; see [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Historical target roadmap entries do not override this bounded implementation or imply merge/completion.
+
+D4 browser follow-up: NOT RUN due to unavailable IAB and native Chrome tool state; no D4 screenshots captured. Automated/database/build results remain valid within their stated boundaries.
+
+## Atlas-only migration pipeline — 2026-10-20
+
+Explicit API/AI jobs own schema changes; app startup performs no DDL. Root atlas.hcl, desired SQL and independent histories/revision schemas replace missing user/catalog targets and Python startup SQL. Migration-backed Go PostgreSQL race/vet, 27 Python tests, fresh/adoption/reject/no-op/zero-drift checks, public Make commands and existing-data upgrade passed. Dedicated dev/test databases are separate from demo records. [Session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md), [runbook](../../../infrastructure/README.demo.md#atlas-for-all-current-services). Local/unmerged; no production provisioning or broader acceptance implied.

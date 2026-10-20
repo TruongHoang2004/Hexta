@@ -53,6 +53,6 @@ func browserCORSConfig(cfg *config.Config) cors.Config {
 	if !cfg.Server.Production {
 		result.AllowOrigins = append(result.AllowOrigins, "http://localhost:3000", "http://127.0.0.1:3000")
 	}
-	result.AllowHeaders = append(result.AllowHeaders, "Authorization", "X-Tenant-ID")
+	result.AllowHeaders = append(result.AllowHeaders, "Authorization", "X-Tenant-ID", "Idempotency-Key")
 	return result
 }

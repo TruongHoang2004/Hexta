@@ -8,6 +8,7 @@ import (
 func BuildRepository() fx.Option {
 	return fx.Provide(
 		repository.NewTenantOnboardingRepository,
+		repository.NewWorkflowRepository,
 		repository.NewBaseRepository,
 		fx.Annotate(repository.NewSalesRepository, fx.As(new(repository.ISalesRepository))),
 		repository.NewIdentityRepository,

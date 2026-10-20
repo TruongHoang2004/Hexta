@@ -1,18 +1,10 @@
-# Use golang alpine as the base so you have Go, apk, and a shell
-FROM golang:alpine
-
-ENV GOTOOLCHAIN=auto
-
-# Install git and certificates
-RUN apk add --no-cache ca-certificates git
-
-# Copy the atlas binary from the official arigaio/atlas image
+FROM alpine:3.23
+RUN apk add --no-cache ca-certificates
 COPY --from=arigaio/atlas:latest /atlas /usr/local/bin/atlas
-
 WORKDIR /workspace
-
-# Copy your migration script
+ENV MIGRATION_ROOT=/workspace
+COPY atlas.hcl ./atlas.hcl
+COPY migrations ./migrations
 COPY scripts/migrate.sh /usr/local/bin/migrate.sh
 RUN chmod +x /usr/local/bin/migrate.sh
-
 ENTRYPOINT ["/usr/local/bin/migrate.sh"]

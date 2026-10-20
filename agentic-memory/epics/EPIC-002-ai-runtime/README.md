@@ -46,3 +46,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Remaining work and next handoff
 
 Recheck PR #52, then coordinate with messaging/Kafka for a Go dispatcher and result acceptance; do not substitute a smoke CLI for the business worker.
+
+## Atlas ownership correction — 2026-10-20
+
+Python no longer applies SQL at startup. Explicit Atlas migrations/ai and the migrate-ai job provision/adopt ai_runtime before readiness/worker start. Existing compatible runs retained, incompatible schemas rejected; 27 host/Docker AI tests passed. [Primary EPIC-003 session](../EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md) records the implementation once. No checkpoint/provider or parent-epic completion; local/unmerged.

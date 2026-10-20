@@ -65,3 +65,11 @@ The owner's corrected onboarding/product hierarchy is recorded in [EPIC-001's fr
 Manual acceptance and PR delivery are tracked in the [primary handoff session](../EPIC-001-system-design/sessions/2026-10-19_demo-pr-handoff.md); use the [checklist](../../../infrastructure/TESTING.demo.md) for sales, tenant and invitation checks.
 
 Sales/tenant/branding delivery is in [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54), open with CI pending at publication. Manual acceptance and merge are not complete; broader workflow scope remains in-progress.
+
+## D4 configurable work — 2026-10-20
+
+[Implementation session](sessions/2026-10-20_order-workflows.md): immutable ordered workflow versions, explicit confirmed-order work, direct/accepted handoff, owner reassignment/unassigned queue, history and tenant UI are implemented locally on codex/order-workflows. Go race/vet, PostgreSQL concurrency/actual-schema checks, HTTP DTO checks, web lint/types/production build, fresh Atlas migrations and populated upgrade passed. Browser verification and delivery review/merge remain; parent epic stays in-progress/completed false. No exception/D5 completion.
+
+D4 manual verification follow-up: browser cases NOT RUN because IAB was unavailable and native Chrome returned no usable state. No D4 screenshot or browser mutation. Local implementation is available for manual testing; automated evidence is recorded separately in the session.
+
+D4 delivery follow-up: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) includes the workflow slice and Atlas setup against main. Code is in review; manual D4 browser checks remain NOT RUN and merge pending. Parent epic stays in-progress/completed false.

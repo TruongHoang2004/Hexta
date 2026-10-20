@@ -24,3 +24,11 @@ Updated: 2026-10-19. This is navigation/status only. Read the selected epic READ
 Epic and session completion are independent. PR state is last known, not continuously synchronized; verify GitHub/CI before updating. No epic is fully done merely because one component or design session is done. These local epic IDs organize repository context and do not fabricate GitHub/Notion issue IDs or labels.
 
 New work: create a new session from [the template](_SESSION_TEMPLATE.md) in the primary epic. Cross-epic work links that record instead of duplicating it. Preserve earlier session history and update the epic summary/index as progress changes. Keep shared architecture in its modular documents rather than copying it into every session.
+
+Current D4 implementation: [2026-10-20 workflow session](EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Local workflow/work vertical slice implemented and automated checks/build/upgrade passed; browser/review/merge remain. Epic states unchanged.
+
+D4 browser attempt ended NOT RUN (IAB unavailable/native Chrome did not return UI state); local implementation and automated evidence are retained, manual/review/merge gates remain open.
+
+Current migration ownership: [Atlas-only API/AI session](EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md), local implementation verified; EPIC-003 in-progress, no automatic schema updates or parent completion.
+
+Workflow/Atlas delivery: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) is open against main; initial CI in progress. EPIC-003 is in-review/completed false; D4 browser acceptance and merge remain open.

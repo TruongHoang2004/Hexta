@@ -248,15 +248,17 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 
 ## Database Migrations with Atlas
 
-We use **Atlas** with GORM to handle declarative migrations.
+We use **Atlas versioned migrations** for every database-owning service: API (`public`) and AI (`ai_runtime`). GORM maps Go models; it never updates application or test schemas automatically. Desired schemas live in `migrations/schema/api.sql` and `migrations/schema/ai.sql`, with separate reviewed histories under `migrations/api` and `migrations/ai`. Root `atlas.hcl` is canonical.
 
 | Command | Description |
 |---|---|
-| `make migrate-apply svc=api` | Apply all pending migrations via the migrator container |
+| `make migrate svc=all` | Explicitly apply API and AI histories through the local migration image |
+| `make migrate-apply svc=api` | Apply one service history (api or ai) |
 | `make migrate-apply-local svc=api` | Apply pending migrations using host `atlas` binary |
-| `make migrate-diff svc=api name=<name>` | Compare GORM models against dev database and generate diff |
+| `make migrate-diff svc=api name=<name>` | Compare desired SQL schema against migration history in an isolated dev database |
 | `make migrate-status svc=api` | Inspect current migration status and applied revisions |
-| `make migrate-hash svc=api` | Recompute the `atlas.sum` integrity hash file |
+| `make migrate-hash svc=api` | Recompute checksums after reviewing new migration files |
+| `make migrate-validate` | Validate both migration histories |
 
 ---
 

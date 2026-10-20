@@ -10,6 +10,8 @@ on:
       - 'migrations/**'
       - 'test/**'
       - 'go.work*'
+      - 'atlas.hcl'
+      - 'scripts/migrate.sh'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches:
@@ -20,6 +22,8 @@ on:
       - 'migrations/**'
       - 'test/**'
       - 'go.work*'
+      - 'atlas.hcl'
+      - 'scripts/migrate.sh'
       - '.github/workflows/backend-ci.yml'
 
 concurrency:
@@ -30,6 +34,21 @@ jobs:
   backend-test:
     name: Test & Lint Backend (Go)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.7-alpine3.23
+        env:
+          POSTGRES_USER: atlas_test
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: atlas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas_test -d atlas_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      API_TEST_DATABASE_URL: postgres://atlas_test:test-only@127.0.0.1:5432/atlas_test?sslmode=disable
 
     steps:
       - name: Checkout Code
@@ -42,6 +61,9 @@ jobs:
           cache: true
           cache-dependency-path: go.work.sum
 
+      - name: Setup Atlas CLI
+        uses: ariga/setup-atlas@v0
+
       - name: Verify Go Workspace
         run: go work sync
 
@@ -52,9 +74,23 @@ jobs:
         run: |
           go test -v -race ./services/api/... ./packages/shared/...
 
-      - name: Setup Atlas CLI
-        uses: ariga/setup-atlas@v0
-
       - name: Validate Atlas Migration Directory Integrity
         run: |
-          atlas migrate validate --dir "file://migrations/api"
+          make migrate-validate
+          if rg 'AutoMigrate|async def migrate\(' services --glob '*.go' --glob '*.py'; then
+            echo 'Automatic schema migration is forbidden; use Atlas histories.' >&2
+            exit 1
+          fi
+
+      - name: Verify desired schemas match versioned history
+        run: |
+          atlas migrate diff ci_schema_check --env api
+          atlas migrate diff ci_schema_check --env ai
+          test -z "$(git status --porcelain -- migrations)"
+
+      - name: Verify Python AI with Atlas-managed test schema
+        run: ./scripts/local.sh --profile test run --build --rm ai-tests
+
+      - name: Stop isolated Python test database
+        if: always()
+        run: ./scripts/local.sh --profile test stop test-postgres

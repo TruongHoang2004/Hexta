@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 
@@ -12,12 +10,10 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type salesFixture struct {
@@ -28,49 +24,7 @@ type salesFixture struct {
 
 func salesTestFixture(t *testing.T) salesFixture {
 	t.Helper()
-	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
-	var db *gorm.DB
-	var err error
-	if dsn := os.Getenv("SALES_TEST_DATABASE_URL"); dsn != "" {
-		admin, e := gorm.Open(postgres.Open(dsn), cfg)
-		if e != nil {
-			t.Fatal("test database unavailable")
-		}
-		schema := "sales_" + strings.ReplaceAll(uuid.NewString(), "-", "")
-		if e := admin.Exec("CREATE SCHEMA " + schema).Error; e != nil {
-			t.Fatal(e)
-		}
-		parsed, e := url.Parse(dsn)
-		if e != nil {
-			t.Fatal(e)
-		}
-		q := parsed.Query()
-		q.Set("search_path", schema)
-		parsed.RawQuery = q.Encode()
-		db, err = gorm.Open(postgres.Open(parsed.String()), cfg)
-		t.Cleanup(func() {
-			if db != nil {
-				sqlDB, _ := db.DB()
-				sqlDB.Close()
-			}
-			admin.Exec("DROP SCHEMA " + schema + " CASCADE")
-			sqlDB, _ := admin.DB()
-			sqlDB.Close()
-		})
-	} else {
-		db, err = gorm.Open(sqlite.Open("file:sales_"+uuid.NewString()+"?mode=memory&cache=shared"), cfg)
-		if err == nil {
-			sqlDB, _ := db.DB()
-			sqlDB.SetMaxOpenConns(1)
-			t.Cleanup(func() { sqlDB.Close() })
-		}
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&model.Tenant{}, &model.TenantMember{}, &model.Customer{}, &model.Product{}, &model.ProductVariant{}, &model.Order{}, &model.OrderItem{}, &model.AuditLog{}); err != nil {
-		t.Fatal(err)
-	}
+	db := testutil.Database(t)
 	f := salesFixture{db: db, service: NewSalesService(repository.NewSalesRepository(db)), tenant: uuid.NewString(), other: uuid.NewString(), owner: "owner", sale: "sale", peer: "peer"}
 	for _, id := range []string{f.tenant, f.other} {
 		if err := db.Create(&model.Tenant{ID: id, Name: id, Slug: id, OwnerID: f.owner, Status: model.TenantStatusActive}).Error; err != nil {
@@ -270,7 +224,7 @@ func TestSalesCatalogMissingContactsAndPrices(t *testing.T) {
 	requireSalesStatus(t, err, 404)
 }
 func TestSalesConcurrentConfirmationPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("set SALES_TEST_DATABASE_URL to a disposable PostgreSQL database for row-lock concurrency verification")
 	}
 	f := salesTestFixture(t)
@@ -311,7 +265,7 @@ func TestSalesConcurrentConfirmationPostgres(t *testing.T) {
 }
 
 func TestSalesConcurrentEditAndConfirmationPostgres(t *testing.T) {
-	if os.Getenv("SALES_TEST_DATABASE_URL") == "" {
+	if os.Getenv("SALES_TEST_DATABASE_URL") == "" && os.Getenv("API_TEST_DATABASE_URL") == "" {
 		t.Skip("requires disposable PostgreSQL row locks")
 	}
 	f := salesTestFixture(t)

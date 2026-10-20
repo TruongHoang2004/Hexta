@@ -9,6 +9,8 @@ on:
       - 'apps/web/**'
       - 'packages/**'
       - 'Dockerfile.migrate'
+      - 'atlas.hcl'
+      - 'scripts/migrate.sh'
       - 'migrations/**'
       - '.github/workflows/docker-ci-cd.yml'
   pull_request:
@@ -19,6 +21,8 @@ on:
       - 'apps/web/**'
       - 'packages/**'
       - 'Dockerfile.migrate'
+      - 'atlas.hcl'
+      - 'scripts/migrate.sh'
       - 'migrations/**'
       - '.github/workflows/docker-ci-cd.yml'
 

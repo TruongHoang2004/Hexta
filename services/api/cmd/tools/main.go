@@ -7,6 +7,7 @@ import (
 
 	"ariga.io/atlas-provider-gorm/gormschema"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 		&model.OrderItem{},
 		&model.AuditLog{},
 		&model.AIDraft{},
+		&repository.WorkflowDefinition{}, &repository.WorkflowVersion{}, &repository.WorkflowStep{}, &repository.WorkItem{}, &repository.WorkEvent{},
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load gorm schema: %v\n", err)
