@@ -1,7 +1,7 @@
 ---
 epic: EPIC-001
 session: 2026-10-21_compliance-pr
-status: in-progress
+status: in-review
 completed: false
 date: 2026-10-21
 ---
@@ -31,3 +31,7 @@ Publish the branch and open the PR against main, then record its URL and initial
 ## Publication scope correction
 
 Automatic approval review rejected a broad memory commit/push because screenshots could contain sensitive data and the destination had not been verified. GitHub repository metadata now confirms origin is the existing public TruongHoang2004/Hexta repository with push/admin permission. Publish reviewed Markdown/Mermaid text only; retain all eight screenshots locally without staging or uploading them. The historical screenshot directory references describe local artifacts.
+
+## 2026-10-22 delivery follow-up
+
+[PR #58](https://github.com/TruongHoang2004/Hexta/pull/58) is OPEN/non-draft against main at ab053d5. GitHub connector creation returned 403; GitHub CLI successfully created it with the existing account. Initial backend/frontend/Docker checks are in progress; lifecycle reconciliation succeeded. Screenshot files remain local/untracked. Review, final CI and merge are pending; completed remains false and parent states unchanged.

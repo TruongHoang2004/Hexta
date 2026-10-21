@@ -125,3 +125,5 @@ The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's
 ## PR publication — 2026-10-21
 
 [Publication session](sessions/2026-10-21_compliance-pr.md) prepares the compliance branch and pending documentation for review. Fresh checks pass within documented PostgreSQL/browser limits; parent status/completion unchanged.
+
+2026-10-22 publication: [PR #58](https://github.com/TruongHoang2004/Hexta/pull/58) is open/non-draft against main; initial backend/frontend/Docker CI in progress at ab053d5, lifecycle check passed. [Publication session]( sessions/2026-10-21_compliance-pr.md) is in-review/completed false. Screenshots excluded and kept local; review/merge and parent acceptance remain pending.

@@ -48,3 +48,5 @@ Latest code/rule audit: [2026-10-20 session](EPIC-001-system-design/sessions/202
 Latest compliance implementation: [delegated fixes](EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md), local/uncommitted on codex/rules-compliance. R1–R6 implemented and verified within documented bounds; independent integration review passed after corrections. Epic states/completion unchanged.
 
 Latest delivery follow-up: [compliance PR publication](EPIC-001-system-design/sessions/2026-10-21_compliance-pr.md), 2026-10-21. Fresh checks passed within documented limits; parent epic states unchanged.
+
+2026-10-22 publication: [PR #58](https://github.com/TruongHoang2004/Hexta/pull/58) is open/non-draft against main; initial backend/frontend/Docker CI in progress at ab053d5, lifecycle check passed. [Publication session]( EPIC-001-system-design/sessions/2026-10-21_compliance-pr.md) is in-review/completed false. Screenshots excluded and kept local; review/merge and parent acceptance remain pending.
