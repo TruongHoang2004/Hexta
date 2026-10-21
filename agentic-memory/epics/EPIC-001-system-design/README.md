@@ -3,12 +3,14 @@ epic: EPIC-001
 title: System design and repository context
 status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 
 # System design and repository context
 
 ## Scope
+
+Latest discovery: [DDD domain map session](sessions/2026-10-20_ddd-domain-map.md), in-progress/completed false. Nine candidate business contexts and adoption guidance proposed; documentation only, local/unmerged. Parent acceptance and implementation states unchanged.
 
 Consolidate approved product/system decisions, provide a reliable architecture reference, and keep agent context organized by epic/session.
 
@@ -99,3 +101,27 @@ The locally implemented D1–D3 first-demo slice is recorded once in [EPIC-007's
 ## Thesis delivery request
 
 [Delivery session](sessions/2026-10-19_thesis-delivery.md) — in-review; completed: false at commit. PR #54 is verified merged; thesis changes are delivered separately from current main. The owner explicitly authorized commit and merge; GitHub PR state records final delivery.
+
+## Live ticket/merge reconciliation — 2026-10-19
+
+[Reconciliation session](sessions/2026-10-19_ticket-reconciliation.md) — in-review, completed false. PR #54 is confirmed merged with successful checks; thesis PR #55 is also merged. Earlier pending-merge notes are historical. [All 42 ticket assessments and next work](../../plans/2026-10-19_ticket-reconciliation_plan.md) preserve partial versus complete scope. No Notion edits; parent epic remains in-progress.
+
+## Sprint 2 repaired on Notion
+
+[Repair session](sessions/2026-10-19_sprint-2-repair.md) records the owner-authorized assignment of HEX-27/23/20/18 to 19–25 October with focused scope and verified reciprocal links. Sprint is in-progress; no feature completion implied.
+
+## Current code ERD — 2026-10-20
+
+[ERD session](sessions/2026-10-20_current-code-erd.md) adds a 22-table code/migration diagram at af06cf4 with all 215 columns, physical/application relationship distinction and detailed domains. No schema changes; local/unmerged documentation, parent status unchanged.
+
+## Post-merge standards audit — 2026-10-20
+
+[Session](sessions/2026-10-20_code-rules-audit.md), [review](../../reviews/2026-10-20_code-rules-audit_review.md): PR #57 merge and green CI verified at main 2abd305. Fresh syntax/type/unit checks pass within documented DB skips; six existing security/contract/architecture/type/formatting gaps remain OPEN. Review artifacts local/unmerged; parent completion unchanged.
+
+## Delegated compliance fixes — 2026-10-20
+
+[Session](sessions/2026-10-20_rule-compliance-fixes.md): four module subagents implemented R1–R6 and supplemental logging/path cleanup; independent review caught and verified fixes for logout integration and Swagger prefixes. Go race suite80 tests/no skips, docs contract race test, vet, SDK35 tests/types/build, web lint/tsc, Atlas/format/shell/YAML checks pass. Local/uncommitted on codex/rules-compliance; browser E2E not rerun; parent completion unchanged.
+
+## PR publication — 2026-10-21
+
+[Publication session](sessions/2026-10-21_compliance-pr.md) prepares the compliance branch and pending documentation for review. Fresh checks pass within documented PostgreSQL/browser limits; parent status/completion unchanged.

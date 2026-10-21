@@ -373,6 +373,10 @@ Claim/reassign/return/resolve/expiry/message-context changes serialize on the af
 
 Atlas migration 20261020075908 adds workflow_definitions, workflow_versions, workflow_steps, work_items and work_events. Versions/steps are immutable through public APIs; instances pin a version/current ordinal. Composite tenant/reference foreign keys cover version/definition, step/version, work/order/version/current step and event/work; unique work version enforces one event per transition. Definitions retain creation digests; work stores tenant+actor+request key/digest for replay. State checks distinguish active/waiting/completed and require retained responsibility during waiting. Reassignment/unassignment preserves history; no delete endpoint. Existing orders get a tenant+id unique index without row changes. Models reside in repository/workflowmodel; exact constraint SQL is authoritative. Fresh Atlas application and populated demo upgrade passed; actual-schema transition/FK checks passed. [Design](../2026-10-20_order-workflows_design.md), [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Local/unmerged; exception cases remain TARGET.
 
+## Current code ERD — 2026-10-20
+
+[ERD and all-column domain diagrams](09-current-erd.md) visualize all seven Atlas migrations plus Python 001 at af06cf4: 21 public tables and ai_runtime.runs. Physical FKs are distinguished from application references; no new schema or constraint is implied. [Editable overview](09-current-erd-overview.mmd).
+
 ## Atlas-only migration ownership — 2026-10-20
 
 Current API and AI schemas use root Atlas environments, reviewed versioned SQL and explicit migration jobs; Python startup DDL and test AutoMigrate removed. New AI 20261020100000 validates/adopts the existing compatible runs schema without data loss; physical business columns are unchanged. API history/checksums retained. Go tests apply actual API migrations to disposable PostgreSQL databases; Python integration tests wait for Atlas. [Design](../2026-10-20_atlas-all-services_design.md), [verification session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md).

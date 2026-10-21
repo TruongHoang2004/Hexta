@@ -1,5 +1,11 @@
 # Consolidated Project Changelog
 
+## 2026-10-20 — Initial DDD domain discovery
+
+- Added [domain map](designs/2026-10-20_ddd-domain-map_design.md) and [EPIC-001 session](epics/EPIC-001-system-design/sessions/2026-10-20_ddd-domain-map.md); linked architecture and epic navigation. Existing unrelated changes preserved.
+- Proposed nine business contexts, candidate aggregate ownership, core/supporting classification and incremental adoption. Distinguished active foundations, legacy inventory/order behavior and target messaging/scripts. AI execution and provider adapters do not own business authorization.
+- Verification: current route/service/schema/model/fake-graph inspection, documentation links/fences and whitespace checks. No runtime tests, source/API/schema changes, live PR/CI update or new delivery-completion claim.
+
 This document consolidates all historical development changelogs for the Hexta platform into a unified, high-density reference. Individual task changelogs have been synthesized into thematic milestones to optimize readability and context loading.
 
 ---
@@ -418,6 +424,23 @@ This document consolidates all historical development changelogs for the Hexta p
 - Consolidated the owner-approved thesis changes on codex/thesis-content from origin/main 5a1e719. PR #54 already merged with successful CI; no application changes included.
 - Verification: current thesis project compiled through the open chapter; git diff --check passed. [Delivery session](epics/EPIC-001-system-design/sessions/2026-10-19_thesis-delivery.md) records scope and merge authorization. PR merge state is authoritative for completion.
 
+## 2026-10-19 — Live Notion/code reconciliation
+
+- Compared all 42 task rows and acceptance criteria with current routes/services/tests and delivery memory. Added per-ticket assessment/next plan plus primary epic session; proposed HEX-15/16 initial-scope closure, HEX-10 setup review and partial progress for broad DB/API/UI/testing tasks. No Notion status/task writes.
+- Reverified PR #54 merge and successful checks, and #52/#53/#55 merge evidence. Updated current epic/design navigation without rewriting historical sessions or claiming full MVP/research completion. Priority remains manual acceptance/fixes, versioned work handoff, factual overview, then manual conversation; keys/mock data remain deferred.
+- Verification: live Notion schema/query (42 rows, has_more=false), remote PR facts, actual source inspection, local report links and whitespace. No application test reruns, account grants or implementation changes. Report delivery remains local/unmerged.
+
+## 2026-10-19 — Repair current Notion sprint
+
+- Owner authorized fixing the empty Sprint 2. Linked existing HEX-27/23/20/18 for 19–25 October, set partially implemented tasks/sprint in progress, added weekly scope and current sprint goal/deliverables without rewriting umbrella acceptance or historical completed tasks. No duplicate tasks or key/mock-data commitments.
+- Verification: six successful remote updates followed by fetching sprint and four tasks; reciprocal relations, dates, notes and current plan confirmed. No application code/tests or privileges changed. See the primary repair session; local memory remains unmerged.
+
+## 2026-10-20 — Delegated manual browser evidence
+
+- User requested a subagent for local UI testing/screenshots. Nine bounded tenant/catalog/order/price cases passed; eight JPEGs retained under EPIC-007 evidence. Test-only customer/product and two confirmed orders retained.
+- Verification: existing Docker stack healthy; browser create/edit/reload, empty draft, quantity 2 × price 10, confirmation/read-only reload, missing-price rejection and explicit-zero confirmation. No application failures in executed cases; remaining checklist NOT RUN. No automated test reruns, grants, code changes or downstream-effect audit.
+- [Session](epics/EPIC-007-orders-workflows/sessions/2026-10-20_manual-browser-testing.md), epic/index and operations verification updated; local/unmerged, parent epic unchanged.
+
 ## 2026-10-20 — D4 configurable workflows and responsibility handoff
 
 - Summary: implemented local versioned sequential workflow/work-item vertical slice on codex/order-workflows. Owners publish ordered steps and explicitly create work from confirmed orders; responsible employees hand over directly or await nominated acceptance; owners reassign/unassign, and final responsible employees complete work. Earlier versions/history persist.
@@ -428,6 +451,11 @@ This document consolidates all historical development changelogs for the Hexta p
 - Delivery: owner authorized a scoped local commit; unmerged, parent epic remains in-progress. Existing unrelated reconciliation/evidence edits preserved. No issue/Notion lifecycle updates, cancellation/return/D5 or messaging scope.
 
 - D4 browser follow-up: NOT RUN. IAB unavailable/empty inventory; native Chrome getApp returned no usable UI state and was interrupted after ~302 seconds. No D4 screenshots or browser mutations; prior sales screenshots do not verify D4. Automated/API/PostgreSQL/build evidence above is unchanged. Browser verification and review/merge remain open.
+
+## 2026-10-20 — Current code ERD
+
+- Added system/09-current-erd.md and editable Mermaid overview for af06cf4: 21 public business tables plus Python ai_runtime.runs, complete relationship overview and four all-column domain diagrams. Linked canonical design/database navigation and primary EPIC-001 session.
+- Verified 22 tables/215 columns by parsing seven Atlas API migrations plus Python 001 and applying sales ALTER overlays; reviewed FK/unique constraints and GORM column mappings. Solid/dashed lines explicitly distinguish physical/application references; no invented users/future tables. No live row inspection, schema/code changes or application test rerun. Documentation is local/unmerged; epic states unchanged.
 
 ## 2026-10-20 — Atlas-only migrations for all current services
 
@@ -441,3 +469,24 @@ This document consolidates all historical development changelogs for the Hexta p
 
 - Created [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) against main for D4 and Atlas-only service migrations. Rebased unpublished commits onto current main to exclude already-merged thesis work; application code unchanged. All 23 unrelated local files restored with hash verification and excluded from commits.
 - Verified PR OPEN/non-draft and initial backend/frontend/container/lifecycle checks in progress on 74dd65a; no passing-CI or merge claim. D4 browser acceptance remains NOT RUN. Primary sessions now in-review/completed false; metadata publication follows separately.
+
+## 2026-10-20 — Post-merge syntax and engineering-rule audit
+
+- Verified PR #57 merged as 2abd305 with green CI and tracked source equality to origin/main. Added [review](reviews/2026-10-20_code-rules-audit_review.md) and [EPIC-001 session](epics/EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md); appended merge corrections and evidence to epic/design summaries, preserving earlier history and unrelated local work.
+- OPEN findings: predictable JWT fallbacks, browser-readable refresh tokens, four Swagger envelope declarations, legacy AI service boundaries, 13 SDK explicit any occurrences and 31/135 Go files needing gofmt. Principal findings predate #57; no application code changed.
+- Fresh verification: Go vet/default tests, web lint/tsc, SDK 25 tests, AI 23 tests, 13 Python AST parses, Atlas integrity, shell/YAML syntax and whitespace pass. Four AI DB tests and Go DB fixtures skip without database URLs. Initial gRPC bind restriction resolved by permitted rerun. Merged CI is separate evidence; no fresh DB/race/build/browser acceptance claim.
+- Next: coordinated auth hardening first, then contract/type/architecture/format cleanup. Review/session local/unmerged; no parent epic completion or external tracker transition claimed.
+
+## 2026-10-20 — Delegated rule-compliance implementation
+
+- **Summary:** Implemented audit R1–R6 through auth/Swagger, SDK/browser, legacy AI and formatting/logging/CI subagents on codex/rules-compliance; independent cross-module review corrected logout failure/refresh races and duplicated Swagger path prefixes. No commit/PR/deployment or schema change.
+- **Components:** config/auth/main and HTTP DTO/controller/generated docs; SDK source/tests/builds and two browser logout callers; legacy AI repository/domain/provider/transport boundaries and Fx graph; formatting guard/backend+frontend CI; canonical AGENTS paths/security rules. Shared old repository test helper now provisions disposable Atlas databases.
+- **Decisions:** API/SDK upgrade together to HttpOnly refresh-cookie contract; missing explicit separate signing keys fail closed. Logout failure preserves retry state and displays an error; confirmed logout fences/drains refresh. Legacy AI routes remain unregistered, with no new messaging/sending capability. Session-based prior refresh validity is retained; no per-token revocation added.
+- **Verification:** full Go race suite80 top-level PASS, 11 packages, zero skips/failures against isolated PostgreSQL; subsequent Swagger contract race test and vet PASS; SDK35 tests, strict/no-any guard/build, web lint/tsc, all145 Go-file formatting, tracked guard, shell/YAML syntax, Atlas histories and whitespace PASS. Independent review resolved both introduced findings. Temporary test database removed; demo data preserved. No browser E2E or remote CI/production rollout.
+- **Walkthrough/handoff:** [Primary session](epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) documents ownership, checks, compatibility and limits; [audit follow-up](reviews/2026-10-20_code-rules-audit_review.md) preserves findings/history. Artifacts local/unmerged, completed false; parent epics remain incomplete.
+
+## 2026-10-21 — Compliance PR publication
+
+- Prepare API/SDK cookie auth, explicit JWT configuration, Swagger, legacy AI boundaries and CI guards for review; preserve pending design/audit/browser-test text records in a separate documentation commit; screenshots remain local and excluded from publication. See [publication session](epics/EPIC-001-system-design/sessions/2026-10-21_compliance-pr.md) and [implementation details](epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md).
+- Fresh verification: Go race/vet PASS (default PostgreSQL skips), SDK strict guard/35 tests/build PASS, web lint/tsc PASS, Atlas API/AI integrity and formatting/diff checks PASS. Historical database-backed checks remain separately attributed; browser E2E and production build not rerun.
+- Compatibility: upgrade cookie-auth API and SDK together; configure distinct signing keys of at least 32 bytes and an explicit same-site frontend origin. Review/CI/merge remain pending; no parent epic is marked done.

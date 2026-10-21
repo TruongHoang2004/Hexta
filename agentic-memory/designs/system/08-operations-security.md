@@ -109,6 +109,14 @@ Automatic approval review rejected a proposed temporary operator grant in the ru
 
 Final tenant-first API/web rebuild passed, all required services healthy; browser rechecked the rebuilt chooser/orders/member screen. Executable operator CLI is packaged, but no grant was run. Disposable test PostgreSQL was stopped; application volume preserved.
 
+## Merge and backlog audit — 2026-10-19
+
+Remote evidence now confirms PR #54 merged as 5a1e719 with all returned checks successful; historical local-unmerged labels above are superseded for that slice. PR #55 thesis delivery also merged, without empirical-result claims. [Ticket reconciliation](../../plans/2026-10-19_ticket-reconciliation_plan.md) maps all 42 Notion tasks and preserves remaining manual/live-operator verification gaps. No application tests, external tracker changes or grants in this audit.
+
+## Bounded manual browser verification — 2026-10-20
+
+Delegated local UI checks passed T-1/T-2/C-1/P-1/O-1/O-2/O-3 (UI scope)/V-1/V-2 with eight screenshots; see [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_manual-browser-testing.md). Existing Docker services healthy. No fresh automated tests, source/image equivalence check or downstream side-effect audit. Remaining checklist cases, including approval/invitations, tenant isolation and stale edits, were NOT RUN. No implementation or architecture changes.
+
 ## D4 local implementation checks — 2026-10-20
 
 Workflow implementation passed API/shared Go race tests and vet, seven PostgreSQL workflow scenarios (including actual Atlas constraints and accept/assign/create concurrency), isolated HTTP DTO/transition tests, web lint/type checks, Atlas integrity/fresh application and existing-volume upgrade. API/web Docker builds and Next.js production build succeeded; required demo services healthy. No model/channel/payment/inventory effect invoked. Browser acceptance pending; see [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Historical target roadmap entries do not override this bounded implementation or imply merge/completion.
@@ -118,3 +126,13 @@ D4 browser follow-up: NOT RUN due to unavailable IAB and native Chrome tool stat
 ## Atlas-only migration pipeline — 2026-10-20
 
 Explicit API/AI jobs own schema changes; app startup performs no DDL. Root atlas.hcl, desired SQL and independent histories/revision schemas replace missing user/catalog targets and Python startup SQL. Migration-backed Go PostgreSQL race/vet, 27 Python tests, fresh/adoption/reject/no-op/zero-drift checks, public Make commands and existing-data upgrade passed. Dedicated dev/test databases are separate from demo records. [Session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md), [runbook](../../../infrastructure/README.demo.md#atlas-for-all-current-services). Local/unmerged; no production provisioning or broader acceptance implied.
+
+## Post-merge rule audit — 2026-10-20
+
+PR #57 is merged at 2abd305 with green CI. The [source audit](../../reviews/2026-10-20_code-rules-audit_review.md) identifies OPEN legacy JWT fallback and browser-refresh storage risks; hardened configuration and HttpOnly browser refresh behavior are TARGET, not implemented fixes. Fresh default Go/web/SDK/AI checks and Atlas validation pass within documented PostgreSQL skips. D4 browser acceptance remains NOT RUN. Earlier local/unmerged labels above are historical for the merged slice.
+
+## Compliance fixes — 2026-10-20, local/unmerged
+
+The prior audit's JWT fallback/browser-refresh risks are repaired locally: startup requires explicit distinct signing keys, browser refresh uses server-owned HttpOnly SameSite=Lax cookies (Secure production), cookie mutations reject untrusted origins, and CORS allows credentials only for explicit configured origins. SDK logout only reports success after server revocation; failures remain visible/retryable, and successful logout fences/drains refresh state. Individual refresh-JWT revocation remains outside this slice.
+
+CI adds SDK strict/no-explicit-any/tests and Go formatting enforcement. Full Go race suite80 tests/no skips plus subsequent Swagger contract race test, vet, SDK35 tests/build/type guard, web lint/tsc, Atlas and format/shell/YAML checks pass. Shared legacy repository fixtures now use Atlas disposable DBs. No browser E2E or deployment in this session; [record](../../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) has exact verification limits. Prior OPEN statements above remain historical until these local fixes are merged.

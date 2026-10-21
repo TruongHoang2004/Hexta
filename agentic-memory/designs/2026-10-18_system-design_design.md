@@ -1,6 +1,6 @@
 # Hexta system design: canonical entry point
 
-Last reconciled: 2026-10-19. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) merged on 2026-10-19. The manual sales demo on codex/manual-sales-demo is locally implemented and verified, but unmerged; current sales additions are recorded in the architecture/DB/API/workflow modules. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
+Last reconciled: 2026-10-19. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) merged on 2026-10-19. The tenant-first/manual sales/branding slice is merged into main through PR #54 (5a1e719) with successful CI; current sales additions are recorded in the architecture/DB/API/workflow modules. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
 
 ## Read order
 
@@ -13,6 +13,7 @@ Last reconciled: 2026-10-19. Code baseline: `01b2e11`, merged to main as `978469
 7. [Kafka events and delivery design](system/06-kafka-events.md).
 8. [Business workflows and concurrency](system/07-workflows.md).
 9. [Operations, security, tests and implementation roadmap](system/08-operations-security.md).
+10. [Current code ERD: physical keys and application references](system/09-current-erd.md).
 
 ## Evidence labels
 
@@ -38,6 +39,10 @@ When changing a schema, endpoint, RPC, event or business rule, update its corres
 
 The original consolidation was documentation only. Local unmerged sales/tenant-first follow-ups now add schema, API and UI as explicitly recorded in the modules; future messaging/sending capabilities remain targets.
 
+## 2026-10-19 delivery reconciliation
+
+PR #54 merged at 07:31:26Z with successful backend/frontend/container/lifecycle checks. Tenant-first onboarding and D1–D3 sales are delivered on main; older module/session local-unmerged wording describes historical snapshots. D4 workflows, overview, conversations and real AI/channel integration remain unimplemented. See [ticket reconciliation](../plans/2026-10-19_ticket-reconciliation_plan.md) for all-task scope and next work. No fresh application tests were run during this audit.
+
 ## D4 local implementation — 2026-10-20
 
 Configurable sequential workflow versions, explicit order-linked work, direct/accepted handoff, owner reassignment/unassigned queue and work history are now implemented locally on codex/order-workflows. Database/API/workflow/operations modules contain the current boundary. [Design](2026-10-20_order-workflows_design.md), [session](../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Automated checks/build/upgrade passed; browser verification and review/merge remain. D5 overview and exceptions/messaging remain separate.
@@ -45,3 +50,11 @@ Configurable sequential workflow versions, explicit order-linked work, direct/ac
 ## Atlas-only migration ownership — 2026-10-20
 
 Owner requires explicit Atlas migration for all current database services (api/public and ai/ai_runtime), including migration-backed tests. Python startup SQL and Go test AutoMigrate removed. Root atlas.hcl and migrations/schema define desired state; independent histories/job gates preserve existing data. [Design](2026-10-20_atlas-all-services_design.md), [primary session](../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md). Local verification passed; review/merge remains.
+
+## Merge and rule audit — 2026-10-20
+
+PR #57 is verified merged into main as 2abd305 with green CI, superseding pending-merge notes for D4/Atlas code. [Audit session](../epics/EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) records current security/contract/architecture/type/formatting debt and verification limits. No architecture or runtime behavior changed; D4 manual acceptance remains open.
+
+## Rule-compliance implementation — 2026-10-20, local/unmerged
+
+[Delegated fixes](../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) implement explicit JWT configuration, HttpOnly browser refresh contracts, accurate Swagger, legacy AI repository/domain boundaries, strict SDK types and formatting/CI guards. HTTP/architecture/security modules describe the current local behavior. No schema, provider, sending or parent-epic completion change.

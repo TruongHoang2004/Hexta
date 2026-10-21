@@ -1,0 +1,36 @@
+erDiagram
+    direction TB
+    identities {
+        bigint id PK
+        text user_id
+    }
+    sessions {
+        bigint id PK
+        text user_id
+    }
+    platform_operators {
+        varchar user_id PK
+    }
+    tenants ||--o{ tenant_members : membership
+    tenants |o--o{ tenant_registration_requests : approved_tenant
+    tenants ||--o{ tenant_invitations : invitations
+    tenants ||..o{ customers : tenant_scope
+    tenants ||..o{ products : tenant_scope
+    tenants ||..o{ orders : tenant_scope
+    products ||--o{ product_variants : variants
+    customers |o..o{ orders : customer
+    orders ||--o{ order_items : lines
+    product_variants ||..o{ order_items : product_reference
+    product_variants ||..o| inventory_items : tenant_variant
+    inventory_items ||..o{ stock_movements : movement_history
+    tenants ||..o{ ai_drafts : tenant_scope
+    tenants ||..o{ audit_logs : tenant_scope
+    tenants ||--o{ workflow_definitions : definitions
+    workflow_definitions ||--o{ workflow_versions : immutable_versions
+    workflow_versions ||--o{ workflow_steps : ordered_steps
+    tenants ||--o{ work_items : tenant_scope
+    orders ||--o{ work_items : linked_work
+    workflow_versions ||--o{ work_items : pinned_version
+    workflow_steps ||--o{ work_items : current_step
+    work_items ||--o{ work_events : transition_history
+    tenants ||..o{ ai_runtime_runs : context_only
