@@ -10,6 +10,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockIdentityRepo struct {
@@ -91,9 +92,9 @@ func (m *mockSessionRepo) RevokeSession(ctx context.Context, id int64) *errors.E
 
 func createTestConfig(accessSecret, refreshSecret string, accessExpireSec, refreshExpireSec int) *config.Config {
 	cfg := &config.Config{}
-	cfg.JWT.AccessTokenSecret = accessSecret
+	cfg.JWT.AccessTokenSecret = "fixture-access-" + accessSecret + "-explicit-signing-key"
 	cfg.JWT.AccessTokenExpire = accessExpireSec
-	cfg.JWT.RefreshTokenSecret = refreshSecret
+	cfg.JWT.RefreshTokenSecret = "fixture-refresh-" + refreshSecret + "-explicit-signing-key"
 	cfg.JWT.RefreshTokenExpire = refreshExpireSec
 	return cfg
 }
@@ -103,7 +104,8 @@ func TestJWTTokenSigningAndConfigInjection(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 
 	assert.Equal(t, 900*time.Second, authSvc.GetAccessTokenExpire())
 	assert.Equal(t, 86400*time.Second, authSvc.GetRefreshTokenExpire())
@@ -130,6 +132,7 @@ func TestJWTTokenSigningAndConfigInjection(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotEmpty(t, refreshed.AccessToken)
 	assert.NotEmpty(t, refreshed.RefreshToken)
+	assert.NotEqual(t, tokens.RefreshToken, refreshed.RefreshToken)
 
 	// Attempting to refresh using an access token must fail
 	_, err = authSvc.RefreshToken(ctx, tokens.AccessToken)
@@ -142,7 +145,8 @@ func TestTokenExpiration(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	ctx := context.Background()
 
 	tokens, err := authSvc.Register(ctx, "expire@example.com", "password123", "device", "127.0.0.1", "agent")
@@ -170,7 +174,8 @@ func TestInvalidAndTamperedTokenRejection(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	ctx := context.Background()
 
 	// 1. Malformed token
@@ -179,7 +184,8 @@ func TestInvalidAndTamperedTokenRejection(t *testing.T) {
 
 	// 2. Token signed with different secret
 	foreignCfg := createTestConfig("attacker-secret-9999", "attacker-refresh-secret", 900, 86400)
-	foreignSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, foreignCfg)
+	foreignSvc, foreignInitErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, foreignCfg)
+	require.NoError(t, foreignInitErr)
 
 	tokens, err := foreignSvc.Register(ctx, "attacker@example.com", "password123", "device", "127.0.0.1", "agent")
 	assert.Nil(t, err)
@@ -194,7 +200,8 @@ func TestOAuthStateGenerationAndCSRFValidation(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	ctx := context.Background()
 
 	// 1. Test GoogleLogin generates a URL with valid state parameter
@@ -252,7 +259,8 @@ func TestLogoutEnforcesSessionOwnership(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	ctx := context.Background()
 
 	// Create user 1 and session 1
@@ -299,7 +307,8 @@ func TestAuthService_JWTClaims_EmailAndSub(t *testing.T) {
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
-	authSvc := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(identityRepo, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	ctx := context.Background()
 
 	testEmail := "user@example.com"
@@ -314,3 +323,10 @@ func TestAuthService_JWTClaims_EmailAndSub(t *testing.T) {
 	assert.Equal(t, tokens.User.UserID, claims.Subject)
 }
 
+func TestAuthServiceRejectsMissingSigningConfiguration(t *testing.T) {
+	for _, cfg := range []*config.Config{nil, {}} {
+		svc, err := service.NewAuthServiceWithRepos(newMockIdentityRepo(), newMockSessionRepo(), nil, cfg)
+		require.Error(t, err)
+		require.Nil(t, svc)
+	}
+}

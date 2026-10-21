@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"time"
 
-	vegeta "github.com/tsenart/vegeta/v12/lib"
 	"github.com/TruongHoang2004/Hexta/test/config"
+	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
 type RegisterPayload struct {

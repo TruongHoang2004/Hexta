@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -15,7 +14,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
-
 
 var (
 	requestsTotal = promauto.NewCounterVec(
@@ -127,5 +125,3 @@ func ExposeMetrics(port string) error {
 	}
 	return server.ListenAndServe()
 }
-
-

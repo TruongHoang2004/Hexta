@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/google/uuid"
 )
 
 type IInventoryService interface {

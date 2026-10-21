@@ -3,19 +3,22 @@ import axios from "axios";
 import Cookies from "js-cookie";
 var DefaultBrowserStorage = class {
   get(key) {
-    if (typeof window !== "undefined") {
-      return Cookies.get(key) || null;
-    }
-    return null;
+    return typeof window !== "undefined" ? Cookies.get(key) || null : null;
   }
   set(key, value, options) {
     if (typeof window !== "undefined") {
-      Cookies.set(key, value, { expires: options?.expires ?? 7, path: options?.path ?? "/" });
+      Cookies.set(key, value, {
+        ...options,
+        expires: options?.expires ?? 7,
+        path: options?.path ?? "/",
+        sameSite: options?.sameSite ?? "lax",
+        secure: options?.secure ?? window.location.protocol === "https:"
+      });
     }
   }
   remove(key, options) {
     if (typeof window !== "undefined") {
-      Cookies.remove(key, { path: options?.path ?? "/" });
+      Cookies.remove(key, { ...options, path: options?.path ?? "/" });
     }
   }
 };
@@ -35,77 +38,100 @@ var MemoryStorage = class {
   }
 };
 var IdentityClient = class {
-  client;
-  storage;
-  accessTokenKey;
-  refreshTokenKey;
-  constructor(client, storage, accessTokenKey = "auth_token", refreshTokenKey = "refresh_token") {
+  constructor(client, storage, accessTokenKey = "auth_token", onAuthExpired) {
     this.client = client;
     this.storage = storage;
     this.accessTokenKey = accessTokenKey;
-    this.refreshTokenKey = refreshTokenKey;
+    this.onAuthExpired = onAuthExpired;
   }
-  // Auth
+  client;
+  storage;
+  accessTokenKey;
+  onAuthExpired;
+  refreshPromise = null;
+  logoutPromise = null;
+  authGeneration = 0;
+  signedOut = false;
   async login(email, password) {
-    const response = await this.client.post("/api/v1/auth/login", { email, password });
-    const { access_token, refresh_token } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (refresh_token) {
-      await this.storage.set(this.refreshTokenKey, refresh_token);
-    }
-    return { token: access_token, refreshToken: refresh_token };
+    const response = await this.client.post(
+      "/api/v1/auth/login",
+      { email, password }
+    );
+    this.authGeneration++;
+    this.signedOut = false;
+    return this.saveAccessToken(response.data.data);
   }
   async register(email, password) {
-    const response = await this.client.post("/api/v1/auth/register", { email, password });
-    const { access_token, refresh_token } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (refresh_token) {
-      await this.storage.set(this.refreshTokenKey, refresh_token);
-    }
-    return { token: access_token, refreshToken: refresh_token };
-  }
-  async refreshToken() {
-    const refreshToken = await this.storage.get(this.refreshTokenKey);
-    if (!refreshToken) {
-      throw new Error("No refresh token available");
-    }
     const response = await this.client.post(
-      "/api/v1/auth/refresh",
-      { refresh_token: refreshToken },
-      { _skipAuthRefresh: true }
+      "/api/v1/auth/register",
+      { email, password }
     );
-    const { access_token, refresh_token: newRefreshToken } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (newRefreshToken) {
-      await this.storage.set(this.refreshTokenKey, newRefreshToken);
-    }
-    return { token: access_token, refreshToken: newRefreshToken || refreshToken };
+    this.authGeneration++;
+    this.signedOut = false;
+    return this.saveAccessToken(response.data.data);
   }
-  async logout() {
+  // Manual refresh and interceptor retries share one request so a rotating
+  // HttpOnly cookie is never consumed by parallel refresh requests in this SDK.
+  refreshToken() {
+    if (this.signedOut) return Promise.reject(new Error("The session has been signed out"));
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.renewAccessToken().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+    return this.refreshPromise;
+  }
+  async renewAccessToken() {
+    const generation = this.authGeneration;
     try {
-      await this.client.post("/api/v1/auth/logout");
-    } catch (e) {
-    } finally {
+      const config = { _skipAuthRefresh: true };
+      const response = await this.client.post(
+        "/api/v1/auth/refresh",
+        void 0,
+        config
+      );
+      if (generation !== this.authGeneration) throw new Error("The authentication session changed during refresh");
+      const result = await this.saveAccessToken(response.data.data);
+      if (generation !== this.authGeneration) throw new Error("The authentication session changed during refresh");
+      return result;
+    } catch (error) {
+      if (generation !== this.authGeneration) throw error;
       await this.clearTokens();
+      try {
+        this.onAuthExpired?.();
+      } catch {
+      }
+      throw error;
     }
   }
+  async saveAccessToken(data) {
+    if (typeof data?.access_token !== "string" || !data.access_token) {
+      throw new Error("Invalid access token response");
+    }
+    await this.storage.set(this.accessTokenKey, data.access_token);
+    return { token: data.access_token };
+  }
+  logout() {
+    if (!this.logoutPromise) {
+      this.logoutPromise = this.revokeSession().finally(() => {
+        this.logoutPromise = null;
+      });
+    }
+    return this.logoutPromise;
+  }
+  async revokeSession() {
+    await this.client.post("/api/v1/auth/logout");
+    this.authGeneration++;
+    this.signedOut = true;
+    await this.refreshPromise?.catch(() => void 0);
+    await this.clearTokens();
+  }
+  // Clears local access state only; use logout() to revoke the server session.
   async clearTokens() {
-    await Promise.all([
-      this.storage.remove(this.accessTokenKey),
-      this.storage.remove(this.refreshTokenKey)
-    ]);
+    await this.storage.remove(this.accessTokenKey);
   }
   async getAccessToken() {
     return await this.storage.get(this.accessTokenKey) || null;
-  }
-  async getRefreshToken() {
-    return await this.storage.get(this.refreshTokenKey) || null;
   }
   // Tenant
   async requestTenant(input) {
@@ -134,147 +160,91 @@ var IdentityClient = class {
     return response.data.data;
   }
 };
-function setHeader(config, name, value) {
-  if (config.headers && typeof config.headers.set === "function") {
-    config.headers.set(name, value);
-  } else {
-    config.headers = config.headers || {};
-    config.headers[name] = value;
+var SDKApiError = class extends Error {
+  constructor(message, response, status, code) {
+    super(message);
+    this.response = response;
+    this.status = status;
+    this.code = code;
+    this.name = "SDKApiError";
   }
-}
-function deleteHeader(config, name) {
-  if (config.headers && typeof config.headers.delete === "function") {
-    config.headers.delete(name);
-  } else if (config.headers) {
-    delete config.headers[name];
-    delete config.headers[name.toLowerCase()];
-  }
-}
+  response;
+  status;
+  code;
+};
 var HextaSDK = class {
   identity;
   client;
   storage;
   accessTokenKey;
-  refreshTokenKey;
   onAuthExpiredCallback;
-  isRefreshing = false;
-  failedQueue = [];
   constructor(config) {
     this.storage = config.storage || new DefaultBrowserStorage();
     this.accessTokenKey = config.accessTokenKey || "auth_token";
-    this.refreshTokenKey = config.refreshTokenKey || "refresh_token";
     this.onAuthExpiredCallback = config.onAuthExpired;
     this.client = axios.create({
       baseURL: config.apiUrl,
-      headers: {
-        "Content-Type": "application/json"
-      }
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" }
     });
-    this.client.interceptors.request.use(async (reqConfig) => {
-      if (reqConfig._skipAuthRefresh) {
-        deleteHeader(reqConfig, "Authorization");
-        return reqConfig;
-      }
-      const token = await this.storage.get(this.accessTokenKey);
-      if (token) {
-        setHeader(reqConfig, "Authorization", `Bearer ${token}`);
-      }
-      return reqConfig;
-    });
-    this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
-        const status = error.response ? error.response.status : null;
-        if (status !== 401 || !originalRequest) {
-          return this.handleApiError(error);
-        }
-        if (originalRequest._retry || originalRequest._skipAuthRefresh) {
-          return this.handleApiError(error);
-        }
-        const url = originalRequest.url || "";
-        if (url.includes("/api/v1/auth/login") || url.includes("/api/v1/auth/register") || url.includes("/api/v1/auth/refresh")) {
-          return this.handleApiError(error);
-        }
-        if (this.isRefreshing) {
-          return new Promise((resolve, reject) => {
-            this.failedQueue.push({ resolve, reject });
-          }).then((token) => {
-            originalRequest._retry = true;
-            setHeader(originalRequest, "Authorization", `Bearer ${token}`);
-            return this.client(originalRequest);
-          }).catch((err) => {
-            return Promise.reject(err);
-          });
-        }
-        originalRequest._retry = true;
-        this.isRefreshing = true;
-        try {
-          const refreshToken = await this.storage.get(this.refreshTokenKey);
-          if (!refreshToken) {
-            throw new Error("No refresh token available");
-          }
-          const refreshResponse = await this.client.post(
-            "/api/v1/auth/refresh",
-            { refresh_token: refreshToken },
-            {
-              _skipAuthRefresh: true
-            }
-          );
-          const responseData = refreshResponse.data?.data;
-          const newAccessToken = responseData?.access_token;
-          const newRefreshToken = responseData?.refresh_token;
-          if (!newAccessToken) {
-            throw new Error("Invalid refresh token response");
-          }
-          await this.storage.set(this.accessTokenKey, newAccessToken);
-          if (newRefreshToken) {
-            await this.storage.set(this.refreshTokenKey, newRefreshToken);
-          }
-          this.isRefreshing = false;
-          this.processQueue(null, newAccessToken);
-          setHeader(originalRequest, "Authorization", `Bearer ${newAccessToken}`);
-          return this.client(originalRequest);
-        } catch (refreshErr) {
-          this.isRefreshing = false;
-          await this.clearTokens();
-          this.processQueue(refreshErr, null);
-          if (this.onAuthExpiredCallback) {
-            try {
-              this.onAuthExpiredCallback();
-            } catch (cbErr) {
-            }
-          }
-          return this.handleApiError(refreshErr.response ? refreshErr : error);
-        }
-      }
-    );
     this.identity = new IdentityClient(
       this.client,
       this.storage,
       this.accessTokenKey,
-      this.refreshTokenKey
+      () => this.onAuthExpiredCallback?.()
+    );
+    this.client.interceptors.request.use(async (request) => {
+      const authRequest = request;
+      if (authRequest._skipAuthRefresh) {
+        request.headers.delete("Authorization");
+        return request;
+      }
+      const token = await this.storage.get(this.accessTokenKey);
+      if (token) {
+        request.headers.set("Authorization", `Bearer ${token}`);
+      }
+      return request;
+    });
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (!axios.isAxiosError(error)) {
+          throw error;
+        }
+        const original = error.config;
+        if (error.response?.status !== 401 || !original || original._retry || original._skipAuthRefresh) {
+          return this.handleApiError(error);
+        }
+        const url = original.url || "";
+        if (["login", "register", "refresh"].some((action) => url.includes(`/api/v1/auth/${action}`))) {
+          return this.handleApiError(error);
+        }
+        original._retry = true;
+        const currentToken = await this.storage.get(this.accessTokenKey);
+        if (currentToken && original.headers.get("Authorization") !== `Bearer ${currentToken}`) {
+          original.headers.set("Authorization", `Bearer ${currentToken}`);
+        } else {
+          const { token } = await this.identity.refreshToken();
+          original.headers.set("Authorization", `Bearer ${token}`);
+        }
+        return this.client(original);
+      }
     );
   }
-  processQueue(error, token = null) {
-    this.failedQueue.forEach((prom) => {
-      if (error) {
-        prom.reject(error);
-      } else if (token) {
-        prom.resolve(token);
-      }
-    });
-    this.failedQueue = [];
-  }
   handleApiError(error) {
-    if (error.response && error.response.data) {
-      const apiError = error.response.data;
-      const msg = typeof apiError === "string" ? apiError : apiError.detail || apiError.message || "API Error";
-      const err = new Error(msg);
-      err.response = error.response;
-      err.status = error.response.status;
-      err.code = apiError.code;
-      throw err;
+    if (axios.isAxiosError(error) && error.response) {
+      const payload = error.response.data;
+      let message = "API Error";
+      let code;
+      if (typeof payload === "string") {
+        message = payload;
+      } else if (typeof payload === "object" && payload !== null) {
+        const fields = payload;
+        if (typeof fields.detail === "string") message = fields.detail;
+        else if (typeof fields.message === "string") message = fields.message;
+        if (typeof fields.code === "string") code = fields.code;
+      }
+      throw new SDKApiError(message, error.response, error.response.status, code);
     }
     throw error;
   }
@@ -282,10 +252,7 @@ var HextaSDK = class {
     this.onAuthExpiredCallback = callback;
   }
   async clearTokens() {
-    await Promise.all([
-      this.storage.remove(this.accessTokenKey),
-      this.storage.remove(this.refreshTokenKey)
-    ]);
+    await this.identity.clearTokens();
   }
   getStorage() {
     return this.storage;
@@ -296,6 +263,7 @@ export {
   HextaSDK as EcommerceHubSDK,
   HextaSDK,
   IdentityClient,
-  MemoryStorage
+  MemoryStorage,
+  SDKApiError
 };
 //# sourceMappingURL=index.mjs.map

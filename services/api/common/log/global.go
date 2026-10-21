@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/TruongHoang2004/Hexta/services/api/common"
-	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
+	"github.com/TruongHoang2004/Hexta/services/api/common"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 )
 
 var globalLogger *logger.Logger

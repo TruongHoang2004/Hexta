@@ -3,25 +3,30 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
+	_ "github.com/TruongHoang2004/Hexta/services/api/internal/present/http/response"
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 type AuthController struct {
 	*baseController
-	authService *service.AuthService
+	authService service.IAuthService
+	config      *config.Config
 }
 
-func NewAuthController(validate *validator.Validate, authService *service.AuthService) *AuthController {
+func NewAuthController(validate *validator.Validate, authService *service.AuthService, cfg *config.Config) *AuthController {
 	return &AuthController{
 		baseController: NewBaseController(validate),
 		authService:    authService,
+		config:         cfg,
 	}
 }
 
@@ -32,9 +37,12 @@ func NewAuthController(validate *validator.Validate, authService *service.AuthSe
 // @Accept json
 // @Produce json
 // @Param request body dto.RegisterRequest true "Register credentials"
-// @Success 200 {object} dto.RegisterResponse
+// @Success 200 {object} response.Response[dto.RegisterResponse]
 // @Router /api/v1/auth/register [post]
 func (ctrl *AuthController) Register(c *gin.Context) {
+	if !ctrl.allowBrowserOrigin(c) {
+		return
+	}
 	var req dto.RegisterRequest
 	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
 		ctrl.ErrorData(c, err)
@@ -52,12 +60,12 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 	}
 
 	res := dto.RegisterResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		SessionID:    tokens.SessionID,
-		UserID:       tokens.User.UserID,
+		AccessToken: tokens.AccessToken,
+		SessionID:   tokens.SessionID,
+		UserID:      tokens.User.UserID,
 	}
 
+	ctrl.setRefreshCookie(c, tokens.RefreshToken, int(ctrl.authService.GetRefreshTokenExpire().Seconds()))
 	ctrl.Success(c, res)
 }
 
@@ -68,9 +76,12 @@ func (ctrl *AuthController) Register(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body dto.LoginRequest true "Login credentials"
-// @Success 200 {object} dto.LoginResponse
+// @Success 200 {object} response.Response[dto.LoginResponse]
 // @Router /api/v1/auth/login [post]
 func (ctrl *AuthController) Login(c *gin.Context) {
+	if !ctrl.allowBrowserOrigin(c) {
+		return
+	}
 	var req dto.LoginRequest
 	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
 		ctrl.ErrorData(c, err)
@@ -88,42 +99,43 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 	}
 
 	res := dto.LoginResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		SessionID:    tokens.SessionID,
-		UserID:       tokens.User.UserID,
+		AccessToken: tokens.AccessToken,
+		SessionID:   tokens.SessionID,
+		UserID:      tokens.User.UserID,
 	}
 
+	ctrl.setRefreshCookie(c, tokens.RefreshToken, int(ctrl.authService.GetRefreshTokenExpire().Seconds()))
 	ctrl.Success(c, res)
 }
 
 // RefreshToken
 // @Summary Refresh access token
-// @Description Get a new access token using a refresh token
+// @Description Rotate the HttpOnly refresh cookie and return a new access token; no request body is required
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body dto.RefreshTokenRequest true "Refresh token"
-// @Success 200 {object} dto.RefreshTokenResponse
+// @Success 200 {object} response.Response[dto.RefreshTokenResponse]
 // @Router /api/v1/auth/refresh [post]
 func (ctrl *AuthController) RefreshToken(c *gin.Context) {
-	var req dto.RefreshTokenRequest
-	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
-		ctrl.ErrorData(c, err)
+	if !ctrl.allowBrowserOrigin(c) {
 		return
 	}
-
-	tokens, err := ctrl.authService.RefreshToken(c.Request.Context(), req.RefreshToken)
+	refreshToken, cookieErr := c.Cookie("refresh_token")
+	if cookieErr != nil || refreshToken == "" {
+		ctrl.ErrorData(c, errors.ErrUnauthorized(c.Request.Context()).SetDetail("Refresh cookie required"))
+		return
+	}
+	tokens, err := ctrl.authService.RefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return
 	}
 
 	res := dto.RefreshTokenResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
+		AccessToken: tokens.AccessToken,
 	}
 
+	ctrl.setRefreshCookie(c, tokens.RefreshToken, int(ctrl.authService.GetRefreshTokenExpire().Seconds()))
 	ctrl.Success(c, res)
 }
 
@@ -138,6 +150,9 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 // @Success 200
 // @Router /api/v1/auth/logout [post]
 func (ctrl *AuthController) Logout(c *gin.Context) {
+	if !ctrl.allowBrowserOrigin(c) {
+		return
+	}
 	var req dto.LogoutRequest
 	_ = c.ShouldBindJSON(&req)
 
@@ -160,8 +175,9 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 	// Clear cookies if current session was revoked
 	if targetSessionID == authInfo.SessionID {
-		c.SetCookie("auth_token", "", -1, "/", "", false, false)
-		c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+		c.SetSameSite(http.SameSiteLaxMode)
+		c.SetCookie("auth_token", "", -1, "/", "", ctrl.isProduction(), false)
+		ctrl.setRefreshCookie(c, "", -1)
 	}
 
 	ctrl.Success(c, gin.H{"message": "Logged out successfully"})
@@ -195,8 +211,8 @@ func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	state := c.Query("state")
 
 	frontendURL := "http://localhost:3000"
-	if config.AppConfig != nil && config.AppConfig.Server.FrontendURL != "" {
-		frontendURL = config.AppConfig.Server.FrontendURL
+	if ctrl.config != nil && ctrl.config.Server.FrontendURL != "" {
+		frontendURL = ctrl.config.Server.FrontendURL
 	}
 
 	if code == "" {
@@ -219,14 +235,51 @@ func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	}
 
 	// Deliver tokens securely via cookies to prevent leaking tokens in URL query strings
-	isProduction := config.AppConfig != nil && config.AppConfig.Server.Production
+	isProduction := ctrl.isProduction()
 	accessExpireSec := int(ctrl.authService.GetAccessTokenExpire().Seconds())
 	refreshExpireSec := int(ctrl.authService.GetRefreshTokenExpire().Seconds())
 
+	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("auth_token", tokens.AccessToken, accessExpireSec, "/", "", isProduction, false)
-	c.SetCookie("refresh_token", tokens.RefreshToken, refreshExpireSec, "/", "", isProduction, true)
+	ctrl.setRefreshCookie(c, tokens.RefreshToken, refreshExpireSec)
 
 	// Clean redirect without tokens in query parameters
 	redirectURL := fmt.Sprintf("%s/auth/callback", frontendURL)
 	c.Redirect(http.StatusFound, redirectURL)
+}
+
+func (ctrl *AuthController) isProduction() bool {
+	return ctrl.config != nil && ctrl.config.Server.Production
+}
+
+func (ctrl *AuthController) setRefreshCookie(c *gin.Context, token string, maxAge int) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("refresh_token", token, maxAge, "/", "", ctrl.isProduction(), true)
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+}
+
+// SameSite is defense in depth: explicitly reject untrusted browser origins,
+// including same-site sibling origins that would otherwise receive cookies.
+func (ctrl *AuthController) allowBrowserOrigin(c *gin.Context) bool {
+	origin := c.GetHeader("Origin")
+	if origin == "" && (c.GetHeader("Sec-Fetch-Site") == "" || c.GetHeader("Sec-Fetch-Site") == "same-origin") {
+		return true
+	}
+	allowed := []string{}
+	if ctrl.config != nil {
+		if parsed, err := url.Parse(ctrl.config.Server.FrontendURL); err == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https") {
+			allowed = append(allowed, parsed.Scheme+"://"+parsed.Host)
+		}
+	}
+	if !ctrl.isProduction() {
+		allowed = append(allowed, "http://localhost:3000", "http://127.0.0.1:3000")
+	}
+	for _, candidate := range allowed {
+		if strings.EqualFold(origin, candidate) {
+			return true
+		}
+	}
+	ctrl.ErrorData(c, errors.ErrForbidden(c.Request.Context()).SetDetail("Untrusted browser origin"))
+	return false
 }

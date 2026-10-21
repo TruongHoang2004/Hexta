@@ -6,10 +6,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	SessionID    int64  `json:"session_id"`
-	UserID       string `json:"user_id"`
+	AccessToken string `json:"access_token"`
+	SessionID   int64  `json:"session_id"`
+	UserID      string `json:"user_id"`
 }
 
 type RegisterRequest struct {
@@ -18,19 +17,13 @@ type RegisterRequest struct {
 }
 
 type RegisterResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	SessionID    int64  `json:"session_id"`
-	UserID       string `json:"user_id"`
-}
-
-type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
+	AccessToken string `json:"access_token"`
+	SessionID   int64  `json:"session_id"`
+	UserID      string `json:"user_id"`
 }
 
 type RefreshTokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken string `json:"access_token"`
 }
 
 type LogoutRequest struct {

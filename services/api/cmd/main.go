@@ -10,8 +10,7 @@
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host localhost:9090
-// @BasePath /api/v1
+// @BasePath /
 
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -21,16 +20,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/bootstrap"
-	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/shopspring/decimal"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -40,15 +40,16 @@ const (
 )
 
 func init() {
-	config.LoadConfig()
-	logger := log.GetLogger()
-	logger.Info("Config is loaded")
 	errors.Init("API", nil)
-	logger.Info("Error is initialized")
 	decimal.MarshalJSONWithoutQuotes = true
 }
 
 func main() {
+
+	if err := config.LoadConfig(); err != nil {
+		fmt.Fprintln(os.Stderr, "Configuration validation failed:", err)
+		os.Exit(1)
+	}
 
 	logger := log.GetLogger().GetZap()
 	logger.Debugf("App is running")

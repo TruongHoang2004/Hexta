@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
 	"github.com/TruongHoang2004/Hexta/services/api/utils/casting"
+	"github.com/gin-gonic/gin"
 )
 
 func ParseUintParam(ctx *gin.Context, param string) (uint, error) {

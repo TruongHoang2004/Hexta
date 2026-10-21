@@ -38,3 +38,25 @@ func TestBrowserPreflightAllowsAuthenticatedWorkspaceRequests(t *testing.T) {
 		t.Fatalf("unexpected origin accepted: %d", response.Code)
 	}
 }
+
+func TestBrowserCORSAllowsCredentialsOnlyForConfiguredOrigin(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Production = true
+	cfg.Server.FrontendURL = "https://workspace.example.test"
+	router := gin.New()
+	router.Use(cors.New(browserCORSConfig(cfg)))
+	router.POST("/refresh", func(c *gin.Context) { c.Status(http.StatusOK) })
+	for _, origin := range []string{cfg.Server.FrontendURL, "https://unrelated.example.test"} {
+		request := httptest.NewRequest(http.MethodPost, "/refresh", nil)
+		request.Header.Set("Origin", origin)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if origin == cfg.Server.FrontendURL {
+			if response.Code != http.StatusOK || response.Header().Get("Access-Control-Allow-Credentials") != "true" || response.Header().Get("Access-Control-Allow-Origin") != origin {
+				t.Fatal("credentialed response must allow only the configured origin")
+			}
+		} else if response.Code != http.StatusForbidden || response.Header().Get("Access-Control-Allow-Origin") != "" {
+			t.Fatal("untrusted credentialed origin accepted")
+		}
+	}
+}

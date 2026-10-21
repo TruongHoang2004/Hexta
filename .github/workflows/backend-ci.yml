@@ -12,6 +12,7 @@ on:
       - 'go.work*'
       - 'atlas.hcl'
       - 'scripts/migrate.sh'
+      - 'scripts/check-gofmt.sh'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches:
@@ -24,6 +25,7 @@ on:
       - 'go.work*'
       - 'atlas.hcl'
       - 'scripts/migrate.sh'
+      - 'scripts/check-gofmt.sh'
       - '.github/workflows/backend-ci.yml'
 
 concurrency:
@@ -60,6 +62,9 @@ jobs:
           go-version-file: 'go.work'
           cache: true
           cache-dependency-path: go.work.sum
+
+      - name: Check Go Formatting
+        run: sh scripts/check-gofmt.sh
 
       - name: Setup Atlas CLI
         uses: ariga/setup-atlas@v0

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 )
 

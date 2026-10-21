@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	log "github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRegisterValidations(t *testing.T) {

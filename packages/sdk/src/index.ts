@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import Cookies from "js-cookie";
 
 export interface Tenant {
@@ -35,10 +35,20 @@ export interface TenantApplicationInput { name: string; slug: string; }
 export interface TenantApplication { id: string; name: string; slug: string; status: "pending" | "approved" | "rejected"; tenant_id: string | null; }
 export interface PendingTenantInvitation { invitation: { id: string; tenant_id: string; email: string; role: string; status: string; expires_at: string }; token: string; delivery: string; }
 
-export interface TokenPair {
+export interface AccessTokenResponse {
   access_token: string;
-  refresh_token?: string;
 }
+
+// Kept as a type alias for consumers upgrading from the former token-pair contract.
+export type TokenPair = AccessTokenResponse;
+
+interface AuthRequestMetadata {
+  _retry?: boolean;
+  _skipAuthRefresh?: boolean;
+}
+
+type AuthRequestConfig = AxiosRequestConfig<unknown> & AuthRequestMetadata;
+type AuthInternalRequestConfig = InternalAxiosRequestConfig<unknown> & AuthRequestMetadata;
 
 export interface StorageOptions {
   expires?: number | Date;
@@ -48,6 +58,8 @@ export interface StorageOptions {
   sameSite?: "strict" | "Strict" | "lax" | "Lax" | "none" | "None";
 }
 
+// Storage adapters hold short-lived access tokens only. Refresh credentials are
+// managed by the API in an HttpOnly cookie and must never enter this adapter.
 export interface StorageAdapter {
   get: (key: string) => string | null | Promise<string | null>;
   set: (key: string, value: string, options?: StorageOptions) => void | Promise<void>;
@@ -56,25 +68,30 @@ export interface StorageAdapter {
 
 export class DefaultBrowserStorage implements StorageAdapter {
   get(key: string): string | null {
-    if (typeof window !== "undefined") {
-      return Cookies.get(key) || null;
-    }
-    return null;
+    return typeof window !== "undefined" ? Cookies.get(key) || null : null;
   }
+
   set(key: string, value: string, options?: StorageOptions): void {
     if (typeof window !== "undefined") {
-      Cookies.set(key, value, { expires: options?.expires ?? 7, path: options?.path ?? "/" });
+      Cookies.set(key, value, {
+        ...options,
+        expires: options?.expires ?? 7,
+        path: options?.path ?? "/",
+        sameSite: options?.sameSite ?? "lax",
+        secure: options?.secure ?? window.location.protocol === "https:",
+      });
     }
   }
+
   remove(key: string, options?: StorageOptions): void {
     if (typeof window !== "undefined") {
-      Cookies.remove(key, { path: options?.path ?? "/" });
+      Cookies.remove(key, { ...options, path: options?.path ?? "/" });
     }
   }
 }
 
 export class MemoryStorage implements StorageAdapter {
-  private store: Map<string, string> = new Map();
+  private store = new Map<string, string>();
 
   get(key: string): string | null {
     return this.store.get(key) || null;
@@ -94,104 +111,108 @@ export class MemoryStorage implements StorageAdapter {
 }
 
 export class IdentityClient {
-  private client: AxiosInstance;
-  private storage: StorageAdapter;
-  private accessTokenKey: string;
-  private refreshTokenKey: string;
+  private refreshPromise: Promise<{ token: string }> | null = null;
+  private logoutPromise: Promise<void> | null = null;
+  private authGeneration = 0;
+  private signedOut = false;
 
   constructor(
-    client: AxiosInstance,
-    storage: StorageAdapter,
-    accessTokenKey = "auth_token",
-    refreshTokenKey = "refresh_token"
-  ) {
-    this.client = client;
-    this.storage = storage;
-    this.accessTokenKey = accessTokenKey;
-    this.refreshTokenKey = refreshTokenKey;
-  }
+    private client: AxiosInstance,
+    private storage: StorageAdapter,
+    private accessTokenKey = "auth_token",
+    private onAuthExpired?: () => void,
+  ) {}
 
-  // Auth
-  async login(email: string, password?: string): Promise<{ token: string; refreshToken?: string }> {
-    const response = await this.client.post<{
-      data: { access_token: string; refresh_token?: string };
-    }>("/api/v1/auth/login", { email, password });
-
-    const { access_token, refresh_token } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (refresh_token) {
-      await this.storage.set(this.refreshTokenKey, refresh_token);
-    }
-
-    return { token: access_token, refreshToken: refresh_token };
-  }
-
-  async register(email: string, password?: string): Promise<{ token: string; refreshToken?: string }> {
-    const response = await this.client.post<{
-      data: { access_token: string; refresh_token?: string };
-    }>("/api/v1/auth/register", { email, password });
-
-    const { access_token, refresh_token } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (refresh_token) {
-      await this.storage.set(this.refreshTokenKey, refresh_token);
-    }
-
-    return { token: access_token, refreshToken: refresh_token };
-  }
-
-  async refreshToken(): Promise<{ token: string; refreshToken?: string }> {
-    const refreshToken = await this.storage.get(this.refreshTokenKey);
-    if (!refreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    const response = await this.client.post<{
-      data: { access_token: string; refresh_token?: string };
-    }>(
-      "/api/v1/auth/refresh",
-      { refresh_token: refreshToken },
-      { _skipAuthRefresh: true } as any
+  async login(email: string, password?: string): Promise<{ token: string }> {
+    const response = await this.client.post<{ data: AccessTokenResponse }>(
+      "/api/v1/auth/login", { email, password },
     );
-
-    const { access_token, refresh_token: newRefreshToken } = response.data.data;
-    if (access_token) {
-      await this.storage.set(this.accessTokenKey, access_token);
-    }
-    if (newRefreshToken) {
-      await this.storage.set(this.refreshTokenKey, newRefreshToken);
-    }
-
-    return { token: access_token, refreshToken: newRefreshToken || refreshToken };
+    this.authGeneration++;
+    this.signedOut = false;
+    return this.saveAccessToken(response.data.data);
   }
 
-  async logout(): Promise<void> {
+  async register(email: string, password?: string): Promise<{ token: string }> {
+    const response = await this.client.post<{ data: AccessTokenResponse }>(
+      "/api/v1/auth/register", { email, password },
+    );
+    this.authGeneration++;
+    this.signedOut = false;
+    return this.saveAccessToken(response.data.data);
+  }
+
+  // Manual refresh and interceptor retries share one request so a rotating
+  // HttpOnly cookie is never consumed by parallel refresh requests in this SDK.
+  refreshToken(): Promise<{ token: string }> {
+    if (this.signedOut) return Promise.reject(new Error("The session has been signed out"));
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.renewAccessToken().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+    return this.refreshPromise;
+  }
+
+  private async renewAccessToken(): Promise<{ token: string }> {
+    const generation = this.authGeneration;
     try {
-      await this.client.post("/api/v1/auth/logout");
-    } catch (e) {
-      // Ignore errors on logout (e.g. already logged out)
-    } finally {
+      const config: AuthRequestConfig = { _skipAuthRefresh: true };
+      const response = await this.client.post<{ data: AccessTokenResponse }>(
+        "/api/v1/auth/refresh", undefined, config,
+      );
+      if (generation !== this.authGeneration) throw new Error("The authentication session changed during refresh");
+      const result = await this.saveAccessToken(response.data.data);
+      if (generation !== this.authGeneration) throw new Error("The authentication session changed during refresh");
+      return result;
+    } catch (error: unknown) {
+      // Intentional logout or a new login must not expire a newer session.
+      if (generation !== this.authGeneration) throw error;
       await this.clearTokens();
+      try {
+        this.onAuthExpired?.();
+      } catch {
+        // Consumer callbacks must not replace the authentication error.
+      }
+      throw error;
     }
   }
 
+  private async saveAccessToken(data: AccessTokenResponse): Promise<{ token: string }> {
+    if (typeof data?.access_token !== "string" || !data.access_token) {
+      throw new Error("Invalid access token response");
+    }
+    await this.storage.set(this.accessTokenKey, data.access_token);
+    return { token: data.access_token };
+  }
+
+  logout(): Promise<void> {
+    if (!this.logoutPromise) {
+      this.logoutPromise = this.revokeSession().finally(() => {
+        this.logoutPromise = null;
+      });
+    }
+    return this.logoutPromise;
+  }
+
+  private async revokeSession(): Promise<void> {
+    // A failed request leaves local access state available for a retry. Only
+    // the server can confirm revocation and expire the HttpOnly refresh cookie.
+    await this.client.post("/api/v1/auth/logout");
+    this.authGeneration++;
+    this.signedOut = true;
+    // Fence pending refresh responses, then drain any access-storage write that
+    // already started before revocation. The final clear runs after that write.
+    await this.refreshPromise?.catch(() => undefined);
+    await this.clearTokens();
+  }
+
+  // Clears local access state only; use logout() to revoke the server session.
   async clearTokens(): Promise<void> {
-    await Promise.all([
-      this.storage.remove(this.accessTokenKey),
-      this.storage.remove(this.refreshTokenKey),
-    ]);
+    await this.storage.remove(this.accessTokenKey);
   }
 
   async getAccessToken(): Promise<string | null> {
     return (await this.storage.get(this.accessTokenKey)) || null;
-  }
-
-  async getRefreshToken(): Promise<string | null> {
-    return (await this.storage.get(this.refreshTokenKey)) || null;
   }
 
   // Tenant
@@ -232,25 +253,18 @@ export interface SDKConfig {
   apiUrl: string;
   storage?: StorageAdapter;
   accessTokenKey?: string;
-  refreshTokenKey?: string;
   onAuthExpired?: () => void;
 }
 
-function setHeader(config: any, name: string, value: string) {
-  if (config.headers && typeof config.headers.set === "function") {
-    config.headers.set(name, value);
-  } else {
-    config.headers = config.headers || {};
-    config.headers[name] = value;
-  }
-}
-
-function deleteHeader(config: any, name: string) {
-  if (config.headers && typeof config.headers.delete === "function") {
-    config.headers.delete(name);
-  } else if (config.headers) {
-    delete config.headers[name];
-    delete config.headers[name.toLowerCase()];
+export class SDKApiError extends Error {
+  constructor(
+    message: string,
+    public readonly response: AxiosResponse<unknown>,
+    public readonly status: number,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = "SDKApiError";
   }
 }
 
@@ -259,170 +273,80 @@ export class HextaSDK {
   public client: AxiosInstance;
   private storage: StorageAdapter;
   private accessTokenKey: string;
-  private refreshTokenKey: string;
   private onAuthExpiredCallback?: () => void;
-
-  private isRefreshing = false;
-  private failedQueue: Array<{
-    resolve: (token: string) => void;
-    reject: (error: any) => void;
-  }> = [];
 
   constructor(config: SDKConfig) {
     this.storage = config.storage || new DefaultBrowserStorage();
     this.accessTokenKey = config.accessTokenKey || "auth_token";
-    this.refreshTokenKey = config.refreshTokenKey || "refresh_token";
     this.onAuthExpiredCallback = config.onAuthExpired;
 
     this.client = axios.create({
       baseURL: config.apiUrl,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
     });
+    this.identity = new IdentityClient(
+      this.client, this.storage, this.accessTokenKey,
+      () => this.onAuthExpiredCallback?.(),
+    );
 
-    // Request interceptor to inject access token
-    this.client.interceptors.request.use(async (reqConfig) => {
-      if ((reqConfig as any)._skipAuthRefresh) {
-        deleteHeader(reqConfig, "Authorization");
-        return reqConfig;
+    this.client.interceptors.request.use(async (request) => {
+      const authRequest = request as AuthInternalRequestConfig;
+      if (authRequest._skipAuthRefresh) {
+        request.headers.delete("Authorization");
+        return request;
       }
       const token = await this.storage.get(this.accessTokenKey);
       if (token) {
-        setHeader(reqConfig, "Authorization", `Bearer ${token}`);
+        request.headers.set("Authorization", `Bearer ${token}`);
       }
-      return reqConfig;
+      return request;
     });
 
-    // Response interceptor to handle silent token refresh and API errors
     this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
-
-        const status = error.response ? error.response.status : null;
-        if (status !== 401 || !originalRequest) {
+      response => response,
+      async (error: unknown) => {
+        if (!axios.isAxiosError<unknown, unknown>(error)) {
+          throw error;
+        }
+        const original = error.config as AuthInternalRequestConfig | undefined;
+        if (error.response?.status !== 401 || !original || original._retry || original._skipAuthRefresh) {
+          return this.handleApiError(error);
+        }
+        const url = original.url || "";
+        if (["login", "register", "refresh"].some(action => url.includes(`/api/v1/auth/${action}`))) {
           return this.handleApiError(error);
         }
 
-        // Avoid infinite loop if already retried or flagged to skip refresh
-        if (originalRequest._retry || (originalRequest as any)._skipAuthRefresh) {
-          return this.handleApiError(error);
+        original._retry = true;
+        const currentToken = await this.storage.get(this.accessTokenKey);
+        // A delayed 401 may refer to a token replaced by an earlier refresh.
+        // Retry that request with the current token before rotating again.
+        if (currentToken && original.headers.get("Authorization") !== `Bearer ${currentToken}`) {
+          original.headers.set("Authorization", `Bearer ${currentToken}`);
+        } else {
+          const { token } = await this.identity.refreshToken();
+          original.headers.set("Authorization", `Bearer ${token}`);
         }
-
-        // Do not intercept auth endpoints
-        const url = originalRequest.url || "";
-        if (
-          url.includes("/api/v1/auth/login") ||
-          url.includes("/api/v1/auth/register") ||
-          url.includes("/api/v1/auth/refresh")
-        ) {
-          return this.handleApiError(error);
-        }
-
-        // If refresh is already in progress, enqueue this request
-        if (this.isRefreshing) {
-          return new Promise<string>((resolve, reject) => {
-            this.failedQueue.push({ resolve, reject });
-          })
-            .then((token) => {
-              originalRequest._retry = true;
-              setHeader(originalRequest, "Authorization", `Bearer ${token}`);
-              return this.client(originalRequest);
-            })
-            .catch((err) => {
-              return Promise.reject(err);
-            });
-        }
-
-        originalRequest._retry = true;
-        this.isRefreshing = true;
-
-        try {
-          const refreshToken = await this.storage.get(this.refreshTokenKey);
-          if (!refreshToken) {
-            throw new Error("No refresh token available");
-          }
-
-          const refreshResponse = await this.client.post<{
-            data: { access_token: string; refresh_token?: string };
-          }>(
-            "/api/v1/auth/refresh",
-            { refresh_token: refreshToken },
-            {
-              _skipAuthRefresh: true,
-            } as any
-          );
-
-          const responseData = refreshResponse.data?.data;
-          const newAccessToken = responseData?.access_token;
-          const newRefreshToken = responseData?.refresh_token;
-
-          if (!newAccessToken) {
-            throw new Error("Invalid refresh token response");
-          }
-
-          await this.storage.set(this.accessTokenKey, newAccessToken);
-          if (newRefreshToken) {
-            await this.storage.set(this.refreshTokenKey, newRefreshToken);
-          }
-
-          this.isRefreshing = false;
-          this.processQueue(null, newAccessToken);
-
-          setHeader(originalRequest, "Authorization", `Bearer ${newAccessToken}`);
-          return this.client(originalRequest);
-        } catch (refreshErr: any) {
-          this.isRefreshing = false;
-
-          // Purge tokens on refresh failure
-          await this.clearTokens();
-
-          // Reject queued requests
-          this.processQueue(refreshErr, null);
-
-          // Trigger auth expiration callback
-          if (this.onAuthExpiredCallback) {
-            try {
-              this.onAuthExpiredCallback();
-            } catch (cbErr) {
-              // ignore callback error
-            }
-          }
-
-          return this.handleApiError(refreshErr.response ? refreshErr : error);
-        }
-      }
-    );
-
-    this.identity = new IdentityClient(
-      this.client,
-      this.storage,
-      this.accessTokenKey,
-      this.refreshTokenKey
+        return this.client(original);
+      },
     );
   }
 
-  private processQueue(error: any, token: string | null = null): void {
-    this.failedQueue.forEach((prom) => {
-      if (error) {
-        prom.reject(error);
-      } else if (token) {
-        prom.resolve(token);
+  private handleApiError(error: unknown): never {
+    if (axios.isAxiosError<unknown, unknown>(error) && error.response) {
+      const payload = error.response.data;
+      let message = "API Error";
+      let code: string | undefined;
+      if (typeof payload === "string") {
+        message = payload;
+      } else if (typeof payload === "object" && payload !== null) {
+        const fields = payload as Record<string, unknown>;
+        if (typeof fields.detail === "string") message = fields.detail;
+        else if (typeof fields.message === "string") message = fields.message;
+        if (typeof fields.code === "string") code = fields.code;
       }
-    });
-    this.failedQueue = [];
-  }
-
-  private handleApiError(error: any): never {
-    if (error.response && error.response.data) {
-      const apiError = error.response.data;
-      const msg = typeof apiError === "string" ? apiError : (apiError.detail || apiError.message || "API Error");
-      const err = new Error(msg);
-      (err as any).response = error.response;
-      (err as any).status = error.response.status;
-      (err as any).code = apiError.code;
-      throw err;
+      throw new SDKApiError(message, error.response, error.response.status, code);
     }
     throw error;
   }
@@ -432,10 +356,7 @@ export class HextaSDK {
   }
 
   public async clearTokens(): Promise<void> {
-    await Promise.all([
-      this.storage.remove(this.accessTokenKey),
-      this.storage.remove(this.refreshTokenKey),
-    ]);
+    await this.identity.clearTokens();
   }
 
   public getStorage(): StorageAdapter {
@@ -443,5 +364,5 @@ export class HextaSDK {
   }
 }
 
-// Re-export EcommerceHubSDK for backward compatibility
+// Re-export EcommerceHubSDK for backward compatibility.
 export { HextaSDK as EcommerceHubSDK };

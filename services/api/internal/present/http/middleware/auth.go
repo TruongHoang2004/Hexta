@@ -3,10 +3,10 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/gin-gonic/gin"
 )
 
 type AuthMiddleware struct {

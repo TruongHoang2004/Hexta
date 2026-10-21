@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type CreateOrderItemParam struct {
@@ -41,8 +41,8 @@ type IOrderService interface {
 
 type OrderService struct {
 	*baseService
-	orderRepo     repository.IOrderRepository
-	inventorySvc  IInventoryService
+	orderRepo    repository.IOrderRepository
+	inventorySvc IInventoryService
 }
 
 func NewOrderService(orderRepo repository.IOrderRepository, inventorySvc IInventoryService) *OrderService {
