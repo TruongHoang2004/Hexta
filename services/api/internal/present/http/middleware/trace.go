@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/constant"
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 )

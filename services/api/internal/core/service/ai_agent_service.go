@@ -9,12 +9,10 @@ import (
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common/log"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/gemini"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
 )
 
 const (
@@ -29,35 +27,41 @@ type IDraftCache interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// IAIGenerator is the external generation port; provider failures are sanitized by the service.
+type IAIGenerator interface {
+	GenerateContent(context.Context, *types.AIGenerationRequest) (*types.AIGenerationResponse, error)
+	StreamGenerateContent(context.Context, *types.AIGenerationRequest, func(*types.AIGenerationResponse) error) error
+}
+
 type IAIAgentService interface {
-	Converse(ctx context.Context, tenantID, userID string, req *dto.AIConverseRequest, emitEvent func(*dto.SSEEvent) error) error
-	GetDraft(ctx context.Context, tenantID, draftID string) (*dto.OrderDraftDTO, *errors.Error)
+	Converse(ctx context.Context, tenantID, userID string, req *types.AIConversationInput, emitEvent func(*types.AIEvent) error) *errors.Error
+	GetDraft(ctx context.Context, tenantID, draftID string) (*types.AIOrderDraft, *errors.Error)
 }
 
 type AIAgentService struct {
 	*baseService
-	db           *gorm.DB
-	draftCache   IDraftCache
-	geminiClient gemini.IGeminiClient
+	catalog    repository.IAICatalogRepository
+	draftCache IDraftCache
+	generator  IAIGenerator
 }
 
 func NewAIAgentService(
-	db *gorm.DB,
+	catalog repository.IAICatalogRepository,
 	draftCache IDraftCache,
-	geminiClient gemini.IGeminiClient,
+	generator IAIGenerator,
 ) *AIAgentService {
 	return &AIAgentService{
-		baseService:  NewBaseService(),
-		db:           db,
-		draftCache:   draftCache,
-		geminiClient: geminiClient,
+		baseService: NewBaseService(),
+		catalog:     catalog,
+		draftCache:  draftCache,
+		generator:   generator,
 	}
 }
 
-func (s *AIAgentService) getToolDeclarations() []gemini.Tool {
-	return []gemini.Tool{
+func (s *AIAgentService) getToolDeclarations() []types.AITool {
+	return []types.AITool{
 		{
-			FunctionDeclarations: []gemini.FunctionDeclaration{
+			FunctionDeclarations: []types.AIFunctionDeclaration{
 				{
 					Name:        "search_products",
 					Description: "Search active product catalog items by name, barcode, or SKU with live prices and stock.",
@@ -170,10 +174,10 @@ func (s *AIAgentService) getToolDeclarations() []gemini.Tool {
 	}
 }
 
-func (s *AIAgentService) getSystemInstruction() *gemini.Content {
-	return &gemini.Content{
+func (s *AIAgentService) getSystemInstruction() *types.AIContent {
+	return &types.AIContent{
 		Role: "system",
-		Parts: []gemini.Part{
+		Parts: []types.AIPart{
 			{
 				Text: `You are Hexta AI, an intelligent business operations assistant for SMEs.
 You assist store owners and staff in managing orders, looking up products, checking stock, and serving customers.
@@ -188,36 +192,28 @@ Rules:
 	}
 }
 
-func (s *AIAgentService) toolSearchProducts(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) toolSearchProducts(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	return s.executeSearchProducts(ctx, tenantID, args)
 }
 
-func (s *AIAgentService) toolCheckStockAvailability(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) toolCheckStockAvailability(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	return s.executeCheckStock(ctx, tenantID, args)
 }
 
-func (s *AIAgentService) toolLookupCustomer(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) toolLookupCustomer(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	return s.executeLookupCustomer(ctx, tenantID, args)
 }
 
-func (s *AIAgentService) toolProposeOrderDraft(ctx context.Context, tenantID string, args map[string]interface{}, emitEvent func(*dto.SSEEvent) error) (map[string]interface{}, error) {
+func (s *AIAgentService) toolProposeOrderDraft(ctx context.Context, tenantID string, args map[string]interface{}, emitEvent func(*types.AIEvent) error) (map[string]interface{}, *errors.Error) {
 	return s.executeProposeOrderDraft(ctx, tenantID, args, emitEvent)
 }
 
-func (s *AIAgentService) executeSearchProducts(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) executeSearchProducts(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	query, _ := args["query"].(string)
 	query = strings.TrimSpace(query)
 
-	var products []model.Product
-	dbQuery := s.db.WithContext(ctx).
-		Preload("Variants").
-		Where("tenant_id = ? AND status = ?", tenantID, model.ProductStatusActive)
-
-	if query != "" {
-		dbQuery = dbQuery.Where("name LIKE ? OR category LIKE ?", "%"+query+"%", "%"+query+"%")
-	}
-
-	if err := dbQuery.Limit(10).Find(&products).Error; err != nil {
+	products, err := s.catalog.SearchProducts(ctx, tenantID, query)
+	if err != nil {
 		return nil, err
 	}
 
@@ -248,39 +244,22 @@ func (s *AIAgentService) executeSearchProducts(ctx context.Context, tenantID str
 	}, nil
 }
 
-func (s *AIAgentService) executeCheckStock(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) executeCheckStock(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	sku, _ := args["sku"].(string)
 	sku = strings.TrimSpace(sku)
 	if sku == "" {
 		return map[string]interface{}{"found": false, "error": "sku is required"}, nil
 	}
 
-	var variant model.ProductVariant
-	err := s.db.WithContext(ctx).
-		Where("tenant_id = ? AND sku = ?", tenantID, sku).
-		First(&variant).Error
+	variant, inv, err := s.catalog.StockBySKU(ctx, tenantID, sku)
 	if err != nil {
-		return map[string]interface{}{
-			"found":         false,
-			"sku":           sku,
-			"available_qty": 0,
-			"on_hand_qty":   0,
-		}, nil
+		return nil, err
 	}
-
-	var inv model.InventoryItem
-	invErr := s.db.WithContext(ctx).
-		Where("tenant_id = ? AND variant_id = ?", tenantID, variant.ID).
-		First(&inv).Error
-	if invErr != nil {
-		return map[string]interface{}{
-			"found":         true,
-			"sku":           sku,
-			"variant_id":    variant.ID,
-			"variant_name":  variant.VariantName,
-			"available_qty": 0,
-			"on_hand_qty":   0,
-		}, nil
+	if variant == nil {
+		return map[string]interface{}{"found": false, "sku": sku, "available_qty": 0, "on_hand_qty": 0}, nil
+	}
+	if inv == nil {
+		return map[string]interface{}{"found": true, "sku": sku, "variant_id": variant.ID, "variant_name": variant.VariantName, "available_qty": 0, "on_hand_qty": 0}, nil
 	}
 
 	return map[string]interface{}{
@@ -294,23 +273,14 @@ func (s *AIAgentService) executeCheckStock(ctx context.Context, tenantID string,
 	}, nil
 }
 
-func (s *AIAgentService) executeLookupCustomer(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, error) {
+func (s *AIAgentService) executeLookupCustomer(ctx context.Context, tenantID string, args map[string]interface{}) (map[string]interface{}, *errors.Error) {
 	phone, _ := args["phone"].(string)
 	name, _ := args["name"].(string)
 	phone = strings.TrimSpace(phone)
 	name = strings.TrimSpace(name)
 
-	var customers []model.Customer
-	dbQuery := s.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-
-	if phone != "" {
-		dbQuery = dbQuery.Where("phone LIKE ?", "%"+phone+"%")
-	}
-	if name != "" {
-		dbQuery = dbQuery.Where("full_name LIKE ?", "%"+name+"%")
-	}
-
-	if err := dbQuery.Limit(5).Find(&customers).Error; err != nil {
+	customers, err := s.catalog.LookupCustomers(ctx, tenantID, phone, name)
+	if err != nil {
 		return nil, err
 	}
 
@@ -334,8 +304,8 @@ func (s *AIAgentService) executeProposeOrderDraft(
 	ctx context.Context,
 	tenantID string,
 	args map[string]interface{},
-	emitEvent func(*dto.SSEEvent) error,
-) (map[string]interface{}, error) {
+	emitEvent func(*types.AIEvent) error,
+) (map[string]interface{}, *errors.Error) {
 	customerName, _ := args["customer_name"].(string)
 	customerPhone, _ := args["customer_phone"].(string)
 	shippingAddress, _ := args["shipping_address"].(string)
@@ -350,7 +320,7 @@ func (s *AIAgentService) executeProposeOrderDraft(
 		return map[string]interface{}{"error": "items cannot be empty"}, nil
 	}
 
-	draftItems := make([]dto.DraftItemDTO, 0, len(rawItems))
+	draftItems := make([]types.AIDraftItem, 0, len(rawItems))
 	totalAmount := decimal.Zero
 
 	for _, rawItem := range rawItems {
@@ -380,7 +350,7 @@ func (s *AIAgentService) executeProposeOrderDraft(
 		subtotal := unitPrice.Mul(decimal.NewFromInt(int64(qty)))
 		totalAmount = totalAmount.Add(subtotal)
 
-		draftItems = append(draftItems, dto.DraftItemDTO{
+		draftItems = append(draftItems, types.AIDraftItem{
 			ProductID:   productID,
 			ProductName: productName,
 			Variant:     variant,
@@ -394,7 +364,7 @@ func (s *AIAgentService) executeProposeOrderDraft(
 	now := time.Now()
 	expiresAt := now.Add(DraftTTL)
 
-	draft := &dto.OrderDraftDTO{
+	draft := &types.AIOrderDraft{
 		DraftID:         draftID,
 		TenantID:        tenantID,
 		CustomerName:    customerName,
@@ -413,7 +383,7 @@ func (s *AIAgentService) executeProposeOrderDraft(
 	cacheKey := fmt.Sprintf(DraftKeyPrefixFmt, tenantID, draftID)
 	draftBytes, err := json.Marshal(draft)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal order draft: %w", err)
+		return nil, errors.ErrSystemError(ctx, "failed to encode order draft")
 	}
 
 	if s.draftCache != nil {
@@ -424,8 +394,8 @@ func (s *AIAgentService) executeProposeOrderDraft(
 
 	// Emit SSE draft_proposed event
 	if emitEvent != nil {
-		_ = emitEvent(&dto.SSEEvent{
-			Type:  dto.SSEEventDraftProposed,
+		_ = emitEvent(&types.AIEvent{
+			Type:  types.AIEventDraftProposed,
 			Draft: draft,
 		})
 	}
@@ -441,17 +411,17 @@ func (s *AIAgentService) executeProposeOrderDraft(
 func (s *AIAgentService) Converse(
 	ctx context.Context,
 	tenantID, userID string,
-	req *dto.AIConverseRequest,
-	emitEvent func(*dto.SSEEvent) error,
-) error {
+	req *types.AIConversationInput,
+	emitEvent func(*types.AIEvent) error,
+) *errors.Error {
 	if tenantID == "" {
-		return fmt.Errorf("tenant_id is required")
+		return errors.ErrBadRequest(ctx).SetDetail("tenant_id is required")
 	}
 
 	tools := s.getToolDeclarations()
 	sysInstruction := s.getSystemInstruction()
 
-	var contents []gemini.Content
+	var contents []types.AIContent
 
 	// 1. Append past conversation history
 	if req != nil {
@@ -460,46 +430,43 @@ func (s *AIAgentService) Converse(
 			if role == "assistant" {
 				role = "model"
 			}
-			contents = append(contents, gemini.Content{
+			contents = append(contents, types.AIContent{
 				Role:  role,
-				Parts: []gemini.Part{{Text: msg.Content}},
+				Parts: []types.AIPart{{Text: msg.Content}},
 			})
 		}
 
 		// 2. Append current user message
-		contents = append(contents, gemini.Content{
+		contents = append(contents, types.AIContent{
 			Role:  "user",
-			Parts: []gemini.Part{{Text: req.Prompt}},
+			Parts: []types.AIPart{{Text: req.Prompt}},
 		})
 	}
 
-	geminiReq := &gemini.GenerateContentRequest{
+	generationRequest := &types.AIGenerationRequest{
 		Contents:          contents,
 		SystemInstruction: sysInstruction,
 		Tools:             tools,
 	}
 
 	// First pass: generate initial response or function calls
-	res, err := s.geminiClient.GenerateContent(ctx, geminiReq)
+	res, err := s.generator.GenerateContent(ctx, generationRequest)
 	if err != nil {
-		if emitEvent != nil {
-			_ = emitEvent(&dto.SSEEvent{Type: dto.SSEEventError, Error: err.Error()})
-		}
-		return err
+		return errors.ErrSystemError(ctx, "AI generation failed")
 	}
 
 	fc := res.FirstFunctionCall()
 	if fc != nil {
 		// Emit tool call event
 		if emitEvent != nil {
-			_ = emitEvent(&dto.SSEEvent{
-				Type: dto.SSEEventToolCall,
+			_ = emitEvent(&types.AIEvent{
+				Type: types.AIEventToolCall,
 				Tool: fc.Name,
 			})
 		}
 
 		var toolResult map[string]interface{}
-		var toolErr error
+		var toolErr *errors.Error
 
 		switch fc.Name {
 		case "search_products":
@@ -519,19 +486,19 @@ func (s *AIAgentService) Converse(
 		}
 
 		// Append model turn with functionCall
-		geminiReq.Contents = append(geminiReq.Contents, gemini.Content{
+		generationRequest.Contents = append(generationRequest.Contents, types.AIContent{
 			Role: "model",
-			Parts: []gemini.Part{
+			Parts: []types.AIPart{
 				{FunctionCall: fc},
 			},
 		})
 
 		// Append function response turn
-		geminiReq.Contents = append(geminiReq.Contents, gemini.Content{
+		generationRequest.Contents = append(generationRequest.Contents, types.AIContent{
 			Role: "function",
-			Parts: []gemini.Part{
+			Parts: []types.AIPart{
 				{
-					FunctionResponse: &gemini.FunctionResponse{
+					FunctionResponse: &types.AIFunctionResponse{
 						Name:     fc.Name,
 						Response: toolResult,
 					},
@@ -540,35 +507,39 @@ func (s *AIAgentService) Converse(
 		})
 
 		// Second pass: stream natural response explaining the result
-		return s.geminiClient.StreamGenerateContent(ctx, geminiReq, func(chunk *gemini.GenerateContentResponse) error {
+		streamErr := s.generator.StreamGenerateContent(ctx, generationRequest, func(chunk *types.AIGenerationResponse) error {
 			text := chunk.FirstText()
 			if text != "" && emitEvent != nil {
-				return emitEvent(&dto.SSEEvent{
-					Type: dto.SSEEventToken,
+				return emitEvent(&types.AIEvent{
+					Type: types.AIEventToken,
 					Text: text,
 				})
 			}
 			return nil
 		})
+		if streamErr != nil {
+			return errors.ErrSystemError(ctx, "AI response streaming failed")
+		}
+		return nil
 	}
 
 	// No function call: stream direct textual output
 	text := res.FirstText()
 	if text != "" && emitEvent != nil {
-		_ = emitEvent(&dto.SSEEvent{
-			Type: dto.SSEEventToken,
+		_ = emitEvent(&types.AIEvent{
+			Type: types.AIEventToken,
 			Text: text,
 		})
 	}
 
 	if emitEvent != nil {
-		_ = emitEvent(&dto.SSEEvent{Type: dto.SSEEventDone})
+		_ = emitEvent(&types.AIEvent{Type: types.AIEventDone})
 	}
 
 	return nil
 }
 
-func (s *AIAgentService) GetDraft(ctx context.Context, tenantID, draftID string) (*dto.OrderDraftDTO, *errors.Error) {
+func (s *AIAgentService) GetDraft(ctx context.Context, tenantID, draftID string) (*types.AIOrderDraft, *errors.Error) {
 	if tenantID == "" || draftID == "" {
 		return nil, errors.ErrBadRequest(ctx).SetDetail("tenant_id and draft_id are required")
 	}
@@ -583,7 +554,7 @@ func (s *AIAgentService) GetDraft(ctx context.Context, tenantID, draftID string)
 		return nil, errors.ErrNotFound(ctx, "draft", "draft not found or expired")
 	}
 
-	var draft dto.OrderDraftDTO
+	var draft types.AIOrderDraft
 	if err := json.Unmarshal(data, &draft); err != nil {
 		return nil, errors.ErrSystemError(ctx, "failed to parse draft payload")
 	}

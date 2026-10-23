@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/TruongHoang2004/Hexta/services/api/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 type TestPayload struct {

@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-
 const callerSkip = 2
 
 type LoggerOption struct {
@@ -105,4 +104,3 @@ func (l *Logger) withTrace(ctx context.Context) *zap.SugaredLogger {
 	}
 	return l.zap
 }
-

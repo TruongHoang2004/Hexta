@@ -27,7 +27,7 @@ func BuildService() fx.Option {
 		),
 		fx.Annotate(
 			gemini.NewGeminiClient,
-			fx.As(new(gemini.IGeminiClient)),
+			fx.As(new(service.IAIGenerator)),
 		),
 		fx.Annotate(
 			service.NewAIAgentService,

@@ -50,3 +50,7 @@ Recheck PR #52, then coordinate with messaging/Kafka for a Go dispatcher and res
 ## Atlas ownership correction — 2026-10-20
 
 Python no longer applies SQL at startup. Explicit Atlas migrations/ai and the migrate-ai job provision/adopt ai_runtime before readiness/worker start. Existing compatible runs retained, incompatible schemas rejected; 27 host/Docker AI tests passed. [Primary EPIC-003 session](../EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md) records the implementation once. No checkpoint/provider or parent-epic completion; local/unmerged.
+
+## Legacy Go boundary repair — 2026-10-20, local/unmerged
+
+The dormant Go AI service now uses read-only repository and domain generation/event types; Python runtime behavior, providers and messaging scope are unchanged. Atlas-backed isolation/limits and Fx/transport tests pass. [Shared EPIC-001 session](../EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) records the implementation; no parent-epic completion claim.

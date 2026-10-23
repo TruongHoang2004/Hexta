@@ -1,4 +1,4 @@
-import { AxiosInstance } from 'axios';
+import { AxiosInstance, AxiosResponse } from 'axios';
 
 interface Tenant {
     id: string;
@@ -50,10 +50,10 @@ interface PendingTenantInvitation {
     token: string;
     delivery: string;
 }
-interface TokenPair {
+interface AccessTokenResponse {
     access_token: string;
-    refresh_token?: string;
 }
+type TokenPair = AccessTokenResponse;
 interface StorageOptions {
     expires?: number | Date;
     path?: string;
@@ -82,24 +82,27 @@ declare class IdentityClient {
     private client;
     private storage;
     private accessTokenKey;
-    private refreshTokenKey;
-    constructor(client: AxiosInstance, storage: StorageAdapter, accessTokenKey?: string, refreshTokenKey?: string);
+    private onAuthExpired?;
+    private refreshPromise;
+    private logoutPromise;
+    private authGeneration;
+    private signedOut;
+    constructor(client: AxiosInstance, storage: StorageAdapter, accessTokenKey?: string, onAuthExpired?: (() => void) | undefined);
     login(email: string, password?: string): Promise<{
         token: string;
-        refreshToken?: string;
     }>;
     register(email: string, password?: string): Promise<{
         token: string;
-        refreshToken?: string;
     }>;
     refreshToken(): Promise<{
         token: string;
-        refreshToken?: string;
     }>;
+    private renewAccessToken;
+    private saveAccessToken;
     logout(): Promise<void>;
+    private revokeSession;
     clearTokens(): Promise<void>;
     getAccessToken(): Promise<string | null>;
-    getRefreshToken(): Promise<string | null>;
     requestTenant(input: TenantApplicationInput): Promise<TenantApplication>;
     getTenants(): Promise<Tenant[]>;
     getTenant(id: string): Promise<Tenant>;
@@ -113,24 +116,25 @@ interface SDKConfig {
     apiUrl: string;
     storage?: StorageAdapter;
     accessTokenKey?: string;
-    refreshTokenKey?: string;
     onAuthExpired?: () => void;
+}
+declare class SDKApiError extends Error {
+    readonly response: AxiosResponse<unknown>;
+    readonly status: number;
+    readonly code?: string | undefined;
+    constructor(message: string, response: AxiosResponse<unknown>, status: number, code?: string | undefined);
 }
 declare class HextaSDK {
     identity: IdentityClient;
     client: AxiosInstance;
     private storage;
     private accessTokenKey;
-    private refreshTokenKey;
     private onAuthExpiredCallback?;
-    private isRefreshing;
-    private failedQueue;
     constructor(config: SDKConfig);
-    private processQueue;
     private handleApiError;
     setOnAuthExpired(callback: () => void): void;
     clearTokens(): Promise<void>;
     getStorage(): StorageAdapter;
 }
 
-export { DefaultBrowserStorage, HextaSDK as EcommerceHubSDK, HextaSDK, IdentityClient, MemoryStorage, type PendingTenantInvitation, type SDKConfig, type StorageAdapter, type StorageOptions, type Tenant, type TenantApplication, type TenantApplicationInput, type TenantMember, type TokenPair, type User };
+export { type AccessTokenResponse, DefaultBrowserStorage, HextaSDK as EcommerceHubSDK, HextaSDK, IdentityClient, MemoryStorage, type PendingTenantInvitation, SDKApiError, type SDKConfig, type StorageAdapter, type StorageOptions, type Tenant, type TenantApplication, type TenantApplicationInput, type TenantMember, type TokenPair, type User };

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { sdk } from "@/lib/sdk";
+import { useAuthStore } from "@/store/useAuthStore";
 import { onboarding, type InvitationResult } from "@/lib/services/onboarding";
 import { errorText } from "@/lib/services/sales";
 import {
@@ -55,8 +56,17 @@ export default function InvitationPage() {
   }, []);
   async function switchAccount() {
     setBusy(true);
-    await sdk.identity.logout();
-    router.push("/login");
+    setError("");
+    try {
+      await sdk.identity.logout();
+      useAuthStore.getState().logout();
+      sessionStorage.removeItem("hexta.workspace");
+      router.push("/login");
+    } catch {
+      setError("Could not sign out. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function act(action: "accept" | "decline") {
     setBusy(true);

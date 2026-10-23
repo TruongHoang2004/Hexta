@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisClient struct {

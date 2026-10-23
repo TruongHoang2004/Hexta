@@ -52,3 +52,11 @@ Verify merge/CI; rerun documented startup if runtime/config changes. Inspect act
 [Session](sessions/2026-10-20_atlas-all-services.md): owner requested Atlas for every service and no automatic schema updates. Root config/desired SQL/API+AI histories, explicit Docker migration jobs, migration-backed PostgreSQL tests and CI are implemented locally on codex/atlas-all-services. Go race/vet, 27 host/Docker AI tests, fresh/adoption/no-op/invalid-state cases, Make apply/status/zero-drift and local preserved-count upgrade passed. No runtime startup DDL or test AutoMigrate remains. Local/unmerged; parent in-progress, completed false. [Runbook](../../../infrastructure/README.demo.md#atlas-for-all-current-services).
 
 Delivery follow-up: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) is open against main; initial CI started. Atlas slice is in-review, completed false; merge not verified. D4 browser acceptance is tracked separately and remains NOT RUN.
+
+## Merge verification follow-up — 2026-10-20
+
+PR #57 merged as 2abd305 at 08:54:27Z with all returned checks successful, superseding the publication snapshot above. Atlas code is delivered; parent acceptance is unchanged. [Cross-epic audit session](../EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) verifies syntax/history integrity and records existing rule gaps; D4 manual acceptance remains separate.
+
+## Test/CI compliance follow-up — 2026-10-20, local/unmerged
+
+The shared legacy repository test helper now delegates to Atlas-created disposable databases, so all five old repository tests run with API_TEST_DATABASE_URL. Backend CI checks formatting; API config fails on invalid signing keys before startup. Full Go race suite passed against isolated PostgreSQL with no skips; demo volume unchanged. [Shared session](../EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md).

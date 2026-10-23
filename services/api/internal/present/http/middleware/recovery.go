@@ -6,9 +6,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
+	"github.com/gin-gonic/gin"
 )
 
 func Recovery() gin.HandlerFunc {

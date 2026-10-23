@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Button, ThemeToggle } from "@hexta/ui";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,16 +23,26 @@ export function AuthNav() {
   const { isAuthenticated, user, initialize, logout } = useAuthStore();
   const isClient = useIsClient();
   const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
   const handleLogout = async () => {
-    await sdk.identity.logout();
-    logout();
-    sessionStorage.removeItem("hexta.workspace");
-    router.push("/");
+    setSigningOut(true);
+    setLogoutError("");
+    try {
+      await sdk.identity.logout();
+      logout();
+      sessionStorage.removeItem("hexta.workspace");
+      router.push("/");
+    } catch {
+      setLogoutError("Could not sign out. Please try again.");
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   if (!isClient) {
@@ -63,10 +73,11 @@ export function AuthNav() {
           </Link>
         </Button>
 
-        <Button onClick={handleLogout} variant="outline" size="sm" className="rounded-full shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all">
+        <Button onClick={handleLogout} disabled={signingOut} variant="outline" size="sm" className="rounded-full shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all">
           <LogOut className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Sign out</span>
+          <span className="hidden sm:inline">{signingOut ? "Signing out…" : "Sign out"}</span>
         </Button>
+        {logoutError && <p role="alert" className="max-w-48 text-sm text-destructive">{logoutError}</p>}
       </div>
     );
   }

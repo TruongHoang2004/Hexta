@@ -10,7 +10,7 @@ Base is `/api/v1`. Actual routing: [router.go](../../../services/api/internal/pr
 | GET /health | none | IMPLEMENTED DB/Redis health; inspect returned data.status, not only HTTP connectivity |
 | POST /auth/register | email, password | IMPLEMENTED account/session tokens; password min 6 in current DTO |
 | POST /auth/login | email, password | IMPLEMENTED account/session tokens |
-| POST /auth/refresh | refresh_token | IMPLEMENTED token refresh |
+| POST /auth/refresh | HttpOnly refresh cookie; no JSON body | IMPLEMENTED token refresh |
 | POST /auth/logout | optional session_id | IMPLEMENTED authenticated session logout; ownership checks apply |
 | GET /auth/google/login | none | IMPLEMENTED OAuth redirect/state; local profile has no OAuth credentials |
 | GET /auth/google/callback | provider code/state | IMPLEMENTED account linking; not configured in local smoke |
@@ -40,7 +40,7 @@ Tenant identity comes from the path. A conflicting X-Tenant-ID is rejected on sa
 
 ## Existing DTO details and compatibility gaps
 
-- Register/login: email required/valid, password required min 6; response data carries access_token, refresh_token, session_id, user_id (refresh response has tokens). Preserve existing SDK/session behavior; design changes to cookie handling explicitly.
+- Register/login: email required/valid, password required min 6; response data carries access_token, session_id, user_id. Refresh returns access_token only and reads the HttpOnly refresh cookie, without a JSON credential body. All browser auth paths set/reissue the refresh cookie with SameSite=Lax and Secure in production. This locally implemented contract supersedes the prior JSON token-pair contract; API and SDK must be released together.
 - Application: name/slug required; service normalizes and validates slug. Review is approve/reject, with rejection reason. Invitation accepts email only and fixes role to member. Tenant owner update permits name; commercial plan/access changes are rejected.
 - Sales draft requests allow empty items and absent customer/employee/price; supplied lines require a valid active tenant product and positive quantity. Missing unit_price sets price_provided=false while explicit zero sets true. Updates replace editable fields and require the current version. Draft assignment to another member or clearing an assignment requires owner; members may self-assign an unassigned draft. Another sale's draft is read-only to non-owners.
 - Confirmation requires the assigned actor, customer name/contact, at least one item with explicit nonnegative prices, and an address only for delivery. Both edits and confirmation lock the current draft and increment version; stale/non-draft commands return 409. Confirmed records are read-only in the current UI.
@@ -124,3 +124,9 @@ CORS permits the configured frontend origin and, outside production, localhost/1
 ## D4 workflow/work APIs — implemented locally 2026-10-20
 
 Authenticated /api/v1/tenants/{tenantID} now adds GET/POST workflow-definitions; POST workflow-definitions/{id}/versions; GET/POST work-items; GET work-items/{id}; POST work-items/{id}/handoff, /accept, /assign and /complete. DTO validation, standard envelopes and generated Swagger cover ten routes. Current membership/active tenant required; owner publishes/creates/assigns, current responsible actor progresses, nominated recipient accepts. All transition commands use expected_version; publication uses expected_version, and creation uses an Idempotency-Key UUID with durable payload checking. Work detail includes pinned steps and latest 100 events. Same-origin policy additionally permits Idempotency-Key. This is local implementation, not merged delivery; see [design](../2026-10-20_order-workflows_design.md) and [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Earlier workflow route rows were targets at their snapshot.
+
+## Rule-compliance follow-up — 2026-10-20, local/unmerged
+
+Auth cookie mutations reject untrusted browser origins; credentialed CORS uses explicit frontend origins. Session logout clears the server refresh cookie with matching attributes. SDK access-token storage cannot read or remove that cookie; local clearTokens is not server revocation. Missing/invalid distinct JWT signing keys fail before the API starts. Existing token-family replay semantics remain session-bound: reissued refresh JWTs do not individually revoke prior JWTs.
+
+Auth/health Swagger now declares response.Response[T], including health dependency details and 503. Canonical Swagger basePath is / because paths already include /api/v1; host is inferred from the serving endpoint. Generated-contract tests compare health/auth paths to registered routes. [Implementation session](../../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) owns verification evidence. No new routes or migrations.

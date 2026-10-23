@@ -5,6 +5,5 @@ import (
 )
 
 func BuildClient() fx.Option {
-	return fx.Options(
-	)
+	return fx.Options()
 }

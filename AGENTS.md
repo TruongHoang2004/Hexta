@@ -46,6 +46,11 @@ Keep IMPLEMENTED, VERIFIED, DECIDED, TARGET and OPEN distinct. Go owns business 
   - Return `*errors.Error` from services and repositories.
   - Map errors to appropriate HTTP status codes in controllers.
 
+### Authentication configuration and browser credentials
+- Require explicitly configured, distinct access and refresh signing keys of at least 32 bytes; fail startup on missing/invalid values. Never fall back to fixed signing keys.
+- The API owns browser refresh credentials through HttpOnly, SameSite=Lax cookies, Secure in production. Do not return refresh credentials in browser JSON responses or store/read them in JavaScript.
+- Credentialed browser requests require an explicit allowed frontend origin; cookie-changing auth handlers validate browser origin. Server logout must succeed before the UI reports completion.
+
 ## 3. API Documentation (Swagger)
 - Every new endpoint must have **Swagger annotations**.
 - Follow the existing pattern in controllers:
@@ -69,10 +74,10 @@ Keep IMPLEMENTED, VERIFIED, DECIDED, TARGET and OPEN distinct. Go owns business 
 - Use `make migrate svc=all` (or `make migrate svc=api` / `svc=ai`) for explicit Docker migration jobs. Host apply uses private API_DATABASE_URL/AI_DATABASE_URL with `make migrate-apply-local`. Missing legacy user/catalog targets are unsupported. Go database tests use an explicit API_TEST_DATABASE_URL and disposable databases migrated with Atlas; Python integration tests wait for the Atlas AI test job.
 
 ## 5. Frontend (Next.js)
-- Use **TypeScript** with strict types.
+- Use **TypeScript** with strict types; avoid explicit `any`. Run `pnpm --filter @hexta/sdk lint` for SDK type enforcement.
 - Use **Tailwind CSS** for styling.
-- Follow the App Router structure in `frontend/app/`.
-- Modularize logic into `frontend/lib/services/` for API calls.
+- Follow the App Router structure in `apps/web/app/`.
+- Modularize logic into `apps/web/lib/services/` for API calls.
 
 ## 6. AI Interaction Rules
 - **Plan first**: Always describe the plan before making non-trivial changes.
@@ -96,7 +101,7 @@ When executing skills (`github-task-runner`, `issue-creator`, `dev-plan`, `dev-d
 4. **Artifact & State**: Persist reasoning to `agentic-memory/` and transition lifecycle labels.
 
 ## 9. CI/CD & Automation (GitHub Actions)
-- **Backend CI** (`.github/workflows/backend-ci.yml`): Runs Go tests with race detection, `go vet`, and Atlas migration integrity validation.
-- **Frontend CI** (`.github/workflows/frontend-ci.yml`): Uses pnpm v10 and Node.js v20, builds SDK packages, checks linting, and validates Next.js production builds.
+- **Backend CI** (`.github/workflows/backend-ci.yml`): Checks Go formatting, runs Go tests with race detection, `go vet`, and Atlas migration integrity validation.
+- **Frontend CI** (`.github/workflows/frontend-ci.yml`): Uses pnpm v10 and Node.js v20, builds SDK packages, enforces SDK strict types and tests, checks web linting, and validates Next.js production builds.
 - **Docker CI/CD** (`.github/workflows/docker-ci-cd.yml`): Builds and caches container images for `services/api`, `apps/web`, and `Dockerfile.migrate` via Docker Buildx; pushes images to GitHub Container Registry (`ghcr.io`) on `main`.
 - **Concurrency**: Workflows cancel superseded in-progress runs on pull requests (`cancel-in-progress: true`) to optimize runner resources.

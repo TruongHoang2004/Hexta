@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
 	"github.com/go-playground/validator/v10"
 	"github.com/shopspring/decimal"
-	log "github.com/TruongHoang2004/Hexta/packages/shared/pkg/logger"
 )
 
 func NewValidator() *validator.Validate {

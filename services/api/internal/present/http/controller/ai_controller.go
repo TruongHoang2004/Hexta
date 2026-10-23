@@ -7,6 +7,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
 	_ "github.com/TruongHoang2004/Hexta/services/api/internal/present/http/response"
 	"github.com/gin-gonic/gin"
@@ -59,7 +60,11 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 	}
 
 	var req dto.AIConverseRequest
-	if err := ctrl.BindAndValidateRequest(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ctrl.ErrorData(c, errors.ErrBadRequest(c.Request.Context()).SetDetail("invalid conversation request"))
+		return
+	}
+	if err := ctrl.ValidateRequest(c.Request.Context(), &req); err != nil {
 		ctrl.ErrorData(c, err)
 		return
 	}
@@ -71,11 +76,11 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 	c.Header("X-Accel-Buffering", "no")
 
 	userID := ctrl.getAuthUserID(c)
-	emitEvent := func(event *dto.SSEEvent) error {
+	emitEvent := func(event *types.AIEvent) error {
 		if event == nil {
 			return nil
 		}
-		data, err := json.Marshal(event)
+		data, err := json.Marshal(dto.AIEventResponse(event))
 		if err != nil {
 			return err
 		}
@@ -87,10 +92,10 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 		return nil
 	}
 
-	if err := ctrl.aiService.Converse(c.Request.Context(), tenantID, userID, &req, emitEvent); err != nil {
-		_ = emitEvent(&dto.SSEEvent{
-			Type:  dto.SSEEventError,
-			Error: err.Error(),
+	if err := ctrl.aiService.Converse(c.Request.Context(), tenantID, userID, req.DomainInput(), emitEvent); err != nil {
+		_ = emitEvent(&types.AIEvent{
+			Type:  types.AIEventError,
+			Error: err.GetDetail(),
 		})
 	}
 }
@@ -125,5 +130,5 @@ func (ctrl *AIController) GetDraft(c *gin.Context) {
 		return
 	}
 
-	ctrl.Success(c, draft)
+	ctrl.Success(c, dto.AIOrderDraftResponse(draft))
 }

@@ -13,96 +13,20 @@ import (
 
 	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 )
 
-// Part represents a component of a multi-modal or multi-part message.
-type Part struct {
-	Text             string            `json:"text,omitempty"`
-	FunctionCall     *FunctionCall     `json:"functionCall,omitempty"`
-	FunctionResponse *FunctionResponse `json:"functionResponse,omitempty"`
-}
-
-// FunctionCall represents an invocation request initiated by the model.
-type FunctionCall struct {
-	Name string                 `json:"name"`
-	Args map[string]interface{} `json:"args"`
-}
-
-// FunctionResponse represents the output of a client-side function execution.
-type FunctionResponse struct {
-	Name     string                 `json:"name"`
-	Response map[string]interface{} `json:"response"`
-}
-
-// Content represents a conversational turn.
-type Content struct {
-	Role  string `json:"role,omitempty"` // "user", "model", "function"
-	Parts []Part `json:"parts"`
-}
-
-// FunctionDeclaration describes a tool available for function calling.
-type FunctionDeclaration struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Parameters  map[string]interface{} `json:"parameters,omitempty"`
-}
-
-// Tool wraps a set of function declarations.
-type Tool struct {
-	FunctionDeclarations []FunctionDeclaration `json:"functionDeclarations,omitempty"`
-}
-
-// GenerationConfig contains sampling hyperparameters.
-type GenerationConfig struct {
-	Temperature     *float64 `json:"temperature,omitempty"`
-	MaxOutputTokens *int     `json:"maxOutputTokens,omitempty"`
-}
-
-// GenerateContentRequest represents the payload sent to the Gemini API.
-type GenerateContentRequest struct {
-	Contents          []Content         `json:"contents"`
-	SystemInstruction *Content          `json:"systemInstruction,omitempty"`
-	Tools             []Tool            `json:"tools,omitempty"`
-	GenerationConfig  *GenerationConfig `json:"generationConfig,omitempty"`
-}
-
-// Candidate represents a generated response branch.
-type Candidate struct {
-	Content      Content `json:"content"`
-	FinishReason string  `json:"finishReason,omitempty"`
-}
-
-// GenerateContentResponse represents the payload received from Gemini API.
-type GenerateContentResponse struct {
-	Candidates []Candidate `json:"candidates,omitempty"`
-}
-
-// FirstText extracts the textual output from the first candidate part if available.
-func (r *GenerateContentResponse) FirstText() string {
-	if r == nil || len(r.Candidates) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	for _, part := range r.Candidates[0].Content.Parts {
-		if part.Text != "" {
-			sb.WriteString(part.Text)
-		}
-	}
-	return sb.String()
-}
-
-// FirstFunctionCall extracts the first function call from candidates if present.
-func (r *GenerateContentResponse) FirstFunctionCall() *FunctionCall {
-	if r == nil || len(r.Candidates) == 0 {
-		return nil
-	}
-	for _, part := range r.Candidates[0].Content.Parts {
-		if part.FunctionCall != nil {
-			return part.FunctionCall
-		}
-	}
-	return nil
-}
+// Provider wire values use the core generation protocol.
+type Part = types.AIPart
+type FunctionCall = types.AIFunctionCall
+type FunctionResponse = types.AIFunctionResponse
+type Content = types.AIContent
+type FunctionDeclaration = types.AIFunctionDeclaration
+type Tool = types.AITool
+type GenerationConfig = types.AIGenerationConfig
+type GenerateContentRequest = types.AIGenerationRequest
+type Candidate = types.AICandidate
+type GenerateContentResponse = types.AIGenerationResponse
 
 // IGeminiClient defines the interface for interacting with Google Gemini API.
 type IGeminiClient interface {

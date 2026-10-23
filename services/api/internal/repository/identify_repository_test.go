@@ -2,29 +2,18 @@ package repository
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/testutil"
 	"github.com/google/uuid"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func getTestDB(t *testing.T) *gorm.DB {
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		// Default to local docker postgres
-		dsn = "postgres://postgres:postgres@localhost:5433/api?sslmode=disable"
-	}
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Skipf("Skipping repository integration test: failed to connect to database (%v)", err)
-		return nil
-	}
-	return db
+	t.Helper()
+	return testutil.Database(t)
 }
 
 func TestIdentityRepository_MultiProvider_CompoundUniqueIndex(t *testing.T) {

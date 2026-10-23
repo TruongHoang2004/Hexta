@@ -24,13 +24,11 @@ import (
 )
 
 const (
-	OAuthStateTTL         = 5 * time.Minute
-	defaultAccessSecret   = "access-token-secret-fallback-for-dev"
-	defaultRefreshSecret  = "refresh-token-secret-fallback-for-dev"
-	defaultAccessExpire   = 15 * time.Minute
-	defaultRefreshExpire  = 7 * 24 * time.Hour
-	TokenTypeAccess       = "access"
-	TokenTypeRefresh      = "refresh"
+	OAuthStateTTL        = 5 * time.Minute
+	defaultAccessExpire  = 15 * time.Minute
+	defaultRefreshExpire = 7 * 24 * time.Hour
+	TokenTypeAccess      = "access"
+	TokenTypeRefresh     = "refresh"
 )
 
 type IAuthService interface {
@@ -79,7 +77,7 @@ func NewAuthService(
 	sessionRepo *repository.SessionRepository,
 	redisClient *cache.RedisClient,
 	cfg *config.Config,
-) *AuthService {
+) (*AuthService, error) {
 	return NewAuthServiceWithRepos(identityRepo, sessionRepo, redisClient, cfg)
 }
 
@@ -88,25 +86,22 @@ func NewAuthServiceWithRepos(
 	sessionRepo repository.ISessionRepository,
 	redisClient *cache.RedisClient,
 	cfg *config.Config,
-) *AuthService {
+) (*AuthService, error) {
 	if cfg == nil {
 		cfg = config.AppConfig
 	}
 
-	accessSecret := defaultAccessSecret
-	if cfg != nil && cfg.JWT.AccessTokenSecret != "" {
-		accessSecret = cfg.JWT.AccessTokenSecret
+	if err := cfg.ValidateAuth(); err != nil {
+		return nil, err
 	}
+	accessSecret := cfg.JWT.AccessTokenSecret
 
 	accessExpire := defaultAccessExpire
 	if cfg != nil && cfg.JWT.AccessTokenExpire > 0 {
 		accessExpire = time.Duration(cfg.JWT.AccessTokenExpire) * time.Second
 	}
 
-	refreshSecret := defaultRefreshSecret
-	if cfg != nil && cfg.JWT.RefreshTokenSecret != "" {
-		refreshSecret = cfg.JWT.RefreshTokenSecret
-	}
+	refreshSecret := cfg.JWT.RefreshTokenSecret
 
 	refreshExpire := defaultRefreshExpire
 	if cfg != nil && cfg.JWT.RefreshTokenExpire > 0 {
@@ -122,7 +117,7 @@ func NewAuthServiceWithRepos(
 		accessTokenExpire:  accessExpire,
 		refreshTokenSecret: []byte(refreshSecret),
 		refreshTokenExpire: refreshExpire,
-	}
+	}, nil
 }
 
 func (s *AuthService) GetAccessTokenExpire() time.Duration {
@@ -520,6 +515,7 @@ func (s *AuthService) generateToken(sessionID int64, userID string, email string
 		Email:     email,
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),

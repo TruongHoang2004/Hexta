@@ -66,6 +66,16 @@ Manual acceptance and PR delivery are tracked in the [primary handoff session](.
 
 Sales/tenant/branding delivery is in [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54), open with CI pending at publication. Manual acceptance and merge are not complete; broader workflow scope remains in-progress.
 
+## Verified delivery reconciliation — 2026-10-19
+
+PR #54 is now confirmed merged with successful checks; tenant/sales/branding is delivered on main. Earlier pending-merge notes above are historical. Manual acceptance and live operator verification remain separate gaps. The parent epic is not complete: D4 workflow/handoff, D5 overview and cancellation/returns remain missing. See [primary reconciliation session](../EPIC-001-system-design/sessions/2026-10-19_ticket-reconciliation.md).
+
+Current-week manual acceptance/fixes/regression and conditional D4 design are linked to Notion Sprint 2; see the [single primary repair record](../EPIC-001-system-design/sessions/2026-10-19_sprint-2-repair.md). No new implementation or completion claim.
+
+## Manual browser verification — 2026-10-20
+
+[Delegated testing session](sessions/2026-10-20_manual-browser-testing.md): nine bounded tenant/catalog/order/price cases passed with eight screenshots. Approval, invitations, cross-tenant and stale-edit cases remain NOT RUN. Test-only records retained; no code or privilege changes. Evidence delivery remains local/unmerged; parent status unchanged.
+
 ## D4 configurable work — 2026-10-20
 
 [Implementation session](sessions/2026-10-20_order-workflows.md): immutable ordered workflow versions, explicit confirmed-order work, direct/accepted handoff, owner reassignment/unassigned queue, history and tenant UI are implemented locally on codex/order-workflows. Go race/vet, PostgreSQL concurrency/actual-schema checks, HTTP DTO checks, web lint/types/production build, fresh Atlas migrations and populated upgrade passed. Browser verification and delivery review/merge remain; parent epic stays in-progress/completed false. No exception/D5 completion.
@@ -73,3 +83,7 @@ Sales/tenant/branding delivery is in [PR #54](https://github.com/TruongHoang2004
 D4 manual verification follow-up: browser cases NOT RUN because IAB was unavailable and native Chrome returned no usable state. No D4 screenshot or browser mutation. Local implementation is available for manual testing; automated evidence is recorded separately in the session.
 
 D4 delivery follow-up: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) includes the workflow slice and Atlas setup against main. Code is in review; manual D4 browser checks remain NOT RUN and merge pending. Parent epic stays in-progress/completed false.
+
+## PR #57 merge audit — 2026-10-20
+
+PR #57 merge into main 2abd305 and green checks verified. This supersedes earlier pending-merge wording for D4 code; browser acceptance remains NOT RUN and parent completion remains false. See the [shared audit session](../EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) for current standards findings and test boundaries.

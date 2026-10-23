@@ -6,14 +6,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/middleware"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockIdentityRepo struct{}
@@ -87,7 +88,7 @@ func setupTestRouter(authSvc *service.AuthService) *gin.Engine {
 
 func TestAuthMiddleware(t *testing.T) {
 	cfg := &config.Config{}
-	cfg.JWT.AccessTokenSecret = "test-middleware-secret-key-12345"
+	cfg.JWT.AccessTokenSecret = "test-middleware-access-secret-key-123456"
 	cfg.JWT.AccessTokenExpire = 900
 	cfg.JWT.RefreshTokenSecret = "test-middleware-refresh-secret-12345"
 	cfg.JWT.RefreshTokenExpire = 86400
@@ -95,7 +96,8 @@ func TestAuthMiddleware(t *testing.T) {
 	sessionRepo := &mockSessionRepo{
 		sessions: make(map[int64]*model.Sessions),
 	}
-	authSvc := service.NewAuthServiceWithRepos(&mockIdentityRepo{}, sessionRepo, nil, cfg)
+	authSvc, initErr := service.NewAuthServiceWithRepos(&mockIdentityRepo{}, sessionRepo, nil, cfg)
+	require.NoError(t, initErr)
 	router := setupTestRouter(authSvc)
 
 	// Create an active session and valid token

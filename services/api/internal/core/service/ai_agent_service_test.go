@@ -14,8 +14,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/gemini"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 )
 
 type mockMemoryRedis struct {
@@ -124,22 +125,22 @@ func TestAIAgentService_ZeroDBMutations(t *testing.T) {
 		},
 	}
 
-	aiService := NewAIAgentService(db, redisMock, geminiMock)
+	aiService := NewAIAgentService(repository.NewAICatalogRepository(db), redisMock, geminiMock)
 
 	// Check orders count BEFORE converse
 	var countBefore int64
 	db.Model(&model.Order{}).Count(&countBefore)
 	assert.Equal(t, int64(0), countBefore)
 
-	var emittedEvents []*dto.SSEEvent
-	err := aiService.Converse(context.Background(), tenantID, userID, &dto.AIConverseRequest{
+	var emittedEvents []*types.AIEvent
+	err := aiService.Converse(context.Background(), tenantID, userID, &types.AIConversationInput{
 		Prompt: "Tạo đơn cho anh A 2 hộp sữa bắp",
-	}, func(event *dto.SSEEvent) error {
+	}, func(event *types.AIEvent) error {
 		emittedEvents = append(emittedEvents, event)
 		return nil
 	})
 
-	require.NoError(t, err)
+	require.Nil(t, err)
 
 	// Invariant: ZERO direct database mutations executed by AI Agent
 	var countAfter int64
@@ -154,7 +155,7 @@ func TestAIAgentService_ZeroDBMutations(t *testing.T) {
 	var foundDraftEvent bool
 	var proposedDraftID string
 	for _, ev := range emittedEvents {
-		if ev.Type == dto.SSEEventDraftProposed {
+		if ev.Type == types.AIEventDraftProposed {
 			foundDraftEvent = true
 			require.NotNil(t, ev.Draft)
 			proposedDraftID = ev.Draft.DraftID
@@ -221,20 +222,20 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 	require.NoError(t, db.Create(&prodBeta).Error)
 
 	geminiMock := &mockAIGeminiClient{}
-	aiService := NewAIAgentService(db, redisMock, geminiMock)
+	aiService := NewAIAgentService(repository.NewAICatalogRepository(db), redisMock, geminiMock)
 
 	// Execute search_products in tenantAlpha
 	resAlpha, err := aiService.toolSearchProducts(context.Background(), tenantAlpha, map[string]interface{}{
 		"query": "bắp",
 	})
-	require.NoError(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, 1, resAlpha["matches"])
 
 	// Check stock availability in tenantAlpha
 	stockRes, err := aiService.toolCheckStockAvailability(context.Background(), tenantAlpha, map[string]interface{}{
 		"sku": "SKU-SUA-BAP",
 	})
-	require.NoError(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, true, stockRes["found"])
 	assert.Equal(t, 45, stockRes["available_qty"])
 
@@ -242,18 +243,18 @@ func TestAIAgentService_ToolSearchProducts_MultiTenant(t *testing.T) {
 	stockResBeta, err := aiService.toolCheckStockAvailability(context.Background(), tenantBeta, map[string]interface{}{
 		"sku": "SKU-SUA-BAP",
 	})
-	require.NoError(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, false, stockResBeta["found"], "Tenant beta must not see tenant alpha SKU")
 }
 
 func TestAIAgentService_TenantDraftIsolation(t *testing.T) {
 	db := setupTestDB(t)
 	redisMock := newMockMemoryRedis()
-	aiService := NewAIAgentService(db, redisMock, &mockAIGeminiClient{})
+	aiService := NewAIAgentService(repository.NewAICatalogRepository(db), redisMock, &mockAIGeminiClient{})
 
 	// Store draft for tenant-alpha
 	draftID := "draft_isolated_123"
-	draft := dto.OrderDraftDTO{
+	draft := types.AIOrderDraft{
 		DraftID:  draftID,
 		TenantID: "tenant-alpha",
 		Status:   "proposed",
@@ -269,4 +270,49 @@ func TestAIAgentService_TenantDraftIsolation(t *testing.T) {
 	// Tenant beta cannot access
 	_, errBeta := aiService.GetDraft(context.Background(), "tenant-beta", draftID)
 	assert.NotNil(t, errBeta)
+}
+
+func TestAIAgentServiceProviderFailureIsSanitized(t *testing.T) {
+	provider := &mockAIGeminiClient{generateFunc: func(*gemini.GenerateContentRequest) (*gemini.GenerateContentResponse, error) {
+		return nil, fmt.Errorf("private provider credential and upstream body")
+	}}
+	svc := NewAIAgentService(nil, newMockMemoryRedis(), provider)
+	failure := svc.Converse(context.Background(), "tenant", "user", &types.AIConversationInput{Prompt: "Hello"}, nil)
+	require.NotNil(t, failure)
+	require.Equal(t, 500, failure.GetHttpStatus())
+	require.Equal(t, "AI generation failed", failure.GetDetail())
+	require.NotContains(t, failure.Error(), "credential")
+}
+
+func TestAIAgentServiceStreamingFailureIsSanitized(t *testing.T) {
+	provider := &mockAIGeminiClient{
+		generateFunc: func(*gemini.GenerateContentRequest) (*gemini.GenerateContentResponse, error) {
+			return &gemini.GenerateContentResponse{Candidates: []gemini.Candidate{{Content: gemini.Content{Parts: []gemini.Part{{FunctionCall: &gemini.FunctionCall{Name: "unsupported"}}}}}}}, nil
+		},
+		streamFunc: func(*gemini.GenerateContentRequest, func(*gemini.GenerateContentResponse) error) error {
+			return fmt.Errorf("private upstream body")
+		},
+	}
+	svc := NewAIAgentService(nil, newMockMemoryRedis(), provider)
+	failure := svc.Converse(context.Background(), "tenant", "user", &types.AIConversationInput{Prompt: "Hello"}, nil)
+	require.NotNil(t, failure)
+	require.Equal(t, "AI response streaming failed", failure.GetDetail())
+}
+
+func TestAIAgentServiceDraftWithoutDatabase(t *testing.T) {
+	svc := NewAIAgentService(nil, newMockMemoryRedis(), &mockAIGeminiClient{})
+	var emitted *types.AIEvent
+	result, failure := svc.executeProposeOrderDraft(context.Background(), "tenant", map[string]interface{}{
+		"items": []interface{}{map[string]interface{}{"product_name": "Item", "quantity": 2, "unit_price": "12.50"}},
+	}, func(event *types.AIEvent) error { emitted = event; return nil })
+	require.Nil(t, failure)
+	require.Equal(t, "draft_proposed", result["status"])
+	require.NotNil(t, emitted)
+	require.True(t, emitted.Draft.TotalAmount.Equal(decimal.NewFromInt(25)))
+	draft, failure := svc.GetDraft(context.Background(), "tenant", emitted.Draft.DraftID)
+	require.Nil(t, failure)
+	require.Equal(t, emitted.Draft.DraftID, draft.DraftID)
+	_, failure = svc.GetDraft(context.Background(), "other", emitted.Draft.DraftID)
+	require.NotNil(t, failure)
+	require.Equal(t, 404, failure.GetHttpStatus())
 }

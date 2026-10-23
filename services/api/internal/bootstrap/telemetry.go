@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"context"
 
-	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/telemetry"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"go.uber.org/fx"
 )
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -70,9 +71,33 @@ func LoadConfig() error {
 		viper.Set(key, os.ExpandEnv(value))
 	}
 
-	AppConfig = &Config{}
-	if err := viper.Unmarshal(AppConfig); err != nil {
+	cfg := &Config{}
+	if err := viper.Unmarshal(cfg); err != nil {
 		return err
+	}
+	if err := cfg.ValidateAuth(); err != nil {
+		return err
+	}
+	AppConfig = cfg
+	return nil
+}
+
+// ValidateAuth fails closed before an authentication service can issue tokens.
+// Errors identify the invalid setting without including credential values.
+func (c *Config) ValidateAuth() error {
+	if c == nil {
+		return fmt.Errorf("authentication configuration is required")
+	}
+	for _, key := range []struct{ name, value string }{
+		{"jwt.access_token_secret", c.JWT.AccessTokenSecret},
+		{"jwt.refresh_token_secret", c.JWT.RefreshTokenSecret},
+	} {
+		if len(key.value) < 32 || strings.TrimSpace(key.value) != key.value || strings.Contains(key.value, "${") || strings.Contains(key.value, "fallback-for-dev") {
+			return fmt.Errorf("%s must be an explicitly configured signing key of at least 32 bytes", key.name)
+		}
+	}
+	if c.JWT.AccessTokenSecret == c.JWT.RefreshTokenSecret {
+		return fmt.Errorf("access and refresh signing keys must differ")
 	}
 	return nil
 }

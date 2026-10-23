@@ -43,9 +43,10 @@ type Params struct {
 	Private *gin.RouterGroup `name:"private"`
 }
 
-// Browser requests use explicit bearer authorization and a workspace header.
+// Browser requests use bearer authorization, a workspace header and the HttpOnly refresh cookie.
 func browserCORSConfig(cfg *config.Config) cors.Config {
 	result := cors.DefaultConfig()
+	result.AllowCredentials = true
 	origin := strings.TrimRight(cfg.Server.FrontendURL, "/")
 	if origin != "" {
 		result.AllowOrigins = []string{origin}

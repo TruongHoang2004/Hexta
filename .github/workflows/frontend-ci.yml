@@ -49,6 +49,11 @@ jobs:
         run: |
           pnpm --filter "./packages/*" --if-present run build
 
+      - name: Check SDK Types and Regression Tests
+        run: |
+          pnpm --filter @hexta/sdk run lint
+          pnpm --filter @hexta/sdk run test
+
       - name: Lint Applications
         run: |
           pnpm --filter web run lint

@@ -1,5 +1,9 @@
 # Architecture and service ownership
 
+## Proposed DDD ownership map — 2026-10-20
+
+The [DDD domain map](../2026-10-20_ddd-domain-map_design.md) proposes nine business contexts from current code and approved scope. Six have active foundations, Inventory is legacy, Conversation Handling and Response Scripts are targets. Context isolation, aggregate choices and core/supporting classification remain recommendations. AI execution is a supporting technical boundary; no code, schema, route or deployment change is made by this discovery. Existing layered architecture remains applicable.
+
 ## Current implementation versus target
 
 | Component | IMPLEMENTED baseline | DECIDED/TARGET |
@@ -86,3 +90,7 @@ TenantOnboardingController -> TenantOnboardingService -> TenantOnboardingReposit
 IMPLEMENTED locally/unmerged: apps/web/components/brand-logo.tsx renders approved PNG assets from public/brand with class-based light/dark selection. Landing, authentication, account/workspace shell and invitations share the component. It requires no theme hook or API contract change.
 
 The icon-only master is public/brand/hexta-icon.png. app/icon.png and app/favicon.ico use Next.js metadata file conventions for browser icons; the same blue emblem serves both themes. Locally verified, merge pending.
+
+## Legacy AI boundary repair — 2026-10-20, local/unmerged
+
+The dormant AIAgentService now depends on a read-only IAICatalogRepository and core generation/cache ports. Tenant-qualified catalog/stock/customer persistence belongs to the repository; conversation input, draft and event types belong to core/types, with HTTP/SSE mapping in the controller and Gemini adaptation in infrastructure. Services/repositories return sanitized shared errors. The legacy HTTP routes remain unregistered; this refactor does not authorize messaging, new sending or automatic order creation. Fx graph and Atlas-backed tenant/limit tests cover the extracted boundary; see the [shared session](../../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md).
