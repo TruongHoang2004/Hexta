@@ -12,6 +12,7 @@ func BuildController() fx.Option {
 		fx.Provide(controller.NewBaseController),
 		fx.Provide(controller.NewSalesController),
 		fx.Provide(controller.NewWorkflowController),
+		fx.Provide(controller.NewOverviewController),
 		fx.Provide(controller.NewHealthController),
 		fx.Provide(controller.NewAuthController),
 		fx.Provide(controller.NewTenantController),

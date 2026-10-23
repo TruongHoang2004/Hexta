@@ -58,6 +58,9 @@ jobs:
         run: |
           pnpm --filter web run lint
 
+      - name: Test Overview Date Boundaries
+        run: pnpm --filter web run test:overview-dates
+
       - name: Build Next.js Applications
         run: |
           pnpm --filter web run build
