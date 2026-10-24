@@ -222,3 +222,7 @@ U08 runs focused Go race/integration tests on explicit disposable Atlas-migrated
 ## Canonical module integration proposal
 
 Coordinator should add a TARGET subsection to `system/04-http-api.md`: owner-only GET tenant overview with this document linked, half-open creation cohorts, assignment semantics, full matching aggregates and paginated work. Add a TARGET D5 subsection to `system/07-workflows.md`: current-state creation cohorts, responsibility retained while waiting, unassigned subset, pinned version display, single snapshot. Keep existing implementation inventory unchanged until U08 delivery. These proposals are intentionally not written by this unit to avoid concurrent shared-file edits.
+
+## Implementation follow-up
+
+U08/U09 implement this contract locally and are published in [draft PR #59](https://github.com/TruongHoang2004/Hexta/pull/59). Earlier TARGET wording records the design snapshot, not current absence of code. Canonical API/workflow/operations modules and [execution evidence](../epics/EPIC-007-orders-workflows/sessions/2026-10-23_work-unit-execution.md) distinguish implemented/tested behavior from remaining manual acceptance and merge. No parent completion.

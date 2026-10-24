@@ -80,3 +80,7 @@ Implementation/review/checks are ready for a draft review PR. Original screensho
 ## Cleanup and publication preparation
 
 Disposable hexta-work-unit-postgres container removed after final checks; both private test-server credential files deleted. Application runtime/volume and private runtime overrides retained. Staged51 reviewed source/text files, excluding all screenshots/private fixtures. Documentation local links and credential-pattern scan passed; git diff --check and Go formatting guard passed. Preparing a draft review PR; no merge/parent completion.
+
+## Publication follow-up
+
+Published [draft PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) against main from codex/demo-work-units; implementation commit3537e37. GitHub connector disconnected (transport closed); CLI duplicate check returned none, then CLI created the draft and Codex artifact attachment succeeded. Initial checks at3537e37: backend/frontend/three Docker jobs in progress; issue lifecycle succeeded (runs started2026-10-24T01:55:10Z). This is an initial snapshot, not final CI success. Follow-up documentation commit does not change application behavior. Review/merge and stated manual/approval gates remain open; no unit or parent epic is marked done.

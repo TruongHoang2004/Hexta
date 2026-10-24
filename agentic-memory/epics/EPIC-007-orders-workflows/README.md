@@ -95,3 +95,5 @@ PR #57 merge into main 2abd305 and green checks verified. This supersedes earlie
 ## Delegated execution — 2026-10-23
 
 [Primary execution session](sessions/2026-10-23_work-unit-execution.md) links U01–U09. Supporting automated tests pass; U07 contract and U08/U09 owner overview API/UI are implemented/reviewed locally. Integrated Go race/vet, frontend lint/types/date tests and final Docker build/start passed. Root browser checks cover bounded sales validation/stale edit, direct handoff/reassignment/completion, pinned versions, waiting responsibility/cancellation and overview filter/count/detail/tenant-switch behavior. Two-profile acceptance, operator and other explicit manual gaps remain. No parent completion; changes pending reviewed merge.
+
+Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59), OPEN/draft against main at implementation3537e37. Initial backend/frontend/Docker CI in progress, lifecycle passed; [execution record](sessions/2026-10-23_work-unit-execution.md) retains exact evidence/manual/approval gaps. Review/merge pending; no completion transition.
