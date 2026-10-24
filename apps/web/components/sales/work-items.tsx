@@ -315,9 +315,19 @@ function WorkDetail({
   );
 }
 
-export function WorkItems() {
+export function WorkItems({
+  initialID,
+  invalidID = false,
+}: {
+  initialID?: string;
+  invalidID?: boolean;
+}) {
   const { tenant } = useWorkspace();
   const { user } = useAuthStore();
+  const detailRequest = useRef(0);
+  const [initialError, setInitialError] = useState(
+    invalidID ? "Invalid work link." : "",
+  );
   const [rows, setRows] = useState<WorkItem[]>([]);
   const [selected, setSelected] = useState<WorkItem | null>(null);
   const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
@@ -379,8 +389,27 @@ export function WorkItems() {
     void load();
     return () => abort.abort();
   }, [tenant, page, revision]);
+  useEffect(() => {
+    if (!tenant || !initialID) return;
+    let ignore = false;
+    const request = ++detailRequest.current;
+    workflows
+      .item(tenant.id, initialID)
+      .then((row) => {
+        if (!ignore && detailRequest.current === request) setSelected(row);
+      })
+      .catch((err: unknown) => {
+        if (!ignore && detailRequest.current === request)
+          setInitialError(errorText(err));
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [tenant, initialID, invalidID]);
   async function open(id: string) {
     if (!tenant || busy) return;
+    detailRequest.current++;
+    setInitialError("");
     setBusy(true);
     setError("");
     setSuccess("");
@@ -401,6 +430,8 @@ export function WorkItems() {
     key: string,
   ) {
     if (!tenant || busy) return;
+    detailRequest.current++;
+    setInitialError("");
     setBusy(true);
     setError("");
     setSuccess("");
@@ -464,7 +495,7 @@ export function WorkItems() {
           </button>
         </div>
       </div>
-      <Notice error={error || lookupError} success={success} />
+      <Notice error={initialError || error || lookupError} success={success} />
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <div className="space-y-5">
           {lookupLoading ? (

@@ -50,3 +50,9 @@ Latest compliance implementation: [delegated fixes](EPIC-001-system-design/sessi
 Latest delivery follow-up: [compliance PR publication](EPIC-001-system-design/sessions/2026-10-21_compliance-pr.md), 2026-10-21. Fresh checks passed within documented limits; parent epic states unchanged.
 
 2026-10-22 publication: [PR #58](https://github.com/TruongHoang2004/Hexta/pull/58) is open/non-draft against main; initial backend/frontend/Docker CI in progress at ab053d5, lifecycle check passed. [Publication session]( EPIC-001-system-design/sessions/2026-10-21_compliance-pr.md) is in-review/completed false. Screenshots excluded and kept local; review/merge and parent acceptance remain pending.
+
+2026-10-23: [next demo work units](../plans/2026-10-23_demo-work-units_plan.md), [primary EPIC-007 session](EPIC-007-orders-workflows/sessions/2026-10-23_demo-work-units.md). U01–U06 cover remaining Sprint 2 acceptance; U07–U09 cover conditional D5. PR #58 verified merged into main as 656a6c4; earlier open/unmerged notes are historical. Plan remains in-review/unmerged; parent epic table states unchanged.
+
+2026-10-23 delegated execution: [U01–U09 evidence](EPIC-007-orders-workflows/sessions/2026-10-23_work-unit-execution.md). Owner overview API/UI implemented locally on codex/demo-work-units; Go race/vet, web lint/types/date tests and final Docker build/start pass. Bounded root browser verification recovered; remaining dual-identity/operator/mobile/other manual gaps stay explicit. Review/merge pending; EPIC-007 remains in-progress/completed false.
+
+Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59), OPEN/draft against main at implementation3537e37. Initial backend/frontend/Docker CI in progress, lifecycle passed; [execution record](EPIC-007-orders-workflows/sessions/2026-10-23_work-unit-execution.md) retains exact evidence/manual/approval gaps. Review/merge pending; no completion transition.

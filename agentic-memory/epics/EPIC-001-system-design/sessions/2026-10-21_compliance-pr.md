@@ -35,3 +35,7 @@ Automatic approval review rejected a broad memory commit/push because screenshot
 ## 2026-10-22 delivery follow-up
 
 [PR #58](https://github.com/TruongHoang2004/Hexta/pull/58) is OPEN/non-draft against main at ab053d5. GitHub connector creation returned 403; GitHub CLI successfully created it with the existing account. Initial backend/frontend/Docker checks are in progress; lifecycle reconciliation succeeded. Screenshot files remain local/untracked. Review, final CI and merge are pending; completed remains false and parent states unchanged.
+
+## 2026-10-23 merge follow-up
+
+Owner reported merge; GitHub refetch confirmed merged at 2026-10-23T11:07:01Z into main as 656a6c4040b31e8d28049338e3e094df5a6db88a. Six returned CI checks on head 2504d69 succeeded. Pending-merge statements above describe earlier snapshots. This appended record is itself local/unmerged, so frontmatter remains in-review/completed false. Broader browser/epic acceptance remains open. [Next work session](../../EPIC-007-orders-workflows/sessions/2026-10-23_demo-work-units.md) records the handoff.

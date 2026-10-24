@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:overview-dates": "node --test lib/services/overview_dates.test.mjs"
   },
   "dependencies": {
     "@hexta/ui": "workspace:*",
