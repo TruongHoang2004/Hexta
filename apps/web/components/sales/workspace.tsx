@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import type { Tenant } from "@hexta/sdk";
 import { sdk } from "@/lib/sdk";
+import { useAuthStore } from "@/store/useAuthStore";
 import { AuthNav } from "@/components/auth-nav";
 import { errorText } from "@/lib/services/sales";
 
@@ -21,6 +22,7 @@ export function useWorkspace() {
   return state;
 }
 export function Workspace({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore();
   const params = useParams();
   const tenantID = typeof params.tenantId === "string" ? params.tenantId : "";
   const pathname = usePathname();
@@ -62,6 +64,7 @@ export function Workspace({ children }: { children: React.ReactNode }) {
     loading || (!!tenantID && tenant?.id !== tenantID && !error);
   const base = `/tenants/${tenantID}`;
   const links = [
+    ...(tenant?.owner_id === user?.id ? [[`${base}/overview`, "Overview"]] : []),
     [`${base}/orders`, "Orders"],
     [`${base}/customers`, "Customers"],
     [`${base}/products`, "Products"],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { TenantMember } from "@hexta/sdk";
 import { sdk } from "@/lib/sdk";
@@ -466,8 +466,20 @@ function OrderEditor({
   );
 }
 
-export function Orders() {
+export function Orders({
+  initialID,
+  invalidID = false,
+}: {
+  initialID?: string;
+  invalidID?: boolean;
+}) {
   const { tenant } = useWorkspace();
+  const detailRequest = useRef(0);
+  const [initialLoading, setInitialLoading] = useState(!!initialID);
+  const [initialError, setInitialError] = useState(
+    invalidID ? "Invalid order link." : "",
+  );
+  const [initialRetry, setInitialRetry] = useState(0);
   const [rows, setRows] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -536,7 +548,30 @@ export function Orders() {
     void load();
     return () => abort.abort();
   }, [tenant, page, revision]);
+  useEffect(() => {
+    if (!tenant || !initialID) return;
+    let ignore = false;
+    const request = ++detailRequest.current;
+    sales
+      .order(tenant.id, initialID)
+      .then((row) => {
+        if (!ignore && detailRequest.current === request) setSelected(row);
+      })
+      .catch((err: unknown) => {
+        if (!ignore && detailRequest.current === request)
+          setInitialError(errorText(err));
+      })
+      .finally(() => {
+        if (!ignore) setInitialLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [tenant, initialID, initialRetry]);
   function saved(row: Order) {
+    detailRequest.current++;
+    setInitialLoading(false);
+    setInitialError("");
     setDirty(false);
     setSelected(row);
     setEditorKey((value) => value + 1);
@@ -546,6 +581,9 @@ export function Orders() {
   function open(row: Order | null) {
     if (dirty && !window.confirm("Discard unsaved edits and open this order?"))
       return;
+    detailRequest.current++;
+    setInitialLoading(false);
+    setInitialError("");
     setDirty(false);
     setSelected(row);
     setEditorKey((value) => value + 1);
@@ -634,7 +672,35 @@ export function Orders() {
             disabled={loading || busy}
           />
         </section>
-        {lookupLoading && !members.length ? (
+        {initialError ? (
+          <section
+            role="alert"
+            className="space-y-3 rounded-xl border border-border p-5"
+          >
+            <h2 className="font-semibold">Order could not be opened</h2>
+            <p className="text-sm">{initialError}</p>
+            <p className="text-sm text-muted">
+              Select another order or explicitly start a new draft.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {initialID && (
+                <button
+                  className={secondaryClass}
+                  onClick={() => {
+                    setInitialError("");
+                    setInitialLoading(true);
+                    setInitialRetry((value) => value + 1);
+                  }}
+                >
+                  Retry opening order
+                </button>
+              )}
+              <button className={secondaryClass} onClick={() => open(null)}>
+                New order
+              </button>
+            </div>
+          </section>
+        ) : initialLoading || (lookupLoading && !members.length) ? (
           <p role="status">Loading order form…</p>
         ) : lookupError ? (
           <div className="rounded-xl border border-border p-5">
@@ -650,7 +716,7 @@ export function Orders() {
           </div>
         ) : (
           <OrderEditor
-            key={editorKey}
+            key={`${selected?.id || "new"}:${editorKey}`}
             order={selected}
             customers={customers}
             products={products}

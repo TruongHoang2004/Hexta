@@ -87,3 +87,13 @@ D4 delivery follow-up: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57
 ## PR #57 merge audit — 2026-10-20
 
 PR #57 merge into main 2abd305 and green checks verified. This supersedes earlier pending-merge wording for D4 code; browser acceptance remains NOT RUN and parent completion remains false. See the [shared audit session](../EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) for current standards findings and test boundaries.
+
+## Next work units — 2026-10-23
+
+[Planning session](sessions/2026-10-23_demo-work-units.md), [nine-unit plan](../../plans/2026-10-23_demo-work-units_plan.md): finish auth/sales/invitation/access/D4 acceptance (U01–U06), then define/build the D5 overview (U07–U09). Includes copyable prompts, file scopes, acceptance and dependencies. PR #58 merge into main as 656a6c4 verified after owner notification. No new browser tests or implementation; plan in-review/unmerged; epic remains in-progress/completed false.
+
+## Delegated execution — 2026-10-23
+
+[Primary execution session](sessions/2026-10-23_work-unit-execution.md) links U01–U09. Supporting automated tests pass; U07 contract and U08/U09 owner overview API/UI are implemented/reviewed locally. Integrated Go race/vet, frontend lint/types/date tests and final Docker build/start passed. Root browser checks cover bounded sales validation/stale edit, direct handoff/reassignment/completion, pinned versions, waiting responsibility/cancellation and overview filter/count/detail/tenant-switch behavior. Two-profile acceptance, operator and other explicit manual gaps remain. No parent completion; changes pending reviewed merge.
+
+Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59), OPEN/draft against main at implementation3537e37. Initial backend/frontend/Docker CI in progress, lifecycle passed; [execution record](sessions/2026-10-23_work-unit-execution.md) retains exact evidence/manual/approval gaps. Review/merge pending; no completion transition.

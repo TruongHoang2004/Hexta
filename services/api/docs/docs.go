@@ -1170,6 +1170,119 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tenants/{tenantID}/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Current-state counts in independent order/work creation cohorts, with paginated pinned workflow rows. Dates use inclusive from and exclusive to; employee means assigned sale/current work responsibility.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Overview"
+                ],
+                "summary": "Read the tenant owner overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant UUID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Inclusive RFC3339 creation timestamp (requires to)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exclusive RFC3339 creation timestamp (requires from)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Current member's opaque user ID",
+                        "name": "employee_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "all",
+                            "assigned",
+                            "unassigned"
+                        ],
+                        "type": "string",
+                        "default": "all",
+                        "description": "Assignment filter",
+                        "name": "assignment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page (1-100000)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size (1-100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OverviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tenants/{tenantID}/products": {
             "get": {
                 "security": [
@@ -2253,6 +2366,139 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewFilters": {
+            "type": "object",
+            "properties": {
+                "assignment": {
+                    "type": "string"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewOrderCounts": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "integer"
+                },
+                "draft": {
+                    "type": "integer"
+                },
+                "fulfilled": {
+                    "type": "integer"
+                },
+                "other": {
+                    "type": "integer"
+                },
+                "processing": {
+                    "type": "integer"
+                },
+                "returned": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkCounts": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unassigned": {
+                    "type": "integer"
+                },
+                "waiting": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkRow"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkRow": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "current_step": {
+                    "type": "integer"
+                },
+                "current_step_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "recipient_id": {
+                    "type": "string"
+                },
+                "responsible_id": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                },
+                "workflow_name": {
+                    "type": "string"
+                },
+                "workflow_version_id": {
+                    "type": "string"
+                },
+                "workflow_version_number": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_core_types.WorkflowStepInput": {
             "type": "object",
             "required": [
@@ -2444,6 +2690,23 @@ const docTemplate = `{
                 "total_amount": {
                     "type": "number",
                     "example": 50000
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewResponse": {
+            "type": "object",
+            "properties": {
+                "filters": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewFilters"
+                },
+                "orders": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewOrderCounts"
+                },
+                "work": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkCounts"
+                },
+                "work_items": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkPage"
                 }
             }
         },
@@ -3268,6 +3531,15 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OverviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewResponse"
                 },
                 "meta": {}
             }

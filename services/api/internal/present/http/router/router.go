@@ -17,6 +17,7 @@ func RegisterRoutes(
 	tenantController *controller.TenantController,
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
+	overview *controller.OverviewController,
 	onboarding *controller.TenantOnboardingController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
@@ -84,6 +85,7 @@ func RegisterRoutes(
 	resources.GET("/workflow-definitions", workflows.ListDefinitions)
 	resources.POST("/workflow-definitions", workflows.CreateDefinition)
 	resources.POST("/workflow-definitions/:id/versions", workflows.PublishVersion)
+	resources.GET("/overview", overview.GetOverview)
 	resources.GET("/work-items", workflows.ListWork)
 	resources.POST("/work-items", workflows.CreateWork)
 	resources.GET("/work-items/:id", workflows.GetWork)

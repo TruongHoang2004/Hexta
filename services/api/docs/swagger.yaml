@@ -237,6 +237,93 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewFilters:
+    properties:
+      assignment:
+        type: string
+      employee_id:
+        type: string
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewOrderCounts:
+    properties:
+      cancelled:
+        type: integer
+      confirmed:
+        type: integer
+      draft:
+        type: integer
+      fulfilled:
+        type: integer
+      other:
+        type: integer
+      processing:
+        type: integer
+      returned:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkCounts:
+    properties:
+      active:
+        type: integer
+      completed:
+        type: integer
+      total:
+        type: integer
+      unassigned:
+        type: integer
+      waiting:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkRow'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkRow:
+    properties:
+      created_at:
+        type: string
+      current_step:
+        type: integer
+      current_step_name:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      order_number:
+        type: string
+      recipient_id:
+        type: string
+      responsible_id:
+        type: string
+      state:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      workflow_name:
+        type: string
+      workflow_version_id:
+        type: string
+      workflow_version_number:
+        type: integer
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_core_types.WorkflowStepInput:
     properties:
       handoff_mode:
@@ -371,6 +458,17 @@ definitions:
       total_amount:
         example: 50000
         type: number
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewResponse:
+    properties:
+      filters:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewFilters'
+      orders:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewOrderCounts'
+      work:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkCounts'
+      work_items:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_types.OverviewWorkPage'
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse:
     properties:
@@ -923,6 +1021,12 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OverviewResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_PlatformAccessResponse
@@ -1922,6 +2026,85 @@ paths:
       summary: Confirm an order as the assigned sale
       tags:
       - Sales
+  /api/v1/tenants/{tenantID}/overview:
+    get:
+      description: Current-state counts in independent order/work creation cohorts,
+        with paginated pinned workflow rows. Dates use inclusive from and exclusive
+        to; employee means assigned sale/current work responsibility.
+      parameters:
+      - description: Tenant UUID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Inclusive RFC3339 creation timestamp (requires to)
+        in: query
+        name: from
+        type: string
+      - description: Exclusive RFC3339 creation timestamp (requires from)
+        in: query
+        name: to
+        type: string
+      - description: Current member's opaque user ID
+        in: query
+        name: employee_id
+        type: string
+      - default: all
+        description: Assignment filter
+        enum:
+        - all
+        - assigned
+        - unassigned
+        in: query
+        name: assignment
+        type: string
+      - default: 1
+        description: Page (1-100000)
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size (1-100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OverviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Read the tenant owner overview
+      tags:
+      - Overview
   /api/v1/tenants/{tenantID}/products:
     get:
       consumes:
