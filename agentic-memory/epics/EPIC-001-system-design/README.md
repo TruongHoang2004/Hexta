@@ -8,7 +8,7 @@ updated: 2026-10-28
 
 # System design and repository context
 
-Latest delivery: [rules/memory PR session](sessions/2026-10-28_rules-memory-pr.md), in-review/completed false; no parent completion.
+Latest delivery: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60), OPEN/non-draft; [publication session](sessions/2026-10-28_rules-memory-pr.md) is in-review/completed false. Review/merge and parent acceptance remain open.
 
 ## Current scope and decisions
 

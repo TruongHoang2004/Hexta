@@ -19,4 +19,4 @@ Current owner priority: Hexta thesis milestone 1Dec2026, one product at a time; 
 
 Latest memory maintenance: [cleanup session](EPIC-001-system-design/sessions/2026-10-28_memory-pruning.md). Removed-file lookup: [archive ledger](../ARCHIVE_INDEX.md), optional historical context only. State/completion semantics and session protocol live in AGENTS; new sessions use [the template](_SESSION_TEMPLATE.md).
 
-Rules/memory delivery: [publication session](EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md), local/in-review; original overview PR remains separate.
+Rules/memory delivery: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60), OPEN/non-draft against main; [publication session](EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md) in-review/completed false. Original overview PR remains separate.

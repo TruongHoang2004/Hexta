@@ -14,4 +14,4 @@ Validation: 91 unique rule IDs/provenance, selected-module router coverage, loca
 
 Cleanup's 165-to-77 working-snapshot count remains historical; this publication also retains main's newer audit and this short delivery record. Proposed policy refinements/mapper-cache mechanisms remain labeled review drafts. No hook, runtime, schema, dependency or screenshot publication. PR review/merge and parent acceptance remain open; completion is false.
 
-Publication URL/check status will be recorded after GitHub creation.
+Published [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60), OPEN/non-draft against main. Connector creation returned 403; CLI duplicate check found none and CLI created the PR. Codex artifact attached. CI is not yet asserted successful; review/merge remains open. Shared-main d09083c also hash-matches all 83 deletion preimages, so published recovery references use that reachable commit.

@@ -562,3 +562,5 @@ Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/
 ## 2026-10-28 — Publish rules and memory cleanup for review
 
 - Prepared isolated docs branch from current main, excluding overview application changes/screenshots while retaining referenced acceptance documents and main's newer audit. [Publication session](epics/EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md) records validation and eventual PR identity. No runtime test or parent completion claim.
+
+Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non-draft against main from codex/rules-memory-cleanup; connector creation 403 recovered via authenticated CLI, artifact attached. CI/review/merge not claimed complete; archive recovery uses shared main d09083c.
