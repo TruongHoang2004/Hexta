@@ -2,7 +2,7 @@
 
 ## Summary and ownership
 
-Implements the owner's approved tenant registration -> Hexta review -> initial owner flow, and owner email invitation -> explicit recipient acceptance -> membership. Business resources use route-qualified tenant identity. Existing tenants and business records are preserved; no subscription payment is claimed. This follows the [framework plan](../plans/2026-10-19_tenant-first-framework_plan.md).
+Implements the owner's approved tenant registration -> Hexta review -> initial owner flow, and owner email invitation -> explicit recipient acceptance -> membership. Business resources use route-qualified tenant identity. Existing tenants and business records are preserved; no subscription payment is claimed. This follows the [framework plan](../ARCHIVE_INDEX.md#pruned-2026-10-19-tenant-first-framework-plan).
 
 ## Architecture and flow
 

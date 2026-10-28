@@ -3,10 +3,14 @@ epic: EPIC-002
 title: Python AI runtime and durable gRPC jobs
 status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-10-28
 ---
 
 # Python AI runtime and durable gRPC jobs
+
+## Delivery correction — verified 2026-10-28
+
+PR #52 and #57/#58 are now verified merged into main. Pending-merge wording below describes historical session evidence, not current remote state. No fresh runtime/CI result or parent completion follows from this correction.
 
 ## Scope
 
@@ -23,13 +27,13 @@ Deliver a separate Python execution service with durable, tenant-qualified jobs 
 - [x] Shared Protobuf, generated Go/Python bindings, auth/input validation and Go smoke exist; PR #51 merge confirmed by owner.
 - [x] PostgreSQL run acceptance, digest conflict, leases/recovery/cancellation and readiness implemented on PR #52 branch.
 - [x] 22 Docker AI tests including real PostgreSQL passed at baseline; actual container restart retained run/idempotency.
-- [ ] Verify PR #52 merge/CI before closing its durable-run slice.
+- [x] PR #52 merge into main verified on 2026-10-28; historical test boundaries remain separate.
 - [ ] Design/implement persistent node checkpoints and future result outbox with replay/cost safety when selected.
 
 ## Design and implementation references
 
 - [05-grpc-ai.md](../../designs/system/05-grpc-ai.md)
-- [2026-10-18_durable-ai-runs_design.md](../../designs/2026-10-18_durable-ai-runs_design.md)
+- [2026-10-18_durable-ai-runs_design.md](../../ARCHIVE_INDEX.md#pruned-2026-10-18-durable-ai-runs-design)
 - [service.proto](../../../proto/hexta/ai/v1/service.proto)
 
 ## Evidence and verification boundary

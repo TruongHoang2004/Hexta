@@ -3,10 +3,14 @@ epic: EPIC-003
 title: Complete current local Docker runtime
 status: in-review
 completed: false
-updated: 2026-10-20
+updated: 2026-10-28
 ---
 
 # Complete current local Docker runtime
+
+## Delivery correction — verified 2026-10-28
+
+PR #52 and #57/#58 are now verified merged into main. Pending-merge wording below describes historical session evidence, not current remote state. No fresh runtime/CI result or parent completion follows from this correction.
 
 ## Scope
 
@@ -24,7 +28,7 @@ Run the current web/API/AI/PostgreSQL/Redis components, migrations and smoke che
 - [x] Web build/TypeScript, account/login/tenant smoke and AI restart checks passed.
 - [x] Docker-only launcher, runbook, temporary test DB and safe shutdown/reset instructions written.
 - [x] Existing Fx IDraftCache binding startup failure fixed and regression-tested.
-- [ ] Confirm PR #52 merge and CI before marking delivery done.
+- [x] PR #52 merge into main verified on 2026-10-28; no fresh CI/parent completion inferred.
 
 ## Design and implementation references
 

@@ -1,60 +1,23 @@
-# Hexta system design: canonical entry point
+# System design index
 
-Last reconciled: 2026-10-19. Code baseline: `01b2e11`, merged to main as `9784695` through [PR #52](https://github.com/TruongHoang2004/Hexta/pull/52) on 2026-10-19. Documentation [PR #53](https://github.com/TruongHoang2004/Hexta/pull/53) merged on 2026-10-19. The tenant-first/manual sales/branding slice is merged into main through PR #54 (5a1e719) with successful CI; current sales additions are recorded in the architecture/DB/API/workflow modules. This specification consolidates owner decisions and the current implementation. It replaces earlier dated designs as the navigation/interpretation baseline, without deleting their history.
+Canonical architecture/contract navigation. Engineering policy is selected through [root rules](../../rules/README.md); current work through [epics](../epics/README.md). Read only the module relevant to the task. Historical snapshots and verification limits belong to retained session evidence, not repeated status timelines here.
 
-## Read order
-
-1. [Epic index](../epics/README.md): select the relevant epic and read its own context/session records.
-2. [Product decisions and terminology](system/01-product-decisions.md).
-3. [Architecture and ownership](system/02-architecture.md).
-4. [Database: existing physical schema and target logical model](system/03-database.md).
-5. [HTTP APIs: implemented inventory and target contracts](system/04-http-api.md).
-6. [gRPC, AI graph and durable execution](system/05-grpc-ai.md).
-7. [Kafka events and delivery design](system/06-kafka-events.md).
-8. [Business workflows and concurrency](system/07-workflows.md).
-9. [Operations, security, tests and implementation roadmap](system/08-operations-security.md).
-10. [Current code ERD: physical keys and application references](system/09-current-erd.md).
-
-## Evidence labels
-
-| Label | Meaning |
+| Topic | Module |
 | --- | --- |
-| IMPLEMENTED | Present in the inspected baseline. This does not mean every business scenario has been runtime-tested. |
-| VERIFIED | A named runtime/test check actually passed; see operations for the exact verification boundary. |
-| DECIDED | The owner has chosen the requirement/direction; code may still be missing. |
-| TARGET | Technical contract/schema proposed to realize decided behavior; refine compatibly during implementation. |
-| OPEN | Requires evidence, measurement or an explicit owner choice. Never silently treat as implemented/approved. |
+| Product decisions and open scope | [01-product-decisions](system/01-product-decisions.md) |
+| Components, ownership and current/target boundaries | [02-architecture](system/02-architecture.md) |
+| API/AI schema and desired logical model | [03-database](system/03-database.md) |
+| Implemented HTTP inventory and target contracts | [04-http-api](system/04-http-api.md) |
+| Protobuf, fake AI graph and durable execution | [05-grpc-ai](system/05-grpc-ai.md) |
+| Kafka delivery target | [06-kafka-events](system/06-kafka-events.md) |
+| Business workflows and concurrency | [07-workflows](system/07-workflows.md) |
+| Runtime, security, verification limits and operations | [08-operations-security](system/08-operations-security.md) |
+| Physical code/migration ERD | [09-current-erd](system/09-current-erd.md) |
 
-Product decisions come from the owner's conversation and approved Notion requirements. Code/migrations/Protobuf determine implemented behavior. When these differ, retain both as an explicit gap; do not let a legacy endpoint override the approved scope. New explicit owner instructions supersede this snapshot; update this pack when they change a decision.
+Evidence labels: IMPLEMENTED = code exists; VERIFIED = a named bounded check passed; DECIDED = owner direction; TARGET = proposed contract/implementation; OPEN = unresolved evidence or choice. Never promote a target, old green test or local slice into production/parent completion.
 
-## System at a glance
+Current delivery snapshot (GitHub checked 2026-10-28): #52/#53 system/AI/docs, #54 tenant/sales, #55 thesis, #57 workflow/Atlas and #58 compliance merged into main. Owner overview remains local/draft [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59), review/merge/manual gates open. No new runtime tests or current CI-success claims in this cleanup.
 
-Hexta is a tenant-isolated sales/operations application. Messaging assistance is initially integrated through Pancake; order/workflow operations are separate. Go owns business authorization and sending. Python owns AI execution behind gRPC. Kafka is the owner-selected future event backbone. PostgreSQL owns business truth and AI run state. Redis is a cache, not the durable event/job authority. AI observability will be self-hosted.
+Current Go owns business authority/sending; Python owns fake AI execution/durable run state. PostgreSQL owns business truth; Redis is cache. Conversation/send pipeline, real providers, Kafka application integration, checkpoints and self-host traces remain targets. Owner requires aggregate mappers, shared-cache redesign and root/selective rules; detailed cache/mapper mechanism remains proposed, not refactored code.
 
-The current local stack runs Next.js, Go API, Python fake AI, PostgreSQL, Redis, role/schema initialization and Atlas migrations. Authentication/tenant pages and legacy order/AI-draft foundations exist. A local unmerged follow-up adds customer/product/order pages and a guarded incomplete-draft/explicit-confirmation HTTP boundary. The new conversation model, Go conversation worker, real provider adapters, Kafka producers/consumers, Pancake connector and Langfuse are not implemented in this slice.
-
-## Maintenance contract
-
-When changing a schema, endpoint, RPC, event or business rule, update its corresponding module and the affected epic/session records in the same change. Keep target and implemented sections separate. Do not add a new dated design that silently contradicts this pack; link the decision and amend the relevant section. Keep secret values out of all documents. Record validation in CHANGELOG.md with the actual command/result, not an assumed test outcome.
-
-The original consolidation was documentation only. Local unmerged sales/tenant-first follow-ups now add schema, API and UI as explicitly recorded in the modules; future messaging/sending capabilities remain targets.
-
-## 2026-10-19 delivery reconciliation
-
-PR #54 merged at 07:31:26Z with successful backend/frontend/container/lifecycle checks. Tenant-first onboarding and D1–D3 sales are delivered on main; older module/session local-unmerged wording describes historical snapshots. D4 workflows, overview, conversations and real AI/channel integration remain unimplemented. See [ticket reconciliation](../plans/2026-10-19_ticket-reconciliation_plan.md) for all-task scope and next work. No fresh application tests were run during this audit.
-
-## D4 local implementation — 2026-10-20
-
-Configurable sequential workflow versions, explicit order-linked work, direct/accepted handoff, owner reassignment/unassigned queue and work history are now implemented locally on codex/order-workflows. Database/API/workflow/operations modules contain the current boundary. [Design](2026-10-20_order-workflows_design.md), [session](../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Automated checks/build/upgrade passed; browser verification and review/merge remain. D5 overview and exceptions/messaging remain separate.
-
-## Atlas-only migration ownership — 2026-10-20
-
-Owner requires explicit Atlas migration for all current database services (api/public and ai/ai_runtime), including migration-backed tests. Python startup SQL and Go test AutoMigrate removed. Root atlas.hcl and migrations/schema define desired state; independent histories/job gates preserve existing data. [Design](2026-10-20_atlas-all-services_design.md), [primary session](../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md). Local verification passed; review/merge remains.
-
-## Merge and rule audit — 2026-10-20
-
-PR #57 is verified merged into main as 2abd305 with green CI, superseding pending-merge notes for D4/Atlas code. [Audit session](../epics/EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) records current security/contract/architecture/type/formatting debt and verification limits. No architecture or runtime behavior changed; D4 manual acceptance remains open.
-
-## Rule-compliance implementation — 2026-10-20, local/unmerged
-
-[Delegated fixes](../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) implement explicit JWT configuration, HttpOnly browser refresh contracts, accurate Swagger, legacy AI repository/domain boundaries, strict SDK types and formatting/CI guards. HTTP/architecture/security modules describe the current local behavior. No schema, provider, sending or parent-epic completion change.
+After schema/API/RPC/event/policy changes, update its owner module, relevant epic/session and CHANGELOG with actual verification boundaries. Removed superseded sources are listed in [archive ledger](../ARCHIVE_INDEX.md), optional lookup only; their original contracts do not override this pack or newer user decisions.

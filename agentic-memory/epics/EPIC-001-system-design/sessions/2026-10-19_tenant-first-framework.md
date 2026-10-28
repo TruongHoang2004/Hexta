@@ -14,7 +14,7 @@ Owner corrected the product hierarchy: tenant is the paying business customer; a
 
 ## Outcome and decisions
 
-Owner confirmed: customers apply for tenant registration and Hexta approves before access; tenant owners invite by email and recipients sign in/accept before activation. Saved [the framework plan](../../../plans/2026-10-19_tenant-first-framework_plan.md) with actor boundaries, nested routes, approval/invitation models, reuse of current sales code and five implementation slices. Approval provisions initial owner membership as the bootstrap interpretation; employee onboarding follows invitation acceptance. Email delivery/verification, operator bootstrap and billing policy remain open. No production payment/provider/key work is inferred.
+Owner confirmed: customers apply for tenant registration and Hexta approves before access; tenant owners invite by email and recipients sign in/accept before activation. Saved [the framework plan](../../../ARCHIVE_INDEX.md#pruned-2026-10-19-tenant-first-framework-plan) with actor boundaries, nested routes, approval/invitation models, reuse of current sales code and five implementation slices. Approval provisions initial owner membership as the bootstrap interpretation; employee onboarding follows invitation acceptance. Email delivery/verification, operator bootstrap and billing policy remain open. No production payment/provider/key work is inferred.
 
 ## Verification and evidence
 

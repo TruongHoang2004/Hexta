@@ -54,85 +54,22 @@ Database transactions stay short, with explicit leases/version predicates. Futur
 
 Monitor run age/backlog/recovery failures, outbox oldest event, Kafka lag age/disk/ISR/DLQ, per-tenant AI budget, error rate, unknown sends and trace export failures. Separate operational event history from retained business/audit records. Redis outage must not erase new business proposals. No automatic retention purge is implemented yet.
 
-## Verified evidence and limits
+## Verification evidence and current delivery limits
 
-At baseline 01b2e11:
+Historical results below remain bounded to the named sessions, not fresh checks from memory cleanup:
 
-- Docker AI test target: 22 tests passed, including real PostgreSQL concurrent submit/claim, digest conflict, tenant lookup, expired lease recovery, stale lease fencing, persisted cancellation, exhausted attempts and replacement worker.
-- Offline AI suite: 21 passed, one explicit-DSN DB test skipped when no test database configured.
-- Go bootstrap provider-graph regression and generated RPC/smoke packages passed; go vet ./internal/bootstrap passed.
-- Full Docker builds completed; web production build and TypeScript passed; five long-running services healthy; init/Atlas jobs exited 0.
-- Web login page, API DB/cache health, register/login and authenticated tenant create/list smoke passed.
-- Accepted AI result and same-ID retry survived an actual AI container restart.
-
-These are historical verification results, not a fresh rerun by every documentation edit. They do not cover the unimplemented message pipeline, actual AI providers, Kafka integration, real Pancake, full order scope, browser interaction end-to-end or production deployment.
-
-## Delivery roadmap and gates
-
-| Slice | Current status | Completion evidence needed |
+| Slice | Evidence owner | Limit |
 | --- | --- | --- |
-| Fake AI boundary and local stack | IMPLEMENTED/VERIFIED in PR #52 branch | Recheck merge/CI before starting from main |
-| Durable run jobs | IMPLEMENTED; whole-run replay | Provider/checkpoint work still separate |
-| Messaging foundations and permissions | TARGET | Atlas schema, tenant/claim/grant/version tests |
-| Kafka ingress/outbox/inbox | DECIDED/TARGET | Local broker dual listeners, typed events, outages/duplicates/rebalance tests |
-| Go conversation dispatcher/result acceptance | TARGET | Durable deterministic run IDs, stale-output/ownership/context tests |
-| Proposal/send simulator and expiry | TARGET | Full no-live-effects vertical flow, races and unknown-send handling |
-| Three AI provider adapters | DECIDED/TARGET | Fake contract tests first, owner secret provisioning and selected model/budget before paid verification |
-| LangGraph checkpoints and AI result outbox | TARGET | Node replay/idempotency/cost/failure tests and schema ownership |
-| Self-host Langfuse | DECIDED direction/TARGET implementation | Compatible dependency stack, viewer auth, redaction/export outage tests |
-| Real Pancake integration | OPEN external access | Actual entitlement/payload/auth/send/reconciliation verified |
-| VPS/domain | DECIDED eventual host; OPEN sizing | Measured app load/storage, selected host/domain, HTTPS, backup restore |
+| Initial durable fake AI/local stack | [AI durable session](../../epics/EPIC-002-ai-runtime/sessions/2026-10-18_durable-runs.md), [local stack](../../epics/EPIC-003-local-docker/sessions/2026-10-18_local-stack.md) | Original 22 Docker AI tests/restart smoke are historical; whole-run replay only |
+| Atlas all services | [Atlas session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md) | Explicit histories, disposable tests/fresh/adoption/upgrade; #57 now verified merged |
+| Auth/DTO/AI boundary compliance | [Compliance fixes](../../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) | Historical Go race 80/no skips, SDK35 and contract checks; browser gaps retained; #58 merged |
+| Sales/workflow/overview work units | [Active execution](../../epics/EPIC-007-orders-workflows/sessions/2026-10-23_work-unit-execution.md) | Automated/integrated build and bounded browser evidence; manual/approval/merge gaps remain, #59 OPEN/draft |
+| Current code-rule audit | [2026-10-28 review](../../reviews/2026-10-28_architecture-compliance_review.md) | Go85 pass/34 DB skips, SDK35, Python23/4 skips, lint/types/Atlas; no fresh DB/browser/race/build certification |
 
-Next recommended work is a messaging/Kafka ingress vertical slice with inbox/outbox and a simulator, keeping the durable Python RPC boundary. Exact task selection should check current GitHub/Notion state, PR merge status and the owner's latest instructions; do not automatically implement every target in this document.
+PRs #52–55/#57/#58 verified merged into main on 2026-10-28. PR #59 remains OPEN/draft. Cleanup performs no runtime checks or live grants/provider calls. Do not use earlier pending-merge or pre-compliance bug statements as current state; six current audit findings remain separately OPEN. Rule texts are selected through root rules, not repeated as chronological operations notes.
 
-## Definition of architecture documentation maintenance
+## Remaining target gates
 
-After schema/API/RPC/event changes, update database/HTTP/gRPC/Kafka modules and the affected epic/session records. After policy changes, update product/workflows and tests. After infrastructure work, update the runbook and actual verification evidence. Mark unfinished slices accurately. Link the PR and relevant file paths; never depend on chat history alone.
+Messaging permissions/context model and final Go send gate; Kafka producer/consumer/outbox/inbox delivery and replay safety; real provider adapters and cost budgets; LangGraph node checkpoints/result outbox; self-host trace auth/redaction/export failure; actual Pancake auth/webhook/send capability; measured VPS sizing, HTTPS and tested backup restore remain unimplemented or require explicit evidence. Owner's active demo/thesis roadmap determines sequencing; this is not an automatic instruction to build Kafka next.
 
-## 2026-10-19 delivery-state reconciliation
-
-GitHub CLI verified PR #52 and #53 merged into main; #52 reported successful backend/frontend/container checks and #53 successful lifecycle checks. Earlier roadmap merge gates are satisfied for those PRs. This is not a fresh local runtime verification or completion of target epics. See the [proposed next-work backlog](../../plans/2026-10-19_next-work-backlog_plan.md) for the bounded simulator-first sequence and current Notion dependencies.
-
-## Owner-directed first-demo sequencing
-
-The owner deferred key and mock-data tickets and prioritized code for early product feedback. The active plan now starts with user-entered customer/product/order flows, then responsibility handoff and an overview; manual conversation UI follows. Kafka, model integration, simulators and trace infrastructure are not first-demo prerequisites. This changes delivery order, not the approved target architecture or sending authorization boundaries. See the active sequence in the linked next-work plan.
-
-## Manual sales demo verification — 2026-10-19
-
-Local unmerged D1–D3 code now provides workspace/team, customer/product CRUD/archive and order draft/edit/explicit-confirmation screens. API/web built and started through scripts/local.sh up --build -d --wait api web; PostgreSQL/Redis healthy and init/migrate exited successfully. Fresh Atlas application to a disposable PostgreSQL DB passed in addition to upgrade of the existing local volume. Browser verification created/edited records, saved an empty draft, completed it, confirmed as the assigned actor and reloaded the confirmed result. No model or connector was used. Test-only records are labeled verification, not business evidence. See the EPIC-007 session for exact checks and remaining delivery work.
-
-## Tenant-first verification — 2026-10-19 local/unmerged
-
-Go race suite and vet passed; 25 SDK tests, web lint/type checks and production build passed. Isolated HTTP-controller tests cover application/review/invitation/acceptance including wrong actors. Eleven PostgreSQL sales/onboarding scenarios passed, including concurrent review/accept and draft/confirmation races. Atlas integrity and six fresh migrations passed; demo upgrade preserves prior accounts/orders. Browser verified pending application without added tenant access and existing tenant nested navigation/order persistence.
-
-Automatic approval review rejected a proposed temporary operator grant in the running demo because this live privileged change lacked explicit authorization. No grant was performed. Full approval/acceptance is tested in isolated fixtures; live operator review remains a separate authorized verification step. The trusted operator CLI is packaged in the API image; no public bootstrap endpoint or automatic first-user promotion exists. Email is manual private-link delivery; no email/payment/provider integration is claimed. See [implementation session](../../epics/EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md).
-
-Final tenant-first API/web rebuild passed, all required services healthy; browser rechecked the rebuilt chooser/orders/member screen. Executable operator CLI is packaged, but no grant was run. Disposable test PostgreSQL was stopped; application volume preserved.
-
-## Merge and backlog audit — 2026-10-19
-
-Remote evidence now confirms PR #54 merged as 5a1e719 with all returned checks successful; historical local-unmerged labels above are superseded for that slice. PR #55 thesis delivery also merged, without empirical-result claims. [Ticket reconciliation](../../plans/2026-10-19_ticket-reconciliation_plan.md) maps all 42 Notion tasks and preserves remaining manual/live-operator verification gaps. No application tests, external tracker changes or grants in this audit.
-
-## Bounded manual browser verification — 2026-10-20
-
-Delegated local UI checks passed T-1/T-2/C-1/P-1/O-1/O-2/O-3 (UI scope)/V-1/V-2 with eight screenshots; see [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_manual-browser-testing.md). Existing Docker services healthy. No fresh automated tests, source/image equivalence check or downstream side-effect audit. Remaining checklist cases, including approval/invitations, tenant isolation and stale edits, were NOT RUN. No implementation or architecture changes.
-
-## D4 local implementation checks — 2026-10-20
-
-Workflow implementation passed API/shared Go race tests and vet, seven PostgreSQL workflow scenarios (including actual Atlas constraints and accept/assign/create concurrency), isolated HTTP DTO/transition tests, web lint/type checks, Atlas integrity/fresh application and existing-volume upgrade. API/web Docker builds and Next.js production build succeeded; required demo services healthy. No model/channel/payment/inventory effect invoked. Browser acceptance pending; see [session](../../epics/EPIC-007-orders-workflows/sessions/2026-10-20_order-workflows.md). Historical target roadmap entries do not override this bounded implementation or imply merge/completion.
-
-D4 browser follow-up: NOT RUN due to unavailable IAB and native Chrome tool state; no D4 screenshots captured. Automated/database/build results remain valid within their stated boundaries.
-
-## Atlas-only migration pipeline — 2026-10-20
-
-Explicit API/AI jobs own schema changes; app startup performs no DDL. Root atlas.hcl, desired SQL and independent histories/revision schemas replace missing user/catalog targets and Python startup SQL. Migration-backed Go PostgreSQL race/vet, 27 Python tests, fresh/adoption/reject/no-op/zero-drift checks, public Make commands and existing-data upgrade passed. Dedicated dev/test databases are separate from demo records. [Session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md), [runbook](../../../infrastructure/README.demo.md#atlas-for-all-current-services). Local/unmerged; no production provisioning or broader acceptance implied.
-
-## Post-merge rule audit — 2026-10-20
-
-PR #57 is merged at 2abd305 with green CI. The [source audit](../../reviews/2026-10-20_code-rules-audit_review.md) identifies OPEN legacy JWT fallback and browser-refresh storage risks; hardened configuration and HttpOnly browser refresh behavior are TARGET, not implemented fixes. Fresh default Go/web/SDK/AI checks and Atlas validation pass within documented PostgreSQL skips. D4 browser acceptance remains NOT RUN. Earlier local/unmerged labels above are historical for the merged slice.
-
-## Compliance fixes — 2026-10-20, local/unmerged
-
-The prior audit's JWT fallback/browser-refresh risks are repaired locally: startup requires explicit distinct signing keys, browser refresh uses server-owned HttpOnly SameSite=Lax cookies (Secure production), cookie mutations reject untrusted origins, and CORS allows credentials only for explicit configured origins. SDK logout only reports success after server revocation; failures remain visible/retryable, and successful logout fences/drains refresh state. Individual refresh-JWT revocation remains outside this slice.
-
-CI adds SDK strict/no-explicit-any/tests and Go formatting enforcement. Full Go race suite80 tests/no skips plus subsequent Swagger contract race test, vet, SDK35 tests/build/type guard, web lint/tsc, Atlas and format/shell/YAML checks pass. Shared legacy repository fixtures now use Atlas disposable DBs. No browser E2E or deployment in this session; [record](../../epics/EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) has exact verification limits. Prior OPEN statements above remain historical until these local fixes are merged.
+For schema/API/RPC/event/policy changes, update the owning module and primary epic/session with actual checks/limits. Operational run commands and volume/backup safety above remain applicable; inspect current Compose/ports before using a historical endpoint snapshot.

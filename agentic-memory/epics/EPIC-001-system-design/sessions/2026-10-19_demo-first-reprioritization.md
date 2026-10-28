@@ -18,7 +18,7 @@ Existing uncommitted planning changes preserved. Rechecked web routes/SDK/UI inv
 
 ## Outcome and decisions
 
-Updated [the active plan](../../../plans/2026-10-19_next-work-backlog_plan.md): first deliver tenant workspace, manual customer/product CRUD and explicit order draft/confirmation; then configurable responsibility handoff and a factual overview. Manual conversations follow product feedback. Keys, datasets/mock tools, Kafka integration, AI/checkpoints/traces and external connector work are deferred from this demo critical path. Approved long-term scope remains intact. No fake send or fabricated success is introduced.
+Updated [the active plan](../../../ARCHIVE_INDEX.md#pruned-2026-10-19-next-work-backlog-plan): first deliver tenant workspace, manual customer/product CRUD and explicit order draft/confirmation; then configurable responsibility handoff and a factual overview. Manual conversations follow product feedback. Keys, datasets/mock tools, Kafka integration, AI/checkpoints/traces and external connector work are deferred from this demo critical path. Approved long-term scope remains intact. No fake send or fabricated success is introduced.
 
 ## Verification and evidence
 

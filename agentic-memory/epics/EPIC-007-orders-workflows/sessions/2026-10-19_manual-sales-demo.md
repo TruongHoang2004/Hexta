@@ -10,7 +10,7 @@ date: 2026-10-19
 
 ## Scope
 
-Implement the owner-approved D1–D3 first demo from [the active plan](../../../plans/2026-10-19_next-work-backlog_plan.md), without keys, datasets, simulation tooling or new event infrastructure. [Technical design](../../../designs/2026-10-19_sales-demo_design.md). Planning context lives in EPIC-001; workflow/handoff remains unfinished in this parent epic.
+Implement the owner-approved D1–D3 first demo from [the active plan](../../../ARCHIVE_INDEX.md#pruned-2026-10-19-next-work-backlog-plan), without keys, datasets, simulation tooling or new event infrastructure. [Technical design](../../../designs/2026-10-19_sales-demo_design.md). Planning context lives in EPIC-001; workflow/handoff remains unfinished in this parent epic.
 
 ## Starting evidence
 

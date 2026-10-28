@@ -3,87 +3,36 @@ epic: EPIC-007
 title: Approved order scope and flexible business workflows
 status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-10-28
 ---
 
-# Approved order scope and flexible business workflows
+# Sales, work and owner overview
 
-## Scope
+## Decisions and scope
 
-Adapt legacy order code to approved incomplete-draft/explicit-confirmation rules and optional workflow steps.
+- Messaging remains separate from orders. Drafts may be incomplete; assigned sale explicitly confirms only with named customer/contact, product, positive quantities, explicit nonnegative price and address when delivery applies.
+- Businesses choose optional sequential workflow steps; instances pin immutable published versions. Direct/accepted handoff, owner reassignment and unassigned queue have explicit responsibility/history rules.
+- Cancellation/return cases preserve original order/line history: assigned handler progresses, owner finalizes. Payment/refund execution, mandatory packing/shipping and legacy stock/auto_confirm effects are not silently approved.
 
-## Decisions and context
+## Current implementation and delivery
 
-- Keep messaging separate from orders; packing/shipping are not mandatory for every business.
-- Incomplete order drafts allowed. Assigned sale confirms after named customer/contact, product, positive quantities, explicit nonnegative price and delivery address when applicable.
-- Assigned handler progresses cancellation/return; owner finalizes. Preserve original order/line history; no payment/refund execution scope.
-- Existing payment flags, inventory reservation and auto_confirm are legacy behavior to audit, not approved new MVP requirements.
+- Tenant-first sales/catalog/onboarding delivered through merged #54; workflow/handoff and Atlas through merged #57; compliance through merged #58. Merge status freshly checked 2026-10-28; historical sessions retain their original test/acceptance limits.
+- U01–U09 acceptance/overview follow-up is implemented locally on codex/demo-work-units. [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) is still OPEN/draft; no merge or current CI-success claim.
+- Owner overview has real-data counts, coherent read snapshot, date/employee/assignment filters and pinned work/detail links. This is local delivery, not a completed epic.
 
-## Acceptance checklist
+## Acceptance remaining
 
-- [x] Local compatibility/scope audit and additive migration for legacy order services/DTOs; unmerged.
-- [x] Local incomplete draft update and explicit guarded confirmation, PostgreSQL race checks and browser demo; unmerged.
-- [ ] Versioned optional workflows, handoff/accept/assignment and audit history.
-- [ ] Cancellation/return quantity/ownership/finalization cases and tests.
+- [x] Incomplete drafts and guarded explicit confirmation implemented/delivered.
+- [x] Versioned configurable work, responsibility commands and audit history implemented/delivered.
+- [ ] Complete U01–U06 manual acceptance, including separate-recipient/profile invitation/acceptance, live operator approval and remaining edge/mobile cases.
+- [ ] Review/merge the local owner overview and acceptance follow-up (#59).
+- [ ] Cancellation/return quantity/ownership/finalization scope and tests.
 
-## Design and implementation references
+## Evidence and next handoff
 
-- [03-database.md](../../designs/system/03-database.md)
-- [04-http-api.md](../../designs/system/04-http-api.md)
-- [07-workflows.md](../../designs/system/07-workflows.md)
+- [Nine-unit plan](../../plans/2026-10-23_demo-work-units_plan.md) and [primary execution session](sessions/2026-10-23_work-unit-execution.md) own exact acceptance, U01–U09 links, automated results, bounded browser checks and approval limits. Read only the needed unit record, not all nine.
+- [Owner overview integration review](../../reviews/2026-10-23_owner-overview_review.md), [overview design](../../designs/2026-10-23_owner-overview_design.md).
+- [Manual browser evidence](sessions/2026-10-20_manual-browser-testing.md), [workflow implementation](sessions/2026-10-20_order-workflows.md), [initial sales](sessions/2026-10-19_manual-sales-demo.md): historical bounded evidence, not a fresh rerun.
+- [Demo checklist](../../../infrastructure/TESTING.demo.md), [DB](../../designs/system/03-database.md), [HTTP](../../designs/system/04-http-api.md), [workflow contracts](../../designs/system/07-workflows.md).
 
-## Evidence and verification boundary
-
-The manual D1–D3 sales slice is implemented and locally verified on codex/manual-sales-demo; merge/review remain pending. Existing merged foundations do not complete the parent epic.
-
-Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
-
-## Sessions
-
-- [2026-10-19_manual-sales-demo](sessions/2026-10-19_manual-sales-demo.md) — in-progress; completed: false.
-
-## Remaining work and next handoff
-
-Review/merge the manual sales slice. Next product slice is configurable responsibility handoff (D4), after feedback on the order demo. Cancellation/return cases and dashboard remain separate; do not inherit legacy stock/payment effects.
-
-## Workspace-first follow-up
-
-[2026-10-19_workspace-first-entry](sessions/2026-10-19_workspace-first-entry.md) — in-progress, completed: false. Explicit chooser and route gating implemented; lint/type checks pass. Runtime rebuild/browser verification pending because automatic approval review failed at model capacity, not because the action was deemed unsafe.
-
-## Tenant-first planning dependency
-
-The owner's corrected onboarding/product hierarchy is recorded in [EPIC-001's framework session](../EPIC-001-system-design/sessions/2026-10-19_tenant-first-framework.md). Preserve the sales implementation, but complete the approved tenant registration/approval/invitation foundation and tenant-scoped navigation before expanding workflows. No duplicate implementation session is recorded here.
-
-## Tenant-first implementation follow-up
-
-[Implementation session](../EPIC-001-system-design/sessions/2026-10-19_tenant-first-implementation.md) — in-progress; completed: false. Approval-first onboarding, manual email-addressed invitation acceptance, independent operator authority and tenant-qualified sales navigation/API are implemented locally. Automated checks pass; live privileged approval verification and delivery review/merge remain open. This supersedes previous pending-build/direct-create entry descriptions without rewriting their sessions.
-
-## Shared branding follow-up
-
-[EPIC-001 branding session](../EPIC-001-system-design/sessions/2026-10-19_theme-aware-branding.md) records the light/dark shared logo applied to the workspace shell. No sales behavior changes; local/unmerged.
-
-Manual acceptance and PR delivery are tracked in the [primary handoff session](../EPIC-001-system-design/sessions/2026-10-19_demo-pr-handoff.md); use the [checklist](../../../infrastructure/TESTING.demo.md) for sales, tenant and invitation checks.
-
-Sales/tenant/branding delivery is in [PR #54](https://github.com/TruongHoang2004/Hexta/pull/54), open with CI pending at publication. Manual acceptance and merge are not complete; broader workflow scope remains in-progress.
-
-## Verified delivery reconciliation — 2026-10-19
-
-PR #54 is now confirmed merged with successful checks; tenant/sales/branding is delivered on main. Earlier pending-merge notes above are historical. Manual acceptance and live operator verification remain separate gaps. The parent epic is not complete: D4 workflow/handoff, D5 overview and cancellation/returns remain missing. See [primary reconciliation session](../EPIC-001-system-design/sessions/2026-10-19_ticket-reconciliation.md).
-
-Current-week manual acceptance/fixes/regression and conditional D4 design are linked to Notion Sprint 2; see the [single primary repair record](../EPIC-001-system-design/sessions/2026-10-19_sprint-2-repair.md). No new implementation or completion claim.
-
-## Manual browser verification — 2026-10-20
-
-[Delegated testing session](sessions/2026-10-20_manual-browser-testing.md): nine bounded tenant/catalog/order/price cases passed with eight screenshots. Approval, invitations, cross-tenant and stale-edit cases remain NOT RUN. Test-only records retained; no code or privilege changes. Evidence delivery remains local/unmerged; parent status unchanged.
-
-## D4 configurable work — 2026-10-20
-
-[Implementation session](sessions/2026-10-20_order-workflows.md): immutable ordered workflow versions, explicit confirmed-order work, direct/accepted handoff, owner reassignment/unassigned queue, history and tenant UI are implemented locally on codex/order-workflows. Go race/vet, PostgreSQL concurrency/actual-schema checks, HTTP DTO checks, web lint/types/production build, fresh Atlas migrations and populated upgrade passed. Browser verification and delivery review/merge remain; parent epic stays in-progress/completed false. No exception/D5 completion.
-
-D4 manual verification follow-up: browser cases NOT RUN because IAB was unavailable and native Chrome returned no usable state. No D4 screenshot or browser mutation. Local implementation is available for manual testing; automated evidence is recorded separately in the session.
-
-D4 delivery follow-up: [PR #57](https://github.com/TruongHoang2004/Hexta/pull/57) includes the workflow slice and Atlas setup against main. Code is in review; manual D4 browser checks remain NOT RUN and merge pending. Parent epic stays in-progress/completed false.
-
-## PR #57 merge audit — 2026-10-20
-
-PR #57 merge into main 2abd305 and green checks verified. This supersedes earlier pending-merge wording for D4 code; browser acceptance remains NOT RUN and parent completion remains false. See the [shared audit session](../EPIC-001-system-design/sessions/2026-10-20_code-rules-audit.md) for current standards findings and test boundaries.
+The primary execution session retains the archive-approval event and observed test-record outcome; do not reinterpret it as authorized full acceptance. No screenshot/private test evidence was deleted during Markdown pruning. Finish explicit manual/review/merge gates before completion; parent remains in-progress/completed false.

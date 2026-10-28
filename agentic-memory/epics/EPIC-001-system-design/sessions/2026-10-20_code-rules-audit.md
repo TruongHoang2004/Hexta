@@ -18,7 +18,7 @@ Branch codex/atlas-all-services, HEAD 6fc291e. PR #57 verified merged at 2026-10
 
 ## Outcome and decisions
 
-[Review](../../../reviews/2026-10-20_code-rules-audit_review.md) records six actionable findings: predictable JWT fallbacks, JavaScript-readable refresh tokens, four Swagger envelope mismatches, legacy AI service boundary violations, SDK explicit any and 31 unformatted Go files. Principal findings predate #57; no PR-changed Go file fails gofmt. Atlas-only migration ownership complies with the inspected source rules. No application code or live settings changed; remediation remains OPEN.
+[Review](../../../ARCHIVE_INDEX.md#pruned-2026-10-20-code-rules-audit-review) records six actionable findings: predictable JWT fallbacks, JavaScript-readable refresh tokens, four Swagger envelope mismatches, legacy AI service boundary violations, SDK explicit any and 31 unformatted Go files. Principal findings predate #57; no PR-changed Go file fails gofmt. Atlas-only migration ownership complies with the inspected source rules. No application code or live settings changed; remediation remains OPEN.
 
 ## Verification and evidence
 
