@@ -29,7 +29,7 @@ Implement high-volume durable event fan-out with inbox/outbox, typed contracts a
 ## Design and implementation references
 
 - [06-kafka-events.md](../../designs/system/06-kafka-events.md)
-- [2026-10-18_kafka-event-backbone_design.md](../../designs/2026-10-18_kafka-event-backbone_design.md)
+- [2026-10-18_kafka-event-backbone_design.md](../../ARCHIVE_INDEX.md#pruned-2026-10-18-kafka-event-backbone-design)
 
 ## Evidence and verification boundary
 

@@ -1,0 +1,26 @@
+# Shared cache management and aggregate policies
+
+Owner direction: replace per-repository cache wrappers. Proposed mechanism: one shared cache manager for mechanics, aggregate-owned policy/snapshot contracts, and explicit cached read adapters for selected reads. Repository remains DB-only; service remains responsible for current authorization/business decisions. This is a design contract, not an implemented cache replacement or measured performance claim.
+
+## Rules
+
+| Rule ID | Origin | Requirement | Verification |
+| --- | --- | --- | --- |
+| CACHE-001 | O | During migration, existing decorators MUST preserve their repository contract and never bypass authorization or hide failed durable writes. This ID is retained for compatibility; new per-repository cache wrappers MUST NOT be created, following owner direction. | T legacy hit/miss/outage/write; S new wrapper scan |
+| CACHE-002 | E | Redis MUST NOT be the sole durable authority for new business orders, grants, proposals/events or AI jobs. Legacy draft caching is debt, not a template for new business truth. Current authorization state MUST remain DB-authoritative under this proposal. | R ownership; T outage/revocation |
+| CACHE-003 | P | Fx MUST bind one intentional query/cache path per consumer. Registered-but-unused wrappers MUST NOT count as active caching; replacement MUST remove obsolete bindings after behavior parity is verified. | S Fx graph; T composition |
+| CACHE-004 | D | Cache mechanics MUST be shared rather than implemented through a full repository wrapper per aggregate. Aggregate policy MUST remain separate from shared mechanics; new cache code MUST NOT repeat CRUD forwarding just to intercept a few reads. | S packages/forwarding; R ownership |
+| CACHE-005 | P | Each cached read MUST declare aggregate owner, scope, snapshot schema/key version, positive bounded TTL, invalidation dependencies and acceptable staleness. Caching MUST be opt-in; unclassified reads bypass cache. | S policy registry; R freshness |
+| CACHE-006 | P | Cache keys MUST include deployment namespace, schema version, aggregate/query and complete tenant/principal/filter scope. Keys/logs MUST NOT contain raw tokens, emails or secrets. Global lookups require an explicitly documented global scope. | T cross-tenant/filter/key tests |
+| CACHE-007 | P | Shared manager MUST distinguish hit, miss, corrupt value and backend failure. Cache outage/decode failure MUST fall back to the authoritative loader for cacheable reads within its timeout; loader failure MUST NOT be cached as business data or converted to success. | T miss/corrupt/outage/loader failure |
+| CACHE-008 | P | Shared manager MUST bound cache timeouts/payload size, suppress duplicate fills per key within its declared scope, and apply bounded TTL jitter. It MUST NOT claim cross-process stampede protection when only process-local coalescing is used. | T cancellation/parallel loads; R limits |
+| CACHE-009 | P | Cached reads MUST NOT run inside command transactions, locking authorization paths or coherent multi-query snapshots. Session validity, membership, tenant active status, operator/owner authority and mutable work/order transition state MUST bypass cache when used for decisions. | S call graph; T revoked/stale state |
+| CACHE-010 | P | Writes MUST commit DB state before cache invalidation/publication. A rollback MUST neither evict nor publish uncommitted values. Aggregate invalidation descriptors MUST cover old/new aliases and affected projections, not just the new key. | T commit/rollback/rename/derived read |
+| CACHE-011 | P | A concurrent fill MUST NOT publish a value loaded before a completed invalidation. Manager MUST implement/test a generation/fill-fencing protocol or leave caching disabled for that policy. Delete-only invalidation is insufficient. | T delayed old read vs invalidate/new write |
+| CACHE-012 | P | Cache invalidation failure after commit MUST remain observable as a cache consistency failure; it MUST NOT be reported as a rolled-back DB command. TTL bounds stale non-sensitive reads; strict freshness requires DB bypass or a separately approved durable invalidation mechanism. | T Redis failure after commit; R error contract |
+| CACHE-013 | P | Cache payloads MUST be explicit minimal read snapshots converted by the aggregate cache mapper, not whole ORM entities. A cache schema change MUST change its versioned namespace. Default policy MUST NOT cache not-found/errors, credentials or authorization decisions. | S schema/mapper; T field exclusion/version |
+| CACHE-014 | P | Enabling a policy MUST have evidence of useful read reuse and acceptable hit/miss latency, DB load and invalidation cost. Metrics MUST use bounded policy/result labels without per-user/key cardinality. No wrapper replacement may be called faster without measurement. | T representative measurement; R metrics |
+
+## Conditional implementation context
+
+Load the [cache design](../../agentic-memory/designs/2026-10-28_aggregate-mappers-cache_design.md) only for cache mechanism/protocol implementation or migration. It preserves package layout, generation fencing, failure/crash limits and candidate policy classification. A call-site-only edit need not load that design. No cache policy is enabled by this rule module.

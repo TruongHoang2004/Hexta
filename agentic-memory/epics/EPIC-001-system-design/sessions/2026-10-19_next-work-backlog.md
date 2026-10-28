@@ -18,7 +18,7 @@ Clean branch codex/system-design-epic-memory at 413ee35. GitHub CLI confirms PR 
 
 ## Outcome and decisions
 
-Created [the proposed backlog](../../../plans/2026-10-19_next-work-backlog_plan.md), with task dependencies, acceptance criteria, existing Notion mappings and a simulator-first sequence. Dataset/evaluation preparation proceeds alongside coding. No source code, Notion record, issue, or runtime behavior changed. The proposal is not a scope approval or implementation completion.
+Created [the proposed backlog](../../../ARCHIVE_INDEX.md#pruned-2026-10-19-next-work-backlog-plan), with task dependencies, acceptance criteria, existing Notion mappings and a simulator-first sequence. Dataset/evaluation preparation proceeds alongside coding. No source code, Notion record, issue, or runtime behavior changed. The proposal is not a scope approval or implementation completion.
 
 ## Verification and evidence
 

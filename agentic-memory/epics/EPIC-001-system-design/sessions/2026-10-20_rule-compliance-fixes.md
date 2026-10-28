@@ -10,7 +10,7 @@ date: 2026-10-20
 
 ## Scope
 
-Owner authorized a subagent for each module identified in the [audit](../../../reviews/2026-10-20_code-rules-audit_review.md). Primary EPIC-001, cross-domain auth/API/SDK and dormant legacy AI. Preserve unrelated local memory/screenshots. No commit, PR or deployment requested.
+Owner authorized a subagent for each module identified in the [audit](../../../ARCHIVE_INDEX.md#pruned-2026-10-20-code-rules-audit-review). Primary EPIC-001, cross-domain auth/API/SDK and dormant legacy AI. Preserve unrelated local memory/screenshots. No commit, PR or deployment requested.
 
 ## Starting evidence
 
