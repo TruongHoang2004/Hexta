@@ -1,9 +1,11 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -86,3 +88,26 @@ ai:
 	assert.Equal(t, 4096, cfg.AI.MaxTokens)
 	assert.Equal(t, 0.7, cfg.AI.Temperature)
 }
+
+func TestConfigFileParsing(t *testing.T) {
+	_ = godotenv.Load("../.env", ".env")
+	v := viper.New()
+	v.SetConfigName("config")
+	v.AddConfigPath(".")
+	v.AddConfigPath("./config")
+	v.SetConfigType("yml")
+
+	err := v.ReadInConfig()
+	assert.NoError(t, err)
+
+	for _, key := range v.AllKeys() {
+		if val, ok := v.Get(key).(string); ok {
+			v.Set(key, os.ExpandEnv(val))
+		}
+	}
+
+	var cfg Config
+	err = v.Unmarshal(&cfg)
+	assert.NoError(t, err)
+}
+

@@ -32,6 +32,10 @@ All three methods are unary RPCs. StartRun accepts work asynchronously rather th
 | 5 | control_generation | int64 nonnegative; echo takeover fence |
 | 6 | message | string |
 | 7 | scripts | repeated Script authorized snapshot |
+| 8 | history | repeated ConversationMessage (role, text), max 20 |
+| 9 | facts | repeated DomainFact (id, text), max 50 |
+| 10 | constraints | repeated string, max 20 |
+| 11 | allow_generation | bool; defaults false for existing callers |
 
 RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 
@@ -43,12 +47,16 @@ RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 | 4,5 | context_revision, control_generation | int64 echoed basis |
 | 6 | status | RunStatus enum |
 | 7 | simulated | bool; true in current fake runtime |
-| 8 | route | string; current graph script/human only |
+| 8 | route | string; script/generate/clarify/human |
 | 9 | text | string; empty when no candidate |
 | 10 | script_id | string; current snapshot identifier, not yet a full immutable business script-version contract |
 | 11 | reason | string safe decision category |
 | 12 | steps | repeated string graph node path |
 | 13 | error_code | string safe failure category |
+| 14,15 | provider, model | selected effective provider/model |
+| 16 | confidence | double in [0,1], model score rather than calibrated probability |
+| 17,18 | input_tokens, output_tokens | int64, provider usage or labeled estimate |
+| 19 | usage_estimated | bool, true when usage is locally estimated |
 
 Enum values: 0 UNSPECIFIED, 1 QUEUED, 2 RUNNING, 3 SUCCEEDED, 4 FAILED, 5 CANCELLED. Protobuf scalar defaults are real contract defaults; absent int64 revisions decode as 0 and absent bool active as false. Current Python rejects negative revisions but does not require positive revisions.
 
@@ -67,23 +75,39 @@ Identifiers tenant/run/turn match `[A-Za-z0-9_-]{1,100}`. Preview input strips l
 | Runtime DB error | UNAVAILABLE |
 | Offline memory adapter capacity reached | RESOURCE_EXHAUSTED; not the current PostgreSQL runtime capacity policy |
 
-Caller deadlines bound the transport operation, not accepted durable work. On timeout reuse/query the same run ID; do not create a new ID merely because the response was lost. CancelRun is explicit and best effort for computation; durable state revokes result publication. Actual model requests may already have incurred costs in future adapters.
+Caller deadlines bound the transport operation, not accepted durable work. On timeout reuse/query the same run ID; do not create a new ID merely because the response was lost. CancelRun is explicit and best effort for computation; durable state revokes result publication. A model request may already have incurred cost even if cancelled or its response is lost.
 
-## Implemented graph
+## Implemented graph (local provider extension, 2026-11-03)
 
 ```mermaid
 flowchart LR
-    S[START] --> P[prepare_context]
-    P --> R[route]
-    R --> U{Exactly one active exact trigger match?}
-    U -->|yes| T[render_script]
-    U -->|no| H[request_human]
+    S[START] --> I[validate_input] --> P[prepare_context] --> C[classify_intent]
+    C --> R{Validated route}
+    R --> T[render_script]
+    R --> G[generate_candidate]
+    R --> Q[ask_clarification]
+    R --> H[request_human]
     T --> V[validate_output]
+    G --> V
+    Q --> V
     H --> V
     V --> E[END]
 ```
 
-Matching strips/case-folds message and trigger. Ambiguous/inactive/no-match => human result with no invented text. A script containing unresolved braces goes to human. Both graph-level and result-level step arrays include validation. This is a fake boundary probe, not a trained model, semantic routing or proof of real provider integration. Hosted LangSmith tracing is disabled around graph calls.
+Fake routing retains unique active exact matching; no/ambiguous match returns
+human. Real adapters share LangChain init_chat_model / with_structured_output / ainvoke
+through the Gemini/OpenAI/Anthropic integrations, with retries disabled, 20-second default call timeout (max 30), bounded
+output and estimated input budgets. Missing credentials select fake explicitly
+in health; invalid supplied credentials do not trigger provider failover.
+
+Scripts must be active and confidence must meet the configured threshold. Only
+trusted-caller generation opt-in plus bounded facts permits generation. Candidate
+text must equal cited facts joined verbatim with newlines; unsupported text/IDs
+require human review. Unresolved template braces also require human. Email/number
+redaction is heuristic. History/constraints are data, not tool authority.
+Both step arrays include validation; no hidden reasoning is exposed. Hosted tracing
+stays disabled. Provider streaming is buffered structured output, not token/RPC
+streaming. See [design](../2026-11-03_ai-providers_design.md).
 
 ## Implemented PostgreSQL execution protocol
 
@@ -92,26 +116,32 @@ Matching strips/case-folds message and trigger. Ambiguous/inactive/no-match => h
 Worker flow:
 
 1. Poll for work (idle delay 0.2s); claim one queued or expired running row via short `FOR UPDATE SKIP LOCKED` transaction.
-2. Persist fresh UUID lease token, increment attempts and set 60-second lease. Execute graph outside transaction.
-3. Check/renew lease at up to one-second intervals while awaiting task completion. Whole execution budget is 60 seconds. A lost/cancelled/expired lease cannot publish.
+2. Persist fresh UUID lease token, increment attempts and set 60-second lease. For live work commit a fenced LLM_CALL_STARTED marker before inference. Execute graph outside transaction.
+3. Check/renew lease at up to one-second intervals while awaiting task completion. Whole execution budget is 65 seconds. A lost/cancelled/expired lease cannot publish.
 4. Serialize a complete candidate privately; update result/status atomically only if tenant/run/token match and lease remains unexpired/running.
 5. CancelRun durably sets CANCELLED and clears lease before response. Worker renewal/finish subsequently fails; cooperative task cancellation is secondary protection.
-6. Expired attempts below 3 may be reclaimed. Expired attempt at 3 fails with RECOVERY_ATTEMPTS_EXHAUSTED. Normal runner/serialization/timeout failure stores SIMULATION_RUN_FAILED. No arbitrary infinite retry of provider effects.
-7. Graceful shutdown cancels the worker and requeues its still-owned run, decrementing the claim attempt; abrupt crash relies on expiry. Terminal states are not requeued.
+6. Expired attempts below 3 may be reclaimed. Expired attempt at 3 fails with RECOVERY_ATTEMPTS_EXHAUSTED. Normal runner/serialization/timeout failure stores SIMULATION_RUN_FAILED. Live recovery with LLM_CALL_STARTED fails as LLM_RECOVERY_UNCERTAIN before inference; SDK retry is disabled. Saved output is reused. Provider/model mismatch fails as PROVIDER_CONFIG_CHANGED.
+7. Graceful shutdown cancels the worker and requeues its still-owned run, decrementing the claim attempt; abrupt crash relies on expiry. Release retains the paid marker, so live work is not called again. Terminal states are not requeued. Drain older workers before enabling live providers because older binaries do not honor this marker.
 
 A runtime instance processes one graph at a time. Multiple instances can claim different rows, but fair scheduling, tenant quotas, pooling, batching and load performance are not yet established. Runtime requires AI_DATABASE_URL and never falls back to memory when DB fails. Readiness checks worker liveness and DB access; DB exception bodies/credentials are not returned over RPC.
 
-## Decided AI target and missing fields
+## Remaining target fields and recovery
 
-Target graph: validate input -> prepare context -> model router -> script / generation / clarification / human -> output validation. Provider adapters: OpenAI, Anthropic, Gemini with configured server secrets; one provider/model per run and explicit capability checks. The owner asked for simple AI, not a multi-agent platform.
+Provider/model/confidence/usage and bounded history/facts now have additive v1
+fields. Immutable script/prompt/graph/config versions, explicit cost, trace
+references, execution budget contracts and richer typed branch detail remain
+open. Add fields compatibly; reserve removed names/tags or version breaking changes.
 
-The current wire contract lacks immutable script version, prompt/graph version, selected provider/model/config version, evidence IDs, usage/cost, trace references, richer history/product facts, execution budgets and typed branch/error detail. Add compatible fields with new tags before live use. Reserve removed tags/names; introduce a new package/version for incompatible changes. Do not pretend these fields exist in v1 today.
-
-Persistent LangGraph node checkpoints and AI result outbox are TARGET. Current recovery re-executes the complete deterministic fake graph. Before paid models/tools, define replay/cost budgets and node idempotency; a checkpoint does not make external side effects exactly once. Go must reject stale results after takeover, new message, config/script changes or closure regardless of Python run success. Self-host trace export is separate from durable run storage.
+Persistent LangGraph node checkpoints and result outbox remain TARGET. Fake work
+can replay; live work favors avoiding duplicate charges over automatic recovery.
+The marker is not exactly-once provider billing or a node checkpoint. Go must
+still reject stale results after takeover, new messages or changed permissions.
+Self-host trace export remains separate. Local implementation and test evidence:
+[provider session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-03_ai-providers.md).
 
 ## Internal HTTP diagnostic endpoints
 
-GET /health/live reports process/fake mode; GET /health/ready checks durable runtime dependencies when enabled. POST /internal/v1/preview requires Bearer token and invokes the fake graph synchronously without creating a durable run. Docs UI is disabled. HTTP preview is never the new business reply API. Test-only AI_GRPC_ENABLED=false allows offline HTTP tests.
+GET /health/live reports process and effective provider/simulation mode; GET /health/ready checks durable runtime dependencies when enabled. POST /internal/v1/preview requires Bearer token and awaits the configured graph without creating a durable run (each live preview can incur new cost). Docs UI is disabled. HTTP preview is never the new business reply API. Test-only AI_GRPC_ENABLED=false allows offline HTTP tests.
 
 ## Explicit schema migration — 2026-10-20
 

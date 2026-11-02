@@ -449,3 +449,50 @@ CREATE TABLE "work_events" (
   CONSTRAINT "work_events_state_check" CHECK ((state)::text = ANY (ARRAY[('active'::character varying)::text, ('waiting'::character varying)::text, ('completed'::character varying)::text])),
   CONSTRAINT "work_events_version_check" CHECK (version > 0)
 );
+
+-- Simulator messaging aggregate. Real channel bindings are a separate delivery.
+CREATE TABLE "messaging_threads" (
+ "id" uuid NOT NULL PRIMARY KEY,
+ "tenant_id" character varying(36) NOT NULL REFERENCES "tenants" ("id"),
+ "external_key" character varying(120) NOT NULL,
+ "display_name" character varying(120) NOT NULL,
+ "created_at" timestamptz NOT NULL,
+ "updated_at" timestamptz NOT NULL,
+ UNIQUE ("tenant_id", "id"),
+ UNIQUE ("tenant_id", "external_key")
+);
+CREATE INDEX "idx_messaging_threads_list" ON "messaging_threads" ("tenant_id", "id" DESC);
+CREATE TABLE "messaging_turns" (
+ "id" uuid NOT NULL PRIMARY KEY,
+ "tenant_id" character varying(36) NOT NULL,
+ "thread_id" uuid NOT NULL,
+ "lifecycle" character varying(16) NOT NULL CHECK ("lifecycle" IN ('open', 'closed')),
+ "assignee_id" character varying(255) NULL,
+ "control" character varying(16) NOT NULL CHECK ("control" IN ('system', 'sales')),
+ "needs_human" boolean NOT NULL DEFAULT false,
+ "context_revision" bigint NOT NULL CHECK ("context_revision" > 0),
+ "control_generation" bigint NOT NULL CHECK ("control_generation" > 0),
+ "version" bigint NOT NULL CHECK ("version" > 0),
+ "last_activity_at" timestamptz NOT NULL,
+ UNIQUE ("tenant_id", "id"),
+ UNIQUE ("tenant_id", "thread_id", "id"),
+ FOREIGN KEY ("tenant_id", "thread_id") REFERENCES "messaging_threads" ("tenant_id", "id")
+);
+CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_id", "thread_id") WHERE "lifecycle" = 'open';
+CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
+CREATE TABLE "messaging_messages" (
+ "id" uuid NOT NULL PRIMARY KEY,
+ "tenant_id" character varying(36) NOT NULL,
+ "thread_id" uuid NOT NULL,
+ "turn_id" uuid NOT NULL,
+ "direction" character varying(16) NOT NULL CHECK ("direction" IN ('inbound', 'outbound')),
+ "actor_id" character varying(255) NOT NULL,
+ "body" text NOT NULL CHECK (char_length("body") BETWEEN 1 AND 4000),
+ "request_key" uuid NOT NULL,
+ "request_hash" character varying(64) NOT NULL,
+ "status" character varying(16) NOT NULL CHECK ("status" = 'simulated'),
+ "created_at" timestamptz NOT NULL,
+ UNIQUE ("tenant_id", "request_key"),
+ FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id")
+);
+CREATE INDEX "idx_messaging_messages_history" ON "messaging_messages" ("tenant_id", "thread_id", "id" DESC);

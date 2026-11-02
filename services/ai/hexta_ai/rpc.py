@@ -14,20 +14,23 @@ from pydantic import ValidationError
 from hexta.ai.v1 import service_pb2 as pb
 from hexta.ai.v1 import service_pb2_grpc as rpc
 from hexta_ai.graph import PreviewRequest, PreviewResult, preview_graph
+from hexta_ai.providers.base import ProviderError
+from hexta_ai.run_mapper import completed_run, preview_request
 
 
 async def run_graph(request: PreviewRequest) -> PreviewResult:
     with tracing_context(enabled=False):
-        state = await preview_graph.ainvoke({"request": request}, {"recursion_limit": 8})
+        state = await preview_graph.ainvoke({"request": request}, {"recursion_limit": 12})
     return state["result"]
 
 
 class AIService(rpc.AIServiceServicer):
     def __init__(self, token: str, runner: Callable[[PreviewRequest], Awaitable[PreviewResult]] = run_graph,
-                 capacity: int = 1000):
+                 capacity: int = 1000, provider=None):
         self.token = token
         self.runner = runner
         self.capacity = capacity
+        self.provider = provider
         self.runs: dict[tuple[str, str], pb.Run] = {}
         self.digests: dict[tuple[str, str], bytes] = {}
         self.tasks: dict[tuple[str, str], asyncio.Task] = {}
@@ -49,9 +52,7 @@ class AIService(rpc.AIServiceServicer):
         if request.context_revision < 0 or request.control_generation < 0:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Revisions must be nonnegative")
         try:
-            preview = PreviewRequest(message=request.message, scripts=[{
-                "id": script.id, "trigger": script.trigger, "text": script.text, "active": script.active,
-            } for script in request.scripts])
+            preview = preview_request(request)
         except ValidationError:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid preview input")
         return await self.submit(request, preview, context)
@@ -67,7 +68,9 @@ class AIService(rpc.AIServiceServicer):
             await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, "Simulation run capacity reached")
         run = pb.Run(tenant_id=request.tenant_id, run_id=request.run_id, turn_id=request.turn_id,
                      context_revision=request.context_revision, control_generation=request.control_generation,
-                     status=pb.RUN_STATUS_QUEUED, simulated=True)
+                     status=pb.RUN_STATUS_QUEUED, simulated=self.provider.simulated if self.provider else True,
+                     provider=self.provider.name if self.provider else "fake",
+                     model=self.provider.model if self.provider else "deterministic")
         self.runs[key] = run
         self.digests[key] = digest
         self.tasks[key] = asyncio.create_task(self.execute(key, preview))
@@ -82,23 +85,19 @@ class AIService(rpc.AIServiceServicer):
             if run.status == pb.RUN_STATUS_CANCELLED:
                 return
             # Publish only after every candidate field has serialized successfully.
-            completed = pb.Run()
-            completed.CopyFrom(run)
-            completed.route = result.route
-            completed.text = result.text or ""
-            completed.script_id = result.script_id or ""
-            completed.reason = result.reason
-            completed.steps.extend(result.steps)
-            completed.status = pb.RUN_STATUS_SUCCEEDED
-            self.runs[key] = completed
+            self.runs[key] = completed_run(run, result)
         except asyncio.CancelledError:
             run.status = pb.RUN_STATUS_CANCELLED
+        except ProviderError as error:
+            if run.status != pb.RUN_STATUS_CANCELLED:
+                run.status = pb.RUN_STATUS_FAILED
+                run.error_code = error.code
         except Exception:
             if run.status == pb.RUN_STATUS_CANCELLED:
                 return
             # Do not expose prompts, secrets, or provider exception bodies over RPC.
             run.status = pb.RUN_STATUS_FAILED
-            run.error_code = "SIMULATION_RUN_FAILED"
+            run.error_code = "SIMULATION_RUN_FAILED" if not self.provider or self.provider.simulated else "LLM_PROVIDER_ERROR"
 
     async def lookup(self, request, context):
         await self.authorize(context)
@@ -128,18 +127,23 @@ class AIService(rpc.AIServiceServicer):
         self.tasks.clear()
 
 
-async def start_server(token: str, address: str, service: AIService | None = None):
+async def start_server(token: str, address: str, service: AIService | None = None, *,
+                       runner=run_graph, provider=None):
     if service is None:
         dsn = os.getenv("AI_DATABASE_URL")
         if not dsn:
             raise RuntimeError("AI_DATABASE_URL is required for the gRPC runtime")
         from hexta_ai.durable import DurableAIService
         from hexta_ai.store import RunStore
-        service = DurableAIService(token, RunStore(dsn))
+        service = DurableAIService(token, RunStore(dsn), runner=runner, provider=provider)
         await service.start()
     server = grpc.aio.server(options=[("grpc.max_receive_message_length", 1024 * 1024)])
     rpc.add_AIServiceServicer_to_server(service, server)
-    if not server.add_insecure_port(address):
-        raise RuntimeError("Cannot bind AI gRPC listener")
-    await server.start()
+    try:
+        if not server.add_insecure_port(address):
+            raise RuntimeError("Cannot bind AI gRPC listener")
+        await server.start()
+    except BaseException:
+        await service.close()
+        raise
     return server, service

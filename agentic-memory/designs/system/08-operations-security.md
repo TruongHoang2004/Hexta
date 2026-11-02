@@ -25,7 +25,7 @@ The launcher generates ignored `infrastructure/.env.local` service/JWT secrets u
 | db-init / migrate | No public endpoint | One-shot role/schema provisioning and Atlas jobs, expected exit 0 |
 | test-postgres | No published port | Explicit test profile, temporary data, separate credentials |
 
-Published host ports are loopback only. Docker-internal names are postgres/redis/api/web, not host localhost. Local API config mounts `infrastructure/local/api.yaml`; legacy Go Gemini URL is blocked on loopback, OAuth unconfigured. Python only accepts fake mode. No provider key or customer send is used by smoke commands.
+Published host ports are loopback only. Docker-internal names are postgres/redis/api/web, not host localhost. Local API config mounts `infrastructure/local/api.yaml`; legacy Go Gemini URL is blocked on loopback, OAuth unconfigured. Compose remains explicitly fake; host Python also supports configured Gemini/OpenAI/Anthropic adapters (local/unmerged provider extension, 2026-11-03). No provider key or customer send is used by smoke commands.
 
 `down` preserves the database; `down -v` is explicit destructive reset. Backups/logs may contain personal data. The runbook includes pg_dump, troubleshooting and restart checks. ai_runtime schema migration and Atlas public scope must remain independent. Existing DBs require an upgrade plan, not an assumed clean baseline.
 
@@ -70,6 +70,6 @@ PRs #52–55/#57/#58 verified merged into main on 2026-10-28. PR #59 remains OPE
 
 ## Remaining target gates
 
-Messaging permissions/context model and final Go send gate; Kafka producer/consumer/outbox/inbox delivery and replay safety; real provider adapters and cost budgets; LangGraph node checkpoints/result outbox; self-host trace auth/redaction/export failure; actual Pancake auth/webhook/send capability; measured VPS sizing, HTTPS and tested backup restore remain unimplemented or require explicit evidence. Owner's active demo/thesis roadmap determines sequencing; this is not an automatic instruction to build Kafka next.
+Messaging permissions/context model and final Go send gate; Kafka producer/consumer/outbox/inbox delivery and replay safety; operational provider integration and tenant cost budgets; LangGraph node checkpoints/result outbox; self-host trace auth/redaction/export failure; actual Pancake auth/webhook/send capability; measured VPS sizing, HTTPS and tested backup restore remain unimplemented or require explicit evidence. Owner's active demo/thesis roadmap determines sequencing; this is not an automatic instruction to build Kafka next.
 
 For schema/API/RPC/event/policy changes, update the owning module and primary epic/session with actual checks/limits. Operational run commands and volume/backup safety above remain applicable; inspect current Compose/ports before using a historical endpoint snapshot.

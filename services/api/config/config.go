@@ -20,8 +20,6 @@ type Config struct {
 		Trace       bool   `yaml:"trace" mapstructure:"trace"`
 		FrontendURL string `yaml:"frontend_url" mapstructure:"frontend_url"`
 	} `yaml:"server" mapstructure:"server"`
-	Service struct {
-	} `yaml:"service" mapstructure:"service"`
 	JWT struct {
 		AccessTokenSecret  string `yaml:"access_token_secret" mapstructure:"access_token_secret"`
 		AccessTokenExpire  int    `yaml:"access_token_expire" mapstructure:"access_token_expire"`
@@ -67,8 +65,9 @@ func LoadConfig() error {
 
 	// Expand environment variables in config values
 	for _, key := range viper.AllKeys() {
-		value := viper.GetString(key)
-		viper.Set(key, os.ExpandEnv(value))
+		if val, ok := viper.Get(key).(string); ok {
+			viper.Set(key, os.ExpandEnv(val))
+		}
 	}
 
 	cfg := &Config{}

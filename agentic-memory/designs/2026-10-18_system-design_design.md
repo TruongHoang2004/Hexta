@@ -21,3 +21,10 @@ Current delivery snapshot (GitHub checked 2026-10-28): #52/#53 system/AI/docs, #
 Current Go owns business authority/sending; Python owns fake AI execution/durable run state. PostgreSQL owns business truth; Redis is cache. Conversation/send pipeline, real providers, Kafka application integration, checkpoints and self-host traces remain targets. Owner requires aggregate mappers, shared-cache redesign and root/selective rules; detailed cache/mapper mechanism remains proposed, not refactored code.
 
 After schema/API/RPC/event/policy changes, update its owner module, relevant epic/session and CHANGELOG with actual verification boundaries. Removed superseded sources are listed in [archive ledger](../ARCHIVE_INDEX.md), optional lookup only; their original contracts do not override this pack or newer user decisions.
+
+Local messaging increment (2026-11-02): simulator inbox/manual handling code and migration exist on `codex/messaging-inbox`; see [EPIC-004 session](../epics/EPIC-004-messaging/sessions/2026-11-02_messaging-inbox.md). Real sending, AI messaging, Kafka and full lifecycle remain targets; no merge/deployment completion.
+
+Provider extension (2026-11-03, local/unmerged): Python LangChain Gemini/OpenAI/Anthropic
+integrations, guarded candidate graph and additive protobuf metadata are implemented;
+see [AI contract module](system/05-grpc-ai.md). Offline/isolated DB checks are distinct
+from live provider access, messaging integration, deployment and production acceptance.

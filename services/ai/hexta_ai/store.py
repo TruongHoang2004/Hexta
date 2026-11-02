@@ -35,11 +35,11 @@ class RunStore:
             run.error_code = row["error_code"]
         return run
 
-    async def submit(self, request):
+    async def submit(self, request, *, simulated=True, provider="fake", model="deterministic"):
         digest = hashlib.sha256(request.SerializeToString(deterministic=True)).digest()
         run = pb.Run(tenant_id=request.tenant_id, run_id=request.run_id, turn_id=request.turn_id,
                      context_revision=request.context_revision, control_generation=request.control_generation,
-                     status=pb.RUN_STATUS_QUEUED, simulated=True)
+                     status=pb.RUN_STATUS_QUEUED, simulated=simulated, provider=provider, model=model)
         async with await self.connect() as db:
             await db.execute("""INSERT INTO ai_runtime.runs(tenant_id,run_id,request,digest,result,status)
                 VALUES (%s,%s,%s,%s,%s,1) ON CONFLICT (tenant_id,run_id) DO NOTHING""",
@@ -88,6 +88,15 @@ class RunStore:
                 WHERE tenant_id=%s AND run_id=%s AND lease_token=%s AND status=2
                 AND lease_until>clock_timestamp()""",
                 (self.lease_seconds, row["tenant_id"], row["run_id"], row["lease_token"]))
+            return cursor.rowcount == 1
+
+    async def begin_paid_execution(self, row):
+        """Commit a lease-fenced at-most-once marker before any paid graph call."""
+        async with await self.connect() as db:
+            cursor = await db.execute("""UPDATE ai_runtime.runs SET error_code='LLM_CALL_STARTED',
+                updated_at=clock_timestamp() WHERE tenant_id=%s AND run_id=%s AND lease_token=%s
+                AND status=2 AND lease_until>clock_timestamp() AND error_code=''""",
+                (row["tenant_id"], row["run_id"], row["lease_token"]))
             return cursor.rowcount == 1
 
     async def finish(self, row, result):

@@ -8,8 +8,6 @@ server:
 database:
   url: "postgresql://postgres:postgres@localhost:5433/api?sslmode=disable"
 
-service:
-
 jwt:
   access_token_secret: ${JWT_ACCESS_TOKEN_SECRET}
   access_token_expire: ${JWT_ACCESS_TOKEN_EXPIRE}

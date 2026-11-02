@@ -156,6 +156,10 @@ type StartRunRequest struct {
 	ControlGeneration int64                  `protobuf:"varint,5,opt,name=control_generation,json=controlGeneration,proto3" json:"control_generation,omitempty"`
 	Message           string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
 	Scripts           []*Script              `protobuf:"bytes,7,rep,name=scripts,proto3" json:"scripts,omitempty"`
+	History           []*ConversationMessage `protobuf:"bytes,8,rep,name=history,proto3" json:"history,omitempty"`
+	Facts             []*DomainFact          `protobuf:"bytes,9,rep,name=facts,proto3" json:"facts,omitempty"`
+	Constraints       []string               `protobuf:"bytes,10,rep,name=constraints,proto3" json:"constraints,omitempty"`
+	AllowGeneration   bool                   `protobuf:"varint,11,opt,name=allow_generation,json=allowGeneration,proto3" json:"allow_generation,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -239,6 +243,138 @@ func (x *StartRunRequest) GetScripts() []*Script {
 	return nil
 }
 
+func (x *StartRunRequest) GetHistory() []*ConversationMessage {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
+func (x *StartRunRequest) GetFacts() []*DomainFact {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+func (x *StartRunRequest) GetConstraints() []string {
+	if x != nil {
+		return x.Constraints
+	}
+	return nil
+}
+
+func (x *StartRunRequest) GetAllowGeneration() bool {
+	if x != nil {
+		return x.AllowGeneration
+	}
+	return false
+}
+
+type ConversationMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConversationMessage) Reset() {
+	*x = ConversationMessage{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConversationMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConversationMessage) ProtoMessage() {}
+
+func (x *ConversationMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConversationMessage.ProtoReflect.Descriptor instead.
+func (*ConversationMessage) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ConversationMessage) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ConversationMessage) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type DomainFact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DomainFact) Reset() {
+	*x = DomainFact{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DomainFact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DomainFact) ProtoMessage() {}
+
+func (x *DomainFact) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DomainFact.ProtoReflect.Descriptor instead.
+func (*DomainFact) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DomainFact) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DomainFact) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
 type RunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -249,7 +385,7 @@ type RunRequest struct {
 
 func (x *RunRequest) Reset() {
 	*x = RunRequest{}
-	mi := &file_hexta_ai_v1_service_proto_msgTypes[2]
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +397,7 @@ func (x *RunRequest) String() string {
 func (*RunRequest) ProtoMessage() {}
 
 func (x *RunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hexta_ai_v1_service_proto_msgTypes[2]
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +410,7 @@ func (x *RunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunRequest.ProtoReflect.Descriptor instead.
 func (*RunRequest) Descriptor() ([]byte, []int) {
-	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{2}
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RunRequest) GetTenantId() string {
@@ -306,13 +442,19 @@ type Run struct {
 	Reason            string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
 	Steps             []string               `protobuf:"bytes,12,rep,name=steps,proto3" json:"steps,omitempty"`
 	ErrorCode         string                 `protobuf:"bytes,13,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	Provider          string                 `protobuf:"bytes,14,opt,name=provider,proto3" json:"provider,omitempty"`
+	Model             string                 `protobuf:"bytes,15,opt,name=model,proto3" json:"model,omitempty"`
+	Confidence        float64                `protobuf:"fixed64,16,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	InputTokens       int64                  `protobuf:"varint,17,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens      int64                  `protobuf:"varint,18,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	UsageEstimated    bool                   `protobuf:"varint,19,opt,name=usage_estimated,json=usageEstimated,proto3" json:"usage_estimated,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
 	*x = Run{}
-	mi := &file_hexta_ai_v1_service_proto_msgTypes[3]
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +466,7 @@ func (x *Run) String() string {
 func (*Run) ProtoMessage() {}
 
 func (x *Run) ProtoReflect() protoreflect.Message {
-	mi := &file_hexta_ai_v1_service_proto_msgTypes[3]
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +479,7 @@ func (x *Run) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Run.ProtoReflect.Descriptor instead.
 func (*Run) Descriptor() ([]byte, []int) {
-	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{3}
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Run) GetTenantId() string {
@@ -431,6 +573,48 @@ func (x *Run) GetErrorCode() string {
 	return ""
 }
 
+func (x *Run) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *Run) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *Run) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
+func (x *Run) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *Run) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *Run) GetUsageEstimated() bool {
+	if x != nil {
+		return x.UsageEstimated
+	}
+	return false
+}
+
 var File_hexta_ai_v1_service_proto protoreflect.FileDescriptor
 
 const file_hexta_ai_v1_service_proto_rawDesc = "" +
@@ -440,7 +624,7 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\atrigger\x18\x02 \x01(\tR\atrigger\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x12\x16\n" +
-	"\x06active\x18\x04 \x01(\bR\x06active\"\x81\x02\n" +
+	"\x06active\x18\x04 \x01(\bR\x06active\"\xb9\x03\n" +
 	"\x0fStartRunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x17\n" +
@@ -448,11 +632,23 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\x10context_revision\x18\x04 \x01(\x03R\x0fcontextRevision\x12-\n" +
 	"\x12control_generation\x18\x05 \x01(\x03R\x11controlGeneration\x12\x18\n" +
 	"\amessage\x18\x06 \x01(\tR\amessage\x12-\n" +
-	"\ascripts\x18\a \x03(\v2\x13.hexta.ai.v1.ScriptR\ascripts\"@\n" +
+	"\ascripts\x18\a \x03(\v2\x13.hexta.ai.v1.ScriptR\ascripts\x12:\n" +
+	"\ahistory\x18\b \x03(\v2 .hexta.ai.v1.ConversationMessageR\ahistory\x12-\n" +
+	"\x05facts\x18\t \x03(\v2\x17.hexta.ai.v1.DomainFactR\x05facts\x12 \n" +
+	"\vconstraints\x18\n" +
+	" \x03(\tR\vconstraints\x12)\n" +
+	"\x10allow_generation\x18\v \x01(\bR\x0fallowGeneration\"=\n" +
+	"\x13ConversationMessage\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"0\n" +
+	"\n" +
+	"DomainFact\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"@\n" +
 	"\n" +
 	"RunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\x8e\x03\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xd1\x04\n" +
 	"\x03Run\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x17\n" +
@@ -468,7 +664,15 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\x06reason\x18\v \x01(\tR\x06reason\x12\x14\n" +
 	"\x05steps\x18\f \x03(\tR\x05steps\x12\x1d\n" +
 	"\n" +
-	"error_code\x18\r \x01(\tR\terrorCode*\xa1\x01\n" +
+	"error_code\x18\r \x01(\tR\terrorCode\x12\x1a\n" +
+	"\bprovider\x18\x0e \x01(\tR\bprovider\x12\x14\n" +
+	"\x05model\x18\x0f \x01(\tR\x05model\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x10 \x01(\x01R\n" +
+	"confidence\x12!\n" +
+	"\finput_tokens\x18\x11 \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x12 \x01(\x03R\foutputTokens\x12'\n" +
+	"\x0fusage_estimated\x18\x13 \x01(\bR\x0eusageEstimated*\xa1\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n" +
@@ -494,28 +698,32 @@ func file_hexta_ai_v1_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hexta_ai_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_hexta_ai_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_hexta_ai_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_hexta_ai_v1_service_proto_goTypes = []any{
-	(RunStatus)(0),          // 0: hexta.ai.v1.RunStatus
-	(*Script)(nil),          // 1: hexta.ai.v1.Script
-	(*StartRunRequest)(nil), // 2: hexta.ai.v1.StartRunRequest
-	(*RunRequest)(nil),      // 3: hexta.ai.v1.RunRequest
-	(*Run)(nil),             // 4: hexta.ai.v1.Run
+	(RunStatus)(0),              // 0: hexta.ai.v1.RunStatus
+	(*Script)(nil),              // 1: hexta.ai.v1.Script
+	(*StartRunRequest)(nil),     // 2: hexta.ai.v1.StartRunRequest
+	(*ConversationMessage)(nil), // 3: hexta.ai.v1.ConversationMessage
+	(*DomainFact)(nil),          // 4: hexta.ai.v1.DomainFact
+	(*RunRequest)(nil),          // 5: hexta.ai.v1.RunRequest
+	(*Run)(nil),                 // 6: hexta.ai.v1.Run
 }
 var file_hexta_ai_v1_service_proto_depIdxs = []int32{
 	1, // 0: hexta.ai.v1.StartRunRequest.scripts:type_name -> hexta.ai.v1.Script
-	0, // 1: hexta.ai.v1.Run.status:type_name -> hexta.ai.v1.RunStatus
-	2, // 2: hexta.ai.v1.AIService.StartRun:input_type -> hexta.ai.v1.StartRunRequest
-	3, // 3: hexta.ai.v1.AIService.GetRun:input_type -> hexta.ai.v1.RunRequest
-	3, // 4: hexta.ai.v1.AIService.CancelRun:input_type -> hexta.ai.v1.RunRequest
-	4, // 5: hexta.ai.v1.AIService.StartRun:output_type -> hexta.ai.v1.Run
-	4, // 6: hexta.ai.v1.AIService.GetRun:output_type -> hexta.ai.v1.Run
-	4, // 7: hexta.ai.v1.AIService.CancelRun:output_type -> hexta.ai.v1.Run
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 1: hexta.ai.v1.StartRunRequest.history:type_name -> hexta.ai.v1.ConversationMessage
+	4, // 2: hexta.ai.v1.StartRunRequest.facts:type_name -> hexta.ai.v1.DomainFact
+	0, // 3: hexta.ai.v1.Run.status:type_name -> hexta.ai.v1.RunStatus
+	2, // 4: hexta.ai.v1.AIService.StartRun:input_type -> hexta.ai.v1.StartRunRequest
+	5, // 5: hexta.ai.v1.AIService.GetRun:input_type -> hexta.ai.v1.RunRequest
+	5, // 6: hexta.ai.v1.AIService.CancelRun:input_type -> hexta.ai.v1.RunRequest
+	6, // 7: hexta.ai.v1.AIService.StartRun:output_type -> hexta.ai.v1.Run
+	6, // 8: hexta.ai.v1.AIService.GetRun:output_type -> hexta.ai.v1.Run
+	6, // 9: hexta.ai.v1.AIService.CancelRun:output_type -> hexta.ai.v1.Run
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_hexta_ai_v1_service_proto_init() }
@@ -529,7 +737,7 @@ func file_hexta_ai_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hexta_ai_v1_service_proto_rawDesc), len(file_hexta_ai_v1_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

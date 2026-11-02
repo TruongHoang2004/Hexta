@@ -17,6 +17,7 @@ func RegisterRoutes(
 	tenantController *controller.TenantController,
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
+	messaging *controller.MessagingController,
 	onboarding *controller.TenantOnboardingController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
@@ -91,6 +92,13 @@ func RegisterRoutes(
 	resources.POST("/work-items/:id/accept", workflows.Accept)
 	resources.POST("/work-items/:id/assign", workflows.Assign)
 	resources.POST("/work-items/:id/complete", workflows.Complete)
+
+	resources.GET("/conversations", messaging.List)
+	resources.GET("/conversations/:id/messages", messaging.Detail)
+	resources.POST("/simulator/messages", messaging.Inbound)
+	resources.POST("/turns/:id/claim", messaging.Claim)
+	resources.POST("/turns/:id/assign", messaging.Assign)
+	resources.POST("/turns/:id/send-simulation", messaging.Send)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

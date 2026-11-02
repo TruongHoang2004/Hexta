@@ -84,5 +84,5 @@ def test_api_and_ai_histories_share_database_without_collision(atlas_database):
                                 cwd=project, env=environment, capture_output=True, text=True, timeout=45)
         assert result.returncode == 0
     with psycopg.connect(database_url) as db:
-        assert db.execute("SELECT count(*) FROM atlas_schema_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == 7
+        assert db.execute("SELECT count(*) FROM atlas_schema_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == len(list((project / "migrations/api").glob("[0-9]*.sql")))
         assert db.execute("SELECT count(*) FROM atlas_ai_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == 1
