@@ -81,3 +81,101 @@ def test_durable_submission_recovery_fencing_and_cancellation():
             async with await store.connect() as db:
                 await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
     asyncio.run(scenario())
+
+
+def test_paid_marker_is_committed_fenced_and_retained_on_release():
+    from unittest.mock import AsyncMock
+    from hexta_ai.providers.fake import FakeProvider
+
+    class PaidProvider(FakeProvider):
+        simulated = False
+        name = "gemini"
+        model = "mock-model"
+
+    async def scenario():
+        store = RunStore(DSN)
+        tenant = "paid-" + uuid4().hex
+        request = pb.StartRunRequest(tenant_id=tenant, run_id="paid", turn_id="turn", message="hello")
+        try:
+            await store.submit(request, simulated=False, provider="gemini", model="mock-model")
+            row = await store.claim()
+            assert row["tenant_id"] == tenant
+            assert await store.begin_paid_execution(row)
+            assert not await store.begin_paid_execution(row)
+            # Another connection sees the marker before a remote call could start.
+            assert (await RunStore(DSN).get(tenant, "paid")).error_code == "LLM_CALL_STARTED"
+            await store.release(row)
+            recovered = await store.claim()
+            assert recovered["error_code"] == "LLM_CALL_STARTED"
+            assert not await store.begin_paid_execution(row)  # Old lease cannot start work.
+            runner = AsyncMock()
+            service = DurableAIService("test-paid-service-token", store, runner, PaidProvider())
+            await service.process(recovered)
+            runner.assert_not_awaited()
+            saved = await store.get(tenant, "paid")
+            assert saved.status == pb.RUN_STATUS_FAILED and saved.error_code == "LLM_RECOVERY_UNCERTAIN"
+            assert (await store.submit(request)).status == pb.RUN_STATUS_FAILED
+        finally:
+            async with await store.connect() as db:
+                await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
+    asyncio.run(scenario())
+
+
+def test_durable_grpc_persists_provider_metadata_and_digest_covers_context():
+    import grpc
+    from hexta.ai.v1 import service_pb2_grpc as rpc
+    from hexta_ai.graph import PreviewResult
+    from hexta_ai.providers.base import Usage
+    from hexta_ai.providers.fake import FakeProvider
+    from hexta_ai.rpc import start_server
+
+    class PaidProvider(FakeProvider):
+        simulated = False
+        name = "gemini"
+        model = "mock-model"
+
+    async def scenario():
+        store = RunStore(DSN)
+        tenant = "grpc-paid-" + uuid4().hex
+        token = "test-durable-grpc-provider-token"
+        auth = (("authorization", f"Bearer {token}"),)
+        calls = 0
+        async def runner(value):
+            nonlocal calls
+            calls += 1
+            assert value.context_revision == 3 and value.facts[0].text == "Authorized fact."
+            return PreviewResult(route="generate", text="Authorized fact.", reason="grounded_domain_candidate",
+                                 simulated=False, provider="gemini", model="mock-model", confidence=0.95,
+                                 usage=Usage(input_tokens=21, output_tokens=9), steps=["validate_output"])
+        service = DurableAIService(token, store, runner, PaidProvider())
+        await service.start()
+        server = grpc.aio.server()
+        rpc.add_AIServiceServicer_to_server(service, server)
+        port = server.add_insecure_port("127.0.0.1:0")
+        await server.start()
+        try:
+            async with grpc.aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+                stub = rpc.AIServiceStub(channel)
+                value = pb.StartRunRequest(tenant_id=tenant, run_id="run", turn_id="turn", message="question",
+                    context_revision=3, allow_generation=True, facts=[pb.DomainFact(id="f1", text="Authorized fact.")])
+                await stub.StartRun(value, metadata=auth)
+                async with asyncio.timeout(5):
+                    while True:
+                        saved = await stub.GetRun(pb.RunRequest(tenant_id=tenant, run_id="run"), metadata=auth)
+                        if saved.status == pb.RUN_STATUS_SUCCEEDED:
+                            break
+                        await asyncio.sleep(0.02)
+                assert saved.provider == "gemini" and saved.input_tokens == 21 and not saved.simulated
+                assert saved.text == "Authorized fact." and saved.context_revision == 3
+                await stub.StartRun(value, metadata=auth)
+                assert calls == 1
+                value.facts[0].text = "Changed fact."
+                with pytest.raises(grpc.aio.AioRpcError) as error:
+                    await stub.StartRun(value, metadata=auth)
+                assert error.value.code() == grpc.StatusCode.ALREADY_EXISTS
+        finally:
+            await server.stop(0)
+            await service.close()
+            async with await store.connect() as db:
+                await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
+    asyncio.run(scenario())

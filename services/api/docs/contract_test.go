@@ -40,7 +40,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.TenantOnboardingController{}, auth)
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingController{}, &controller.TenantOnboardingController{}, auth)
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -83,6 +83,24 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 						require.NotEqual(t, "body", parameter.In, "refresh must use its HttpOnly cookie without a JSON token body")
 					}
 				}
+			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"get", "/api/v1/tenants/{tenantID}/conversations"},
+				{"get", "/api/v1/tenants/{tenantID}/conversations/{id}/messages"},
+				{"post", "/api/v1/tenants/{tenantID}/simulator/messages"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/claim"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/assign"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/send-simulation"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing messaging operation %s", endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route])
+				success := resolveSchema(t, spec, op.Responses["200"].Schema)
+				require.Contains(t, success.Properties, "data")
+				failure := resolveSchema(t, spec, op.Responses["409"].Schema)
+				require.Contains(t, failure.Properties, "detail")
+				require.Contains(t, failure.Properties, "http_status")
 			}
 			// Health's unavailable response has the same typed envelope as success.
 			unavailable := spec.Paths["/api/v1/health"]["get"].Responses["503"].Schema

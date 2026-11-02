@@ -1,5 +1,29 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Shared LangChain model integration (local/unmerged)
+
+- Replaced three direct SDK adapters with one `providers/langchain.py`: init_chat_model, with_structured_output and ainvoke for Gemini/OpenAI/Anthropic, normalized usage and safe parsing/error handling. Added LangChain integration dependencies and updated uv.lock; underlying SDKs remain transitive.
+- Preserved LangGraph, fake mode, budgets, tracing policy and paid-call recovery. Integration-specific retry settings are verified with HTTP transport mocks (Google one total attempt, others zero retries). No schema/protobuf/business changes or live calls.
+- Verification: 67 offline passes/six expected DB skips; full suite with isolated Atlas-migrated PostgreSQL 73 passes/no skips. compileall/scoped whitespace passed; obsolete SDK call/import paths removed. Task-owned test container removed; app services/data unchanged.
+- [Follow-up session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md), [updated design](designs/2026-11-03_ai-providers_design.md) and [runbook](../services/ai/README.md). Supersedes the direct-SDK choice below; live verification/review/merge remain open.
+
+## 2026-11-03 — Provider-backed candidate routing (local/unmerged)
+
+- Added official Gemini/OpenAI/Anthropic async adapters and deterministic fake factory; bounded structured calls, token budgets/usage, safe errors and disabled SDK retries. Locked SDKs and updated provider env examples/ignored local settings without replacing credentials.
+- Refactored the shared graph to validated classification, active script, extractively grounded facts, clarification and human branches. Explicit generation opt-in, confidence, context bounds, PII heuristics and template checks preserve Go authority. Streaming port buffers complete structured output.
+- Added compatible protobuf context/provider/usage fields and regenerated Python/Go bindings. Pure run mapper centralizes conversions. Existing PostgreSQL error_code stores a fenced paid-call marker; uncertain recovery fails rather than charging again. No schema/startup migration, customer sending or unrelated messaging/config changes.
+- Verification: 70 tests passed with isolated Atlas-migrated PostgreSQL, including SDK transport mocks, gRPC persistence/digest and no-paid-replay recovery; 35 affected tests passed after the final input-estimate refinement. Go smoke/bindings compile and AI vet, compileall and scoped whitespace passed. Live provider calls/production acceptance/merge NOT VERIFIED.
+- [Design](designs/2026-11-03_ai-providers_design.md), [primary session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_ai-providers.md), [runbook](../services/ai/README.md). Node checkpoints, quotas, live evaluation and messaging integration remain open.
+
+## 2026-11-02 — Simulator messaging inbox and manual responsibility
+
+- [Design](designs/2026-11-02_messaging-inbox_design.md) and [session](epics/EPIC-004-messaging/sessions/2026-11-02_messaging-inbox.md): first local EPIC-004 slice, not merged/completed.
+- Added `/tenants/{tenantId}/inbox` and sidebar access: filtered cursor list, bounded history, explicit simulator input, claim, owner assignment and assigned-sale simulated reply. Preserves failed draft text; uncertain reply retries retain the original request identity across refresh.
+- Added pure core values, repository-owned ORM rows, aggregate HTTP/persistence mappers, transactional service/repository and six authorized endpoints; Fx wiring and generated Swagger/route contracts updated. Thread locking and current membership/version/context gates prevent conflicting ownership and stale replies. Messages/audits commit atomically; durable keys prevent duplicate retries. No real provider/AI calls, cache, business order effects or automatic migrations at startup.
+- Atlas-generated additive schema/history: threads, turns and immutable simulated messages with tenant-aware references, unique open turn and request keys. History integrity, desired/history agreement, fresh fixtures and populated pre-migration upgrade passed on disposable PostgreSQL.
+- Verification: seven new PostgreSQL service cases passed with race detection, HTTP flow/validation, DI graph and Swagger contracts passed; SDK strict check and web TypeScript/lint passed. Webpack production build passed; default Turbopack hit an execution-environment internal-port restriction. Final backend/build results and exact limits in the session.
+- Manual browser/mobile/two-profile acceptance, real connectors/sending, full turn lifecycle, scripts/proposals, AI, outbound reconciliation and Kafka remain open. Application migration/rebuild and review/merge are still required. Unrelated concurrent config/dev-tool/dependency-link changes preserved.
+
 ## 2026-10-28 — Focused rules with a single selection router
 
 - [rules/README.md](../rules/README.md) now selects modules by paths and behavior changes; no mandatory inventory/full-catalog or recursive link loading. Split combined HTTP, Fx/infrastructure and errors/auth/logging modules; preserved 91 API IDs/origins, moved cache implementation detail to design context.

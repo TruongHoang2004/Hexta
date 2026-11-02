@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -29,7 +31,7 @@ def test_only_unique_active_script_is_rendered(client):
     result = call(client, [script]).json()
     assert result["route"] == "script"
     assert result["script_id"] == "s1"
-    assert result["steps"] == ["prepare_context", "route", "render_script", "validate_output"]
+    assert result["steps"] == ["validate_input", "prepare_context", "classify_intent", "render_script", "validate_output"]
     assert call(client, [{**script, "active": False}]).json()["route"] == "human"
     assert call(client, [script, {**script, "id": "s2"}]).json()["route"] == "human"
 
@@ -49,10 +51,13 @@ def test_reject_unknown_input_and_empty_message(client):
                        json={"message": ""}).status_code == 422
 
 
-def test_real_provider_cannot_be_enabled_accidentally(monkeypatch):
+def test_missing_real_credential_falls_back_offline(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "openai")
-    with pytest.raises(RuntimeError, match="fake only"):
-        create_app(TOKEN)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("AI_API_KEY", "")
+    monkeypatch.setenv("AI_GRPC_ENABLED", "false")
+    with TestClient(create_app(TOKEN)) as client:
+        assert client.get("/health/ready").json()["provider"] == "fake"
 
 
 def test_weak_internal_token_is_rejected(monkeypatch):
@@ -77,6 +82,6 @@ def test_whitespace_only_inputs_are_rejected(client, field):
 def test_graph_steps_stay_consistent_after_validation():
     from hexta_ai.graph import PreviewRequest, preview_graph
 
-    state = preview_graph.invoke({"request": PreviewRequest(message="  unknown  ")})
+    state = asyncio.run(preview_graph.ainvoke({"request": PreviewRequest(message="  unknown  ")}))
     assert state["steps"] == state["result"].steps
     assert state["steps"][-1] == "validate_output"

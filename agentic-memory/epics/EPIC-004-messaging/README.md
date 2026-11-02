@@ -1,9 +1,9 @@
 ---
 epic: EPIC-004
 title: Conversation domain, scripts and reply/send policy
-status: not-started
+status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-11-02
 ---
 
 # Conversation domain, scripts and reply/send policy
@@ -18,6 +18,12 @@ Implement tenant-isolated threads/turns/messages, assignment, script grants, pro
 - Owner proposal on means suggest/review; off means eligible auto_send. Routing chooses script/AI/clarify/human. Only owner grants four independent script permissions.
 - Turn expiry is 24h; successful customer/sale/system activity counts, drafts/failure/unknown/duplicates do not. Needs-human exempts expiry. Resolve resets clock without resuming system control.
 - Preserve human draft edits and check current context/control/script eligibility at final dispatch. In-flight remote sends may require reconciliation.
+
+## First slice implemented locally
+
+- Inbox list/history, simulator customer input, atomic claim, owner assignment and assigned-sale manual simulated reply.
+- Tenant/current-membership checks, stale version/context rejection, durable retry keys and transactional audit; separate core/ORM/HTTP representations and aggregate mappers.
+- API migration generated and checked against disposable PostgreSQL; source remains local/unmerged. No live provider, AI or parent completion claim.
 
 ## Acceptance checklist
 
@@ -35,14 +41,14 @@ Implement tenant-isolated threads/turns/messages, assignment, script grants, pro
 
 ## Evidence and verification boundary
 
-No implementation session yet. Requirements anchors are listed in EPIC-001; real Pancake remains separate EPIC-008 dependency.
+Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Real Pancake remains separate EPIC-008 dependency.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
 
 ## Sessions
 
-No work session recorded yet. Implementation has not started; do not invent historical progress.
+- [2026-11-02 simulator inbox](sessions/2026-11-02_messaging-inbox.md) — in-progress/completed false; local code, no merge.
 
 ## Remaining work and next handoff
 
-Start a bounded simulator/inbox/outbox vertical slice jointly with Kafka. Existing legacy AI order drafts are not messaging proposals.
+Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.

@@ -1,4 +1,4 @@
-h1:po0pGcfQgXOfpYJiKSEiV9v4lNt8NANHHk00YEBLYHE=
+h1:wmwWOrp+9xisPbVjBew4m/fzMJPU21Jlc1tyHv0P3dQ=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -6,3 +6,4 @@ h1:po0pGcfQgXOfpYJiKSEiV9v4lNt8NANHHk00YEBLYHE=
 20261019030000_sales_demo.sql h1:11nm2+chezBYo4AAcRfK9A1heQjyKdpoa0/Eiv+a2Uc=
 20261019040000_tenant_onboarding.sql h1:fJGYDUMAzjVhS4ZWxw8XUluw4sP1s9iQGba2OJKedUo=
 20261020075908_order_workflows.sql h1:vf3X2eaZ8At9rKMbXeL9FNCMaLIQFA37p91XjAMp00w=
+20261102163407_messaging_inbox.sql h1:t0h1ilDb1aDIsjWt+0g4J6zgZCJnSaJVboCwon3HUpA=
