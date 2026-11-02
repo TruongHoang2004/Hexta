@@ -53,14 +53,14 @@ To eliminate race conditions, merge churn, and context drift, the team is divide
 ## 3. How to Run the Agents
 
 ### Method 1: Subagents Inside Antigravity (Interactive / Pair Programming)
-All 10 agents are registered as first-class subagents in Antigravity. You can prompt the parent agent to invoke them individually or concurrently:
+These are role descriptions for the custom squad workflow. Native Antigravity registration from `.agents/team/` is unverified; inspect the installed client and its supported registration before attempting native delegation. When delegation is authorized and configured, example requests are:
 
 ```text
 "Hãy gọi subagent backend_core để triển khai issue #45 trên workspace isolated branch"
 "Hãy gọi subagent code_scout quét toàn bộ codebase và báo cáo phát hiện"
 ```
 
-The parent agent invokes them via `invoke_subagent` using isolated `Workspace: branch` mode so their git working copies never interfere.
+The historical `invoke_subagent` / `Workspace: branch` interface is not a verified current client contract. Use the actual supported delegation/worktree mechanism and verify isolation; role documentation alone does not create isolated checkouts.
 
 ### Method 2: Autonomous CLI Squad Runner (Local / Server Daemon)
 Use the automated dispatcher script:

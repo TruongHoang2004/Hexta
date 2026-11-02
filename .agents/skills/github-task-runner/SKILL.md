@@ -49,7 +49,7 @@ This skill automates end-to-end task execution from GitHub Issues top-down based
 1. Analyze the issue requirements, impacted code, and acceptance criteria.
 2. Formulate the implementation plan and save it to:
    `agentic-memory/plans/YYYY-MM-DD_issue-<number>_plan.md`
-3. Check `agentic-memory/rules/development-rules.md` and `GEMINI.md` to ensure architecture compliance (5-layer Go architecture, Gin, Uber Fx, Next.js Tailwind, etc.).
+3. Check `rules/README.md` and the selected domain instructions to ensure architecture compliance (5-layer Go architecture, Gin, Uber Fx, Next.js Tailwind, etc.).
 
 ---
 

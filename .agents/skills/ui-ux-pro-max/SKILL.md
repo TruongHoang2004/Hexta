@@ -1,10 +1,15 @@
 ---
 name: ui-ux-pro-max
-description: "UI/UX design intelligence for web, mobile, and desktop. This skill should be used when designing, building, reviewing, or fixing interfaces, including pages, components, design systems, accessibility, interaction, responsive layout, typography, color, charts, and stack-specific UI implementation. Searchable local data: 79 searchable styles (50 active), 192 product palettes and reasoning profiles, 74 font pairings, 119 UX guidelines, 105 icons, 17 GSAP presets, 25 chart types, and 22 stacks."
+description: "Research visual direction, interaction alternatives or a requested UX audit using the local design catalog; not routine component implementation or bug fixes."
 ---
+
+## Hexta scope
+
+Use this reference only for the focused design task described above. First inspect existing shared/app components and tokens; the general examples below do not authorize installing another UI library, replacing Hexta architecture, or loading sibling design skills. Select only relevant sections/resources.
+
 # ui-ux-pro-max
 
-UI/UX design intelligence for web, mobile, and desktop. This skill should be used when designing, building, reviewing, or fixing interfaces, including pages, components, design systems, accessibility, interaction, responsive layout, typography, color, charts, and stack-specific UI implementation. Searchable local data: 79 searchable styles (50 active), 192 product palettes and reasoning profiles, 74 font pairings, 119 UX guidelines, 105 icons, 17 GSAP presets, 25 chart types, and 22 stacks.
+Reference catalog for focused visual-direction research, interaction alternatives and requested UX audits. The Hexta scope above governs activation; ordinary feature work does not require this catalog. Searchable local data: 79 searchable styles (50 active), 192 product palettes and reasoning profiles, 74 font pairings, 119 UX guidelines, 105 icons, 17 GSAP presets, 25 chart types, and 22 stacks.
 
 ## When to Apply
 

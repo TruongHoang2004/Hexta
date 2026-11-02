@@ -4,7 +4,7 @@ Updated 2026-11-03. Navigation/status only: read the relevant epic and latest re
 
 | Epic | Scope | Status | Completed |
 | --- | --- | --- | --- |
-| [EPIC-001](EPIC-001-system-design/README.md) | Architecture, rule catalog, thesis direction and current code audit | in-progress | false |
+| [EPIC-001](EPIC-001-system-design/README.md) | Architecture, rule catalog, [instruction migration](EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md), thesis direction and code audit | in-progress | false |
 | [EPIC-002](EPIC-002-ai-runtime/README.md) | Python provider routing and durable gRPC runs | in-progress | false |
 | [EPIC-003](EPIC-003-local-docker/README.md) | Local Docker and Atlas migration ownership | in-review | false |
 | [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and send policy | in-progress | false |
@@ -17,7 +17,7 @@ Current delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) ver
 
 Current owner priority: Hexta thesis milestone 1Dec2026, one product at a time; see [roadmap](../plans/2026-10-27_thesis-first-ecosystem_plan.md). Mapper/cache policy and the root rule router remain separately labeled owner direction versus proposed mechanism.
 
-Latest memory maintenance: [cleanup session](EPIC-001-system-design/sessions/2026-10-28_memory-pruning.md). Removed-file lookup: [archive ledger](../ARCHIVE_INDEX.md), optional historical context only. State/completion semantics and session protocol live in AGENTS; new sessions use [the template](_SESSION_TEMPLATE.md).
+Latest memory maintenance: [cleanup session](EPIC-001-system-design/sessions/2026-10-28_memory-pruning.md). Removed-file lookup: [archive ledger](../ARCHIVE_INDEX.md), optional historical context only. State/completion semantics and session protocol live in [project memory](../README.md), referenced by AGENTS; new sessions use [the template](_SESSION_TEMPLATE.md).
 
 Rules/memory delivery: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60), OPEN/non-draft against main; [publication session](EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md) in-review/completed false. Original overview PR remains separate.
 

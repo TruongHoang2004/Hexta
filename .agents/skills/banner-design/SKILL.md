@@ -1,12 +1,17 @@
 ---
 name: banner-design
 description: "Design banners for social media, ads, website heroes, creative assets, and print. Multiple art direction options with AI-generated visuals. Actions: design, create, generate banner. Platforms: Facebook, Twitter/X, LinkedIn, YouTube, Instagram, Google Display, website hero, print. Styles: minimalist, gradient, bold typography, photo-based, illustrated, geometric, retro, glassmorphism, 3D, neon, duotone, editorial, collage. Uses ui-ux-pro-max, frontend-design, ai-artist, ai-multimodal skills."
-argument-hint: "[platform] [style] [dimensions]"
 license: MIT
 metadata:
+  claude-argument-hint: "[platform] [style] [dimensions]"
   author: claudekit
   version: "1.0.0"
 ---
+
+## Optional tool prerequisites
+
+The historical `.claude/skills/ai-artist`, `ai-multimodal` and `chrome-devtools` examples below require separately installed tools; they are not provided by this repository. Resolve available tools before executing those examples, use a suitable authorized equivalent when available, or report the missing capability. Do not install tools or expose credentials implicitly.
+
 
 # Banner Design - Multi-Format Creative Banner System
 

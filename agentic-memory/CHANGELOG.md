@@ -1,5 +1,9 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — AI coding instruction architecture
+
+Owner-approved domain instructions, six workflows, canonical-route-derived Antigravity selectors and Claude import/skill adapters. Reconciled memory/skill ownership and retained API provenance, framework-generated blocks and historical records. Added a read-only structure/adapter validator and native-client acceptance procedure. [Session](epics/EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md) records evidence and limits; local/in-review, no application change or merge claim.
+
 ## 2026-11-03 — Shared LangChain model integration (local/unmerged)
 
 - Replaced three direct SDK adapters with one `providers/langchain.py`: init_chat_model, with_structured_output and ainvoke for Gemini/OpenAI/Anthropic, normalized usage and safe parsing/error handling. Added LangChain integration dependencies and updated uv.lock; underlying SDKs remain transitive.

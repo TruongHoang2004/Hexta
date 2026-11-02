@@ -11,7 +11,7 @@ Use this skill whenever you need to formulate an implementation plan, break down
 
 ### 1. Research & Understand Requirements
 - Read relevant files, configurations, and documentation.
-- Check existing rules in `agentic-memory/rules/` and `GEMINI.md`.
+- Select applicable instructions through [the root router](../../../rules/README.md); read only relevant architecture and epic context.
 - Identify key constraints, dependencies, and stakeholders.
 
 ### 2. Formulate the Plan
@@ -28,7 +28,11 @@ Structure the plan into the following sections:
    - Automated tests passing.
    - Manual verification criteria.
 
-### 3. Persist into `agentic-memory/plans/`
+### 3. Persist when authorized
+
+Explicit read-only tasks return the proposal in conversation. Otherwise follow [project memory](../../../agentic-memory/README.md): create this document only when it adds distinct lasting information, and link it from the primary epic session.
+
+Persist into `agentic-memory/plans/`
 - Determine `<feature-name>` (e.g., `google-oauth-flow`, `user-cart-service`).
 - Get today's date in `YYYY-MM-DD` format.
 - Write the plan to:

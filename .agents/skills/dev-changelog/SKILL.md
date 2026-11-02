@@ -29,6 +29,8 @@ Structure the document into:
    - Manual verification steps (e.g., steps to reproduce/test in browser or via API calls).
 
 ### 3. Persist into `agentic-memory/CHANGELOG.md`
+
+Only when writes are authorized. Explicit read-only work returns findings without creating artifacts. Follow [project memory](../../../agentic-memory/README.md); do not also create a mandatory per-task changelog.
 - Append the structured entry under the appropriate milestone or module in `agentic-memory/CHANGELOG.md`.
 - Keep entries high-density, concise, and focused on key technical decisions, impacted paths, and verification commands to preserve reading efficiency and context budget.
-- In your conversation response, provide a brief summary and a clickable link to the consolidated changelog: [CHANGELOG.md](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/CHANGELOG.md).
+- In your conversation response, provide a brief summary and a clickable link to the consolidated changelog: [CHANGELOG.md](../../../agentic-memory/CHANGELOG.md).

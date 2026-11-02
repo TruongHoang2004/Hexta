@@ -1,12 +1,17 @@
 ---
 name: design-system
-description: Token architecture, component specifications, and slide generation. Three-layer tokens (primitive→semantic→component), CSS variables, spacing/typography scales, component specs, strategic slide creation. Use for design tokens, systematic design, brand-compliant presentations.
-argument-hint: "[component or token]"
+description: "Design or revise token architecture and reusable component specifications when explicitly in scope; preserve current Hexta token ownership."
 license: MIT
 metadata:
+  claude-argument-hint: "[component or token]"
   author: claudekit
   version: "1.0.0"
 ---
+
+## Hexta scope
+
+Use this reference only for the focused design task described above. First inspect existing shared/app components and tokens; the general examples below do not authorize installing another UI library, replacing Hexta architecture, or loading sibling design skills. Select only relevant sections/resources.
+
 
 # Design System
 

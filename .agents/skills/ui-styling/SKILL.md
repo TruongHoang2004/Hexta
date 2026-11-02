@@ -1,12 +1,17 @@
 ---
 name: ui-styling
-description: Create beautiful, accessible user interfaces with shadcn/ui components (built on Radix UI + Tailwind), Tailwind CSS utility-first styling, and canvas-based visual designs. Use when building user interfaces, implementing design systems, creating responsive layouts, adding accessible components (dialogs, dropdowns, forms, tables), customizing themes and colors, implementing dark mode, generating visual designs and posters, or establishing consistent styling patterns across applications.
-argument-hint: "[component or layout]"
+description: "Resolve a focused Tailwind, component styling, theme or accessibility implementation problem after checking existing Hexta UI; not a default feature workflow."
 license: MIT
 metadata:
+  claude-argument-hint: "[component or layout]"
   author: claudekit
   version: "1.0.0"
 ---
+
+## Hexta scope
+
+Use this reference only for the focused design task described above. First inspect existing shared/app components and tokens; the general examples below do not authorize installing another UI library, replacing Hexta architecture, or loading sibling design skills. Select only relevant sections/resources.
+
 
 # UI Styling Skill
 
