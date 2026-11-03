@@ -3,6 +3,7 @@ package httpmap
 import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
+	"strings"
 )
 
 func Thread(value types.MessagingThread) dto.MessagingThread {
@@ -17,6 +18,9 @@ func Message(value types.MessagingMessage) dto.MessagingMessage {
 
 func Conversation(value types.MessagingConversation) dto.MessagingConversation {
 	result := dto.MessagingConversation{Thread: Thread(value.Thread), Source: "simulator"}
+	if strings.HasPrefix(value.Thread.ExternalKey, "facebook:") {
+		result.Source = "facebook"
+	}
 	if value.Turn != nil {
 		turn := Turn(*value.Turn)
 		result.Turn = &turn

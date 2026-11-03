@@ -598,3 +598,10 @@ Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/
 - Prepared isolated docs branch from current main, excluding overview application changes/screenshots while retaining referenced acceptance documents and main's newer audit. [Publication session](epics/EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md) records validation and eventual PR identity. No runtime test or parent completion claim.
 
 Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non-draft against main from codex/rules-memory-cleanup; connector creation 403 recovered via authenticated CLI, artifact attached. CI/review/merge not claimed complete; archive recovery uses shared main d09083c.
+
+## 2026-11-03 — Direct Facebook connector ingress (local, in review)
+
+- Added `services/connector`: BasePlugin/capability registry, signed batch webhook, trusted connection management, durable receipt/event outbox, fenced Kafka relay and sync framework. Added shared ingress JSON v1/Kafka transport and separate Atlas connector ownership; kafka-go is the new transport dependency.
+- API consumer commits dedup/current-binding checks with received inbox messages before offsets. Web distinguishes Facebook from simulation and blocks simulated input/replies on real threads. No live send, AI scheduling, Facebook fetch or user provisioning claim.
+- Final owner decision combines separate I/O service, durability/Kafka and Omni Bridge-style base/plugin behavior; direct Facebook supersedes Pancake. Local PostgreSQL/Kafka E2E and scoped race/vet/migration/frontend checks passed; live Meta and full crash/outage matrix remain NOT_RUN.
+- Run/recover/configure: [connector runbook](../services/connector/README.md). Scope, exact evidence and follow-ups: [EPIC-008 session](epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Not merged/deployed; parent epics incomplete.

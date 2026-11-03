@@ -21,7 +21,7 @@ export interface Conversation {
     updated_at: string;
   };
   turn: MessagingTurn | null;
-  source: "simulator";
+  source: "simulator" | "facebook";
 }
 export interface MessagingMessage {
   id: string;
@@ -30,7 +30,7 @@ export interface MessagingMessage {
   direction: "inbound" | "outbound";
   actor_id: string;
   body: string;
-  status: "simulated";
+  status: "simulated" | "received";
   created_at: string;
 }
 export interface MessagingDetail {
