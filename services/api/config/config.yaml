@@ -24,6 +24,8 @@ oauth:
     redirect_url: ${GOOGLE_REDIRECT_URL}
 
 ai:
+  consult_url: ${AI_CONSULT_URL}
+  internal_token: ${AI_INTERNAL_TOKEN}
   provider: ${AI_PROVIDER}
   api_key: ${AI_API_KEY}
   model: ${AI_MODEL}

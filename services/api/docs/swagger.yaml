@@ -270,13 +270,16 @@ definitions:
     properties:
       conversation_id:
         example: conv_12345
+        maxLength: 128
         type: string
       history:
         items:
           $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage'
+        maxItems: 40
         type: array
       prompt:
         example: Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp
+        maxLength: 4000
         type: string
     required:
     - prompt
@@ -285,10 +288,17 @@ definitions:
     properties:
       content:
         example: Tôi muốn đặt 2 hộp sữa bắp
+        maxLength: 4000
         type: string
       role:
+        enum:
+        - user
+        - assistant
         example: user
         type: string
+    required:
+    - content
+    - role
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO:
     properties:
@@ -310,6 +320,8 @@ definitions:
         type: number
       variant:
         example: Chai 500ml
+        type: string
+      variant_id:
         type: string
     required:
     - product_name
@@ -1350,6 +1362,56 @@ info:
   title: CommerceHub API
   version: "1.0"
 paths:
+  /api/v1/ai/converse:
+    post:
+      consumes:
+      - application/json
+      description: Stream interactive conversational turns and order drafts via Server-Sent
+        Events (SSE)
+      parameters:
+      - description: Tenant Workspace ID
+        in: header
+        name: X-Tenant-ID
+        type: string
+      - description: Tenant Workspace ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Conversational prompt and history
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Named message, products, draft_order, quick_replies, done and
+            error events; data is dto.SSEEvent
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Converse with AI Agent
+      tags:
+      - AI Agent
   /api/v1/auth/google/callback:
     get:
       description: Handles Google OAuth callback, validates state, and redirects to

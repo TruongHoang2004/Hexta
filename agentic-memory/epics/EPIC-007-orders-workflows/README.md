@@ -3,7 +3,7 @@ epic: EPIC-007
 title: Approved order scope and flexible business workflows
 status: in-progress
 completed: false
-updated: 2026-10-28
+updated: 2026-11-03
 ---
 
 # Sales, work and owner overview
@@ -29,6 +29,8 @@ updated: 2026-10-28
 - [ ] Cancellation/return quantity/ownership/finalization scope and tests.
 
 ## Evidence and next handoff
+
+- [Shopping consultant integration](../EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md): local member-only Storefront and checkout reuse current draft/assigned-sale confirmation gates. Automated Go/web checks pass; live Python and browser acceptance remain open. No sales domain or parent completion claim.
 
 - [Nine-unit plan](../../plans/2026-10-23_demo-work-units_plan.md) and [primary execution session](sessions/2026-10-23_work-unit-execution.md) own exact acceptance, U01–U09 links, automated results, bounded browser checks and approval limits. Read only the needed unit record, not all nine.
 - [Owner overview integration review](../../reviews/2026-10-23_owner-overview_review.md), [overview design](../../designs/2026-10-23_owner-overview_design.md).

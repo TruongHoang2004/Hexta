@@ -40,7 +40,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingController{}, &controller.TenantOnboardingController{}, auth)
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth)
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -102,6 +102,8 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				require.Contains(t, failure.Properties, "detail")
 				require.Contains(t, failure.Properties, "http_status")
 			}
+			require.True(t, registered["POST /api/v1/ai/converse"])
+			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")
 			// Health's unavailable response has the same typed envelope as success.
 			unavailable := spec.Paths["/api/v1/health"]["get"].Responses["503"].Schema
 			require.NotEmpty(t, resolveSchema(t, spec, unavailable).Properties["data"].Ref)

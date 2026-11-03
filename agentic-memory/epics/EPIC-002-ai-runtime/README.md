@@ -44,6 +44,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
+- [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — local Go SSE/web integration; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.
+
 - [2026-11-03_langchain-providers](sessions/2026-11-03_langchain-providers.md) — owner-selected shared LangChain model path; 73 isolated/offline tests pass; local/in-review.
 
 - [2026-11-03_ai-providers](sessions/2026-11-03_ai-providers.md) — local/in-review; adapters, guarded graph and paid-call recovery fence; live verification/merge open.

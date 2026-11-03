@@ -62,6 +62,7 @@ export function Workspace({ children }: { children: React.ReactNode }) {
     loading || (!!tenantID && tenant?.id !== tenantID && !error);
   const base = `/tenants/${tenantID}`;
   const links = [
+    [`${base}/storefront`, "Storefront"],
     [`${base}/inbox`, "Inbox"],
     [`${base}/inbox/preview`, "Inbox preview"],
     [`${base}/orders`, "Orders"],

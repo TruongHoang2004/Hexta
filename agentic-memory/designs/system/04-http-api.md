@@ -134,3 +134,49 @@ Auth/health Swagger now declares response.Response[T], including health dependen
 ## Simulator inbox HTTP slice — local 2026-11-02
 
 IMPLEMENTED locally/unmerged under `/api/v1/tenants/{tenantID}`: GET `/conversations` and `/conversations/{id}/messages`; POST `/simulator/messages`, `/turns/{id}/claim`, `/turns/{id}/assign`, `/turns/{id}/send-simulation`. All require current active tenant membership. Pagination is UUID cursor/limit (default 20, maximum 100), with all/unassigned/mine/needs_human conversation filters. Claim/assign compare expected_version; simulated reply additionally compares context_revision and requires current assignee/sales control. Owner administration does not bypass send authority. Simulator inputs and replies use durable body request_key/hash and return 200 saved simulated messages, not 202 real outbound intents. Target `/send`, SSE, escalation, return, proposal and script routes remain unimplemented. [Design](../2026-11-02_messaging-inbox_design.md) specifies DTOs and error mappings; generated Swagger is authoritative for implemented transport shape. No application deployment/merge is claimed.
+
+## Shopping consultant integration — local 2026-11-03
+
+IMPLEMENTED locally: authenticated `POST /api/v1/ai/converse`, with tenant scope
+from `X-Tenant-ID` (or existing `tenant_id` query fallback). Request retains
+`prompt`, optional `conversation_id`, and at most 40 user/assistant history turns;
+prompt/history content is limited to 4,000 characters and body to 256 KiB.
+Native SSE emits named `message`, `products`, optional `draft_order`,
+`quick_replies`, then `done`; each data frame is a JSON SSEEvent with matching
+`type`. Failures before the first frame use the standard HTTP error envelope;
+stream failures use `error`. The Python endpoint returns one JSON result, so
+these are result events, not provider token deltas.
+
+Go calls `AI_CONSULT_URL` + `/internal/v1/consult` with server-only
+`AI_INTERNAL_TOKEN`; configure e.g. `AI_CONSULT_URL=http://localhost:58000` and
+provide the token privately. Existing AI timeout defaults to 60 seconds for this
+client and is capped at 120 seconds. Redirects and automatic retries are disabled;
+response bodies are bounded to 1 MiB. Missing optional configuration disables
+consultation, not unrelated API endpoints. Configure Python first, then deploy
+Go and web; the previously dormant converse route had no production consumer.
+No protobuf or database migration is needed. Rollback removes consultant access
+without undoing orders created through existing sales APIs.
+
+Go checks active tenant membership before and after the AI call and supplies a
+bounded snapshot of the first 100 active catalog products (priced variants only).
+Only catalog-resolved candidates survive; ambiguous multi-variant product IDs
+require an explicit `variant_id`. Drafts carry actual `product_id` plus additive
+`variant_id`, quantities 1–100, and recalculated decimal prices/totals. AI-provided
+prices/IDs cannot authorize an order. Optional HTTPS recommendation image URLs
+are display metadata; absent images use a placeholder. Customer context currently
+contains this product snapshot only, with no private customer records.
+
+Web routes `/tenants/{tenantId}/storefront` and `/checkout` are member-only under
+the existing workspace gate. Checkout refreshes catalog prices, requires a
+customer with contact details, assigns the current actor, saves through the
+existing sales API, displays server totals, then explicitly confirms with the
+returned version. An uncertain create failure blocks immediate retry and links
+to Orders; the sales create API still has no durable idempotency contract.
+Candidate checkout state is tab-local, untrusted session storage. No public
+customer identity, payment gateway, stock reservation or direct Python business
+write is added. The legacy cached draft handler remains unregistered.
+
+OPEN: the checked-in Python source has no `/internal/v1/consult`; its deployment
+must provide the owner-specified contract (including product IDs/variant metadata)
+for live use. HTTP fixtures verify the integration boundary, not a live Python
+provider or browser checkout. [Primary session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md).
