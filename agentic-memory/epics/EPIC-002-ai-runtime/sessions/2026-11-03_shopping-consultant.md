@@ -104,3 +104,15 @@ change. `sh scripts/check-gofmt.sh`, `go test -race ./services/api/config`,
 `go vet ./services/api/config` and `git diff --check`: PASS. This supersedes the
 previously recorded unresolved formatting debt. Push triggers fresh PR checks;
 remote CI completion is tracked separately from these local results.
+
+## CI test-image follow-up — 2026-11-03
+
+Run 41597517521 on efc7a1d passed formatting, Go vet, DB-backed Go tests, Atlas
+integrity and desired-schema parity. Its later Python image step exposed an
+existing packaging gap: `tests/test_smoke.py` imports root-level `smoke.py`,
+but the test target copied only application/generated modules and tests. Added
+`COPY smoke.py ./smoke.py` solely to the Dockerfile test target. Production
+image/content, schema and application behavior are unchanged. Validation:
+`docker build --target test -t hexta-pr62-ci-ai-test services/ai` PASS; running
+pytest in that image with network disabled and fake provider: 67 PASS, six DB
+tests skipped. Fresh CI must verify the isolated database cases.
