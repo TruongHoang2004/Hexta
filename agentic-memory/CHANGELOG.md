@@ -1,5 +1,26 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Production-grade AI Shopping Consultant with LangGraph and Multi-Model Adapter
+
+- Built standardized multi-model adapter ([`hexta_ai/models/adapter.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/models/adapter.py)) using LangChain supporting `fake`, `openai`, `google` (Gemini), `ollama`, and custom models with strict Pydantic structured output governance (`StructuredConsultantDecision`).
+- Implemented multi-layered guardrails ([`hexta_ai/guardrails/validator.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/guardrails/validator.py)) for prompt injection detection and deterministic output fact-checking (auto-correcting hallucinated prices and stripping invalid product IDs).
+- Implemented catalog retrieval and live hydration service ([`hexta_ai/catalog/service.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/catalog/service.py)) supporting keyword search, numerical price filters, attribute matching, and stock checking).
+- Designed and compiled stateful LangGraph shopping consultant state machine ([`hexta_ai/graph_consultant.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/graph_consultant.py)) with input guardrail, catalog retrieval, structured model reasoning, and output fact-checking nodes.
+- Added authenticated internal consultation endpoint `POST /internal/v1/consult` in [`hexta_ai/app.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/app.py) while maintaining 100% backward compatibility with existing gRPC and `/internal/v1/preview` simulation contracts.
+- Documented full system architecture and industry benchmarks in [production-ai-consultant design](designs/2026-11-03_production-ai-consultant_design.md).
+- Fixed PR #62 contract compatibility: extended `session_id` max_length to 500 characters to support 110-character composite IDs (`tenantUUID:userUUID:sessionUUID`) from Go.
+- Fixed tenant catalog isolation: `CatalogService.from_customer_context` now ingests real tenant products from Go (`customer_context.products`) and prevents falling back to hardcoded sample items when an empty catalog is provided.
+- Fixed guardrail message synchronization: `OutputGuardrail` now reconstructs `reply_message` when draft order prices/items are corrected, eliminating hallucinated prices from the user-facing text.
+- Fixed price filter leaks: enforced hard `min_price`/`max_price` filters during fallback search and recommendation hydration (e.g. `max_price=1000` returns no items; "áo dưới 300k" never recommends 320k items).
+- Configured provider limits: defaulted `max_retries=0` to prevent retry storms/rate-limit loops (3 requests on 429), set explicit 30s timeout and 2048 max tokens.
+- Fixed variant mapping and pricing: `CatalogService` and `OutputGuardrail` now prioritize `variant_id` over `product_id`, prevent variant overwrites, preserve variant identifiers throughout recommendations and draft orders, and enforce real variant pricing (e.g. Size L stays 200.000đ and retains `variant_id="size_l"`, matching Go's verification map).
+- Fixed total amount message synchronization: `OutputGuardrail` checks `total_adjusted` (`abs(calculated_total - original_total) > 0.01`) to reconstruct `reply_message` whenever the model hallucinated a total amount (e.g. 1đ), ensuring customer text matches verified cart totals.
+- Fixed Vietnamese decimal budget parsing: `extract_price_filters` and `parse_vietnamese_price_filter` now correctly distinguish decimal separators from thousand separators (e.g. "dưới 1,5 triệu" and "dưới 1.5tr" parse as 1.500.000đ, not 15.000.000đ).
+- Fixed provider configuration & factory alignment: `ModelAdapter` now honors standard environment variables `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_TIMEOUT`, and `AI_MAX_TOKENS`, adds first-class support for `anthropic`, and safely falls back to `FakeStructuredChatModel` when provider credentials are unset or initialization fails, preventing HTTP 500 errors.
+- Fixed guardrail price and policy fact-checking: `OutputGuardrail` now verifies `reply_message` across all intents (`discovery`, `refinement`, `faq_policy`) against real catalog prices and standard store policy (7-day return, free shipping for orders >= 500.000đ), reconstructing messages with verified catalog prices when hallucinated numbers (e.g. 1đ) or unauthorized policy promises are detected.
+- Fixed draft order customer budget enforcement: `OutputGuardrail` and `guardrail_output_node` now enforce hard `min_price` and `max_price` filters on draft order items, rejecting expensive items (e.g. 500k polo for "dưới 300k" request) and notifying the customer that the item exceeds their requested budget.
+- Verification: 99 automated tests passed (8 new unit and graph tests covering provider fallback, Gemini/Anthropic config, discovery message reconstruction, and draft order budget constraints).
+
 ## 2026-11-03 — Modular tenant inbox preview (PR #61)
 
 - Added `/tenants/[tenantId]/inbox/preview`, tenant navigation and typed UI components with a state hook, sample data and pure queue filtering. Sample-only filters/search/drafts/customer context; existing simulator `/inbox` preserved after rebase onto `2e5f18e`.
