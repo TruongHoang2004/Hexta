@@ -49,9 +49,9 @@ def test_reject_unknown_input_and_empty_message(client):
                        json={"message": ""}).status_code == 422
 
 
-def test_real_provider_cannot_be_enabled_accidentally(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER", "openai")
-    with pytest.raises(RuntimeError, match="fake only"):
+def test_unsupported_provider_is_rejected(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "unsupported_provider")
+    with pytest.raises(RuntimeError, match="Unsupported AI_PROVIDER"):
         create_app(TOKEN)
 
 

@@ -1,5 +1,15 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Production-grade AI Shopping Consultant with LangGraph and Multi-Model Adapter
+
+- Built standardized multi-model adapter ([`hexta_ai/models/adapter.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/models/adapter.py)) using LangChain supporting `fake`, `openai`, `google` (Gemini), `ollama`, and custom models with strict Pydantic structured output governance (`StructuredConsultantDecision`).
+- Implemented multi-layered guardrails ([`hexta_ai/guardrails/validator.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/guardrails/validator.py)) for prompt injection detection and deterministic output fact-checking (auto-correcting hallucinated prices and stripping invalid product IDs).
+- Implemented catalog retrieval and live hydration service ([`hexta_ai/catalog/service.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/catalog/service.py)) supporting keyword search, numerical price filters, attribute matching, and stock checking.
+- Designed and compiled stateful LangGraph shopping consultant state machine ([`hexta_ai/graph_consultant.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/graph_consultant.py)) with input guardrail, catalog retrieval, structured model reasoning, and output fact-checking nodes.
+- Added authenticated internal consultation endpoint `POST /internal/v1/consult` in [`hexta_ai/app.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/app.py) while maintaining 100% backward compatibility with existing gRPC and `/internal/v1/preview` simulation contracts.
+- Documented full system architecture and industry benchmarks in [production-ai-consultant design](designs/2026-11-03_production-ai-consultant_design.md).
+- Verification: 33 automated tests passed (`tests/test_model_adapter.py`, `tests/test_consultant.py`, `tests/test_consult_endpoint.py`, `tests/test_preview.py`, `tests/test_rpc.py`, `tests/test_store_startup.py`).
+
 ## 2026-10-28 — Focused rules with a single selection router
 
 - [rules/README.md](../rules/README.md) now selects modules by paths and behavior changes; no mandatory inventory/full-catalog or recursive link loading. Split combined HTTP, Fx/infrastructure and errors/auth/logging modules; preserved 91 API IDs/origins, moved cache implementation detail to design context.
