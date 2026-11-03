@@ -38,7 +38,7 @@ clean:
 DOCKER_MIGRATE = ./scripts/local.sh run --build --rm --no-deps --entrypoint atlas migrator
 
 check-svc:
-	@case "$(svc)" in api|ai) ;; *) echo "svc must be api or ai" >&2; exit 1;; esac
+	@case "$(svc)" in api|ai|connector) ;; *) echo "svc must be api, ai or connector" >&2; exit 1;; esac
 
 migrate-init: check-svc
 	@test -n "$(name)" || { echo "name is required" >&2; exit 1; }
@@ -49,12 +49,12 @@ migrate-diff: check-svc migration-db
 	$(DOCKER_MIGRATE) migrate diff "$(name)" --env "$(svc)"
 
 migration-db:
-	@case "$(if $(svc),$(svc),all)" in api|ai|all) ;; *) echo "svc must be api, ai or all" >&2; exit 1;; esac
+	@case "$(if $(svc),$(svc),all)" in api|ai|connector|all) ;; *) echo "svc must be api, ai, connector or all" >&2; exit 1;; esac
 	./scripts/local.sh up -d --wait postgres
 	./scripts/local.sh run --rm --no-deps db-init
 
 migrate migrate-apply: migration-db
-	@case "$(if $(svc),$(svc),all)" in api|ai|all) ;; *) echo "svc must be api, ai or all" >&2; exit 1;; esac
+	@case "$(if $(svc),$(svc),all)" in api|ai|connector|all) ;; *) echo "svc must be api, ai, connector or all" >&2; exit 1;; esac
 	./scripts/local.sh run --build --rm --no-deps -e MIGRATE_TARGET="$(if $(svc),$(svc),all)" migrator
 
 migrate-apply-local:

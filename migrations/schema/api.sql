@@ -490,9 +490,43 @@ CREATE TABLE "messaging_messages" (
  "body" text NOT NULL CHECK (char_length("body") BETWEEN 1 AND 4000),
  "request_key" uuid NOT NULL,
  "request_hash" character varying(64) NOT NULL,
- "status" character varying(16) NOT NULL CHECK ("status" = 'simulated'),
+ "status" character varying(16) NOT NULL CHECK ("status" IN ('simulated', 'received')),
  "created_at" timestamptz NOT NULL,
  UNIQUE ("tenant_id", "request_key"),
  FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id")
 );
 CREATE INDEX "idx_messaging_messages_history" ON "messaging_messages" ("tenant_id", "thread_id", "id" DESC);
+
+-- API-owned authority mirror: provisioned by trusted API operator tooling only.
+CREATE TABLE "messaging_connections" (
+ id uuid PRIMARY KEY,
+ tenant_id varchar(36) NOT NULL REFERENCES tenants(id),
+ version bigint NOT NULL CHECK(version>0),
+ platform text NOT NULL,
+ account_id text NOT NULL,
+ enabled boolean NOT NULL,
+ UNIQUE(tenant_id,id), UNIQUE(platform,account_id)
+);
+CREATE TABLE "messaging_ingress" (
+ identity text PRIMARY KEY,
+ event_id uuid NOT NULL,
+ tenant_id varchar(36) NOT NULL,
+ connection_id uuid NOT NULL,
+ message_id text NOT NULL,
+ external_conversation_key text NOT NULL,
+ source_identity text NOT NULL,
+ source_revision text NOT NULL,
+ reply_to text NOT NULL,
+ source_timestamp timestamptz NOT NULL,
+ acquisition text NOT NULL,
+ purpose text NOT NULL,
+ received_at timestamptz NOT NULL,
+ outcome text NOT NULL,
+ FOREIGN KEY(tenant_id,connection_id) REFERENCES messaging_connections(tenant_id,id)
+);
+
+CREATE TABLE "messaging_ingress_quarantine" (
+ identity text PRIMARY KEY,
+ reason text NOT NULL,
+ received_at timestamptz NOT NULL
+);

@@ -65,3 +65,5 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/grpc v1.67.1
 )
+
+require github.com/segmentio/kafka-go v0.4.49
