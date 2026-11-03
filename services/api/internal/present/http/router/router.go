@@ -19,6 +19,7 @@ func RegisterRoutes(
 	workflows *controller.WorkflowController,
 	messaging *controller.MessagingController,
 	onboarding *controller.TenantOnboardingController,
+	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Root level public routes
@@ -45,6 +46,7 @@ func RegisterRoutes(
 	}
 
 	account := params.Public.Group("", authMiddleware.RequireAuth())
+	account.POST("/ai/converse", consultant.Converse)
 	account.GET("/tenant-requests", onboarding.MyApplications)
 	account.POST("/tenant-requests", onboarding.ApplyForTenant)
 	account.GET("/platform/access", onboarding.PlatformAccess)

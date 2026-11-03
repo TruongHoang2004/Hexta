@@ -620,6 +620,34 @@ Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/
 
 Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non-draft against main from codex/rules-memory-cleanup; connector creation 403 recovered via authenticated CLI, artifact attached. CI/review/merge not claimed complete; archive recovery uses shared main d09083c.
 
+## 2026-11-03 — Shopping consultant Go SSE and Next.js integration (local/in-review)
+
+- Added internal HTTP consult adapter/config, safe bounded transport, Fx binding,
+  current tenant/catalog gates and named message/products/draft_order/quick_replies
+  SSE at authenticated POST /api/v1/ai/converse; regenerated Swagger.
+- Added member Storefront, floating Markdown/product/draft widget, POST SSE parser,
+  quick replies and explicit sales checkout review/confirmation. Reused SDK,
+  shared UI and sales services; react-markdown is the sole added runtime dependency.
+- Tests: Go race suite and vet pass; web lint/build pass; 4 standalone SSE tests
+  pass. Global gofmt check finds existing config/config_test.go formatting debt.
+  Live Python, isolated DB and browser acceptance NOT_RUN; checked-in Python has
+  no consult endpoint. No deployment/merge/completion claim.
+- [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md)
+  records impact, choices, test commands and handoff; [HTTP contract](designs/system/04-http-api.md#shopping-consultant-integration--local-2026-11-03)
+  records URL/token setup, event data, bounded catalog and member-only scope.
+
+Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) OPEN/non-draft against main from `codex/shopping-consultant-review`; integration checks repeated on main 009c117 plus scoped changes. Unrelated local edits excluded; live acceptance, CI and merge remain unverified.
+
+2026-11-03 PR #62 CI follow-up: removed one trailing blank line via gofmt in services/api/config/config_test.go, fixing the formatting gate reported by Backend CI run 41579328602. Whole-repo formatting plus focused config race tests/vet pass; fresh remote CI remains pending. No behavior or workflow change.
+
+2026-11-03 PR #62 CI follow-up: after Go/Atlas checks passed in run 41597517521, fixed AI test-image collection failure by copying smoke.py into only the Dockerfile test target. Image build and container offline suite pass (67 passed, six DB skips); production target unchanged and fresh CI DB acceptance pending.
+
+2026-11-03 PR #62 owner-review follow-up: preserve variant labels in AI snapshot,
+verified cards, drafts and checkout; deduplicate variant recommendations; resolve
+legacy checkout IDs only when unambiguous; accept base/full consult URLs and proxy
+prefixes. Scoped Go race tests/vet, global gofmt, Swagger regeneration, SDK/web
+build/lint and seven standalone Node tests pass. New CI and live/browser acceptance
+remain pending; [session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md) records compatibility details.
 ## 2026-11-03 — Direct Facebook connector ingress (local, in review)
 
 - Added `services/connector`: BasePlugin/capability registry, signed batch webhook, trusted connection management, durable receipt/event outbox, fenced Kafka relay and sync framework. Added shared ingress JSON v1/Kafka transport and separate Atlas connector ownership; kafka-go is the new transport dependency.

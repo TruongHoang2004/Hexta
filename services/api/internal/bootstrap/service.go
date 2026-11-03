@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/gemini"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai"
 	"go.uber.org/fx"
 )
 
@@ -27,11 +27,11 @@ func BuildService() fx.Option {
 			fx.As(new(service.IOrderService)),
 		),
 		fx.Annotate(
-			gemini.NewGeminiClient,
-			fx.As(new(service.IAIGenerator)),
+			ai.NewConsultClient,
+			fx.As(new(service.IConsultClient)),
 		),
 		fx.Annotate(
-			service.NewAIAgentService,
+			service.NewConsultantService,
 			fx.As(new(service.IAIAgentService)),
 		),
 	)
