@@ -1,5 +1,24 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Maintainable inbox components
+
+- Refactored [inbox](../apps/web/components/inbox/inbox.tsx) into typed presentation components, a dedicated state hook, shared types, sample data and pure filtering logic. Formatted JSX for readability; retained existing preview behavior.
+- Verification: Prettier, web lint, TypeScript, production build and whitespace checks passed. Browser acceptance not run. [Session](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md) records local/in-review scope and remaining integration work.
+
+## 2026-11-03 — Tenant workspace inbox UI
+
+- Added `/tenants/[tenantId]/inbox` and [React inbox](../apps/web/components/inbox/inbox.tsx); linked from tenant navigation and widened the inbox workspace. Provides sample queue/channel filters, search, local reply/note drafts, customer context and narrow-screen list/detail navigation.
+- Reuses workspace tenant access resolution and tenant remount boundaries. Data is illustrative; production ingestion, persistence and dispatch remain open.
+- Verification: web lint, generated Next.js route types, TypeScript and production build passed; inbox route included. Browser acceptance not run. [Session](epics/EPIC-004-messaging/sessions/2026-11-03_tenant-inbox-page.md) records prerequisites and local/in-review delivery status.
+
+## 2026-11-03 — Admin inbox design concept
+
+- Added a self-contained [interactive prototype](designs/prototypes/2026-11-03_admin-inbox.html) with queue/channel filters, search, thread selection and local reply/note previews. Sample data only; no production app, external provider or API changes.
+- Kept lifecycle, assignment, control and escalation separate. Updated EPIC-004 and index; [session](epics/EPIC-004-messaging/sessions/2026-11-03_admin-inbox-concept.md) records review and integration boundaries. System contracts unchanged.
+- Verification: extracted JavaScript syntax via `node --check`, static inspection and `git diff --check`. Browser/application tests not run; local concept awaits review and is not merged.
+
+
+
 ## 2026-11-03 — AI coding instruction architecture
 
 Owner-approved domain instructions, six workflows, canonical-route-derived Antigravity selectors and Claude import/skill adapters. Reconciled memory/skill ownership and retained API provenance, framework-generated blocks and historical records. Added a read-only structure/adapter validator and native-client acceptance procedure. [Session](epics/EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md) records evidence and limits; local/in-review, no application change or merge claim.
