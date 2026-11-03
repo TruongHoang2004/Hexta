@@ -27,20 +27,31 @@ class ExtractedFilters(BaseModel):
 class CatalogItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     product_id: str
-    sku: str
-    name: str
-    category: str
-    price: float
+    variant_id: str = ""
+    sku: str = ""
+    name: str = ""
+    product_name: str = ""
+    category: str = "Sản phẩm"
+    price: float = 0.0
     original_price: float | None = None
     stock: int = 0
     attributes: dict[str, str] = Field(default_factory=dict)
     description: str = ""
     image_url: str = ""
 
+    def model_post_init(self, __context: Any) -> None:
+        if not self.product_name and self.name:
+            self.product_name = self.name
+        elif not self.name and self.product_name:
+            self.name = self.product_name
+        if not self.sku and self.variant_id:
+            self.sku = self.variant_id
+
 
 class OrderDraftItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
     product_id: str
+    variant_id: str = ""
     product_name: str
     variant: str = ""
     quantity: int = Field(default=1, ge=1)
@@ -74,10 +85,10 @@ class StructuredConsultantDecision(BaseModel):
 class ConsultantRequest(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
     tenant_id: str = Field(min_length=1, max_length=100)
-    session_id: str = Field(default="default_session", min_length=1, max_length=100)
+    session_id: str = Field(default="default_session", min_length=1, max_length=500)
     message: str = Field(min_length=1, max_length=8000)
     history: list[dict[str, str]] = Field(default_factory=list, description="List of {role, content}")
-    customer_context: dict[str, Any] = Field(default_factory=dict, description="Known customer details (name, phone)")
+    customer_context: dict[str, Any] = Field(default_factory=dict, description="Known customer details (name, phone) and tenant products")
 
 
 class ConsultantResponse(BaseModel):

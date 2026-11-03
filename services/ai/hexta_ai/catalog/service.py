@@ -73,17 +73,58 @@ class CatalogService:
     """Manages catalog retrieval, keyword filtering, and real-time hydration."""
 
     def __init__(self, initial_items: list[CatalogItem] | None = None):
-        self._items: dict[str, CatalogItem] = {
-            item.product_id: item for item in (initial_items or DEFAULT_CATALOG_ITEMS)
-        }
+        self._items: dict[str, CatalogItem] = {}
+        items_source = initial_items if initial_items is not None else DEFAULT_CATALOG_ITEMS
+        for item in items_source:
+            self._items[item.product_id] = item
+            if item.variant_id:
+                self._items[item.variant_id] = item
+            if item.sku:
+                self._items[item.sku] = item
 
-    def get_by_id(self, product_id: str) -> CatalogItem | None:
-        return self._items.get(product_id)
+    @classmethod
+    def from_customer_context(cls, customer_context: dict[str, Any] | None) -> "CatalogService":
+        if customer_context is not None and "products" in customer_context:
+            raw_products = customer_context.get("products") or []
+            items: list[CatalogItem] = []
+            for p in raw_products:
+                if isinstance(p, dict):
+                    pid = str(p.get("product_id") or p.get("id") or "")
+                    vid = str(p.get("variant_id") or "")
+                    pname = str(p.get("product_name") or p.get("name") or "")
+                    try:
+                        price = float(p.get("price") or 0.0)
+                    except (ValueError, TypeError):
+                        price = 0.0
+                    items.append(
+                        CatalogItem(
+                            product_id=pid,
+                            variant_id=vid,
+                            name=pname,
+                            product_name=pname,
+                            sku=vid or pid,
+                            price=price,
+                            stock=int(p.get("stock", 100)),
+                            image_url=str(p.get("image_url") or ""),
+                            category=str(p.get("category") or "Sản phẩm"),
+                            description=str(p.get("description") or ""),
+                        )
+                    )
+            return cls(initial_items=items)
+        return cls(initial_items=None)
+
+    def get_by_id(self, product_or_variant_id: str) -> CatalogItem | None:
+        if product_or_variant_id in self._items:
+            return self._items[product_or_variant_id]
+        for it in self._items.values():
+            if it.product_id == product_or_variant_id or it.variant_id == product_or_variant_id:
+                return it
+        return None
 
     def get_by_sku(self, sku: str) -> CatalogItem | None:
         norm_sku = sku.strip().upper()
         for item in self._items.values():
-            if item.sku.upper() == norm_sku:
+            if item.sku.upper() == norm_sku or item.variant_id.upper() == norm_sku:
                 return item
         return None
 
@@ -91,8 +132,17 @@ class CatalogService:
         """Hybrid-style search: keyword matching + attribute + numerical price range filtering."""
         tokens = [t.lower() for t in re.findall(r"\w+", query) if len(t) > 1]
         results: list[tuple[float, CatalogItem]] = []
+        seen_ids: set[str] = set()
 
-        for item in self._items.values():
+        # Deduplicate items by variant_id or product_id
+        items_to_search: list[CatalogItem] = []
+        for it in self._items.values():
+            key = it.variant_id or it.product_id
+            if key not in seen_ids:
+                seen_ids.add(key)
+                items_to_search.append(it)
+
+        for item in items_to_search:
             # Hard filter: in_stock_only
             if filters and filters.in_stock_only and item.stock <= 0:
                 continue
@@ -105,11 +155,11 @@ class CatalogService:
                     continue
 
             # Text relevance scoring
-            text_corpus = f"{item.name} {item.category} {item.description} {' '.join(item.attributes.values())}".lower()
+            text_corpus = f"{item.name} {item.product_name} {item.category} {item.description} {' '.join(item.attributes.values())}".lower()
             score = 0.0
 
             for token in tokens:
-                if token in item.name.lower():
+                if token in item.name.lower() or token in item.product_name.lower():
                     score += 3.0
                 elif token in item.category.lower():
                     score += 2.0
@@ -125,13 +175,19 @@ class CatalogService:
             if score > 0 or not tokens:
                 results.append((score, item))
 
-        # Fallback to top in-stock items if query had no direct keyword matches
+        # Fallback to top in-stock items ONLY IF they strictly satisfy all hard filters
         if not results:
-            for item in self._items.values():
-                if not filters or not filters.in_stock_only or item.stock > 0:
-                    results.append((0.1, item))
-                    if len(results) >= limit:
-                        break
+            for item in items_to_search:
+                if filters:
+                    if filters.in_stock_only and item.stock <= 0:
+                        continue
+                    if filters.min_price is not None and item.price < filters.min_price:
+                        continue
+                    if filters.max_price is not None and item.price > filters.max_price:
+                        continue
+                results.append((0.1, item))
+                if len(results) >= limit:
+                    break
 
         results.sort(key=lambda x: x[0], reverse=True)
         return [item for _, item in results[:limit]]

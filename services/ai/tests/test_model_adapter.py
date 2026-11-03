@@ -1,3 +1,4 @@
+import os
 import pytest
 from hexta_ai.models.adapter import ModelAdapter, FakeStructuredChatModel
 from hexta_ai.schemas.consultant import StructuredConsultantDecision
@@ -32,3 +33,23 @@ async def test_fake_model_human_handoff():
     
     assert decision.intent == "human_handoff"
     assert decision.needs_human is True
+
+
+def test_openai_model_limits_and_retry_defaults(monkeypatch):
+    """Verify Issue 5: OpenAI adapter defaults to 0 retries and bounded timeout/max_tokens."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-mock-key")
+    model = ModelAdapter.get_model(provider="openai")
+    
+    assert model.max_retries == 0
+    assert model.request_timeout == 30.0
+    assert model.max_tokens == 2048
+
+
+def test_openai_model_limits_custom_kwargs(monkeypatch):
+    """Verify Issue 5: OpenAI adapter accepts customized limits."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-mock-key")
+    model = ModelAdapter.get_model(provider="openai", max_retries=1, timeout=15.0, max_tokens=1024)
+    
+    assert model.max_retries == 1
+    assert model.request_timeout == 15.0
+    assert model.max_tokens == 1024

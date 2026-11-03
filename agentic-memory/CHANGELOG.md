@@ -8,7 +8,12 @@
 - Designed and compiled stateful LangGraph shopping consultant state machine ([`hexta_ai/graph_consultant.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/graph_consultant.py)) with input guardrail, catalog retrieval, structured model reasoning, and output fact-checking nodes.
 - Added authenticated internal consultation endpoint `POST /internal/v1/consult` in [`hexta_ai/app.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/app.py) while maintaining 100% backward compatibility with existing gRPC and `/internal/v1/preview` simulation contracts.
 - Documented full system architecture and industry benchmarks in [production-ai-consultant design](designs/2026-11-03_production-ai-consultant_design.md).
-- Verification: 33 automated tests passed (`tests/test_model_adapter.py`, `tests/test_consultant.py`, `tests/test_consult_endpoint.py`, `tests/test_preview.py`, `tests/test_rpc.py`, `tests/test_store_startup.py`).
+- Fixed PR #62 contract compatibility: extended `session_id` max_length to 500 characters to support 110-character composite IDs (`tenantUUID:userUUID:sessionUUID`) from Go.
+- Fixed tenant catalog isolation: `CatalogService.from_customer_context` now ingests real tenant products from Go (`customer_context.products`) and prevents falling back to hardcoded sample items when an empty catalog is provided.
+- Fixed guardrail message synchronization: `OutputGuardrail` now reconstructs `reply_message` when draft order prices/items are corrected, eliminating hallucinated prices from the user-facing text.
+- Fixed price filter leaks: enforced hard `min_price`/`max_price` filters during fallback search and recommendation hydration (e.g. `max_price=1000` returns no items; "áo dưới 300k" never recommends 320k items).
+- Configured provider limits: defaulted `max_retries=0` to prevent retry storms/rate-limit loops (3 requests on 429), set explicit 30s timeout and 2048 max tokens.
+- Verification: 41 automated tests passed (8 new unit and endpoint tests covering all review fixes).
 
 ## 2026-10-28 — Focused rules with a single selection router
 

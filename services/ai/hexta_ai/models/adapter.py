@@ -28,16 +28,85 @@ class FakeStructuredChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
+        # Extract catalog context from messages if present
+        catalog_context = ""
+        for m in messages:
+            if hasattr(m, "content"):
+                c = str(m.content)
+                if "DANH MỤC SẢN PHẨM" in c:
+                    catalog_context = c
+                    break
+
         last_msg = messages[-1].content if messages else ""
         text = str(last_msg).lower()
-        
+
+        # Parse available products from catalog_context
+        # Format in prompt: "- [Mã: <id> | SKU: <sku>] <name> | Giá: <price>đ ..."
+        available_products: list[dict[str, Any]] = []
+        for match in re.finditer(
+            r"- \[Mã:\s*([^ |]+)\s*\|\s*SKU:\s*([^ \]]+)\]\s*([^|]+)\|\s*Giá:\s*([\d\.,]+)đ",
+            catalog_context,
+        ):
+            pid = match.group(1).strip()
+            sku = match.group(2).strip()
+            pname = match.group(3).strip()
+            price_str = match.group(4).replace(".", "").replace(",", "")
+            try:
+                price = float(price_str)
+            except ValueError:
+                price = 0.0
+            available_products.append({"id": pid, "sku": sku, "name": pname, "price": price})
+
+        # Price constraint parsing from query
+        max_p = None
+        if "dưới 300k" in text or "dưới 300.000" in text:
+            max_p = 300000.0
+        elif "max_price=1000" in text or "dưới 1000" in text:
+            max_p = 1000.0
+
+        if max_p is not None:
+            available_products = [p for p in available_products if p["price"] <= max_p]
+
+        has_catalog_context = "DANH MỤC SẢN PHẨM" in catalog_context
+        if not has_catalog_context:
+            from hexta_ai.catalog.service import DEFAULT_CATALOG_ITEMS
+            available_products = [
+                {"id": it.product_id, "sku": it.sku, "name": it.name, "price": it.price}
+                for it in DEFAULT_CATALOG_ITEMS
+            ]
+            catalog_empty = False
+        else:
+            catalog_empty = (
+                "Hiện tại cửa hàng không có sản phẩm nào" in catalog_context
+                or "Hiện không tìm thấy" in catalog_context
+                or not available_products
+            )
+
         # Rule-based decision for fake simulation
-        if any(w in text for w in ["chốt đơn", "mua", "lấy cái này", "đặt hàng"]):
+        if any(w in text for w in ["người", "nhân viên", "tổng đài", "gặp tư vấn viên"]):
+            decision = StructuredConsultantDecision(
+                intent="human_handoff",
+                thought_process="Customer requested live human staff support.",
+                reply_message="Dạ em đang kết nối bạn với chuyên viên tư vấn của shop, bạn vui lòng đợi trong giây lát ạ!",
+                needs_human=True,
+                quick_replies=["Quay lại chat tự động"],
+            )
+        elif catalog_empty:
+            decision = StructuredConsultantDecision(
+                intent="discovery",
+                thought_process="No matching products available in catalog context.",
+                reply_message="Dạ hiện tại shop chưa có sản phẩm nào phù hợp với yêu cầu của bạn ạ.",
+                recommended_product_ids=[],
+                draft_order=None,
+                quick_replies=["Xem sản phẩm khác"],
+            )
+        elif any(w in text for w in ["chốt đơn", "mua", "lấy cái này", "đặt hàng"]):
+            chosen = available_products[0]
             decision = StructuredConsultantDecision(
                 intent="order_draft",
                 thought_process="Customer showed explicit purchase intent. Formulating draft order.",
-                reply_message="Dạ em đã tạo đơn hàng nháp cho bạn. Bạn vui lòng kiểm tra lại thông tin đơn hàng bên dưới nhé!",
-                recommended_product_ids=["prod_01"],
+                reply_message=f"Dạ em đã tạo đơn hàng nháp cho bạn với sản phẩm {chosen['name']}. Bạn vui lòng kiểm tra lại thông tin đơn hàng bên dưới nhé!",
+                recommended_product_ids=[chosen["id"]],
                 draft_order=OrderDraft(
                     draft_id="draft_sim_001",
                     customer_name="Nguyễn Văn A",
@@ -45,25 +114,18 @@ class FakeStructuredChatModel(BaseChatModel):
                     shipping_address="Hà Nội",
                     items=[
                         OrderDraftItem(
-                            product_id="prod_01",
-                            product_name="Áo Polo Thể Thao Nam Co Giãn",
-                            variant="Size L / Đen",
+                            product_id=chosen["id"],
+                            variant_id=chosen["sku"],
+                            product_name=chosen["name"],
+                            variant="Mặc định",
                             quantity=1,
-                            unit_price=299000.0,
+                            unit_price=chosen["price"],
                         )
                     ],
-                    total_amount=299000.0,
+                    total_amount=chosen["price"],
                     payment_method="cod",
                 ),
                 quick_replies=["Xác nhận đơn", "Sửa địa chỉ", "Hủy"],
-            )
-        elif any(w in text for w in ["người", "nhân viên", "tổng đài", "gặp tư vấn viên"]):
-            decision = StructuredConsultantDecision(
-                intent="human_handoff",
-                thought_process="Customer requested live human staff support.",
-                reply_message="Dạ em đang kết nối bạn với chuyên viên tư vấn của shop, bạn vui lòng đợi trong giây lát ạ!",
-                needs_human=True,
-                quick_replies=["Quay lại chat tự động"],
             )
         elif any(w in text for w in ["đổi trả", "bảo hành", "vận chuyển", "freeship"]):
             decision = StructuredConsultantDecision(
@@ -73,12 +135,13 @@ class FakeStructuredChatModel(BaseChatModel):
                 quick_replies=["Xem sản phẩm hot", "Tư vấn chọn size"],
             )
         else:
+            rec_ids = [p["id"] for p in available_products[:2]]
             decision = StructuredConsultantDecision(
                 intent="discovery",
                 thought_process="Customer browsing or asking for recommendations.",
-                reply_message="Dạ chào bạn, shop xin gợi ý các mẫu áo quần đang được ưa chuộng nhất tuần này, phù hợp với yêu cầu của bạn ạ!",
-                recommended_product_ids=["prod_01", "prod_02"],
-                quick_replies=["Xem thêm mẫu khác", "Lọc sản phẩm dưới 300k", "Chọn size L"],
+                reply_message="Dạ chào bạn, shop xin gợi ý các mẫu sản phẩm phù hợp với yêu cầu của bạn ạ!",
+                recommended_product_ids=rec_ids,
+                quick_replies=["Xem thêm mẫu khác", "Lọc theo giá", "Chọn size"],
             )
         
         json_output = decision.model_dump_json()
@@ -133,6 +196,11 @@ class ModelAdapter:
     ) -> BaseChatModel:
         prov = (provider or os.getenv("AI_PROVIDER", "fake")).strip().lower()
 
+        # Configurable limits with safe defaults: 0 retries on 429/failures and 30s timeout
+        timeout = float(kwargs.get("timeout") or kwargs.get("request_timeout") or os.getenv("AI_TIMEOUT_SECONDS", "30.0"))
+        max_retries = int(kwargs.get("max_retries") if kwargs.get("max_retries") is not None else os.getenv("AI_MAX_RETRIES", "0"))
+        max_tokens = int(kwargs.get("max_tokens") or os.getenv("AI_MAX_TOKENS", "2048"))
+
         if prov == "fake":
             return FakeStructuredChatModel()
 
@@ -141,35 +209,56 @@ class ModelAdapter:
             api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY")
             base_url = kwargs.get("base_url") or os.getenv("OPENAI_API_BASE") or os.getenv("AI_OPENAI_BASE_URL")
             selected_model = model_name or os.getenv("AI_MODEL_NAME", "gpt-4o-mini")
+            clean_kwargs = {
+                k: v for k, v in kwargs.items()
+                if k not in {"api_key", "base_url", "timeout", "request_timeout", "max_retries", "max_tokens"}
+            }
             return ChatOpenAI(
                 model=selected_model,
                 api_key=api_key,
                 base_url=base_url,
                 temperature=temperature,
-                **kwargs,
+                timeout=timeout,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+                **clean_kwargs,
             )
 
         if prov in {"google", "gemini"}:
             from langchain_google_genai import ChatGoogleGenerativeAI
             api_key = kwargs.get("api_key") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
             selected_model = model_name or os.getenv("AI_MODEL_NAME", "gemini-2.0-flash")
+            clean_kwargs = {
+                k: v for k, v in kwargs.items()
+                if k not in {"api_key", "timeout", "request_timeout", "max_retries", "max_tokens"}
+            }
             return ChatGoogleGenerativeAI(
                 model=selected_model,
                 google_api_key=api_key,
                 temperature=temperature,
-                **kwargs,
+                timeout=timeout,
+                max_retries=max_retries,
+                max_output_tokens=max_tokens,
+                **clean_kwargs,
             )
 
         if prov in {"ollama", "local"}:
             from langchain_openai import ChatOpenAI
             base_url = kwargs.get("base_url") or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
             selected_model = model_name or os.getenv("AI_MODEL_NAME", "llama3.2")
+            clean_kwargs = {
+                k: v for k, v in kwargs.items()
+                if k not in {"api_key", "base_url", "timeout", "request_timeout", "max_retries", "max_tokens"}
+            }
             return ChatOpenAI(
                 model=selected_model,
                 api_key="ollama",
                 base_url=base_url,
                 temperature=temperature,
-                **kwargs,
+                timeout=timeout,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+                **clean_kwargs,
             )
 
         raise ValueError(
