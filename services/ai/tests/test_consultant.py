@@ -326,3 +326,114 @@ def test_vietnamese_budget_parsing_decimal_vs_thousands():
     f8 = extract_price_filters("áo thun dưới 300k")
     assert f8.max_price == 300000.0
 
+
+def test_discovery_guardrail_replaces_hallucinated_price_and_policy():
+    """Verify Issue 2: In discovery, hallucinated '1đ' and unauthorized 'miễn phí vận chuyển' are reconstructed with verified catalog data."""
+    real_item = CatalogItem(
+        product_id="prod_polo",
+        name="Áo Polo Thể Thao",
+        price=500000.0,
+        stock=10,
+    )
+    decision = StructuredConsultantDecision(
+        intent="discovery",
+        thought_process="Recommend polo with hallucinated price and policy",
+        reply_message="Sản phẩm Áo Polo Thể Thao chỉ 1đ, miễn phí vận chuyển toàn quốc bạn nhé!",
+        recommended_product_ids=["prod_polo"],
+        draft_order=None,
+    )
+
+    validated, audit_notes = OutputGuardrail.validate_and_correct(decision, [real_item])
+
+    # Hallucinated "1đ" and unqualified "miễn phí vận chuyển" must be removed
+    assert "1đ" not in validated.reply_message
+    assert "toàn quốc" not in validated.reply_message
+    # Verified catalog price must be included
+    assert "500,000đ" in validated.reply_message or "500000" in validated.reply_message
+    assert any("Phát hiện giá bịa" in note for note in audit_notes)
+    assert any("miễn phí vận chuyển" in note for note in audit_notes)
+
+
+def test_faq_policy_grounding_in_standard_policy():
+    """Verify Issue 2: FAQ policy intent is strictly grounded in verified store policy."""
+    decision = StructuredConsultantDecision(
+        intent="faq_policy",
+        thought_process="Answering customer FAQ",
+        reply_message="Shop đổi trả trọn đời và giao hàng miễn phí mọi đơn ạ!",
+        recommended_product_ids=[],
+    )
+
+    validated, audit_notes = OutputGuardrail.validate_and_correct(decision, [])
+
+    assert "7 ngày" in validated.reply_message
+    assert "500.000đ" in validated.reply_message or "500000" in validated.reply_message
+    assert "trọn đời" not in validated.reply_message
+    assert any("Chuẩn hóa thông tin chính sách" in note for note in audit_notes)
+
+
+def test_draft_order_rejects_items_violating_price_filter():
+    """Verify Issue 3: Draft order rejects items exceeding customer's max_price."""
+    item_expensive = CatalogItem(
+        product_id="prod_polo_expensive",
+        name="Áo Polo Cao Cấp",
+        price=500000.0,
+        stock=10,
+    )
+    filters = ExtractedFilters(max_price=300000.0)
+
+    decision = StructuredConsultantDecision(
+        intent="order_draft",
+        thought_process="Drafting order for 500k polo",
+        reply_message="Tạo đơn áo polo 500k",
+        recommended_product_ids=["prod_polo_expensive"],
+        draft_order=OrderDraft(
+            draft_id="d_exp",
+            items=[
+                OrderDraftItem(
+                    product_id="prod_polo_expensive",
+                    product_name="Áo Polo Cao Cấp",
+                    quantity=1,
+                    unit_price=500000.0,
+                )
+            ],
+            total_amount=500000.0,
+        ),
+    )
+
+    validated, audit_notes = OutputGuardrail.validate_and_correct(decision, [item_expensive], filters=filters)
+
+    # Draft order must be canceled because 500k > max_price 300k
+    assert validated.draft_order is None
+    # Recommended product must also be filtered out
+    assert validated.recommended_product_ids == []
+    # Reply informs user that price exceeds their requested budget
+    assert "ngân sách" in validated.reply_message.lower() or "vượt quá" in validated.reply_message.lower()
+    assert any("max_price" in note for note in audit_notes)
+
+
+@pytest.mark.asyncio
+async def test_graph_draft_order_respects_max_price_constraint():
+    """Verify Issue 3: In end-to-end graph, 'mua áo polo dưới 300k' rejects 500k polo draft order."""
+    graph = create_consultant_graph(provider="fake")
+    req = ConsultantRequest(
+        tenant_id="tenant_budget",
+        session_id="session_budget",
+        message="Mua áo dưới 300k, chốt đơn cho tôi",
+        customer_context={
+            "products": [
+                {
+                    "product_id": "prod_500k",
+                    "product_name": "Áo Polo Cao Cấp",
+                    "price": 500000.0,
+                    "stock": 10,
+                }
+            ]
+        },
+    )
+    result = await graph.ainvoke({"request": req})
+    resp = result["final_response"]
+
+    assert resp.order_draft is None
+    assert "ngân sách" in resp.message.lower() or "vượt quá" in resp.message.lower() or "chưa có sản phẩm" in resp.message.lower()
+
+

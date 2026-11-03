@@ -219,8 +219,8 @@ def create_consultant_graph(catalog_service: CatalogService | None = None, provi
         messages.append(HumanMessage(content=state["sanitized_message"]))
 
         # Invoke model with structured output
-        runnable = ModelAdapter.create_structured_consultant_runnable(provider=provider)
         try:
+            runnable = ModelAdapter.create_structured_consultant_runnable(provider=provider)
             decision: StructuredConsultantDecision = await runnable.ainvoke(messages)
         except Exception:
             # Fallback for unexpected error
@@ -267,6 +267,14 @@ def create_consultant_graph(catalog_service: CatalogService | None = None, provi
                 if ref_id not in items_dict:
                     found = active_catalog.get_by_id(ref_id)
                     if found:
+                        # Reject hydrating draft items that violate customer price or stock filters
+                        if filters:
+                            if filters.min_price is not None and found.price < filters.min_price:
+                                continue
+                            if filters.max_price is not None and found.price > filters.max_price:
+                                continue
+                            if filters.in_stock_only and found.stock <= 0:
+                                continue
                         items.append(found)
                         items_dict[found.product_id] = found
                         if found.variant_id:

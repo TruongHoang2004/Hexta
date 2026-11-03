@@ -1,6 +1,7 @@
 """Standardized multi-model adapter using LangChain with strict structured output enforcement."""
 
 import json
+import logging
 import os
 import re
 from typing import Any, Type, TypeVar
@@ -214,18 +215,31 @@ class ModelAdapter:
         prov = (provider or os.getenv("AI_PROVIDER", "fake")).strip().lower()
 
         # Configurable limits with safe defaults: 0 retries on 429/failures and 30s timeout
-        timeout = float(kwargs.get("timeout") or kwargs.get("request_timeout") or os.getenv("AI_TIMEOUT_SECONDS", "30.0"))
-        max_retries = int(kwargs.get("max_retries") if kwargs.get("max_retries") is not None else os.getenv("AI_MAX_RETRIES", "0"))
+        timeout = float(
+            kwargs.get("timeout")
+            or kwargs.get("request_timeout")
+            or os.getenv("AI_TIMEOUT")
+            or os.getenv("AI_TIMEOUT_SECONDS", "30.0")
+        )
+        max_retries = int(
+            kwargs.get("max_retries")
+            if kwargs.get("max_retries") is not None
+            else os.getenv("AI_MAX_RETRIES", "0")
+        )
         max_tokens = int(kwargs.get("max_tokens") or os.getenv("AI_MAX_TOKENS", "2048"))
 
         if prov == "fake":
             return FakeStructuredChatModel()
 
         if prov in {"openai", "chatgpt"}:
+            api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY") or os.getenv("AI_API_KEY")
+            if not api_key or not str(api_key).strip():
+                logging.getLogger(__name__).warning("No OpenAI API key configured; using deterministic fake model")
+                return FakeStructuredChatModel()
             from langchain_openai import ChatOpenAI
-            api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY")
+
             base_url = kwargs.get("base_url") or os.getenv("OPENAI_API_BASE") or os.getenv("AI_OPENAI_BASE_URL")
-            selected_model = model_name or os.getenv("AI_MODEL_NAME", "gpt-4o-mini")
+            selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "gpt-4o-mini")
             clean_kwargs = {
                 k: v for k, v in kwargs.items()
                 if k not in {"api_key", "base_url", "timeout", "request_timeout", "max_retries", "max_tokens"}
@@ -242,9 +256,18 @@ class ModelAdapter:
             )
 
         if prov in {"google", "gemini"}:
+            api_key = (
+                kwargs.get("api_key")
+                or os.getenv("GEMINI_API_KEY")
+                or os.getenv("GOOGLE_API_KEY")
+                or os.getenv("AI_API_KEY")
+            )
+            if not api_key or not str(api_key).strip():
+                logging.getLogger(__name__).warning("No Gemini API key configured; using deterministic fake model")
+                return FakeStructuredChatModel()
             from langchain_google_genai import ChatGoogleGenerativeAI
-            api_key = kwargs.get("api_key") or os.getenv("GOOGLE_API_KEY") or os.getenv("AI_API_KEY")
-            selected_model = model_name or os.getenv("AI_MODEL_NAME", "gemini-2.0-flash")
+
+            selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "gemini-2.5-flash")
             clean_kwargs = {
                 k: v for k, v in kwargs.items()
                 if k not in {"api_key", "timeout", "request_timeout", "max_retries", "max_tokens"}
@@ -259,10 +282,33 @@ class ModelAdapter:
                 **clean_kwargs,
             )
 
+        if prov in {"anthropic", "claude"}:
+            api_key = kwargs.get("api_key") or os.getenv("ANTHROPIC_API_KEY") or os.getenv("AI_API_KEY")
+            if not api_key or not str(api_key).strip():
+                logging.getLogger(__name__).warning("No Anthropic API key configured; using deterministic fake model")
+                return FakeStructuredChatModel()
+            from langchain_anthropic import ChatAnthropic
+
+            selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "claude-haiku-4-5")
+            clean_kwargs = {
+                k: v for k, v in kwargs.items()
+                if k not in {"api_key", "timeout", "request_timeout", "max_retries", "max_tokens"}
+            }
+            return ChatAnthropic(
+                model=selected_model,
+                api_key=api_key,
+                temperature=temperature,
+                timeout=timeout,
+                max_retries=max_retries,
+                max_tokens_to_sample=max_tokens,
+                **clean_kwargs,
+            )
+
         if prov in {"ollama", "local"}:
             from langchain_openai import ChatOpenAI
+
             base_url = kwargs.get("base_url") or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-            selected_model = model_name or os.getenv("AI_MODEL_NAME", "llama3.2")
+            selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "llama3.2")
             clean_kwargs = {
                 k: v for k, v in kwargs.items()
                 if k not in {"api_key", "base_url", "timeout", "request_timeout", "max_retries", "max_tokens"}
@@ -279,7 +325,7 @@ class ModelAdapter:
             )
 
         raise ValueError(
-            f"Unsupported AI_PROVIDER '{prov}'. Supported providers: 'fake', 'openai', 'google', 'ollama'."
+            f"Unsupported AI_PROVIDER '{prov}'. Supported providers: 'fake', 'gemini', 'openai', 'anthropic', 'ollama'."
         )
 
     @staticmethod
@@ -290,5 +336,12 @@ class ModelAdapter:
         **kwargs: Any,
     ):
         """Returns a LangChain runnable guaranteed to produce the requested typed schema."""
-        model = ModelAdapter.get_model(provider=provider, model_name=model_name, **kwargs)
-        return model.with_structured_output(schema)
+        try:
+            model = ModelAdapter.get_model(provider=provider, model_name=model_name, **kwargs)
+            return model.with_structured_output(schema)
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Failed to initialize model runnable (%s), falling back to FakeStructuredChatModel", exc
+            )
+            fake_model = FakeStructuredChatModel()
+            return fake_model.with_structured_output(schema)
