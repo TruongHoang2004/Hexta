@@ -3,7 +3,7 @@ epic: EPIC-002
 title: Python AI runtime and durable gRPC jobs
 status: in-progress
 completed: false
-updated: 2026-10-28
+updated: 2026-11-03
 ---
 
 # Python AI runtime and durable gRPC jobs
@@ -44,6 +44,10 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
+- [2026-11-03_langchain-providers](sessions/2026-11-03_langchain-providers.md) — owner-selected shared LangChain model path; 73 isolated/offline tests pass; local/in-review.
+
+- [2026-11-03_ai-providers](sessions/2026-11-03_ai-providers.md) — local/in-review; adapters, guarded graph and paid-call recovery fence; live verification/merge open.
+
 - [2026-10-18_durable-runs](sessions/2026-10-18_durable-runs.md) — in-review; completed: false.
 - [2026-10-18_grpc-bootstrap](sessions/2026-10-18_grpc-bootstrap.md) — done; completed: true.
 
@@ -58,3 +62,15 @@ Python no longer applies SQL at startup. Explicit Atlas migrations/ai and the mi
 ## Legacy Go boundary repair — 2026-10-20, local/unmerged
 
 The dormant Go AI service now uses read-only repository and domain generation/event types; Python runtime behavior, providers and messaging scope are unchanged. Atlas-backed isolation/limits and Fx/transport tests pass. [Shared EPIC-001 session](../EPIC-001-system-design/sessions/2026-10-20_rule-compliance-fixes.md) records the implementation; no parent-epic completion claim.
+
+## Provider extension — 2026-11-03, local/unmerged
+
+Official Gemini/OpenAI/Anthropic adapters, additive context/usage protobuf and the
+shared guarded graph are implemented; fake remains deterministic. The paid marker
+prevents automatic replay of uncertain live work. [Session](sessions/2026-11-03_ai-providers.md)
+records 70 isolated/offline tests and Go compile/vet checks; live access, node
+checkpoints, business sending integration and merge remain open.
+
+LangChain follow-up: direct SDK adapters above are superseded by one shared
+LangChainProvider, as explicitly requested by the owner. [Session](sessions/2026-11-03_langchain-providers.md)
+records 73 passing tests; live access and merge remain open.

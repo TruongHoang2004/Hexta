@@ -3,7 +3,7 @@ epic: EPIC-001
 title: System design and repository context
 status: in-progress
 completed: false
-updated: 2026-10-28
+updated: 2026-11-03
 ---
 
 # System design and repository context
@@ -16,6 +16,10 @@ Latest delivery: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60), OPE
 - Owner priority: Hexta thesis milestone 1Dec2026; Hexta handles orders/business, PostPilot fanpages and ViralForge content. The rejected separate Platform/Sales product split is not approved. [Roadmap](../../plans/2026-10-27_thesis-first-ecosystem_plan.md) and [ecosystem discussion](../../designs/2026-10-27_saas-app-platform_design.md) retain scope and limits; SSO/billing/app integration remain proposals.
 - Owner direction: per-aggregate mapper modules, replacement of repository cache wrappers, root rules and selective context. Current catalog has 91 IDs with provenance labels; mapper subpackage layout and shared-cache/fencing mechanism remain review proposals. [Detailed mapper/cache design](../../designs/2026-10-28_aggregate-mappers-cache_design.md) is loaded only for that work.
 - The [DDD map](../../designs/2026-10-20_ddd-domain-map_design.md) is a recommendation, not implemented context isolation. Go owns authorization/sending; Python returns candidates; orders/messaging remain separate.
+
+## Instruction architecture increment
+
+Owner-approved [2026-11-03 instruction migration](sessions/2026-11-03_ai-instructions.md) adds domain guidance, shared workflow skills, thin adapters and a static validator. Local/in-review, completed false; native-client acceptance and delivery/merge remain open. Existing API draft rules were not promoted to approved policy.
 
 ## Current evidence and open work
 

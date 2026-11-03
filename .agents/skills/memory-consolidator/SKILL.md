@@ -42,7 +42,7 @@ redundant task files                              ARCHIVE_INDEX.md;
 
 ### Safety & Protection Invariants:
 1. **Protected Dirs & Files**:
-   - [`agentic-memory/rules/`](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/rules/): **NEVER** modified or deleted (living architectural standards).
+   - [`agentic-memory/rules/`](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/rules/): compatibility redirects, not living policy; canonical engineering bodies are selected by `rules/README.md`. Preserve redirects unless an approved migration changes them.
    - [`agentic-memory/README.md`](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/README.md): **NEVER** deleted.
    - [`agentic-memory/CHANGELOG.md`](file:///Users/truonghoang/Documents/dev/personal/Hexta/agentic-memory/CHANGELOG.md): Master historical log, only appended to.
 2. **Active Work Protection**:

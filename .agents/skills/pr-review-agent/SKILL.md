@@ -9,6 +9,10 @@ This skill provides autonomous Pull Request evaluation, risk classification, aut
 
 ---
 
+## Authorization boundary
+
+This is an operational skill, separate from `code-review`. Only perform remote review comments, labels, rebases, pushes or merges within the user's explicit authorization for that action/workflow. The risk matrix below is an eligibility heuristic, not permission; workflow configuration is not authorization for an interactive request. Inspect the current script and CI before relying on its gates. Do not run merge mode merely to review source. Read-only work uses inspection only.
+
 ## 1. Overview & Operational Principles
 
 The PR Review Agent bridges the gap between completed tasks (`github-task-runner` opening PRs in `in-review`) and integration into `main`. The agent enforces defensive merging:

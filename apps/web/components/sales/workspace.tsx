@@ -62,6 +62,8 @@ export function Workspace({ children }: { children: React.ReactNode }) {
     loading || (!!tenantID && tenant?.id !== tenantID && !error);
   const base = `/tenants/${tenantID}`;
   const links = [
+    [`${base}/inbox`, "Inbox"],
+    [`${base}/inbox/preview`, "Inbox preview"],
     [`${base}/orders`, "Orders"],
     [`${base}/customers`, "Customers"],
     [`${base}/products`, "Products"],
@@ -93,7 +95,9 @@ export function Workspace({ children }: { children: React.ReactNode }) {
         <div
           className={
             tenantID
-              ? "mx-auto grid max-w-7xl gap-6 p-5 md:grid-cols-[210px_1fr]"
+              ? pathname === `${base}/inbox/preview`
+                ? "mx-auto grid max-w-[1920px] gap-5 p-4 md:grid-cols-[180px_minmax(0,1fr)]"
+                : "mx-auto grid max-w-7xl gap-6 p-5 md:grid-cols-[210px_1fr]"
               : "mx-auto max-w-5xl p-5 md:py-10"
           }
         >

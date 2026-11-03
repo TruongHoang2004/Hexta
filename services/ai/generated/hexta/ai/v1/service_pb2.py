@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19hexta/ai/v1/service.proto\x12\x0bhexta.ai.v1\"C\n\x06Script\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07trigger\x18\x02 \x01(\t\x12\x0c\n\x04text\x18\x03 \x01(\t\x12\x0e\n\x06\x61\x63tive\x18\x04 \x01(\x08\"\xb2\x01\n\x0fStartRunRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x18\n\x10\x63ontext_revision\x18\x04 \x01(\x03\x12\x1a\n\x12\x63ontrol_generation\x18\x05 \x01(\x03\x12\x0f\n\x07message\x18\x06 \x01(\t\x12$\n\x07scripts\x18\x07 \x03(\x0b\x32\x13.hexta.ai.v1.Script\"/\n\nRunRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\"\x8d\x02\n\x03Run\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x18\n\x10\x63ontext_revision\x18\x04 \x01(\x03\x12\x1a\n\x12\x63ontrol_generation\x18\x05 \x01(\x03\x12&\n\x06status\x18\x06 \x01(\x0e\x32\x16.hexta.ai.v1.RunStatus\x12\x11\n\tsimulated\x18\x07 \x01(\x08\x12\r\n\x05route\x18\x08 \x01(\t\x12\x0c\n\x04text\x18\t \x01(\t\x12\x11\n\tscript_id\x18\n \x01(\t\x12\x0e\n\x06reason\x18\x0b \x01(\t\x12\r\n\x05steps\x18\x0c \x03(\t\x12\x12\n\nerror_code\x18\r \x01(\t*\xa1\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x02\x12\x18\n\x14RUN_STATUS_SUCCEEDED\x10\x03\x12\x15\n\x11RUN_STATUS_FAILED\x10\x04\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x05\x32\xb4\x01\n\tAIService\x12:\n\x08StartRun\x12\x1c.hexta.ai.v1.StartRunRequest\x1a\x10.hexta.ai.v1.Run\x12\x33\n\x06GetRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.Run\x12\x36\n\tCancelRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.RunBSZQgithub.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19hexta/ai/v1/service.proto\x12\x0bhexta.ai.v1\"C\n\x06Script\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0f\n\x07trigger\x18\x02 \x01(\t\x12\x0c\n\x04text\x18\x03 \x01(\t\x12\x0e\n\x06\x61\x63tive\x18\x04 \x01(\x08\"\xbc\x02\n\x0fStartRunRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x18\n\x10\x63ontext_revision\x18\x04 \x01(\x03\x12\x1a\n\x12\x63ontrol_generation\x18\x05 \x01(\x03\x12\x0f\n\x07message\x18\x06 \x01(\t\x12$\n\x07scripts\x18\x07 \x03(\x0b\x32\x13.hexta.ai.v1.Script\x12\x31\n\x07history\x18\x08 \x03(\x0b\x32 .hexta.ai.v1.ConversationMessage\x12&\n\x05\x66\x61\x63ts\x18\t \x03(\x0b\x32\x17.hexta.ai.v1.DomainFact\x12\x13\n\x0b\x63onstraints\x18\n \x03(\t\x12\x18\n\x10\x61llow_generation\x18\x0b \x01(\x08\"1\n\x13\x43onversationMessage\x12\x0c\n\x04role\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\"&\n\nDomainFact\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04text\x18\x02 \x01(\t\"/\n\nRunRequest\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\"\x88\x03\n\x03Run\x12\x11\n\ttenant_id\x18\x01 \x01(\t\x12\x0e\n\x06run_id\x18\x02 \x01(\t\x12\x0f\n\x07turn_id\x18\x03 \x01(\t\x12\x18\n\x10\x63ontext_revision\x18\x04 \x01(\x03\x12\x1a\n\x12\x63ontrol_generation\x18\x05 \x01(\x03\x12&\n\x06status\x18\x06 \x01(\x0e\x32\x16.hexta.ai.v1.RunStatus\x12\x11\n\tsimulated\x18\x07 \x01(\x08\x12\r\n\x05route\x18\x08 \x01(\t\x12\x0c\n\x04text\x18\t \x01(\t\x12\x11\n\tscript_id\x18\n \x01(\t\x12\x0e\n\x06reason\x18\x0b \x01(\t\x12\r\n\x05steps\x18\x0c \x03(\t\x12\x12\n\nerror_code\x18\r \x01(\t\x12\x10\n\x08provider\x18\x0e \x01(\t\x12\r\n\x05model\x18\x0f \x01(\t\x12\x12\n\nconfidence\x18\x10 \x01(\x01\x12\x14\n\x0cinput_tokens\x18\x11 \x01(\x03\x12\x15\n\routput_tokens\x18\x12 \x01(\x03\x12\x17\n\x0fusage_estimated\x18\x13 \x01(\x08*\xa1\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x02\x12\x18\n\x14RUN_STATUS_SUCCEEDED\x10\x03\x12\x15\n\x11RUN_STATUS_FAILED\x10\x04\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x05\x32\xb4\x01\n\tAIService\x12:\n\x08StartRun\x12\x1c.hexta.ai.v1.StartRunRequest\x1a\x10.hexta.ai.v1.Run\x12\x33\n\x06GetRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.Run\x12\x36\n\tCancelRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.RunBSZQgithub.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,16 +32,20 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'hexta.ai.v1.service_pb2', _
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1'
-  _globals['_RUNSTATUS']._serialized_start=614
-  _globals['_RUNSTATUS']._serialized_end=775
+  _globals['_RUNSTATUS']._serialized_start=966
+  _globals['_RUNSTATUS']._serialized_end=1127
   _globals['_SCRIPT']._serialized_start=42
   _globals['_SCRIPT']._serialized_end=109
   _globals['_STARTRUNREQUEST']._serialized_start=112
-  _globals['_STARTRUNREQUEST']._serialized_end=290
-  _globals['_RUNREQUEST']._serialized_start=292
-  _globals['_RUNREQUEST']._serialized_end=339
-  _globals['_RUN']._serialized_start=342
-  _globals['_RUN']._serialized_end=611
-  _globals['_AISERVICE']._serialized_start=778
-  _globals['_AISERVICE']._serialized_end=958
+  _globals['_STARTRUNREQUEST']._serialized_end=428
+  _globals['_CONVERSATIONMESSAGE']._serialized_start=430
+  _globals['_CONVERSATIONMESSAGE']._serialized_end=479
+  _globals['_DOMAINFACT']._serialized_start=481
+  _globals['_DOMAINFACT']._serialized_end=519
+  _globals['_RUNREQUEST']._serialized_start=521
+  _globals['_RUNREQUEST']._serialized_end=568
+  _globals['_RUN']._serialized_start=571
+  _globals['_RUN']._serialized_end=963
+  _globals['_AISERVICE']._serialized_start=1130
+  _globals['_AISERVICE']._serialized_end=1310
 # @@protoc_insertion_point(module_scope)

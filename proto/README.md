@@ -17,4 +17,4 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
 PATH="$(go env GOPATH)/bin:$PATH" protoc -I proto --go_out=services/api --go_opt=module=github.com/TruongHoang2004/Hexta/services/api --go-grpc_out=services/api --go-grpc_opt=module=github.com/TruongHoang2004/Hexta/services/api proto/hexta/ai/v1/service.proto
 ```
 
-Add compatible fields with new field numbers; reserve removed names/numbers. Introduce a new package version for breaking changes. The v1 contract currently covers offline script simulation; richer provider/run metadata will require additive fields before live integration.
+Add compatible fields with new field numbers; reserve removed names/numbers. Introduce a new package version for breaking changes. The v1 contract supports candidate routing: additive request fields carry authorized history/facts/constraints and an explicit generation opt-in; Run carries provider/model/confidence/input-output usage and an estimated-usage flag. Existing field numbers and RPC signatures are unchanged. Old callers default to no generation. Python/Go bindings must be regenerated together.

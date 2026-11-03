@@ -59,7 +59,7 @@ Issues created in this repository must satisfy the triage rules enforced by [`ma
 
 ### Step 1: Analyze & Clarify Requirements
 1. Understand the goal: feature request, bug fix, refactor, or architectural task.
-2. Check existing codebase conventions (`GEMINI.md`, `agentic-memory/rules/`).
+2. Check existing codebase conventions (`rules/README.md` and selected domain instructions).
 3. Identify affected components (e.g., `services/api`, `apps/web`, `packages/shared`).
 4. If critical requirements are ambiguous, clarify with the user before finalizing the ticket.
 

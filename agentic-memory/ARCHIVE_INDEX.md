@@ -203,3 +203,12 @@ Retained substance: original API/automation/branding/thesis delivery is in CHANG
 ### Legacy rule copies compacted rather than deleted
 
 The three files under agentic-memory/rules are now compatibility redirects, preserving skill links without retaining a second policy catalog. Their pre-cleanup bodies remain available at d09083c: development-rules.md is superseded by the focused root rule modules (including retained frontend Suspense/API URL conventions); github-workflow.md by root delivery rules and current runner/reviewer skills/scripts; skill-execution-protocol.md by its maintained .agents counterpart under current AGENTS/selective-loading instructions. No runtime automation schedule or auto-merge approval is created by this cleanup.
+
+## 2026-11-03 — Inbox PR memory consolidation
+
+Owner requested deduplication within open PR #61. Substance is retained in [one session](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md) and one CHANGELOG entry; no completion state changed. Recovery: `git show d0e7747:agentic-memory/<path>`.
+
+| Removed path under `agentic-memory/` | Reason / replacement |
+| --- | --- |
+| `epics/EPIC-004-messaging/sessions/2026-11-03_admin-inbox-concept.md` | Concept evidence consolidated into the retained session. |
+| `epics/EPIC-004-messaging/sessions/2026-11-03_tenant-inbox-page.md` | Integration/build evidence consolidated into the retained session. |

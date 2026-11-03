@@ -4,7 +4,7 @@
 
 - Built standardized multi-model adapter ([`hexta_ai/models/adapter.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/models/adapter.py)) using LangChain supporting `fake`, `openai`, `google` (Gemini), `ollama`, and custom models with strict Pydantic structured output governance (`StructuredConsultantDecision`).
 - Implemented multi-layered guardrails ([`hexta_ai/guardrails/validator.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/guardrails/validator.py)) for prompt injection detection and deterministic output fact-checking (auto-correcting hallucinated prices and stripping invalid product IDs).
-- Implemented catalog retrieval and live hydration service ([`hexta_ai/catalog/service.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/catalog/service.py)) supporting keyword search, numerical price filters, attribute matching, and stock checking.
+- Implemented catalog retrieval and live hydration service ([`hexta_ai/catalog/service.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/catalog/service.py)) supporting keyword search, numerical price filters, attribute matching, and stock checking).
 - Designed and compiled stateful LangGraph shopping consultant state machine ([`hexta_ai/graph_consultant.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/graph_consultant.py)) with input guardrail, catalog retrieval, structured model reasoning, and output fact-checking nodes.
 - Added authenticated internal consultation endpoint `POST /internal/v1/consult` in [`hexta_ai/app.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/app.py) while maintaining 100% backward compatibility with existing gRPC and `/internal/v1/preview` simulation contracts.
 - Documented full system architecture and industry benchmarks in [production-ai-consultant design](designs/2026-11-03_production-ai-consultant_design.md).
@@ -14,6 +14,40 @@
 - Fixed price filter leaks: enforced hard `min_price`/`max_price` filters during fallback search and recommendation hydration (e.g. `max_price=1000` returns no items; "áo dưới 300k" never recommends 320k items).
 - Configured provider limits: defaulted `max_retries=0` to prevent retry storms/rate-limit loops (3 requests on 429), set explicit 30s timeout and 2048 max tokens.
 - Verification: 41 automated tests passed (8 new unit and endpoint tests covering all review fixes).
+
+## 2026-11-03 — Modular tenant inbox preview (PR #61)
+
+- Added `/tenants/[tenantId]/inbox/preview`, tenant navigation and typed UI components with a state hook, sample data and pure queue filtering. Sample-only filters/search/drafts/customer context; existing simulator `/inbox` preserved after rebase onto `2e5f18e`.
+- Lint/TypeScript/build passed; lint/build repeated after rebase. Browser acceptance remains open; [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61) unmerged when checked. [Single session/handoff](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md).
+- Owner-requested consolidation replaces this PR's four repetitive changelog entries and three session records with one of each. Original evidence at `d0e7747`; removed paths indexed in [archive ledger](ARCHIVE_INDEX.md#2026-11-03--inbox-pr-memory-consolidation).
+
+## 2026-11-03 — AI coding instruction architecture
+
+Owner-approved domain instructions, six workflows, canonical-route-derived Antigravity selectors and Claude import/skill adapters. Reconciled memory/skill ownership and retained API provenance, framework-generated blocks and historical records. Added a read-only structure/adapter validator and native-client acceptance procedure. [Session](epics/EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md) records evidence and limits; local/in-review, no application change or merge claim.
+
+## 2026-11-03 — Shared LangChain model integration (local/unmerged)
+
+- Replaced three direct SDK adapters with one `providers/langchain.py`: init_chat_model, with_structured_output and ainvoke for Gemini/OpenAI/Anthropic, normalized usage and safe parsing/error handling. Added LangChain integration dependencies and updated uv.lock; underlying SDKs remain transitive.
+- Preserved LangGraph, fake mode, budgets, tracing policy and paid-call recovery. Integration-specific retry settings are verified with HTTP transport mocks (Google one total attempt, others zero retries). No schema/protobuf/business changes or live calls.
+- Verification: 67 offline passes/six expected DB skips; full suite with isolated Atlas-migrated PostgreSQL 73 passes/no skips. compileall/scoped whitespace passed; obsolete SDK call/import paths removed. Task-owned test container removed; app services/data unchanged.
+- [Follow-up session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md), [updated design](designs/2026-11-03_ai-providers_design.md) and [runbook](../services/ai/README.md). Supersedes the direct-SDK choice below; live verification/review/merge remain open.
+
+## 2026-11-03 — Provider-backed candidate routing (local/unmerged)
+
+- Added official Gemini/OpenAI/Anthropic async adapters and deterministic fake factory; bounded structured calls, token budgets/usage, safe errors and disabled SDK retries. Locked SDKs and updated provider env examples/ignored local settings without replacing credentials.
+- Refactored the shared graph to validated classification, active script, extractively grounded facts, clarification and human branches. Explicit generation opt-in, confidence, context bounds, PII heuristics and template checks preserve Go authority. Streaming port buffers complete structured output.
+- Added compatible protobuf context/provider/usage fields and regenerated Python/Go bindings. Pure run mapper centralizes conversions. Existing PostgreSQL error_code stores a fenced paid-call marker; uncertain recovery fails rather than charging again. No schema/startup migration, customer sending or unrelated messaging/config changes.
+- Verification: 70 tests passed with isolated Atlas-migrated PostgreSQL, including SDK transport mocks, gRPC persistence/digest and no-paid-replay recovery; 35 affected tests passed after the final input-estimate refinement. Go smoke/bindings compile and AI vet, compileall and scoped whitespace passed. Live provider calls/production acceptance/merge NOT VERIFIED.
+- [Design](designs/2026-11-03_ai-providers_design.md), [primary session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_ai-providers.md), [runbook](../services/ai/README.md). Node checkpoints, quotas, live evaluation and messaging integration remain open.
+
+## 2026-11-02 — Simulator messaging inbox and manual responsibility
+
+- [Design](designs/2026-11-02_messaging-inbox_design.md) and [session](epics/EPIC-004-messaging/sessions/2026-11-02_messaging-inbox.md): first local EPIC-004 slice, not merged/completed.
+- Added `/tenants/{tenantId}/inbox` and sidebar access: filtered cursor list, bounded history, explicit simulator input, claim, owner assignment and assigned-sale simulated reply. Preserves failed draft text; uncertain reply retries retain the original request identity across refresh.
+- Added pure core values, repository-owned ORM rows, aggregate HTTP/persistence mappers, transactional service/repository and six authorized endpoints; Fx wiring and generated Swagger/route contracts updated. Thread locking and current membership/version/context gates prevent conflicting ownership and stale replies. Messages/audits commit atomically; durable keys prevent duplicate retries. No real provider/AI calls, cache, business order effects or automatic migrations at startup.
+- Atlas-generated additive schema/history: threads, turns and immutable simulated messages with tenant-aware references, unique open turn and request keys. History integrity, desired/history agreement, fresh fixtures and populated pre-migration upgrade passed on disposable PostgreSQL.
+- Verification: seven new PostgreSQL service cases passed with race detection, HTTP flow/validation, DI graph and Swagger contracts passed; SDK strict check and web TypeScript/lint passed. Webpack production build passed; default Turbopack hit an execution-environment internal-port restriction. Final backend/build results and exact limits in the session.
+- Manual browser/mobile/two-profile acceptance, real connectors/sending, full turn lifecycle, scripts/proposals, AI, outbound reconciliation and Kafka remain open. Application migration/rebuild and review/merge are still required. Unrelated concurrent config/dev-tool/dependency-link changes preserved.
 
 ## 2026-10-28 — Focused rules with a single selection router
 
