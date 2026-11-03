@@ -13,6 +13,8 @@ from langsmith import tracing_context
 from hexta_ai.rpc import start_server
 from hexta_ai.graph import PreviewRequest, PreviewResult, build_graph
 from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
+from hexta_ai.schemas.consultant import ConsultantRequest, ConsultantResponse
+from hexta_ai.graph_consultant import consultant_graph
 
 
 def create_app(internal_token: str | None = None, provider: BaseAIProvider | None = None) -> FastAPI:
@@ -46,7 +48,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
                 await service.close()
             await selected.close()
 
-    app = FastAPI(lifespan=lifespan, title="Hexta AI candidates", version="0.2.0",
+    app = FastAPI(lifespan=lifespan, title="Hexta AI Service", version="0.2.0",
                   docs_url=None, redoc_url=None)
 
     @app.exception_handler(RequestValidationError)
@@ -81,5 +83,12 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
             raise HTTPException(status_code=status, detail=error.code) from None
         except Exception:
             raise HTTPException(status_code=503, detail="LLM_PROVIDER_ERROR") from None
+
+    @app.post("/internal/v1/consult", response_model=ConsultantResponse,
+              dependencies=[Depends(authenticate)])
+    async def consult(request: ConsultantRequest) -> ConsultantResponse:
+        with tracing_context(enabled=False):
+            result = await consultant_graph.ainvoke({"request": request}, {"recursion_limit": 10})
+        return result["final_response"]
 
     return app

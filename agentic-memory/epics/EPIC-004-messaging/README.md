@@ -41,7 +41,7 @@ Implement tenant-isolated threads/turns/messages, assignment, script grants, pro
 
 ## Evidence and verification boundary
 
-Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Real Pancake remains separate EPIC-008 dependency.
+Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Direct Facebook transport is tracked in EPIC-008; live acceptance remains separate.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
 
@@ -54,3 +54,5 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Remaining work and next handoff
 
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.
+
+Connector integration: [2026-11-03 primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Local text ingress/Kafka/API consumer implemented and tested on isolated infrastructure; AI/outbound and merge remain open.

@@ -1,12 +1,12 @@
 ---
 epic: EPIC-008
-title: Real Pancake connector and eventual VPS deployment
-status: not-started
+title: Direct platform connector and eventual VPS deployment
+status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-11-03
 ---
 
-# Real Pancake connector and eventual VPS deployment
+# Direct platform connector and eventual VPS deployment
 
 ## Scope
 
@@ -14,13 +14,13 @@ Verify live integration capabilities and deploy only after local representative 
 
 ## Decisions and context
 
-- MVP initially uses Pancake, with eventual replacement a later direction. Owner currently lacks access/entitlement to verify the real connector.
+- Owner superseded Pancake on 2026-11-03: direct Facebook through a separate Go I/O service, durable inbox/outbox and BasePlugin/platform plugins. Owner has a Page and Meta app; actual access remains unverified.
 - Demo eventually runs on VPS; no host capacity/domain chosen. Measure runnable components before sizing.
 - Only verify documented webhook authentication/send/reconciliation capabilities; do not invent signatures or delivery guarantees.
 
 ## Acceptance checklist
 
-- [ ] Actual Pancake entitlement, payload/revision/auth/send/lookup behavior verified.
+- [ ] Actual Facebook app/Page entitlement, payload/revision/auth/send/lookup behavior verified.
 - [ ] Live connector mappings/credentials, quotas and unknown-send reconciliation.
 - [ ] Media storage/processing and privacy/retention requirements resolved.
 - [ ] VPS/domain/resources, HTTPS/private networks, broker/trace budgets and backup restore tested.
@@ -38,8 +38,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-No work session recorded yet. Implementation has not started; do not invent historical progress.
+- [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
 
 ## Remaining work and next handoff
 
-Continue simulator-first work while external access and deployment inputs are absent. No live sends, paid calls or host purchases implied.
+Finish tenant-authorized provisioning, verify Meta live receipt, add provider-specific fetch only after capability confirmation, and implement API permits/outbound attempts before sending. No live sends or deployment implied.
