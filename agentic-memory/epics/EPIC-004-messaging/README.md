@@ -57,6 +57,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 - [2026-11-03 — Inbox component refactor](sessions/2026-11-03_inbox-components.md): typed UI components and dedicated state hook; lint/types/build passed, local/in-review.
 
 
+Current UI review: modular sample design at `/tenants/[tenantId]/inbox/preview`; existing simulator inbox retained at `/inbox`. Publication reconciliation and verification are recorded in the latest component-refactor session.
+
 ## Remaining work and next handoff
 
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.

@@ -1,5 +1,10 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Inbox PR reconciliation with current main
+
+- Rebased onto `2e5f18e`, which already includes a simulator-backed inbox. Final modular sample design is `/tenants/[tenantId]/inbox/preview` with its own navigation entry; upstream `/inbox` functionality is preserved. Earlier entries describe the initial workspace snapshot.
+- Web lint and production build passed again with both routes present; browser acceptance remains open. Delivery is in-review, not merged.
+
 ## 2026-11-03 — Maintainable inbox components
 
 - Refactored [inbox](../apps/web/components/inbox/inbox.tsx) into typed presentation components, a dedicated state hook, shared types, sample data and pure filtering logic. Formatted JSX for readability; retained existing preview behavior.
