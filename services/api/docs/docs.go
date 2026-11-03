@@ -24,6 +24,81 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/ai/converse": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stream interactive conversational turns and order drafts via Server-Sent Events (SSE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "AI Agent"
+                ],
+                "summary": "Converse with AI Agent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant Workspace ID",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Conversational prompt and history",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.AIConverseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Named message, products, draft_order, quick_replies, done and error events; data is dto.SSEEvent",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/google/callback": {
             "get": {
                 "description": "Handles Google OAuth callback, validates state, and redirects to frontend with secure cookies",
@@ -2800,29 +2875,41 @@ const docTemplate = `{
             "properties": {
                 "conversation_id": {
                     "type": "string",
+                    "maxLength": 128,
                     "example": "conv_12345"
                 },
                 "history": {
                     "type": "array",
+                    "maxItems": 40,
                     "items": {
                         "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage"
                     }
                 },
                 "prompt": {
                     "type": "string",
+                    "maxLength": 4000,
                     "example": "Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp"
                 }
             }
         },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ChatMessage": {
             "type": "object",
+            "required": [
+                "content",
+                "role"
+            ],
             "properties": {
                 "content": {
                     "type": "string",
+                    "maxLength": 4000,
                     "example": "Tôi muốn đặt 2 hộp sữa bắp"
                 },
                 "role": {
                     "type": "string",
+                    "enum": [
+                        "user",
+                        "assistant"
+                    ],
                     "example": "user"
                 }
             }
@@ -2858,6 +2945,9 @@ const docTemplate = `{
                 "variant": {
                     "type": "string",
                     "example": "Chai 500ml"
+                },
+                "variant_id": {
+                    "type": "string"
                 }
             }
         },

@@ -26,3 +26,5 @@ Active messaging slice: [2026-11-02 simulator/manual inbox](EPIC-004-messaging/s
 Active provider slice: [2026-11-03 AI adapters](EPIC-002-ai-runtime/sessions/2026-11-03_ai-providers.md), local/in-review; offline and isolated PostgreSQL verification passed, live provider acceptance and merge remain open.
 
 Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md) supersedes direct SDK calls; 73 isolated/offline tests passed, local/in-review with live access and merge open.
+
+Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), local/in-review; live Python consult endpoint, browser acceptance and merge remain open.

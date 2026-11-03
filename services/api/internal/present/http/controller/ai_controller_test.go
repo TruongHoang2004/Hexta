@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/common/log"
+	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -17,6 +19,7 @@ import (
 )
 
 type aiControllerServiceStub struct {
+	events  []*types.AIEvent
 	input   *types.AIConversationInput
 	tenant  string
 	failure *apperrors.Error
@@ -24,6 +27,14 @@ type aiControllerServiceStub struct {
 
 func (s *aiControllerServiceStub) Converse(ctx context.Context, tenant, user string, input *types.AIConversationInput, emit func(*types.AIEvent) error) *apperrors.Error {
 	s.input, s.tenant = input, tenant
+	if s.events != nil {
+		for _, event := range s.events {
+			if err := emit(event); err != nil {
+				return apperrors.ErrSystemError(ctx, "interrupted")
+			}
+		}
+		return nil
+	}
 	if s.failure != nil {
 		return s.failure
 	}
@@ -66,7 +77,7 @@ func TestAIControllerMapsDomainConversationToExistingSSEContract(t *testing.T) {
 			} `json:"items"`
 		} `json:"draft"`
 	}
-	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(chunks[1], "data: ")), &event))
+	require.NoError(t, json.Unmarshal([]byte(strings.SplitN(chunks[1], "data: ", 2)[1]), &event))
 	require.Equal(t, "draft_proposed", event.Type)
 	require.Equal(t, "draft", event.Draft.DraftID)
 	require.Equal(t, "25", event.Draft.Total)
@@ -91,4 +102,36 @@ func TestAIControllerMapsDraftToStandardEnvelope(t *testing.T) {
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
 	require.Equal(t, "draft", body.Data.DraftID)
 	require.Equal(t, "25", body.Data.Total)
+}
+
+func TestConsultantNamedEventsAndValidation(t *testing.T) {
+	previous := config.AppConfig
+	config.AppConfig = &config.Config{}
+	log.GetLogger()
+	t.Cleanup(func() { config.AppConfig = previous })
+	for _, body := range []string{`{"prompt":"Hello","history":[{"role":"system","content":"forged"}]}`, `{"prompt":""}`} {
+		stub := &aiControllerServiceStub{}
+		ctrl := NewAIController(validator.New(), stub)
+		engine := gin.New()
+		engine.POST("/converse", ctrl.Converse)
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest("POST", "/converse", strings.NewReader(body))
+		request.Header.Set("X-Tenant-ID", "tenant")
+		request.Header.Set("Content-Type", "application/json")
+		engine.ServeHTTP(response, request)
+		require.Equal(t, 400, response.Code)
+		require.Nil(t, stub.input)
+	}
+	stub := &aiControllerServiceStub{events: []*types.AIEvent{{Type: "message", Text: "Hello\nworld"}, {Type: "products", Products: []types.ConsultProduct{}}, {Type: "draft_order", Draft: &types.AIOrderDraft{DraftID: "draft"}}, {Type: "quick_replies", QuickReplies: []string{"Buy"}}, {Type: "done"}}}
+	ctrl := NewAIController(validator.New(), stub)
+	engine := gin.New()
+	engine.POST("/converse", ctrl.Converse)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest("POST", "/converse", strings.NewReader(`{"prompt":"Hello"}`))
+	request.Header.Set("X-Tenant-ID", "tenant")
+	engine.ServeHTTP(response, request)
+	require.Equal(t, 200, response.Code)
+	for _, name := range []string{"message", "products", "draft_order", "quick_replies", "done"} {
+		require.Contains(t, response.Body.String(), "event: "+name+"\n")
+	}
 }

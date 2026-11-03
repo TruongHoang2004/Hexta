@@ -37,13 +37,15 @@ type Config struct {
 		} `yaml:"google" mapstructure:"google"`
 	} `yaml:"oauth" mapstructure:"oauth"`
 	AI struct {
-		Provider    string  `yaml:"provider" mapstructure:"provider"`
-		ApiKey      string  `yaml:"api_key" mapstructure:"api_key"`
-		Model       string  `yaml:"model" mapstructure:"model"`
-		BaseURL     string  `yaml:"base_url" mapstructure:"base_url"`
-		Timeout     int     `yaml:"timeout" mapstructure:"timeout"`
-		MaxTokens   int     `yaml:"max_tokens" mapstructure:"max_tokens"`
-		Temperature float64 `yaml:"temperature" mapstructure:"temperature"`
+		ConsultURL    string  `yaml:"consult_url" mapstructure:"consult_url"`
+		InternalToken string  `yaml:"internal_token" mapstructure:"internal_token"`
+		Provider      string  `yaml:"provider" mapstructure:"provider"`
+		ApiKey        string  `yaml:"api_key" mapstructure:"api_key"`
+		Model         string  `yaml:"model" mapstructure:"model"`
+		BaseURL       string  `yaml:"base_url" mapstructure:"base_url"`
+		Timeout       int     `yaml:"timeout" mapstructure:"timeout"`
+		MaxTokens     int     `yaml:"max_tokens" mapstructure:"max_tokens"`
+		Temperature   float64 `yaml:"temperature" mapstructure:"temperature"`
 	} `yaml:"ai" mapstructure:"ai"`
 }
 

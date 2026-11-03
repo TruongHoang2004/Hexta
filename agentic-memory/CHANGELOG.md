@@ -592,3 +592,19 @@ Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/
 - Prepared isolated docs branch from current main, excluding overview application changes/screenshots while retaining referenced acceptance documents and main's newer audit. [Publication session](epics/EPIC-001-system-design/sessions/2026-10-28_rules-memory-pr.md) records validation and eventual PR identity. No runtime test or parent completion claim.
 
 Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non-draft against main from codex/rules-memory-cleanup; connector creation 403 recovered via authenticated CLI, artifact attached. CI/review/merge not claimed complete; archive recovery uses shared main d09083c.
+
+## 2026-11-03 — Shopping consultant Go SSE and Next.js integration (local/in-review)
+
+- Added internal HTTP consult adapter/config, safe bounded transport, Fx binding,
+  current tenant/catalog gates and named message/products/draft_order/quick_replies
+  SSE at authenticated POST /api/v1/ai/converse; regenerated Swagger.
+- Added member Storefront, floating Markdown/product/draft widget, POST SSE parser,
+  quick replies and explicit sales checkout review/confirmation. Reused SDK,
+  shared UI and sales services; react-markdown is the sole added runtime dependency.
+- Tests: Go race suite and vet pass; web lint/build pass; 4 standalone SSE tests
+  pass. Global gofmt check finds existing config/config_test.go formatting debt.
+  Live Python, isolated DB and browser acceptance NOT_RUN; checked-in Python has
+  no consult endpoint. No deployment/merge/completion claim.
+- [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md)
+  records impact, choices, test commands and handoff; [HTTP contract](designs/system/04-http-api.md#shopping-consultant-integration--local-2026-11-03)
+  records URL/token setup, event data, bounded catalog and member-only scope.

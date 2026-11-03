@@ -9,19 +9,20 @@ import (
 
 // ChatMessage represents a single conversational turn.
 type ChatMessage struct {
-	Role    string `json:"role" example:"user"`
-	Content string `json:"content" example:"Tôi muốn đặt 2 hộp sữa bắp"`
+	Role    string `json:"role" validate:"required,oneof=user assistant" example:"user"`
+	Content string `json:"content" validate:"required,max=4000" example:"Tôi muốn đặt 2 hộp sữa bắp"`
 }
 
 // AIConverseRequest represents the request payload for the conversational AI agent.
 type AIConverseRequest struct {
-	Prompt         string        `json:"prompt" binding:"required" validate:"required" example:"Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp"`
-	ConversationID string        `json:"conversation_id,omitempty" example:"conv_12345"`
-	History        []ChatMessage `json:"history,omitempty"`
+	Prompt         string        `json:"prompt" binding:"required" validate:"required,max=4000" example:"Tạo đơn cho anh Nam 0912345678 lấy 2 hộp sữa bắp"`
+	ConversationID string        `json:"conversation_id,omitempty" validate:"max=128" example:"conv_12345"`
+	History        []ChatMessage `json:"history,omitempty" validate:"max=40,dive"`
 }
 
 // DraftItemDTO represents an item in an interactive order draft.
 type DraftItemDTO struct {
+	VariantID   string          `json:"variant_id,omitempty"`
 	ProductID   string          `json:"product_id,omitempty" example:"prod_123"`
 	ProductName string          `json:"product_name" validate:"required" example:"Sữa bắp non 500ml"`
 	Quantity    int             `json:"quantity" validate:"required,min=1" example:"2"`
@@ -59,11 +60,14 @@ const (
 
 // SSEEvent represents a single Server-Sent Event message emitted during streaming conversation.
 type SSEEvent struct {
-	Type  SSEEventType   `json:"type"`
-	Text  string         `json:"text,omitempty"`
-	Draft *OrderDraftDTO `json:"draft,omitempty"`
-	Tool  string         `json:"tool,omitempty"`
-	Error string         `json:"error,omitempty"`
+	Products     []types.ConsultProduct `json:"products,omitempty"`
+	QuickReplies []string               `json:"quick_replies,omitempty"`
+	NeedsHuman   bool                   `json:"needs_human,omitempty"`
+	Type         SSEEventType           `json:"type"`
+	Text         string                 `json:"text,omitempty"`
+	Draft        *OrderDraftDTO         `json:"draft,omitempty"`
+	Tool         string                 `json:"tool,omitempty"`
+	Error        string                 `json:"error,omitempty"`
 }
 
 // DomainInput keeps the HTTP request contract outside the business service.
@@ -87,7 +91,7 @@ func AIOrderDraftResponse(draft *types.AIOrderDraft) *OrderDraftDTO {
 		items = make([]DraftItemDTO, len(draft.Items))
 	}
 	for i, item := range draft.Items {
-		items[i] = DraftItemDTO{ProductID: item.ProductID, ProductName: item.ProductName, Quantity: item.Quantity, UnitPrice: item.UnitPrice, Variant: item.Variant, Subtotal: item.Subtotal}
+		items[i] = DraftItemDTO{VariantID: item.VariantID, ProductID: item.ProductID, ProductName: item.ProductName, Quantity: item.Quantity, UnitPrice: item.UnitPrice, Variant: item.Variant, Subtotal: item.Subtotal}
 	}
 	return &OrderDraftDTO{DraftID: draft.DraftID, TenantID: draft.TenantID, CustomerName: draft.CustomerName, CustomerPhone: draft.CustomerPhone, ShippingAddress: draft.ShippingAddress, Items: items, TotalAmount: draft.TotalAmount, PaymentMethod: draft.PaymentMethod, Notes: draft.Notes, Status: draft.Status, CreatedAt: draft.CreatedAt, ExpiresAt: draft.ExpiresAt}
 }
@@ -96,5 +100,5 @@ func AIEventResponse(event *types.AIEvent) *SSEEvent {
 	if event == nil {
 		return nil
 	}
-	return &SSEEvent{Type: SSEEventType(event.Type), Text: event.Text, Draft: AIOrderDraftResponse(event.Draft), Tool: event.Tool, Error: event.Error}
+	return &SSEEvent{Products: event.Products, QuickReplies: event.QuickReplies, NeedsHuman: event.NeedsHuman, Type: SSEEventType(event.Type), Text: event.Text, Draft: AIOrderDraftResponse(event.Draft), Tool: event.Tool, Error: event.Error}
 }

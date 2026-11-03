@@ -21,6 +21,7 @@ type AIConversationInput struct {
 
 // AIDraftItem represents an item in an interactive order draft.
 type AIDraftItem struct {
+	VariantID   string          `json:"variant_id,omitempty"`
 	ProductID   string          `json:"product_id,omitempty"`
 	ProductName string          `json:"product_name"`
 	Quantity    int             `json:"quantity"`
@@ -58,9 +59,12 @@ const (
 
 // AIEvent represents a single Server-Sent Event message emitted during streaming conversation.
 type AIEvent struct {
-	Type  AIEventType   `json:"type"`
-	Text  string        `json:"text,omitempty"`
-	Draft *AIOrderDraft `json:"draft,omitempty"`
-	Tool  string        `json:"tool,omitempty"`
-	Error string        `json:"error,omitempty"`
+	Products     []ConsultProduct `json:"products,omitempty"`
+	QuickReplies []string         `json:"quick_replies,omitempty"`
+	NeedsHuman   bool             `json:"needs_human,omitempty"`
+	Type         AIEventType      `json:"type"`
+	Text         string           `json:"text,omitempty"`
+	Draft        *AIOrderDraft    `json:"draft,omitempty"`
+	Tool         string           `json:"tool,omitempty"`
+	Error        string           `json:"error,omitempty"`
 }

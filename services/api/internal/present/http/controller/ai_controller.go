@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/common"
@@ -51,7 +52,12 @@ func (ctrl *AIController) getAuthUserID(c *gin.Context) string {
 // @Param X-Tenant-ID header string false "Tenant Workspace ID"
 // @Param tenant_id query string false "Tenant Workspace ID"
 // @Param request body dto.AIConverseRequest true "Conversational prompt and history"
-// @Success 200 {string} string "Server-Sent Event stream emitting JSON dto.SSEEvent chunks"
+// @Success 200 {string} string "Named message, products, draft_order, quick_replies, done and error events; data is dto.SSEEvent"
+// @Failure 400 {object} errors.ErrorResponse
+// @Failure 401 {object} errors.ErrorResponse
+// @Failure 403 {object} errors.ErrorResponse
+// @Failure 500 {object} errors.ErrorResponse
+// @Router /api/v1/ai/converse [post]
 func (ctrl *AIController) Converse(c *gin.Context) {
 	tenantID := ctrl.getTenantID(c)
 	if tenantID == "" {
@@ -60,6 +66,7 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 	}
 
 	var req dto.AIConverseRequest
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 256<<10)
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ctrl.ErrorData(c, errors.ErrBadRequest(c.Request.Context()).SetDetail("invalid conversation request"))
 		return
@@ -69,22 +76,22 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 		return
 	}
 
-	// Prepare SSE response headers
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
-
 	userID := ctrl.getAuthUserID(c)
 	emitEvent := func(event *types.AIEvent) error {
 		if event == nil {
 			return nil
 		}
+		// Prepare SSE response headers
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+
 		data, err := json.Marshal(dto.AIEventResponse(event))
 		if err != nil {
 			return err
 		}
-		_, writeErr := c.Writer.Write([]byte(fmt.Sprintf("data: %s\n\n", string(data))))
+		_, writeErr := c.Writer.Write([]byte(fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(data))))
 		if writeErr != nil {
 			return writeErr
 		}
@@ -93,6 +100,10 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 	}
 
 	if err := ctrl.aiService.Converse(c.Request.Context(), tenantID, userID, req.DomainInput(), emitEvent); err != nil {
+		if !c.Writer.Written() {
+			ctrl.ErrorData(c, err)
+			return
+		}
 		_ = emitEvent(&types.AIEvent{
 			Type:  types.AIEventError,
 			Error: err.GetDetail(),
