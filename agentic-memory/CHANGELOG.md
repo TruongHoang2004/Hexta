@@ -620,3 +620,10 @@ Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62
 2026-11-03 PR #62 CI follow-up: removed one trailing blank line via gofmt in services/api/config/config_test.go, fixing the formatting gate reported by Backend CI run 41579328602. Whole-repo formatting plus focused config race tests/vet pass; fresh remote CI remains pending. No behavior or workflow change.
 
 2026-11-03 PR #62 CI follow-up: after Go/Atlas checks passed in run 41597517521, fixed AI test-image collection failure by copying smoke.py into only the Dockerfile test target. Image build and container offline suite pass (67 passed, six DB skips); production target unchanged and fresh CI DB acceptance pending.
+
+2026-11-03 PR #62 owner-review follow-up: preserve variant labels in AI snapshot,
+verified cards, drafts and checkout; deduplicate variant recommendations; resolve
+legacy checkout IDs only when unambiguous; accept base/full consult URLs and proxy
+prefixes. Scoped Go race tests/vet, global gofmt, Swagger regeneration, SDK/web
+build/lint and seven standalone Node tests pass. New CI and live/browser acceptance
+remain pending; [session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md) records compatibility details.

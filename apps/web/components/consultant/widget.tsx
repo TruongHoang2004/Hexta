@@ -197,7 +197,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                   >
                     {turn.products.map((p) => (
                       <div
-                        key={p.variant_id}
+                        key={p.variant_id || p.product_id}
                         className="w-56 shrink-0 snap-start space-y-2 rounded-lg border border-border p-3"
                       >
                         {p.image_url ? (

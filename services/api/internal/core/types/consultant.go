@@ -13,6 +13,7 @@ type ConsultRequest struct {
 type ConsultProduct struct {
 	ProductID   string          `json:"product_id"`
 	ProductName string          `json:"product_name"`
+	Variant     string          `json:"variant,omitempty"`
 	VariantID   string          `json:"variant_id,omitempty"`
 	Price       decimal.Decimal `json:"price"`
 	ImageURL    string          `json:"image_url,omitempty"`

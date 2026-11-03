@@ -44,7 +44,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-- [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) Go SSE/web integration; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.
+- [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) Go SSE/web integration plus owner-review variant/checkout/URL fixes; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.
 
 - [2026-11-03_langchain-providers](sessions/2026-11-03_langchain-providers.md) — owner-selected shared LangChain model path; 73 isolated/offline tests pass; local/in-review.
 

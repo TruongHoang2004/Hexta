@@ -147,8 +147,9 @@ Native SSE emits named `message`, `products`, optional `draft_order`,
 stream failures use `error`. The Python endpoint returns one JSON result, so
 these are result events, not provider token deltas.
 
-Go calls `AI_CONSULT_URL` + `/internal/v1/consult` with server-only
-`AI_INTERNAL_TOKEN`; configure e.g. `AI_CONSULT_URL=http://localhost:58000` and
+Go accepts either a base `AI_CONSULT_URL` or a complete URL ending in
+`/internal/v1/consult`; it appends the endpoint only when absent and preserves
+proxy path prefixes. Calls use server-only `AI_INTERNAL_TOKEN`; configure e.g. `AI_CONSULT_URL=http://localhost:58000` and
 provide the token privately. Existing AI timeout defaults to 60 seconds for this
 client and is capped at 120 seconds. Redirects and automatic retries are disabled;
 response bodies are bounded to 1 MiB. Missing optional configuration disables
@@ -161,7 +162,10 @@ Go checks active tenant membership before and after the AI call and supplies a
 bounded snapshot of the first 100 active catalog products (priced variants only).
 Only catalog-resolved candidates survive; ambiguous multi-variant product IDs
 require an explicit `variant_id`. Drafts carry actual `product_id` plus additive
-`variant_id`, quantities 1–100, and recalculated decimal prices/totals. AI-provided
+`variant_id`, quantities 1–100, and recalculated decimal prices/totals. Product
+display names include the current catalog variant label; additive `variant`
+metadata also preserves that label in candidates and draft items. Duplicate
+recommendations are removed by verified variant ID. AI-provided
 prices/IDs cannot authorize an order. Optional HTTPS recommendation image URLs
 are display metadata; absent images use a placeholder. Customer context currently
 contains this product snapshot only, with no private customer records.
@@ -172,7 +176,10 @@ customer with contact details, assigns the current actor, saves through the
 existing sales API, displays server totals, then explicitly confirms with the
 returned version. An uncertain create failure blocks immediate retry and links
 to Orders; the sales create API still has no durable idempotency contract.
-Candidate checkout state is tab-local, untrusted session storage. No public
+Checkout accepts canonical variant IDs, legacy variant-as-product IDs and a
+product-only ID when exactly one variant exists. Missing/empty variant values
+never choose among multiple variants; explicit invalid/cross-product variants
+are rejected. Candidate checkout state is tab-local, untrusted session storage. No public
 customer identity, payment gateway, stock reservation or direct Python business
 write is added. The legacy cached draft handler remains unregistered.
 
