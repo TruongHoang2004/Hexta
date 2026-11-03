@@ -81,3 +81,15 @@ to 100 products; public customer access needs a separately authorized identity a
 catalog contract. Full public storefront/payment/stock semantics are outside this
 member-only integration. Review/merge is not verified; no commit or PR created,
 and neither this session nor the parent epic is complete.
+
+## Publication follow-up — 2026-11-03
+
+User requested PR publication. Published [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62),
+OPEN/non-draft against main from `codex/shopping-consultant-review`. The review
+branch starts at updated main 009c117 and cherry-picks only this integration;
+unrelated onboarding/privacy and connector-design edits remain in the original
+workspace and outside the PR. Repeated Go race suite/vet, frozen offline install,
+SDK build, web lint/build and four SSE tests on the isolated review branch: PASS
+for available checks. Live Python/browser/isolated DB acceptance remains NOT_RUN;
+CI and merge are not claimed complete. Original no-commit/PR wording above records
+the implementation session before this publication follow-up.

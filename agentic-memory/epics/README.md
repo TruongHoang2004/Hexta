@@ -27,4 +27,4 @@ Active provider slice: [2026-11-03 AI adapters](EPIC-002-ai-runtime/sessions/202
 
 Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md) supersedes direct SDK calls; 73 isolated/offline tests passed, local/in-review with live access and merge open.
 
-Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), local/in-review; live Python consult endpoint, browser acceptance and merge remain open.
+Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) open/in-review; live Python consult endpoint, browser acceptance and merge remain open.

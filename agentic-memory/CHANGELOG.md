@@ -614,3 +614,5 @@ Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non
 - [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md)
   records impact, choices, test commands and handoff; [HTTP contract](designs/system/04-http-api.md#shopping-consultant-integration--local-2026-11-03)
   records URL/token setup, event data, bounded catalog and member-only scope.
+
+Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) OPEN/non-draft against main from `codex/shopping-consultant-review`; integration checks repeated on main 009c117 plus scoped changes. Unrelated local edits excluded; live acceptance, CI and merge remain unverified.
