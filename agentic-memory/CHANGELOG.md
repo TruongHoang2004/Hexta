@@ -1,28 +1,10 @@
 # Consolidated Project Changelog
 
-## 2026-11-03 — Inbox PR reconciliation with current main
+## 2026-11-03 — Modular tenant inbox preview (PR #61)
 
-- Rebased onto `2e5f18e`, which already includes a simulator-backed inbox. Final modular sample design is `/tenants/[tenantId]/inbox/preview` with its own navigation entry; upstream `/inbox` functionality is preserved. Earlier entries describe the initial workspace snapshot.
-- Web lint and production build passed again with both routes present; browser acceptance remains open. Delivery is in-review, not merged.
-
-## 2026-11-03 — Maintainable inbox components
-
-- Refactored [inbox](../apps/web/components/inbox/inbox.tsx) into typed presentation components, a dedicated state hook, shared types, sample data and pure filtering logic. Formatted JSX for readability; retained existing preview behavior.
-- Verification: Prettier, web lint, TypeScript, production build and whitespace checks passed. Browser acceptance not run. [Session](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md) records local/in-review scope and remaining integration work.
-
-## 2026-11-03 — Tenant workspace inbox UI
-
-- Added `/tenants/[tenantId]/inbox` and [React inbox](../apps/web/components/inbox/inbox.tsx); linked from tenant navigation and widened the inbox workspace. Provides sample queue/channel filters, search, local reply/note drafts, customer context and narrow-screen list/detail navigation.
-- Reuses workspace tenant access resolution and tenant remount boundaries. Data is illustrative; production ingestion, persistence and dispatch remain open.
-- Verification: web lint, generated Next.js route types, TypeScript and production build passed; inbox route included. Browser acceptance not run. [Session](epics/EPIC-004-messaging/sessions/2026-11-03_tenant-inbox-page.md) records prerequisites and local/in-review delivery status.
-
-## 2026-11-03 — Admin inbox design concept
-
-- Added a self-contained [interactive prototype](designs/prototypes/2026-11-03_admin-inbox.html) with queue/channel filters, search, thread selection and local reply/note previews. Sample data only; no production app, external provider or API changes.
-- Kept lifecycle, assignment, control and escalation separate. Updated EPIC-004 and index; [session](epics/EPIC-004-messaging/sessions/2026-11-03_admin-inbox-concept.md) records review and integration boundaries. System contracts unchanged.
-- Verification: extracted JavaScript syntax via `node --check`, static inspection and `git diff --check`. Browser/application tests not run; local concept awaits review and is not merged.
-
-
+- Added `/tenants/[tenantId]/inbox/preview`, tenant navigation and typed UI components with a state hook, sample data and pure queue filtering. Sample-only filters/search/drafts/customer context; existing simulator `/inbox` preserved after rebase onto `2e5f18e`.
+- Lint/TypeScript/build passed; lint/build repeated after rebase. Browser acceptance remains open; [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61) unmerged when checked. [Single session/handoff](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md).
+- Owner-requested consolidation replaces this PR's four repetitive changelog entries and three session records with one of each. Original evidence at `d0e7747`; removed paths indexed in [archive ledger](ARCHIVE_INDEX.md#2026-11-03--inbox-pr-memory-consolidation).
 
 ## 2026-11-03 — AI coding instruction architecture
 

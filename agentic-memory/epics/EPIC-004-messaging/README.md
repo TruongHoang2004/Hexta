@@ -49,15 +49,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 - [2026-11-02 simulator inbox](sessions/2026-11-02_messaging-inbox.md) — in-progress/completed false; local code, no merge.
 
-
-- [2026-11-03 — Admin inbox concept](sessions/2026-11-03_admin-inbox-concept.md): local interactive design, in-review; no provider/API integration.
-
-- [2026-11-03 — Tenant inbox page](sessions/2026-11-03_tenant-inbox-page.md): React page and navigation, lint/types/build passed; local/in-review.
-
-- [2026-11-03 — Inbox component refactor](sessions/2026-11-03_inbox-components.md): typed UI components and dedicated state hook; lint/types/build passed, local/in-review.
-
-
-Current UI review: [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), OPEN/non-draft; CI pending at publication. modular sample design at `/tenants/[tenantId]/inbox/preview`; existing simulator inbox retained at `/inbox`. Publication reconciliation and verification are recorded in the latest component-refactor session.
+- [2026-11-03 inbox design](sessions/2026-11-03_inbox-components.md) — [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), in-review/completed false. Sample UI at `/inbox/preview`; simulator `/inbox` preserved. Verification and next steps are in the session.
 
 ## Remaining work and next handoff
 
