@@ -110,4 +110,3 @@ func TestConfigFileParsing(t *testing.T) {
 	err = v.Unmarshal(&cfg)
 	assert.NoError(t, err)
 }
-

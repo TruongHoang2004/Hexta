@@ -93,3 +93,14 @@ SDK build, web lint/build and four SSE tests on the isolated review branch: PASS
 for available checks. Live Python/browser/isolated DB acceptance remains NOT_RUN;
 CI and merge are not claimed complete. Original no-commit/PR wording above records
 the implementation session before this publication follow-up.
+
+## CI formatting follow-up — 2026-11-03
+
+Owner reported failed Backend CI job 125730210458 in run 41579328602. The log
+confirms `Check Go Formatting` stopped on an extra trailing blank line in
+`services/api/config/config_test.go`; vet/tests had not run in that job. Applied
+gofmt to that file only (one blank line removed), with no behavior/workflow
+change. `sh scripts/check-gofmt.sh`, `go test -race ./services/api/config`,
+`go vet ./services/api/config` and `git diff --check`: PASS. This supersedes the
+previously recorded unresolved formatting debt. Push triggers fresh PR checks;
+remote CI completion is tracked separately from these local results.

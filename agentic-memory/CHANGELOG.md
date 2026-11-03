@@ -616,3 +616,5 @@ Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non
   records URL/token setup, event data, bounded catalog and member-only scope.
 
 Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) OPEN/non-draft against main from `codex/shopping-consultant-review`; integration checks repeated on main 009c117 plus scoped changes. Unrelated local edits excluded; live acceptance, CI and merge remain unverified.
+
+2026-11-03 PR #62 CI follow-up: removed one trailing blank line via gofmt in services/api/config/config_test.go, fixing the formatting gate reported by Backend CI run 41579328602. Whole-repo formatting plus focused config race tests/vet pass; fresh remote CI remains pending. No behavior or workflow change.
