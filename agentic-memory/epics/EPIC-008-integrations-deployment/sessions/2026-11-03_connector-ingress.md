@@ -50,3 +50,9 @@ NOT_RUN:
 ## Remaining work and handoff
 
 Use private secret files, app/Page/tenant/connection mapping and controlled HTTPS callback for receive-only Meta acceptance. Do not send tokens via chat. Add tenant-authorized API provisioning before onboarding. Verify Facebook fetch rights before enabling it; finish sync scheduler/history mapping/quota policy. For chatbot replies implement API context/routing/candidate revalidation, intent outbox, current-state attempt permits and unknown-send reconciliation before connector send. No real messages were sent; main merge and parent completion are not claimed.
+
+## PR publication follow-up
+
+The user explicitly requested PR creation after implementation. Published [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66) from `TruongHoang2004/connect` to `main`; verified OPEN/non-draft/unmerged on 2026-11-03. Implementation commit: `f20b620`. The GitHub connector returned 403 for creation; authenticated GitHub CLI succeeded. No merge or issue mutation was requested.
+
+Publication checks: `make migrate-validate`, `git diff --check`, Connector/shared unit tests and scoped vet passed. Database-dependent tests in this publication rerun were skipped because the disposable infrastructure had already been removed; prior isolated integration evidence above remains separately scoped. CI was pending at publication, not verified green. Delivery and parent epics remain in-review/in-progress with completed false.

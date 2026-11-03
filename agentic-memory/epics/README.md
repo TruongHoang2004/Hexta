@@ -27,4 +27,4 @@ Active provider slice: [2026-11-03 AI adapters](EPIC-002-ai-runtime/sessions/202
 
 Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md) supersedes direct SDK calls; 73 isolated/offline tests passed, local/in-review with live access and merge open.
 
-Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md), local/in-review; isolated HTTP → PostgreSQL → Kafka → API member inbox verified. Live Meta, outbound/AI and merge remain open.
+Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md), [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; isolated HTTP → PostgreSQL → Kafka → API member inbox verified. Live Meta, outbound/AI and merge remain open.

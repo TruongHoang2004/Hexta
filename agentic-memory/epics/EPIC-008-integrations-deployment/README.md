@@ -38,7 +38,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-- [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — local/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
+- [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
 
 ## Remaining work and next handoff
 

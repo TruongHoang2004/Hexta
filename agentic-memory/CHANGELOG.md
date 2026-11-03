@@ -605,3 +605,5 @@ Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non
 - API consumer commits dedup/current-binding checks with received inbox messages before offsets. Web distinguishes Facebook from simulation and blocks simulated input/replies on real threads. No live send, AI scheduling, Facebook fetch or user provisioning claim.
 - Final owner decision combines separate I/O service, durability/Kafka and Omni Bridge-style base/plugin behavior; direct Facebook supersedes Pancake. Local PostgreSQL/Kafka E2E and scoped race/vet/migration/frontend checks passed; live Meta and full crash/outage matrix remain NOT_RUN.
 - Run/recover/configure: [connector runbook](../services/connector/README.md). Scope, exact evidence and follow-ups: [EPIC-008 session](epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Not merged/deployed; parent epics incomplete.
+
+- Publication follow-up: [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66) opened against main on owner request; implementation `f20b620`. OPEN/non-draft, CI pending at publication; not merged.
