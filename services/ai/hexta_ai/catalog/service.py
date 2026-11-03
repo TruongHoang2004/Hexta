@@ -74,13 +74,16 @@ class CatalogService:
 
     def __init__(self, initial_items: list[CatalogItem] | None = None):
         self._items: dict[str, CatalogItem] = {}
+        self._items_list: list[CatalogItem] = []
         items_source = initial_items if initial_items is not None else DEFAULT_CATALOG_ITEMS
         for item in items_source:
-            self._items[item.product_id] = item
+            self._items_list.append(item)
             if item.variant_id:
                 self._items[item.variant_id] = item
             if item.sku:
                 self._items[item.sku] = item
+            if item.product_id not in self._items:
+                self._items[item.product_id] = item
 
     @classmethod
     def from_customer_context(cls, customer_context: dict[str, Any] | None) -> "CatalogService":
@@ -114,17 +117,29 @@ class CatalogService:
         return cls(initial_items=None)
 
     def get_by_id(self, product_or_variant_id: str) -> CatalogItem | None:
+        if not product_or_variant_id:
+            return None
+        # 1. Prioritize variant_id first
+        for it in self._items_list:
+            if it.variant_id and it.variant_id == product_or_variant_id:
+                return it
+        # 2. Match SKU
+        for it in self._items_list:
+            if it.sku and it.sku == product_or_variant_id:
+                return it
+        # 3. Direct key lookup
         if product_or_variant_id in self._items:
             return self._items[product_or_variant_id]
-        for it in self._items.values():
-            if it.product_id == product_or_variant_id or it.variant_id == product_or_variant_id:
+        # 4. Fallback product_id
+        for it in self._items_list:
+            if it.product_id == product_or_variant_id:
                 return it
         return None
 
     def get_by_sku(self, sku: str) -> CatalogItem | None:
         norm_sku = sku.strip().upper()
-        for item in self._items.values():
-            if item.sku.upper() == norm_sku or item.variant_id.upper() == norm_sku:
+        for item in self._items_list:
+            if (item.sku and item.sku.upper() == norm_sku) or (item.variant_id and item.variant_id.upper() == norm_sku):
                 return item
         return None
 
@@ -136,7 +151,7 @@ class CatalogService:
 
         # Deduplicate items by variant_id or product_id
         items_to_search: list[CatalogItem] = []
-        for it in self._items.values():
+        for it in self._items_list:
             key = it.variant_id or it.product_id
             if key not in seen_ids:
                 seen_ids.add(key)

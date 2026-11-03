@@ -45,6 +45,57 @@ DANH MỤC SẢN PHẨM HIỆN CÓ TRONG KHO:
 """
 
 
+def parse_vietnamese_price_filter(val_str: str, unit: str | None) -> float | None:
+    val_str = val_str.strip()
+    if not val_str:
+        return None
+
+    has_dot = "." in val_str
+    has_comma = "," in val_str
+
+    if has_dot and has_comma:
+        last_dot = val_str.rfind(".")
+        last_comma = val_str.rfind(",")
+        if last_dot > last_comma:
+            clean_str = val_str[:last_dot].replace(",", "") + "." + val_str[last_dot + 1:]
+        else:
+            clean_str = val_str[:last_comma].replace(".", "") + "." + val_str[last_comma + 1:]
+    elif has_dot or has_comma:
+        sep = "." if has_dot else ","
+        parts = val_str.split(sep)
+        if len(parts) > 2:
+            clean_str = "".join(parts)
+        else:
+            decimal_part = parts[1]
+            if unit:
+                unit_lower = unit.lower()
+                if unit_lower in {"tr", "triệu"} or len(decimal_part) != 3:
+                    clean_str = f"{parts[0]}.{parts[1]}"
+                else:
+                    clean_str = "".join(parts)
+            else:
+                if len(decimal_part) == 3:
+                    clean_str = "".join(parts)
+                else:
+                    clean_str = f"{parts[0]}.{parts[1]}"
+    else:
+        clean_str = val_str
+
+    try:
+        val = float(clean_str)
+    except ValueError:
+        return None
+
+    if unit:
+        unit_lower = unit.lower()
+        if unit_lower in {"tr", "triệu"}:
+            val *= 1_000_000.0
+        elif unit_lower in {"k", "nghìn", "ngàn"}:
+            val *= 1_000.0
+
+    return val
+
+
 def extract_price_filters(query: str, context: dict[str, Any] | None = None) -> ExtractedFilters:
     q = query.lower()
     min_p: float | None = None
@@ -63,36 +114,32 @@ def extract_price_filters(query: str, context: dict[str, Any] | None = None) -> 
                 pass
 
     if max_p is None:
-        m_max = re.search(r"(?:dưới|<|nhỏ hơn|max_price\s*[:=])\s*([\d\.,]+)\s*(k|nghìn|ngàn|tr|triệu)?", q)
-        if m_max:
-            val_s = m_max.group(1).replace(".", "").replace(",", "")
-            unit = m_max.group(2)
-            try:
-                v = float(val_s)
-                if unit in {"tr", "triệu"}:
-                    max_p = v * 1000000.0
-                elif unit in {"k", "nghìn", "ngàn"}:
-                    max_p = v * 1000.0
-                else:
-                    max_p = v
-            except ValueError:
-                pass
+        m_short = re.search(r"(?:dưới|<|nhỏ hơn|max_price\s*[:=])\s*(\d+)\s*(tr|triệu|k)\s*(\d+)", q)
+        if m_short:
+            base = float(m_short.group(1))
+            u = m_short.group(2).lower()
+            dec = m_short.group(3)
+            multiplier = 1_000_000.0 if u in {"tr", "triệu"} else 1_000.0
+            frac = float(dec) / (10 ** len(dec))
+            max_p = (base + frac) * multiplier
+        else:
+            m_max = re.search(r"(?:dưới|<|nhỏ hơn|max_price\s*[:=])\s*([\d\.,]+)\s*(k|nghìn|ngàn|tr|triệu)?", q)
+            if m_max:
+                max_p = parse_vietnamese_price_filter(m_max.group(1), m_max.group(2))
 
     if min_p is None:
-        m_min = re.search(r"(?:trên|>|lớn hơn|từ|min_price\s*[:=])\s*([\d\.,]+)\s*(k|nghìn|ngàn|tr|triệu)?", q)
-        if m_min:
-            val_s = m_min.group(1).replace(".", "").replace(",", "")
-            unit = m_min.group(2)
-            try:
-                v = float(val_s)
-                if unit in {"tr", "triệu"}:
-                    min_p = v * 1000000.0
-                elif unit in {"k", "nghìn", "ngàn"}:
-                    min_p = v * 1000.0
-                else:
-                    min_p = v
-            except ValueError:
-                pass
+        m_short = re.search(r"(?:trên|>|lớn hơn|từ|min_price\s*[:=])\s*(\d+)\s*(tr|triệu|k)\s*(\d+)", q)
+        if m_short:
+            base = float(m_short.group(1))
+            u = m_short.group(2).lower()
+            dec = m_short.group(3)
+            multiplier = 1_000_000.0 if u in {"tr", "triệu"} else 1_000.0
+            frac = float(dec) / (10 ** len(dec))
+            min_p = (base + frac) * multiplier
+        else:
+            m_min = re.search(r"(?:trên|>|lớn hơn|từ|min_price\s*[:=])\s*([\d\.,]+)\s*(k|nghìn|ngàn|tr|triệu)?", q)
+            if m_min:
+                min_p = parse_vietnamese_price_filter(m_min.group(1), m_min.group(2))
 
     return ExtractedFilters(min_price=min_p, max_price=max_p)
 
@@ -249,15 +296,24 @@ def create_consultant_graph(catalog_service: CatalogService | None = None, provi
             filters=filters,
         )
 
-        catalog_map = {it.product_id: it for it in items}
-        for it in items:
-            if it.variant_id:
-                catalog_map[it.variant_id] = it
-
         recommended_items: list[CatalogItem] = []
         for pid in validated_decision.recommended_product_ids:
-            if pid in catalog_map:
-                it = catalog_map[pid]
+            it = None
+            for cand in items:
+                if cand.variant_id and cand.variant_id == pid:
+                    it = cand
+                    break
+            if not it:
+                for cand in items:
+                    if cand.sku and cand.sku == pid:
+                        it = cand
+                        break
+            if not it:
+                for cand in items:
+                    if cand.product_id == pid:
+                        it = cand
+                        break
+            if it:
                 if filters:
                     if filters.min_price is not None and it.price < filters.min_price:
                         continue

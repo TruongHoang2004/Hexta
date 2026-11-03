@@ -201,3 +201,128 @@ async def test_graph_hard_price_filter_does_not_leak_expensive_items():
     for prod in resp.recommended_products:
         assert prod.price <= 300000.0
         assert prod.product_id != "prod_02"
+
+
+def test_variant_priority_and_price_same_product_id():
+    """Verify Issue 1: prioritize variant_id, retain variant identifier, and enforce variant price."""
+    item_s = CatalogItem(
+        product_id="prod_polo",
+        variant_id="size_s",
+        sku="POLO-S",
+        name="Áo Polo Size S",
+        product_name="Áo Polo Size S",
+        price=100000.0,
+        stock=10,
+    )
+    item_l = CatalogItem(
+        product_id="prod_polo",
+        variant_id="size_l",
+        sku="POLO-L",
+        name="Áo Polo Size L",
+        product_name="Áo Polo Size L",
+        price=200000.0,
+        stock=10,
+    )
+    hydrated = [item_s, item_l]
+
+    # Model requests size_l
+    decision = StructuredConsultantDecision(
+        intent="order_draft",
+        thought_process="Purchasing size L",
+        reply_message="Tạo đơn áo polo size L",
+        recommended_product_ids=["size_l"],
+        draft_order=OrderDraft(
+            draft_id="d_01",
+            items=[
+                OrderDraftItem(
+                    product_id="prod_polo",
+                    variant_id="size_l",
+                    product_name="Áo Polo Size L",
+                    quantity=1,
+                    unit_price=200000.0,
+                )
+            ],
+            total_amount=200000.0,
+        ),
+    )
+
+    validated, _ = OutputGuardrail.validate_and_correct(decision, hydrated)
+
+    # 1. Recommendation must keep variant_id "size_l", not overwrite with "prod_polo" or size_s
+    assert validated.recommended_product_ids == ["size_l"]
+    # 2. Draft item must retain variant_id="size_l", name of L, and unit_price 200,000đ (not 100,000đ of size S)
+    draft_item = validated.draft_order.items[0]
+    assert draft_item.variant_id == "size_l"
+    assert draft_item.product_name == "Áo Polo Size L"
+    assert draft_item.unit_price == 200000.0
+    assert validated.draft_order.total_amount == 200000.0
+
+
+def test_output_guardrail_reconstructs_message_on_total_amount_adjustment():
+    """Verify Issue 2: if unit price is correct but total_amount is wrong, reconstruct reply_message."""
+    real_item = CatalogItem(
+        product_id="prod_item",
+        variant_id="var_01",
+        name="Quần Jean Nam",
+        price=500000.0,
+        stock=10,
+    )
+    decision = StructuredConsultantDecision(
+        intent="order_draft",
+        thought_process="Order draft with wrong total",
+        reply_message="Tổng đơn 1đ nha bạn!",
+        recommended_product_ids=["var_01"],
+        draft_order=OrderDraft(
+            draft_id="d_02",
+            items=[
+                OrderDraftItem(
+                    product_id="prod_item",
+                    variant_id="var_01",
+                    product_name="Quần Jean Nam",
+                    quantity=1,
+                    unit_price=500000.0,  # Correct unit price
+                )
+            ],
+            total_amount=1.0,  # Hallucinated 1đ total!
+        ),
+    )
+
+    validated, audit_notes = OutputGuardrail.validate_and_correct(decision, [real_item])
+
+    # Total must be corrected to 500,000đ
+    assert validated.draft_order.total_amount == 500000.0
+    assert any("Tự động sửa tổng tiền" in note for note in audit_notes)
+
+    # Hallucinated "1đ" must be removed from reply_message and replaced with real total
+    assert "1đ" not in validated.reply_message
+    assert "500,000đ" in validated.reply_message
+
+
+def test_vietnamese_budget_parsing_decimal_vs_thousands():
+    """Verify Issue 3: '1,5 triệu' and '1.5tr' parse as 1,500,000đ, not 15,000,000đ."""
+    from hexta_ai.graph_consultant import extract_price_filters
+
+    f1 = extract_price_filters("Tìm áo polo dưới 1,5 triệu")
+    assert f1.max_price == 1500000.0
+
+    f2 = extract_price_filters("áo khoác dưới 1.5tr")
+    assert f2.max_price == 1500000.0
+
+    f3 = extract_price_filters("giày dưới 1tr5")
+    assert f3.max_price == 1500000.0
+
+    f4 = extract_price_filters("dưới 1.500.000đ")
+    assert f4.max_price == 1500000.0
+
+    f5 = extract_price_filters("dưới 1,500,000")
+    assert f5.max_price == 1500000.0
+
+    f6 = extract_price_filters("quần trên 1,5 triệu")
+    assert f6.min_price == 1500000.0
+
+    f7 = extract_price_filters("sản phẩm từ 1.5tr")
+    assert f7.min_price == 1500000.0
+
+    f8 = extract_price_filters("áo thun dưới 300k")
+    assert f8.max_price == 300000.0
+

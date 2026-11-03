@@ -71,7 +71,7 @@ class FakeStructuredChatModel(BaseChatModel):
         if not has_catalog_context:
             from hexta_ai.catalog.service import DEFAULT_CATALOG_ITEMS
             available_products = [
-                {"id": it.product_id, "sku": it.sku, "name": it.name, "price": it.price}
+                {"id": it.product_id, "sku": it.variant_id or it.sku or it.product_id, "name": it.name, "price": it.price}
                 for it in DEFAULT_CATALOG_ITEMS
             ]
             catalog_empty = False
@@ -81,6 +81,19 @@ class FakeStructuredChatModel(BaseChatModel):
                 or "Hiện không tìm thấy" in catalog_context
                 or not available_products
             )
+
+        # Match specific variant in user text if multiple items available
+        matching_products = []
+        for p in available_products:
+            p_text = f"{p['name']} {p['sku']}".lower()
+            if "size l" in text and ("size l" in p_text or "size_l" in p_text or "polo-l" in p_text):
+                matching_products.append(p)
+            elif "size s" in text and ("size s" in p_text or "size_s" in p_text or "polo-s" in p_text):
+                matching_products.append(p)
+            elif "size m" in text and ("size m" in p_text or "size_m" in p_text or "polo-m" in p_text):
+                matching_products.append(p)
+
+        target_pool = matching_products if matching_products else available_products
 
         # Rule-based decision for fake simulation
         if any(w in text for w in ["người", "nhân viên", "tổng đài", "gặp tư vấn viên"]):
@@ -101,12 +114,13 @@ class FakeStructuredChatModel(BaseChatModel):
                 quick_replies=["Xem sản phẩm khác"],
             )
         elif any(w in text for w in ["chốt đơn", "mua", "lấy cái này", "đặt hàng"]):
-            chosen = available_products[0]
+            chosen = target_pool[0]
+            chosen_ref = chosen["sku"] if (chosen["sku"] and chosen["sku"] != chosen["id"]) else chosen["id"]
             decision = StructuredConsultantDecision(
                 intent="order_draft",
                 thought_process="Customer showed explicit purchase intent. Formulating draft order.",
                 reply_message=f"Dạ em đã tạo đơn hàng nháp cho bạn với sản phẩm {chosen['name']}. Bạn vui lòng kiểm tra lại thông tin đơn hàng bên dưới nhé!",
-                recommended_product_ids=[chosen["id"]],
+                recommended_product_ids=[chosen_ref],
                 draft_order=OrderDraft(
                     draft_id="draft_sim_001",
                     customer_name="Nguyễn Văn A",
@@ -115,7 +129,7 @@ class FakeStructuredChatModel(BaseChatModel):
                     items=[
                         OrderDraftItem(
                             product_id=chosen["id"],
-                            variant_id=chosen["sku"],
+                            variant_id=chosen["sku"] if (chosen["sku"] and chosen["sku"] != chosen["id"]) else None,
                             product_name=chosen["name"],
                             variant="Mặc định",
                             quantity=1,
@@ -135,7 +149,10 @@ class FakeStructuredChatModel(BaseChatModel):
                 quick_replies=["Xem sản phẩm hot", "Tư vấn chọn size"],
             )
         else:
-            rec_ids = [p["id"] for p in available_products[:2]]
+            rec_ids = [
+                p["sku"] if (p["sku"] and p["sku"] != p["id"]) else p["id"]
+                for p in target_pool[:2]
+            ]
             decision = StructuredConsultantDecision(
                 intent="discovery",
                 thought_process="Customer browsing or asking for recommendations.",

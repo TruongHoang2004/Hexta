@@ -13,7 +13,10 @@
 - Fixed guardrail message synchronization: `OutputGuardrail` now reconstructs `reply_message` when draft order prices/items are corrected, eliminating hallucinated prices from the user-facing text.
 - Fixed price filter leaks: enforced hard `min_price`/`max_price` filters during fallback search and recommendation hydration (e.g. `max_price=1000` returns no items; "áo dưới 300k" never recommends 320k items).
 - Configured provider limits: defaulted `max_retries=0` to prevent retry storms/rate-limit loops (3 requests on 429), set explicit 30s timeout and 2048 max tokens.
-- Verification: 41 automated tests passed (8 new unit and endpoint tests covering all review fixes).
+- Fixed variant mapping and pricing: `CatalogService` and `OutputGuardrail` now prioritize `variant_id` over `product_id`, prevent variant overwrites, preserve variant identifiers throughout recommendations and draft orders, and enforce real variant pricing (e.g. Size L stays 200.000đ and retains `variant_id="size_l"`, matching Go's verification map).
+- Fixed total amount message synchronization: `OutputGuardrail` checks `total_adjusted` (`abs(calculated_total - original_total) > 0.01`) to reconstruct `reply_message` whenever the model hallucinated a total amount (e.g. 1đ), ensuring customer text matches verified cart totals.
+- Fixed Vietnamese decimal budget parsing: `extract_price_filters` and `parse_vietnamese_price_filter` now correctly distinguish decimal separators from thousand separators (e.g. "dưới 1,5 triệu" and "dưới 1.5tr" parse as 1.500.000đ, not 15.000.000đ).
+- Verification: 91 automated tests passed (5 new unit and endpoint tests covering variant isolation, total adjustment, and decimal price parsing).
 
 ## 2026-11-03 — Modular tenant inbox preview (PR #61)
 
