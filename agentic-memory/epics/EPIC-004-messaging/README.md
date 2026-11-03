@@ -57,7 +57,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 - [2026-11-03 — Inbox component refactor](sessions/2026-11-03_inbox-components.md): typed UI components and dedicated state hook; lint/types/build passed, local/in-review.
 
 
-Current UI review: modular sample design at `/tenants/[tenantId]/inbox/preview`; existing simulator inbox retained at `/inbox`. Publication reconciliation and verification are recorded in the latest component-refactor session.
+Current UI review: [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), OPEN/non-draft; CI pending at publication. modular sample design at `/tenants/[tenantId]/inbox/preview`; existing simulator inbox retained at `/inbox`. Publication reconciliation and verification are recorded in the latest component-refactor session.
 
 ## Remaining work and next handoff
 

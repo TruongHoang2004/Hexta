@@ -36,3 +36,5 @@ Review component split and verify authenticated browser interactions. Real provi
 - Fetched `origin/main` at `2e5f18e`; it now includes the simulator/manual messaging implementation and its existing `/tenants/[tenantId]/inbox` route. Earlier statements about backend absence describe the original `468995b` workspace snapshot only.
 - Rebased this change onto current main, preserving upstream simulator code, route, navigation and memory. Final design route is `/tenants/[tenantId]/inbox/preview`, linked as **Inbox preview**; only that route expands the workspace layout. The original `/inbox` page remains the simulator UI.
 - Reran web lint and production build after reconciliation: passed, both inbox routes included. Browser acceptance remains NOT_RUN. No production integration or merge completion asserted.
+
+- Published [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61) against `main`; verified OPEN/non-draft. CI was queued at publication; no CI-success or merge assertion.
