@@ -7,7 +7,7 @@ Updated 2026-11-03. Navigation/status only: read the relevant epic and latest re
 | [EPIC-001](EPIC-001-system-design/README.md) | Architecture, rule catalog, [instruction migration](EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md), thesis direction and code audit | in-progress | false |
 | [EPIC-002](EPIC-002-ai-runtime/README.md) | Python provider routing and durable gRPC runs | in-progress | false |
 | [EPIC-003](EPIC-003-local-docker/README.md) | Local Docker and Atlas migration ownership | in-review | false |
-| [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and send policy | in-progress | false |
+| [EPIC-004](EPIC-004-messaging/README.md) | Conversation domain, scripts and send policy; modular inbox preview in review | in-progress | false |
 | [EPIC-005](EPIC-005-kafka/README.md) | Kafka event backbone | not-started | false |
 | [EPIC-006](EPIC-006-provider-observability/README.md) | Real providers, checkpoints and self-host traces | in-progress | false |
 | [EPIC-007](EPIC-007-orders-workflows/README.md) | Sales, configurable work and owner overview | in-progress | false |

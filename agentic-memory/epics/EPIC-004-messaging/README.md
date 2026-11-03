@@ -3,7 +3,7 @@ epic: EPIC-004
 title: Conversation domain, scripts and reply/send policy
 status: in-progress
 completed: false
-updated: 2026-11-02
+updated: 2026-11-03
 ---
 
 # Conversation domain, scripts and reply/send policy
@@ -48,6 +48,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Sessions
 
 - [2026-11-02 simulator inbox](sessions/2026-11-02_messaging-inbox.md) — in-progress/completed false; local code, no merge.
+
+- [2026-11-03 inbox design](sessions/2026-11-03_inbox-components.md) — [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), in-review/completed false. Sample UI at `/inbox/preview`; simulator `/inbox` preserved. Verification and next steps are in the session.
 
 ## Remaining work and next handoff
 

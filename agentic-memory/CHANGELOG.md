@@ -1,5 +1,11 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Modular tenant inbox preview (PR #61)
+
+- Added `/tenants/[tenantId]/inbox/preview`, tenant navigation and typed UI components with a state hook, sample data and pure queue filtering. Sample-only filters/search/drafts/customer context; existing simulator `/inbox` preserved after rebase onto `2e5f18e`.
+- Lint/TypeScript/build passed; lint/build repeated after rebase. Browser acceptance remains open; [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61) unmerged when checked. [Single session/handoff](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md).
+- Owner-requested consolidation replaces this PR's four repetitive changelog entries and three session records with one of each. Original evidence at `d0e7747`; removed paths indexed in [archive ledger](ARCHIVE_INDEX.md#2026-11-03--inbox-pr-memory-consolidation).
+
 ## 2026-11-03 — AI coding instruction architecture
 
 Owner-approved domain instructions, six workflows, canonical-route-derived Antigravity selectors and Claude import/skill adapters. Reconciled memory/skill ownership and retained API provenance, framework-generated blocks and historical records. Added a read-only structure/adapter validator and native-client acceptance procedure. [Session](epics/EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md) records evidence and limits; local/in-review, no application change or merge claim.
