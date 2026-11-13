@@ -380,15 +380,17 @@ function ThreadDetail({
                   className={`max-w-[95%] rounded-xl border border-border p-3 ${message.direction === "outbound" ? "ml-auto bg-background" : "mr-auto"}`}
                 >
                   <p className="text-xs text-muted">
-                    {message.direction === "inbound"
-                      ? "Customer · simulated input"
-                      : "Sale · simulated reply"}{" "}
+                    {message.status === "received"
+                      ? "Customer · Facebook Messenger"
+                      : message.direction === "inbound"
+                        ? "Customer · simulated input"
+                        : "Sale · simulated reply"}{" "}
                     · {new Date(message.created_at).toLocaleString()}
                   </p>
                   <p className="mt-1 whitespace-pre-wrap break-words">
                     {message.body}
                   </p>
-                  <p className="mt-1 text-xs text-muted">Simulation only</p>
+                  <p className="mt-1 text-xs text-muted">{message.status === "received" ? "Received from Facebook" : "Simulation only"}</p>
                 </li>
               ))}
             </ol>
@@ -402,7 +404,7 @@ function ThreadDetail({
                   maxLength={4000}
                   value={body}
                   disabled={
-                    busy || uncertain || !assigned || turn?.control !== "sales"
+                    detail.conversation.source === "facebook" || busy || uncertain || !assigned || turn?.control !== "sales"
                   }
                   onChange={(e) => setBody(e.target.value)}
                   placeholder={
@@ -415,10 +417,10 @@ function ThreadDetail({
               <button
                 className={button}
                 disabled={
-                  busy || !assigned || turn?.control !== "sales" || !body.trim()
+                  detail.conversation.source === "facebook" || busy || !assigned || turn?.control !== "sales" || !body.trim()
                 }
               >
-                {uncertain ? "Retry previous save" : "Save simulated reply"}
+                {detail.conversation.source === "facebook" ? "Facebook sending is not enabled" : uncertain ? "Retry previous save" : "Save simulated reply"}
               </button>
             </form>
           </>
@@ -498,8 +500,8 @@ export function Inbox() {
         role="note"
         className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
       >
-        Simulator workspace. Messages stay inside Hexta; no customer receives a
-        reply. AI, live channels and automatic turn expiry are not connected.
+        Facebook text messages and simulator conversations appear here. Facebook
+        sending, AI replies and automatic turn expiry are not enabled.
         Use Refresh to check new activity.
       </p>
       <Simulator

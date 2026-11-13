@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/TruongHoang2004/Hexta/services/api/config"
@@ -60,6 +61,30 @@ func TestConsultClientRejectsStatusAndRedirect(t *testing.T) {
 			_, err = client.Consult(context.Background(), &types.ConsultRequest{})
 			require.Error(t, err)
 			require.NotContains(t, err.Error(), "sensitive-provider-detail")
+		})
+	}
+}
+
+func TestConsultClientAcceptsBaseOrFullEndpoint(t *testing.T) {
+	for _, path := range []string{"", "/", "/internal/v1/consult", "/internal/v1/consult/", "/prefix", "/prefix/internal/v1/consult/"} {
+		t.Run(path, func(t *testing.T) {
+			expected := "/internal/v1/consult"
+			if strings.HasPrefix(path, "/prefix") {
+				expected = "/prefix/internal/v1/consult"
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, expected, r.URL.Path)
+				require.Equal(t, "Bearer fixture-token", r.Header.Get("Authorization"))
+				_, _ = w.Write([]byte(`{"message":"Hello"}`))
+			}))
+			defer server.Close()
+			cfg := &config.Config{}
+			cfg.AI.ConsultURL = server.URL + path
+			cfg.AI.InternalToken = "fixture-token"
+			client, err := NewConsultClient(cfg)
+			require.NoError(t, err)
+			_, err = client.Consult(context.Background(), &types.ConsultRequest{})
+			require.NoError(t, err)
 		})
 	}
 }

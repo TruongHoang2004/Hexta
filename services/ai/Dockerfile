@@ -18,6 +18,7 @@ USER root
 COPY --from=arigaio/atlas:latest /atlas /usr/local/bin/atlas
 RUN uv sync --frozen --no-install-project
 COPY tests ./tests
+COPY smoke.py ./smoke.py
 USER app
 CMD ["/app/.venv/bin/python", "-m", "pytest", "-q", "-p", "no:cacheprovider"]
 

@@ -1,4 +1,4 @@
-# Kafka event backbone (TARGET implementation design)
+# Kafka event backbone
 
 ## Connector direction update — 2026-11-03
 
@@ -6,9 +6,15 @@ DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector r
 
 ## Decision and scope
 
-The owner requested Kafka because message/event traffic may become large. Adopt Kafka as the durable integration log and consumer fan-out backbone. PostgreSQL remains authoritative for conversations, ownership, scripts, AI runs, proposals and outbound authorization. Kafka adoption is DECIDED; topic/operational details here are TARGET for implementation. The inspected baseline has no application producers/consumers or measured Kafka throughput. The current PostgreSQL run queue is a runnable foundation that can later consume Kafka-triggered work without changing the gRPC contract.
+The owner requested Kafka because message/event traffic may become large. Adopt Kafka as the durable integration log and consumer fan-out backbone. PostgreSQL remains authoritative for conversations, ownership, scripts, AI runs, proposals and outbound authorization. Kafka adoption is DECIDED; topic/operational details here are TARGET for implementation. The pre-connector baseline had no application producer/consumer. The 2026-11-03 local ingress slice now has both; measured production throughput remains OPEN. The current PostgreSQL run queue is a runnable foundation that can later consume Kafka-triggered work without changing the gRPC contract.
 
 Kafka retains events for a configured window; it is not permanent business history or a substitute for database transactions. High traffic alone does not define partition count, retention or cluster size: measure ingress/sustained and burst rates, payload sizes, hot pages/tenants and acceptable processing lag first.
+
+## Implemented ingress slice (2026-11-03)
+
+Owner decision replaces Pancake with direct Facebook via the separate connector service. Durable acceptance is a connector PostgreSQL transaction containing receipt and normalized event outbox; Kafka ACK is never the public webhook durability boundary. Contract owner: `packages/shared/ingress/event.go`, handwritten JSON v1; producer: connector; consumer: API `cmd/ingress`; topic: `hexta.ingress.received.v1`. Partition key is SHA-256 of a JSON array `[tenant_id, connection_id, external_conversation_key]`. Provider source identity deduplicates webhook/poll overlap without invented revisions. No secrets/raw provider body/binary media are published.
+
+Relay uses RequireAll, synchronous publication, fenced leases and bounded retries. Producer idempotence is not claimed. API locks/rechecks its own binding and tenant, commits consumer dedup and received message together, then commits Kafka offset. Stale/disabled events have no business effect; malformed/untrusted events are safely quarantined. History/echo do not open active turns or schedule AI. Only text live ingress reaches the inbox today. Remaining rows/diagrams in this module are targets, including all AI/outbound topics; they are not claims of runtime integration. See [runbook](../../../services/connector/README.md) and [verification session](../../epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md).
 
 ## Data flow
 

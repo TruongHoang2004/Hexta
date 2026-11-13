@@ -49,7 +49,7 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 	for _, p := range products {
 		for _, v := range p.Variants {
 			if v.PriceProvided && len(candidates) < 200 {
-				candidates = append(candidates, types.ConsultProduct{ProductID: p.ID, ProductName: p.Name, VariantID: v.ID, Price: v.Price})
+				candidates = append(candidates, consultantProduct(p, v))
 			}
 		}
 	}
@@ -66,7 +66,7 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 	for _, p := range products {
 		for _, v := range p.Variants {
 			if v.PriceProvided {
-				item := types.ConsultProduct{ProductID: p.ID, ProductName: p.Name, VariantID: v.ID, Price: v.Price}
+				item := consultantProduct(p, v)
 				verified[v.ID] = item
 				if len(p.Variants) == 1 {
 					verified[p.ID] = item
@@ -75,12 +75,14 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 		}
 	}
 	recommendations := make([]types.ConsultProduct, 0)
+	seenVariants := make(map[string]bool)
 	for _, p := range result.RecommendedProducts {
 		key := p.VariantID
 		if key == "" {
 			key = p.ProductID
 		}
-		if item, ok := verified[key]; ok {
+		if item, ok := verified[key]; ok && !seenVariants[item.VariantID] {
+			seenVariants[item.VariantID] = true
 			if image, err := url.Parse(p.ImageURL); err == nil && image.Scheme == "https" && image.Host != "" && image.User == nil {
 				item.ImageURL = image.String()
 			}
@@ -104,7 +106,7 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 			}
 			subtotal := product.Price.Mul(decimal.NewFromInt(int64(item.Quantity)))
 			total = total.Add(subtotal)
-			items = append(items, types.AIDraftItem{ProductID: product.ProductID, VariantID: product.VariantID, ProductName: product.ProductName, Quantity: item.Quantity, UnitPrice: product.Price, Subtotal: subtotal})
+			items = append(items, types.AIDraftItem{ProductID: product.ProductID, VariantID: product.VariantID, Variant: product.Variant, ProductName: product.ProductName, Quantity: item.Quantity, UnitPrice: product.Price, Subtotal: subtotal})
 		}
 		if valid {
 			draft = &types.AIOrderDraft{DraftID: uuid.NewString(), TenantID: tenant, Items: items, TotalAmount: total, Status: "proposed"}
@@ -131,4 +133,14 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 // The legacy cache API is intentionally not exposed for consultant candidates.
 func (s *ConsultantService) GetDraft(ctx context.Context, tenant, id string) (*types.AIOrderDraft, *apperrors.Error) {
 	return nil, apperrors.ErrNotFound(ctx, "draft", "draft unavailable")
+}
+
+// Keep catalog variant identity and its human-readable label together at both reads.
+func consultantProduct(product model.Product, variant model.ProductVariant) types.ConsultProduct {
+	name := product.Name
+	label := strings.TrimSpace(variant.VariantName)
+	if label != "" {
+		name += " (" + label + ")"
+	}
+	return types.ConsultProduct{ProductID: product.ID, ProductName: name, VariantID: variant.ID, Variant: label, Price: variant.Price}
 }

@@ -14,13 +14,13 @@ Verify live integration capabilities and deploy only after local representative 
 
 ## Decisions and context
 
-- 2026-11-03 owner decision supersedes Pancake-first: direct Facebook integration through a separate machine-facing connector service, abstraction before plugins, webhook/poll acquisition and normalized Kafka events. Owner reports Page administration and an existing Meta app; actual permissions remain unverified.
+- Owner superseded Pancake on 2026-11-03: direct Facebook through a separate Go I/O service, durable inbox/outbox and BasePlugin/platform plugins. Owner has a Page and Meta app; actual access remains unverified.
 - Demo eventually runs on VPS; no host capacity/domain chosen. Measure runnable components before sizing.
 - Verify provider webhook authentication/fetch/send capabilities; do not invent delivery guarantees. The first connector design was rejected; the Omni Bridge-based replacement remains a proposal.
 
 ## Acceptance checklist
 
-- [ ] Actual Facebook app permissions, subscriptions, webhook authentication and fetch/send capabilities verified.
+- [ ] Actual Facebook app/Page entitlement, payload/revision/auth/send/lookup behavior verified.
 - [ ] Live connector mappings/credentials, quotas and unknown-send reconciliation.
 - [ ] Media storage/processing and privacy/retention requirements resolved.
 - [ ] VPS/domain/resources, HTTPS/private networks, broker/trace budgets and backup restore tested.
@@ -38,12 +38,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-- [2026-11-03 connector design](sessions/2026-11-03_connector-design.md) — in-review; design only, implementation not started.
+- [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
 
 ## Remaining work and next handoff
 
-Implement abstractions and fixture contracts before the Facebook webhook plugin, then durable Kafka ingestion into the existing inbox. See [connector design](../../designs/2026-11-03_connector-omni-bridge_design.md). No live sends, paid calls or host purchases implied.
-
-## Owner rejection and reference-based redesign
-
-The owner rejected the initial draft. [Omni Bridge-based proposal](../../designs/2026-11-03_connector-omni-bridge_design.md) uses base embedding, consumer interfaces, a registry and shared inbound/sync services. Direct Kafka ACK is a proposal, not an approved durability change. [Follow-up session](sessions/2026-11-03_connector-omni-review.md).
+Finish tenant-authorized provisioning, verify Meta live receipt, add provider-specific fetch only after capability confirmation, and implement API permits/outbound attempts before sending. No live sends or deployment implied.

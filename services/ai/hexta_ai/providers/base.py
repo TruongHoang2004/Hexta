@@ -53,9 +53,6 @@ class BaseAIProvider(ABC):
     @abstractmethod
     async def generate_candidate(self, context: dict) -> tuple[Candidate, Usage]: ...
 
-    async def consult(self, context: dict):
-        raise ProviderError("PROVIDER_CONFIG_CHANGED")
-
     async def estimate_tokens(self, text: str) -> int:
         """Conservative UTF-8 byte budget estimate, never billed token usage."""
         return len(text.encode("utf-8"))
@@ -97,13 +94,9 @@ class StructuredProvider(BaseAIProvider):
     async def generate_candidate(self, context):
         return await self._complete(Candidate, context)
 
-    async def consult(self, context):
-        from hexta_ai.consult import ConsultCandidate
-        return await self._complete(ConsultCandidate, context)
-
     async def _complete(self, schema, context):
         payload = json.dumps(context, ensure_ascii=False, allow_nan=False)
-        model_input = getattr(schema, "instructions", INSTRUCTIONS) + json.dumps(schema.model_json_schema()) + payload
+        model_input = INSTRUCTIONS + json.dumps(schema.model_json_schema()) + payload
         if await self.estimate_tokens(model_input) > self.max_input_tokens:
             raise ProviderError("INPUT_BUDGET_EXCEEDED")
         try:

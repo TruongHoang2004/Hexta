@@ -108,10 +108,11 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <Link href="/" aria-label="Hexta home"><BrandLogo /></Link>
           <p className="text-sm text-muted">© {new Date().getFullYear()} Hexta Inc. All rights reserved.</p>
-          <div className="flex items-center gap-6 text-sm text-muted">
-            <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="mailto:support@hexta.io" className="hover:text-foreground transition-colors">Support</Link>
+          <div className="flex flex-wrap items-center gap-6 text-sm text-muted">
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link href="/cookies" className="hover:text-foreground transition-colors">Cookie Policy</Link>
+            <Link href="/security" className="hover:text-foreground transition-colors">Security & SLA</Link>
           </div>
         </div>
       </footer>

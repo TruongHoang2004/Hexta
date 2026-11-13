@@ -3,7 +3,7 @@ epic: EPIC-004
 title: Conversation domain, scripts and reply/send policy
 status: in-progress
 completed: false
-updated: 2026-11-02
+updated: 2026-11-03
 ---
 
 # Conversation domain, scripts and reply/send policy
@@ -41,7 +41,7 @@ Implement tenant-isolated threads/turns/messages, assignment, script grants, pro
 
 ## Evidence and verification boundary
 
-Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Real Pancake remains separate EPIC-008 dependency.
+Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Direct Facebook transport is tracked in EPIC-008; live acceptance remains separate.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
 
@@ -49,15 +49,13 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 - [2026-11-02 simulator inbox](sessions/2026-11-02_messaging-inbox.md) — in-progress/completed false; local code, no merge.
 
+- [2026-11-03 inbox design](sessions/2026-11-03_inbox-components.md) — [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), in-review/completed false. Sample UI at `/inbox/preview`; simulator `/inbox` preserved. Verification and next steps are in the session.
+
 ## Remaining work and next handoff
 
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.
 
-## Connector design follow-up — 2026-11-03
-
-Direct Facebook now targets a separate connector service; see [primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-design.md). Normalized Kafka events feed the API consumer; business authority stays in API. Design only, no new runtime verification.
-
-Follow-up: owner rejected the initial connector proposal. [Omni Bridge-based redesign](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-omni-review.md) remains under review; no delivery mechanism is approved by that draft.
+Connector integration: [2026-11-03 primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Local text ingress/Kafka/API consumer implemented and tested on isolated infrastructure; AI/outbound and merge remain open.
 
 ## Active Desk control slice — 2026-11-10
 

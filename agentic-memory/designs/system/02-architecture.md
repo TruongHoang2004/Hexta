@@ -1,8 +1,11 @@
 # Architecture and ownership
 
-## Connector direction update — 2026-11-03
+## Connector decision and local implementation (2026-11-03)
 
-DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.
+DECIDED by the owner: replace Pancake with direct Facebook integration through a separate Go I/O service. Combine BasePlugin/platform plugins with durable connector receipt/outbox and Kafka; older rejected drafts do not reject durability, and direct Kafka ACK is not the final decision. Connector owns connection config, credential references and transport; API owns tenant authority, business data and sending decisions. Python only returns candidates. Frontend calls API only. Separate migration histories and runtime schema/role permissions are required; no cross-service table writes.
+
+IMPLEMENTED locally: `services/connector`, shared ingress v1 contract and API-owned consumer process. Signed text webhook → durable normalized receipt/outbox → Kafka → API dedup/business transaction → existing member inbox. Echo/history do not schedule AI; simulator cannot mutate real channel conversations. Sync has a durable/fixture framework but no Facebook fetch or running scheduler. Outbound is unsupported pending API permits and attempts. See [implementation/runbook](../../../services/connector/README.md) and [session](../../epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Local verification is distinct from Meta live acceptance and merge. Older Pancake diagrams below are historical targets superseded at the provider/transport boundary by this decision.
+
 
 Current source snapshot: codex/demo-work-units at b52a8ba; source reviewed in the [2026-10-28 audit](../../reviews/2026-10-28_architecture-compliance_review.md). This is an implemented-versus-target map, not a claim of exhaustive fresh runtime verification.
 

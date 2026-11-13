@@ -104,7 +104,7 @@ func (s *MessagingService) Inbound(ctx context.Context, tenant, actor string, in
 	input.ExternalKey = strings.TrimSpace(input.ExternalKey)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.Body = strings.TrimSpace(input.Body)
-	if !messagingText(input.ExternalKey, 120) || !messagingText(input.DisplayName, 120) || !messagingText(input.Body, 4000) {
+	if strings.HasPrefix(input.ExternalKey, "facebook:") || !messagingText(input.ExternalKey, 120) || !messagingText(input.DisplayName, 120) || !messagingText(input.Body, 4000) {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("external_key/display_name (1–120) and body (1–4000) required")
 	}
 	if err := messagingKey(ctx, input.RequestKey); err != nil {
@@ -280,6 +280,13 @@ func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id
 		turn, err := messagingLockedTurn(ctx, r, tenant, id)
 		if err != nil {
 			return err
+		}
+		source, sourceErr := r.Thread(ctx, tenant, turn.ThreadID, false)
+		if sourceErr != nil {
+			return sourceErr
+		}
+		if strings.HasPrefix(source.ExternalKey, "facebook:") {
+			return apperrors.ErrForbidden(ctx).SetDetail("real channel dispatch is not enabled")
 		}
 		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
 			return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale under sales control may reply")

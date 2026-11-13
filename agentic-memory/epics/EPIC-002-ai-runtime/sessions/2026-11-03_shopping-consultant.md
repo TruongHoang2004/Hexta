@@ -120,3 +120,28 @@ tests skipped. Fresh CI must verify the isolated database cases.
 ## Remote CI verification — 2026-11-03
 
 Backend CI [run 41598283242](https://github.com/TruongHoang2004/Hexta/actions/runs/41598283242) completed SUCCESS on 165d9b7. Formatting, Go vet/tests with isolated DB, Atlas integrity/schema parity and Python tests in the corrected test image all passed. PR #62 remains open/in-review; no merge or deployment is claimed.
+## Owner review follow-up — 2026-11-03
+
+Addressed review against efc7a1d on top of latest PR head 165d9b7:
+- Preserve catalog VariantName in model-visible ProductName and additive variant
+  metadata, verified recommendation labels, AIDraftItem.Variant and checkout
+  labels. Multi-variant tests check Size S/Size L and independently priced drafts.
+- Checkout now resolves absent/blank/legacy IDs only when unambiguous. Explicit
+  stale or cross-product variant IDs remain rejected. Current Go output always
+  has a verified variant ID; these fallback cases are backward compatibility
+  hardening rather than a confirmed failure of current Go-generated drafts.
+- AI_CONSULT_URL previously documented a base URL; expand compatibility to full
+  endpoints and reverse-proxy prefixes without duplicating the endpoint suffix.
+- Recommendation cards have a defensive product-ID key fallback; Go additionally
+  removes repeated variant recommendations, which also prevents duplicate keys
+  from repeated AI candidates even when all variant IDs are populated.
+
+Verification: scoped service/client/controller/bootstrap/docs race tests PASS;
+whole API/shared go vet PASS; global gofmt and diff whitespace PASS. Swagger
+regeneration PASS (no generated diff). SDK build, web lint and production build
+PASS. Node 24 standalone checkout/SSE suite: seven PASS, covering missing/empty/
+legacy/ambiguous/wrong-product IDs and existing SSE cases. HTTP fixtures cover
+base/full URLs, trailing slashes and path prefixes. Live Python/provider, browser
+acceptance and fresh isolated DB checks NOT_RUN locally; earlier CI results
+apply to earlier revisions and a new push must run fresh CI. No Python/DB/schema
+or shared UI package change. Go continues to own current catalog and authority.

@@ -1,7 +1,7 @@
 ---
 epic: EPIC-005
 title: Kafka event backbone
-status: not-started
+status: in-progress
 completed: false
 updated: 2026-10-19
 ---
@@ -22,7 +22,7 @@ Implement high-volume durable event fan-out with inbox/outbox, typed contracts a
 
 - [x] Use-case/topic/key/retry/DLQ/replay/retention/operations draft written for PR #52.
 - [ ] Local broker profile with correct internal/host listeners and producer/consumer smoke.
-- [ ] Versioned event envelope, transactional outbox relay and consumer inbox.
+- [x] Local ingress v1 envelope, transactional connector outbox relay and API consumer inbox (live/merge acceptance open).
 - [ ] Ingress/conversation and AI request/result vertical slice with durable Go jobs.
 - [ ] Outage, duplicate/rebalance/order-gap, hot-tenant and no-side-effect replay tests.
 
@@ -33,7 +33,7 @@ Implement high-volume durable event fan-out with inbox/outbox, typed contracts a
 
 ## Evidence and verification boundary
 
-One design session exists below; implementation has not started. Draft retention/partition/production size are not owner-approved numeric budgets.
+A design session and the linked local ingress implementation now exist. Draft retention/partition/production size are not owner-approved numeric budgets.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.
 
@@ -45,8 +45,4 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 Review target contracts, select a bounded ingress slice with messaging, then implement broker/profile and transactional delivery. Do not enable old compose listener config unchanged.
 
-## Connector design follow-up — 2026-11-03
-
-Direct Facebook now targets a separate connector service; see [primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-design.md). Normalized Kafka events feed the API consumer; business authority stays in API. Design only, no new runtime verification.
-
-Follow-up: owner rejected the initial connector proposal. [Omni Bridge-based redesign](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-omni-review.md) remains under review; no delivery mechanism is approved by that draft.
+Connector integration: [2026-11-03 primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Local text ingress/Kafka/API consumer implemented and tested on isolated infrastructure; AI/outbound and merge remain open.

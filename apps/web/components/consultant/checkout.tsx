@@ -10,6 +10,10 @@ import {
   type Customer,
 } from "@/lib/services/sales";
 import { checkoutKey, type ConsultDraft } from "@/lib/services/consultant";
+import {
+  resolveCheckoutVariant,
+  checkoutProductName,
+} from "@/lib/services/consultant-checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { buttonClass, Notice, inputClass } from "@/components/sales/primitives";
 
@@ -62,14 +66,13 @@ export function ConsultantCheckout() {
             item.quantity > 100
           )
             throw new Error("Invalid draft item");
-          const variantID =
-            typeof item.variant_id === "string"
-              ? item.variant_id
-              : item.product_id;
-          const product = products.find((p) =>
-            p.variants.some((v) => v.id === variantID),
+          const resolved = resolveCheckoutVariant(
+            products,
+            item.product_id,
+            item.variant_id,
           );
-          const variant = product?.variants.find((v) => v.id === variantID);
+          const product = resolved?.product;
+          const variant = resolved?.variant;
           if (!variant?.price_provided)
             throw new Error(
               "A product is no longer available. Please return to the store.",
@@ -77,7 +80,10 @@ export function ConsultantCheckout() {
           items.push({
             product_id: product!.id,
             variant_id: variant.id,
-            product_name: product!.name,
+            product_name: checkoutProductName(
+              product!.name,
+              variant.variant_name,
+            ),
             quantity: item.quantity,
             unit_price: String(variant.price),
           });

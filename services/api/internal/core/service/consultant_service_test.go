@@ -13,6 +13,7 @@ import (
 
 type consultCatalogStub struct {
 	calls    int
+	products []model.Product
 	deniedAt int
 }
 
@@ -21,17 +22,22 @@ func (c *consultCatalogStub) Products(ctx context.Context, tenant, actor string,
 	if actor != "member" || tenant != "tenant" || c.calls == c.deniedAt {
 		return nil, 0, apperrors.ErrForbidden(ctx)
 	}
+	if c.products != nil {
+		return c.products, int64(len(c.products)), nil
+	}
 	return []model.Product{{ID: "product", Name: "Real product", Variants: []model.ProductVariant{{ID: "variant", PriceProvided: true, Price: decimal.NewFromInt(25)}}}}, 1, nil
 }
 
 type consultClientStub struct {
 	calls  int
+	input  *types.ConsultRequest
 	fail   bool
 	result *types.ConsultResponse
 }
 
 func (c *consultClientStub) Consult(ctx context.Context, r *types.ConsultRequest) (*types.ConsultResponse, error) {
 	c.calls++
+	c.input = r
 	if c.fail {
 		return nil, fmt.Errorf("private provider failure")
 	}
@@ -74,4 +80,26 @@ func TestConsultantAuthorityAndCandidateValidation(t *testing.T) {
 	err := s.Converse(context.Background(), "tenant", "member", &types.AIConversationInput{Prompt: "hello"}, nil)
 	require.NotNil(t, err)
 	require.NotContains(t, err.GetDetail(), "private")
+}
+
+func TestConsultantPreservesVariantLabelsAndDeduplicatesRecommendations(t *testing.T) {
+	catalog := &consultCatalogStub{products: []model.Product{{ID: "shirt", Name: "Shirt", Variants: []model.ProductVariant{
+		{ID: "small", VariantName: "Size S", PriceProvided: true, Price: decimal.NewFromInt(100)},
+		{ID: "large", VariantName: "Size L", PriceProvided: true, Price: decimal.NewFromInt(200)},
+	}}}}
+	client := &consultClientStub{result: &types.ConsultResponse{Message: "Hello", RecommendedProducts: []types.ConsultProduct{{ProductID: "shirt", VariantID: "small"}, {ProductID: "shirt", VariantID: "large"}, {ProductID: "shirt", VariantID: "small"}}, OrderDraft: &types.AIOrderDraft{Items: []types.AIDraftItem{{ProductID: "shirt", VariantID: "large", Quantity: 2, UnitPrice: decimal.NewFromInt(1)}}}}}
+	s := &ConsultantService{client: client, catalog: catalog}
+	var events []*types.AIEvent
+	require.Nil(t, s.Converse(context.Background(), "tenant", "member", &types.AIConversationInput{Prompt: "Buy Size L"}, func(e *types.AIEvent) error { events = append(events, e); return nil }))
+	snapshot := client.input.CustomerContext["products"].([]types.ConsultProduct)
+	require.Equal(t, "Shirt (Size S)", snapshot[0].ProductName)
+	require.Equal(t, "Size L", snapshot[1].Variant)
+	require.Len(t, events[1].Products, 2)
+	require.Equal(t, "Shirt (Size L)", events[1].Products[1].ProductName)
+	item := events[2].Draft.Items[0]
+	require.Equal(t, "large", item.VariantID)
+	require.Equal(t, "Size L", item.Variant)
+	require.Equal(t, "Shirt (Size L)", item.ProductName)
+	require.Equal(t, "200", item.UnitPrice.String())
+	require.Equal(t, "400", events[2].Draft.TotalAmount.String())
 }

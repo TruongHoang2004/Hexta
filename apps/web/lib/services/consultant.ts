@@ -5,6 +5,7 @@ export interface ConsultProduct {
   product_id: string;
   product_name: string;
   variant_id: string;
+  variant?: string;
   price: string;
   image_url?: string;
 }

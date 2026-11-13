@@ -1,5 +1,32 @@
 # Consolidated Project Changelog
 
+## 2026-11-03 — Production-grade AI Shopping Consultant with LangGraph and Multi-Model Adapter
+
+- Built standardized multi-model adapter ([`hexta_ai/models/adapter.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/models/adapter.py)) using LangChain supporting `fake`, `openai`, `google` (Gemini), `ollama`, and custom models with strict Pydantic structured output governance (`StructuredConsultantDecision`).
+- Implemented multi-layered guardrails ([`hexta_ai/guardrails/validator.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/guardrails/validator.py)) for prompt injection detection and deterministic output fact-checking (auto-correcting hallucinated prices and stripping invalid product IDs).
+- Implemented catalog retrieval and live hydration service ([`hexta_ai/catalog/service.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/catalog/service.py)) supporting keyword search, numerical price filters, attribute matching, and stock checking).
+- Designed and compiled stateful LangGraph shopping consultant state machine ([`hexta_ai/graph_consultant.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/graph_consultant.py)) with input guardrail, catalog retrieval, structured model reasoning, and output fact-checking nodes.
+- Added authenticated internal consultation endpoint `POST /internal/v1/consult` in [`hexta_ai/app.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/app.py) while maintaining 100% backward compatibility with existing gRPC and `/internal/v1/preview` simulation contracts.
+- Documented full system architecture and industry benchmarks in [production-ai-consultant design](designs/2026-11-03_production-ai-consultant_design.md).
+- Fixed PR #62 contract compatibility: extended `session_id` max_length to 500 characters to support 110-character composite IDs (`tenantUUID:userUUID:sessionUUID`) from Go.
+- Fixed tenant catalog isolation: `CatalogService.from_customer_context` now ingests real tenant products from Go (`customer_context.products`) and prevents falling back to hardcoded sample items when an empty catalog is provided.
+- Fixed guardrail message synchronization: `OutputGuardrail` now reconstructs `reply_message` when draft order prices/items are corrected, eliminating hallucinated prices from the user-facing text.
+- Fixed price filter leaks: enforced hard `min_price`/`max_price` filters during fallback search and recommendation hydration (e.g. `max_price=1000` returns no items; "áo dưới 300k" never recommends 320k items).
+- Configured provider limits: defaulted `max_retries=0` to prevent retry storms/rate-limit loops (3 requests on 429), set explicit 30s timeout and 2048 max tokens.
+- Fixed variant mapping and pricing: `CatalogService` and `OutputGuardrail` now prioritize `variant_id` over `product_id`, prevent variant overwrites, preserve variant identifiers throughout recommendations and draft orders, and enforce real variant pricing (e.g. Size L stays 200.000đ and retains `variant_id="size_l"`, matching Go's verification map).
+- Fixed total amount message synchronization: `OutputGuardrail` checks `total_adjusted` (`abs(calculated_total - original_total) > 0.01`) to reconstruct `reply_message` whenever the model hallucinated a total amount (e.g. 1đ), ensuring customer text matches verified cart totals.
+- Fixed Vietnamese decimal budget parsing: `extract_price_filters` and `parse_vietnamese_price_filter` now correctly distinguish decimal separators from thousand separators (e.g. "dưới 1,5 triệu" and "dưới 1.5tr" parse as 1.500.000đ, not 15.000.000đ).
+- Fixed provider configuration & factory alignment: `ModelAdapter` now honors standard environment variables `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AI_MODEL`, `AI_TIMEOUT`, and `AI_MAX_TOKENS`, adds first-class support for `anthropic`, and safely falls back to `FakeStructuredChatModel` when provider credentials are unset or initialization fails, preventing HTTP 500 errors.
+- Fixed guardrail price and policy fact-checking: `OutputGuardrail` now verifies `reply_message` across all intents (`discovery`, `refinement`, `faq_policy`) against real catalog prices and standard store policy (7-day return, free shipping for orders >= 500.000đ), reconstructing messages with verified catalog prices when hallucinated numbers (e.g. 1đ) or unauthorized policy promises are detected.
+- Fixed draft order customer budget enforcement: `OutputGuardrail` and `guardrail_output_node` now enforce hard `min_price` and `max_price` filters on draft order items, rejecting expensive items (e.g. 500k polo for "dưới 300k" request) and notifying the customer that the item exceeds their requested budget.
+- Verification: 99 automated tests passed (8 new unit and graph tests covering provider fallback, Gemini/Anthropic config, discovery message reconstruction, and draft order budget constraints).
+
+## 2026-11-03 — Modular tenant inbox preview (PR #61)
+
+- Added `/tenants/[tenantId]/inbox/preview`, tenant navigation and typed UI components with a state hook, sample data and pure queue filtering. Sample-only filters/search/drafts/customer context; existing simulator `/inbox` preserved after rebase onto `2e5f18e`.
+- Lint/TypeScript/build passed; lint/build repeated after rebase. Browser acceptance remains open; [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61) unmerged when checked. [Single session/handoff](epics/EPIC-004-messaging/sessions/2026-11-03_inbox-components.md).
+- Owner-requested consolidation replaces this PR's four repetitive changelog entries and three session records with one of each. Original evidence at `d0e7747`; removed paths indexed in [archive ledger](ARCHIVE_INDEX.md#2026-11-03--inbox-pr-memory-consolidation).
+
 ## 2026-11-03 — AI coding instruction architecture
 
 Owner-approved domain instructions, six workflows, canonical-route-derived Antigravity selectors and Claude import/skill adapters. Reconciled memory/skill ownership and retained API provenance, framework-generated blocks and historical records. Added a read-only structure/adapter validator and native-client acceptance procedure. [Session](epics/EPIC-001-system-design/sessions/2026-11-03_ai-instructions.md) records evidence and limits; local/in-review, no application change or merge claim.
@@ -626,8 +653,24 @@ Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non
 
 Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) OPEN/non-draft against main from `codex/shopping-consultant-review`; integration checks repeated on main 009c117 plus scoped changes. Unrelated local edits excluded; live acceptance, CI and merge remain unverified.
 
-2026-11-03 PR #62 CI fixes: efc7a1d removes the trailing blank line rejected by gofmt; 165d9b7 includes smoke.py in the AI Docker test target. Local config race/vet and 67 offline container tests pass (six DB skips); remote Backend CI run 41598283242 subsequently completed SUCCESS with isolated DB checks. No runtime/business logic, merge or deployment change.
+2026-11-03 PR #62 CI follow-up: removed one trailing blank line via gofmt in services/api/config/config_test.go, fixing the formatting gate reported by Backend CI run 41579328602. Whole-repo formatting plus focused config race tests/vet pass; fresh remote CI remains pending. No behavior or workflow change.
 
+2026-11-03 PR #62 CI follow-up: after Go/Atlas checks passed in run 41597517521, fixed AI test-image collection failure by copying smoke.py into only the Dockerfile test target. Image build and container offline suite pass (67 passed, six DB skips); production target unchanged and fresh CI DB acceptance pending.
+
+2026-11-03 PR #62 owner-review follow-up: preserve variant labels in AI snapshot,
+verified cards, drafts and checkout; deduplicate variant recommendations; resolve
+legacy checkout IDs only when unambiguous; accept base/full consult URLs and proxy
+prefixes. Scoped Go race tests/vet, global gofmt, Swagger regeneration, SDK/web
+build/lint and seven standalone Node tests pass. New CI and live/browser acceptance
+remain pending; [session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md) records compatibility details.
+## 2026-11-03 — Direct Facebook connector ingress (local, in review)
+
+- Added `services/connector`: BasePlugin/capability registry, signed batch webhook, trusted connection management, durable receipt/event outbox, fenced Kafka relay and sync framework. Added shared ingress JSON v1/Kafka transport and separate Atlas connector ownership; kafka-go is the new transport dependency.
+- API consumer commits dedup/current-binding checks with received inbox messages before offsets. Web distinguishes Facebook from simulation and blocks simulated input/replies on real threads. No live send, AI scheduling, Facebook fetch or user provisioning claim.
+- Final owner decision combines separate I/O service, durability/Kafka and Omni Bridge-style base/plugin behavior; direct Facebook supersedes Pancake. Local PostgreSQL/Kafka E2E and scoped race/vet/migration/frontend checks passed; live Meta and full crash/outage matrix remain NOT_RUN.
+- Run/recover/configure: [connector runbook](../services/connector/README.md). Scope, exact evidence and follow-ups: [EPIC-008 session](epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Not merged/deployed; parent epics incomplete.
+
+- Publication follow-up: [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66) opened against main on owner request; implementation `f20b620`. OPEN/non-draft, CI pending at publication; not merged.
 ## 2026-11-10 — Chatbot / Desk control (local, unmerged)
 
 - Added reasoned handoff and explicit bot-return endpoints; projected handling state from existing durable fields. New simulator work waits for staff; legacy unassigned staff work stays visible. Claim/assignment/return increments generation/version and audits transitions atomically.
@@ -637,5 +680,6 @@ Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62
 ## 2026-11-11 — Real consultant runtime connection
 
 - Implemented the missing authenticated Python consult endpoint through existing LangChain provider infrastructure, bounded structured output and catalog checks. Real-provider credentials now fail closed.
+- 2026-11-13 merge with main: owner chose main's LangGraph consultant (#63) to own `/internal/v1/consult`; the branch-local `consult.py` was removed. Fail-closed credentials retained in the provider factory and extended to the graph model adapter (no fake-model fallback for real providers).
 - Added optional AI/API Compose wiring and scoped launcher; preserved fake preview for explicit offline use. No migration or live provider call.
 - [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-11_real-consultant.md) records verification and key-dependent live acceptance.

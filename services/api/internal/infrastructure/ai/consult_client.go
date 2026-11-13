@@ -33,6 +33,11 @@ func NewConsultClient(cfg *config.Config) (*ConsultClient, error) {
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || strings.TrimSpace(cfg.AI.InternalToken) == "" {
 		return nil, errors.New("invalid internal AI configuration")
 	}
+	if !strings.HasSuffix(u.Path, "/internal/v1/consult") {
+		u.Path = strings.TrimRight(u.Path, "/") + "/internal/v1/consult"
+		u.RawPath = ""
+	}
+	endpoint = u.String()
 	timeout := cfg.AI.Timeout
 	if timeout <= 0 {
 		timeout = 60
@@ -40,7 +45,7 @@ func NewConsultClient(cfg *config.Config) (*ConsultClient, error) {
 	if timeout > 120 {
 		timeout = 120
 	}
-	return &ConsultClient{endpoint: endpoint + "/internal/v1/consult", token: cfg.AI.InternalToken, client: &http.Client{Timeout: time.Duration(timeout) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	return &ConsultClient{endpoint: endpoint, token: cfg.AI.InternalToken, client: &http.Client{Timeout: time.Duration(timeout) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 func (c *ConsultClient) Consult(ctx context.Context, input *types.ConsultRequest) (*types.ConsultResponse, error) {
 	if c.client == nil {

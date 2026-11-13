@@ -142,6 +142,7 @@ provider SDK request calls in application code. Provider SDK packages remain
 transitive dependencies of the LangChain integrations. LangGraph routing and
 the durable paid-call fence continue to operate above this model abstraction.
 
-The authenticated `/internal/v1/consult` endpoint connects the existing Go/web
-consultant through the shared provider adapter. It refuses fake mode. For the
+The authenticated `/internal/v1/consult` endpoint serves the LangGraph shopping
+consultant. Its model adapter fails closed when a real provider lacks credentials;
+offline use must explicitly select fake. For the
 private OpenAI launch configuration, see [real consultation](../../infrastructure/README.demo.md#real-openai-consultation).

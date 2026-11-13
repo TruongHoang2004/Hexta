@@ -18,3 +18,13 @@ env "ai" {
     revisions_schema = "atlas_ai_revisions"
   }
 }
+
+env "connector" {
+ url = getenv("CONNECTOR_DATABASE_URL")
+ dev = getenv("CONNECTOR_DEV_URL") != "" ? getenv("CONNECTOR_DEV_URL") : "docker://postgres/17.7-alpine3.23/dev"
+ src = "file://migrations/schema/connector.sql"
+ migration {
+  dir = "file://migrations/connector"
+  revisions_schema = "atlas_connector_revisions"
+ }
+}
