@@ -176,6 +176,14 @@ export default function RegisterPage() {
                   Sign up with Google
                 </Button>
               </div>
+
+              <p className="mt-5 text-center text-xs text-muted leading-relaxed">
+                By creating an account, you agree to our{" "}
+                <Link href="/privacy" className="text-primary hover:underline underline-offset-4">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
             </div>
           </div>
 

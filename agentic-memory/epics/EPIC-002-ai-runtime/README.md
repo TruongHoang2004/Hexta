@@ -44,7 +44,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-- [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — local Go SSE/web integration; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.
+- [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) Go SSE/web integration; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.
 
 - [2026-11-03_langchain-providers](sessions/2026-11-03_langchain-providers.md) — owner-selected shared LangChain model path; 73 isolated/offline tests pass; local/in-review.
 
@@ -76,3 +76,5 @@ checkpoints, business sending integration and merge remain open.
 LangChain follow-up: direct SDK adapters above are superseded by one shared
 LangChainProvider, as explicitly requested by the owner. [Session](sessions/2026-11-03_langchain-providers.md)
 records 73 passing tests; live access and merge remain open.
+
+Real consultant follow-up: [2026-11-11](sessions/2026-11-11_real-consultant.md), local/unmerged. Python consult endpoint and real-provider launch wiring implemented; live acceptance waits for a private OpenAI key.

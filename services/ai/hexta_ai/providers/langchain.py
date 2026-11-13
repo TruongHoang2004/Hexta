@@ -36,7 +36,7 @@ class LangChainProvider(StructuredProvider):
         structured = self.chat_model.with_structured_output(schema, method="json_schema", include_raw=True)
         with tracing_context(enabled=False):
             response = await structured.ainvoke(
-                [SystemMessage(content=INSTRUCTIONS), HumanMessage(content=payload)],
+                [SystemMessage(content=getattr(schema, "instructions", INSTRUCTIONS)), HumanMessage(content=payload)],
                 config={"callbacks": []},
             )
         if response.get("parsing_error") is not None or response.get("parsed") is None:

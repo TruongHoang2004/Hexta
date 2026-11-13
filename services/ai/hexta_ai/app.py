@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from langsmith import tracing_context
 
+from hexta_ai.consult import ConsultRequest, ConsultResponse, consult
 from hexta_ai.rpc import start_server
 from hexta_ai.graph import PreviewRequest, PreviewResult, build_graph
 from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
@@ -76,6 +77,18 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
     async def preview(request: PreviewRequest) -> PreviewResult:
         try:
             return await run(request)
+        except ProviderError as error:
+            status = 429 if error.code == "QUOTA_EXCEEDED" else 422 if error.code == "INPUT_BUDGET_EXCEEDED" else 503
+            raise HTTPException(status_code=status, detail=error.code) from None
+        except Exception:
+            raise HTTPException(status_code=503, detail="LLM_PROVIDER_ERROR") from None
+
+    @app.post("/internal/v1/consult", response_model=ConsultResponse,
+              dependencies=[Depends(authenticate)])
+    async def consultation(request: ConsultRequest) -> ConsultResponse:
+        try:
+            with tracing_context(enabled=False):
+                return await consult(selected, request)
         except ProviderError as error:
             status = 429 if error.code == "QUOTA_EXCEEDED" else 422 if error.code == "INPUT_BUDGET_EXCEEDED" else 503
             raise HTTPException(status_code=status, detail=error.code) from None

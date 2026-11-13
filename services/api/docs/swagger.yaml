@@ -391,6 +391,22 @@ definitions:
       next_cursor:
         type: string
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingHandoffRequest:
+    properties:
+      expected_version:
+        minimum: 1
+        type: integer
+      reason:
+        enum:
+        - customer_requested_staff
+        - insufficient_information
+        - ai_error
+        - business_review
+        - staff_handoff
+        type: string
+    required:
+    - reason
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingInboundRequest:
     properties:
       body:
@@ -478,6 +494,8 @@ definitions:
         type: string
       control_generation:
         type: integer
+      handling_state:
+        type: string
       id:
         type: string
       last_activity_at:
@@ -2544,6 +2562,118 @@ paths:
       security:
       - BearerAuth: []
       summary: Claim an unassigned conversation or take control of own assignment
+      tags:
+      - Messaging
+  /api/v1/tenants/{tenantID}/turns/{id}/handoff:
+    post:
+      consumes:
+      - application/json
+      description: Current assignee or tenant owner required for staffed conversations.
+        Handoff of a bot conversation requires active tenant membership. No AI or
+        live channel dispatch is performed.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Turn ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Command
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingHandoffRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingTurn'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Move a conversation to the durable staff queue with a reason
+      tags:
+      - Messaging
+  /api/v1/tenants/{tenantID}/turns/{id}/return-to-bot:
+    post:
+      consumes:
+      - application/json
+      description: Current assignee or tenant owner required for staffed conversations.
+        Handoff of a bot conversation requires active tenant membership. No AI or
+        live channel dispatch is performed.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Turn ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Command
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingTurn'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Explicitly return a conversation to bot control without replaying messages
       tags:
       - Messaging
   /api/v1/tenants/{tenantID}/turns/{id}/send-simulation:

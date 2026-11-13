@@ -1,0 +1,15 @@
+# Optional real-inference overlay. Provider credentials stay in the AI container.
+services:
+  api:
+    environment:
+      AI_CONSULT_URL: http://ai:8000
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN privately}
+  ai:
+    environment:
+      AI_PROVIDER: openai
+      AI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in services/ai/.env}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN privately}
+      AI_TIMEOUT: "30"
+      AI_MAX_TOKENS: "2048"
+      LANGSMITH_TRACING: "false"

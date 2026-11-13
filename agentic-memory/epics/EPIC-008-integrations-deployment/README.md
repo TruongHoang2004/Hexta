@@ -1,12 +1,12 @@
 ---
 epic: EPIC-008
-title: Real Pancake connector and eventual VPS deployment
-status: not-started
+title: Direct platform connector and eventual VPS deployment
+status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-11-03
 ---
 
-# Real Pancake connector and eventual VPS deployment
+# Direct platform connector and eventual VPS deployment
 
 ## Scope
 
@@ -14,13 +14,13 @@ Verify live integration capabilities and deploy only after local representative 
 
 ## Decisions and context
 
-- MVP initially uses Pancake, with eventual replacement a later direction. Owner currently lacks access/entitlement to verify the real connector.
+- 2026-11-03 owner decision supersedes Pancake-first: direct Facebook integration through a separate machine-facing connector service, abstraction before plugins, webhook/poll acquisition and normalized Kafka events. Owner reports Page administration and an existing Meta app; actual permissions remain unverified.
 - Demo eventually runs on VPS; no host capacity/domain chosen. Measure runnable components before sizing.
-- Only verify documented webhook authentication/send/reconciliation capabilities; do not invent signatures or delivery guarantees.
+- Verify provider webhook authentication/fetch/send capabilities; do not invent delivery guarantees. The first connector design was rejected; the Omni Bridge-based replacement remains a proposal.
 
 ## Acceptance checklist
 
-- [ ] Actual Pancake entitlement, payload/revision/auth/send/lookup behavior verified.
+- [ ] Actual Facebook app permissions, subscriptions, webhook authentication and fetch/send capabilities verified.
 - [ ] Live connector mappings/credentials, quotas and unknown-send reconciliation.
 - [ ] Media storage/processing and privacy/retention requirements resolved.
 - [ ] VPS/domain/resources, HTTPS/private networks, broker/trace budgets and backup restore tested.
@@ -38,8 +38,12 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
-No work session recorded yet. Implementation has not started; do not invent historical progress.
+- [2026-11-03 connector design](sessions/2026-11-03_connector-design.md) — in-review; design only, implementation not started.
 
 ## Remaining work and next handoff
 
-Continue simulator-first work while external access and deployment inputs are absent. No live sends, paid calls or host purchases implied.
+Implement abstractions and fixture contracts before the Facebook webhook plugin, then durable Kafka ingestion into the existing inbox. See [connector design](../../designs/2026-11-03_connector-omni-bridge_design.md). No live sends, paid calls or host purchases implied.
+
+## Owner rejection and reference-based redesign
+
+The owner rejected the initial draft. [Omni Bridge-based proposal](../../designs/2026-11-03_connector-omni-bridge_design.md) uses base embedding, consumer interfaces, a registry and shared inbound/sync services. Direct Kafka ACK is a proposal, not an approved durability change. [Follow-up session](sessions/2026-11-03_connector-omni-review.md).

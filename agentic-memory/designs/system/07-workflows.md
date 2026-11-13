@@ -1,6 +1,6 @@
 # Business workflows, state transitions and concurrency
 
-Status: TARGET unless explicitly labeled as implemented below or in the gRPC module. These workflows implement approved product decisions; the messaging schema/Go dispatcher/send gate are not present yet.
+Status: TARGET unless explicitly labeled as implemented below or in the gRPC module. The simulator messaging schema and manual/control slices are implemented below; the real Go AI dispatcher and external send gate remain TARGET.
 
 ## Independent state dimensions
 
@@ -16,7 +16,7 @@ Status: TARGET unless explicitly labeled as implemented below or in the gRPC mod
 | Resource version | Optimistic concurrency token for commands |
 | Proposal version | Independent saved draft revision; retain human edits |
 
-Do not collapse these into one conversation status. A sale may remain assigned while explicitly returning system control. Proposal review and control are different gates. An escalation blocks automation even if tenant mode is auto_send.
+Handling state is a projection, not a replacement for these dimensions. The current Desk flow clears assignment on explicit return to bot. Proposal review and control are different gates. An escalation blocks automation even if tenant mode is auto_send.
 
 ## 1. Inbound message to decision
 
@@ -109,3 +109,11 @@ Owner publishes user-named ordered steps (no mandatory packing/shipping) and exp
 ## Simulator/manual inbox slice — local 2026-11-02
 
 IMPLEMENTED locally/unmerged: simulated input creates/reuses tenant-bound threads and an open unassigned system-controlled turn; atomic self-claim and owner assignment switch to sales control and advance the control generation/resource version. Unassigning retains sales control. Only the current assigned member may save a simulated reply; fresh resource/context revisions are required. Thread locking serializes input/ownership/reply; message/request identity and audits commit with turn activity updates. Exact replay returns the original message without advancing activity. There is no transport I/O or automated sender in this slice. The turn expiry, escalation/resolve, explicit return, pending-auto-work cancellation and real outbound state machine described above remain TARGET. [Session](../../epics/EPIC-004-messaging/sessions/2026-11-02_messaging-inbox.md) records verification and deferred acceptance.
+
+## Chatbot / Desk control slice — local 2026-11-10
+
+IMPLEMENTED locally/unmerged: new simulator work starts in WAITING_STAFF; existing bot-controlled work remains eligible for explicit human takeover. Claim moves queued/bot work to STAFF_ACTIVE and clears needs_human. Handoff clears assignment and enters WAITING_STAFF with an audited reason. Assigned staff or owner explicitly returns to BOT_ACTIVE; queued work requires owner authority to return without claiming. Owner reassignment preserves staff control; unassignment remains queued. New inbound messages preserve the current handling controller. No online/offline state changes it.
+
+Commands lock the same tenant-qualified thread gate as inbound/manual reply, compare expected_version, increment generation/version, then save transition + audit atomically. Competing claim/reassignment/return commands cannot both win. A stale command or reply cannot overwrite new control. UNKNOWN control combinations do not authorize bot handling or manual replies. Existing unassigned sales-controlled rows remain visible in the queue without a data migration. Reason/history is persisted in audit; a Desk history/summary view is still pending.
+
+The sender remains a simulator. No AI run, durable output intent, cancellation worker, live provider dispatch or notification is added by this slice. Generation fencing for actual AI results is a future acceptance requirement, not proven by the control counter alone. [Session](../../epics/EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md) records verification boundaries.

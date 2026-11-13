@@ -46,9 +46,9 @@ Existing process environment takes precedence. Select one provider:
 | anthropic | ANTHROPIC_API_KEY | claude-haiku-4-5 |
 
 Set `AI_MODEL` for the selected provider; these are configurable examples, not a
-claim that every model supports structured output. A missing key falls back to
-fake with a safe warning; health identifies the effective provider. A supplied
-invalid key fails calls safely and never triggers cross-provider failover.
+claim that every model supports structured output. A missing key for a real provider
+fails startup; offline use must explicitly select fake. Health identifies the
+effective provider. Invalid keys fail calls safely without cross-provider failover.
 `AI_TIMEOUT` defaults to 20 seconds (1–30); `AI_MAX_TOKENS` to 2048 (64–8192);
 `AI_MAX_INPUT_TOKENS` to a conservative UTF-8 byte-based token estimate of 16000 (256–64000).
 `AI_TEMPERATURE` defaults to 0.7 for Gemini/OpenAI; the Anthropic integration
@@ -141,3 +141,7 @@ checks parsing/completion status and maps safe errors. There are no direct
 provider SDK request calls in application code. Provider SDK packages remain
 transitive dependencies of the LangChain integrations. LangGraph routing and
 the durable paid-call fence continue to operate above this model abstraction.
+
+The authenticated `/internal/v1/consult` endpoint connects the existing Go/web
+consultant through the shared provider adapter. It refuses fake mode. For the
+private OpenAI launch configuration, see [real consultation](../../infrastructure/README.demo.md#real-openai-consultation).

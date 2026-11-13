@@ -110,8 +110,8 @@ export default function LandingPage() {
           <p className="text-sm text-muted">© {new Date().getFullYear()} Hexta Inc. All rights reserved.</p>
           <div className="flex items-center gap-6 text-sm text-muted">
             <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Support</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="mailto:support@hexta.io" className="hover:text-foreground transition-colors">Support</Link>
           </div>
         </div>
       </footer>

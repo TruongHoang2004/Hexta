@@ -225,3 +225,57 @@ func (ctrl *MessagingController) Send(c *gin.Context) {
 	}
 	ctrl.Success(c, httpmap.Message(*result))
 }
+
+// Handoff
+// @Summary Move a conversation to the durable staff queue with a reason
+// @Description Current assignee or tenant owner required for staffed conversations. Handoff of a bot conversation requires active tenant membership. No AI or live channel dispatch is performed.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn ID"
+// @Param request body dto.MessagingHandoffRequest true "Command"
+// @Success 200 {object} response.Response[dto.MessagingTurn]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/handoff [post]
+func (ctrl *MessagingController) Handoff(c *gin.Context) {
+	var input dto.MessagingHandoffRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.Command(c.Request.Context(), tenant, actor, c.Param("id"), "handoff", types.MessagingCommand{ExpectedVersion: input.ExpectedVersion, Reason: input.Reason})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Turn(*result))
+}
+
+// ReturnToBot
+// @Summary Explicitly return a conversation to bot control without replaying messages
+// @Description Current assignee or tenant owner required for staffed conversations. Handoff of a bot conversation requires active tenant membership. No AI or live channel dispatch is performed.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn ID"
+// @Param request body dto.MessagingCommandRequest true "Command"
+// @Success 200 {object} response.Response[dto.MessagingTurn]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/return-to-bot [post]
+func (ctrl *MessagingController) ReturnToBot(c *gin.Context) {
+	var input dto.MessagingCommandRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.Command(c.Request.Context(), tenant, actor, c.Param("id"), "return-to-bot", types.MessagingCommand{ExpectedVersion: input.ExpectedVersion})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Turn(*result))
+}

@@ -593,6 +593,21 @@ Draft overview delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/
 
 Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non-draft against main from codex/rules-memory-cleanup; connector creation 403 recovered via authenticated CLI, artifact attached. CI/review/merge not claimed complete; archive recovery uses shared main d09083c.
 
+
+## 2026-11-03 — Direct platform connector design
+
+- [NEW] [Design](designs/2026-11-03_connector-service_design.md) and [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-design.md). [MODIFY] EPIC-008 scope/index, related messaging/Kafka epics and system modules to supersede Pancake ingress with the direct connector decision.
+- Proposed Go capability interfaces, fixture-first plugins, durable receipts/outbox, poll checkpoint fencing and normalized Kafka contract; API retains business authority. Historical imports do not trigger AI; at-least-once delivery requires consumer deduplication.
+- Verification: source/document inspection, whitespace and local-link checks. Application/integration/live checks NOT_RUN (design only); direct Meta docs returned 429. Implementation, operational parameters and merge remain open. No application or generated files changed.
+
+
+## 2026-11-03 — Connector redesign after owner rejection
+
+- Marked original connector design REJECTED and preserved its history; corrected canonical navigation/authority notes. Added [Omni Bridge-based proposal](designs/2026-11-03_connector-omni-bridge_design.md) and [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-03_connector-omni-review.md).
+- Read local Omni Bridge plugins, base embedding, service interfaces, registry, webhook/sync and outbound listener. Proposal adapts inbound to Kafka; private libraries/reference source are not copied. Direct Kafka ACK replaces mandatory receipt/outbox as a proposed first-slice tradeoff, not an approved contract.
+- Verification: static source inspection and documentation whitespace/relative-link checks. Application/live tests NOT_RUN. No reference repo or application code modified; no deployment/merge.
+
+
 ## 2026-11-03 — Shopping consultant Go SSE and Next.js integration (local/in-review)
 
 - Added internal HTTP consult adapter/config, safe bounded transport, Fx binding,
@@ -608,3 +623,19 @@ Publication: [PR #60](https://github.com/TruongHoang2004/Hexta/pull/60) OPEN/non
 - [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md)
   records impact, choices, test commands and handoff; [HTTP contract](designs/system/04-http-api.md#shopping-consultant-integration--local-2026-11-03)
   records URL/token setup, event data, bounded catalog and member-only scope.
+
+Publication follow-up: [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) OPEN/non-draft against main from `codex/shopping-consultant-review`; integration checks repeated on main 009c117 plus scoped changes. Unrelated local edits excluded; live acceptance, CI and merge remain unverified.
+
+2026-11-03 PR #62 CI fixes: efc7a1d removes the trailing blank line rejected by gofmt; 165d9b7 includes smoke.py in the AI Docker test target. Local config race/vet and 67 offline container tests pass (six DB skips); remote Backend CI run 41598283242 subsequently completed SUCCESS with isolated DB checks. No runtime/business logic, merge or deployment change.
+
+## 2026-11-10 — Chatbot / Desk control (local, unmerged)
+
+- Added reasoned handoff and explicit bot-return endpoints; projected handling state from existing durable fields. New simulator work waits for staff; legacy unassigned staff work stays visible. Claim/assignment/return increments generation/version and audits transitions atomically.
+- Updated Desk UI, bounded request DTOs, route contracts and generated Swagger. No new schema, dependency, external send or application DB migration.
+- Verification and remaining integration/browser/delivery gaps: [session](epics/EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md).
+
+## 2026-11-11 — Real consultant runtime connection
+
+- Implemented the missing authenticated Python consult endpoint through existing LangChain provider infrastructure, bounded structured output and catalog checks. Real-provider credentials now fail closed.
+- Added optional AI/API Compose wiring and scoped launcher; preserved fake preview for explicit offline use. No migration or live provider call.
+- [Session](epics/EPIC-002-ai-runtime/sessions/2026-11-11_real-consultant.md) records verification and key-dependent live acceptance.

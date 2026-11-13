@@ -1,6 +1,5 @@
-"""Explicit configuration; missing credentials permit deterministic offline use."""
+"""Explicit provider selection; real providers fail closed without credentials."""
 
-import logging
 import os
 
 from pydantic import BaseModel, Field, SecretStr, ValidationError
@@ -30,8 +29,7 @@ def get_provider(provider_name: str, config: ProviderConfig) -> BaseAIProvider:
     if provider_name == "fake":
         return FakeProvider()
     if not config.api_key.get_secret_value().strip():
-        logging.getLogger(__name__).warning("No provider credential configured; using deterministic fake provider")
-        return FakeProvider()
+        raise RuntimeError("Selected AI provider requires a server-side API key")
     from hexta_ai.providers.langchain import LangChainProvider
     return LangChainProvider(provider_name, config)
 

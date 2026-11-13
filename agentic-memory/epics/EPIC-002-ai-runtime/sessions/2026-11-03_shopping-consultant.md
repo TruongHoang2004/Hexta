@@ -81,3 +81,42 @@ to 100 products; public customer access needs a separately authorized identity a
 catalog contract. Full public storefront/payment/stock semantics are outside this
 member-only integration. Review/merge is not verified; no commit or PR created,
 and neither this session nor the parent epic is complete.
+
+## Publication follow-up — 2026-11-03
+
+User requested PR publication. Published [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62),
+OPEN/non-draft against main from `codex/shopping-consultant-review`. The review
+branch starts at updated main 009c117 and cherry-picks only this integration;
+unrelated onboarding/privacy and connector-design edits remain in the original
+workspace and outside the PR. Repeated Go race suite/vet, frozen offline install,
+SDK build, web lint/build and four SSE tests on the isolated review branch: PASS
+for available checks. Live Python/browser/isolated DB acceptance remains NOT_RUN;
+CI and merge are not claimed complete. Original no-commit/PR wording above records
+the implementation session before this publication follow-up.
+
+## CI formatting follow-up — 2026-11-03
+
+Owner reported failed Backend CI job 125730210458 in run 41579328602. The log
+confirms `Check Go Formatting` stopped on an extra trailing blank line in
+`services/api/config/config_test.go`; vet/tests had not run in that job. Applied
+gofmt to that file only (one blank line removed), with no behavior/workflow
+change. `sh scripts/check-gofmt.sh`, `go test -race ./services/api/config`,
+`go vet ./services/api/config` and `git diff --check`: PASS. This supersedes the
+previously recorded unresolved formatting debt. Push triggers fresh PR checks;
+remote CI completion is tracked separately from these local results.
+
+## CI test-image follow-up — 2026-11-03
+
+Run 41597517521 on efc7a1d passed formatting, Go vet, DB-backed Go tests, Atlas
+integrity and desired-schema parity. Its later Python image step exposed an
+existing packaging gap: `tests/test_smoke.py` imports root-level `smoke.py`,
+but the test target copied only application/generated modules and tests. Added
+`COPY smoke.py ./smoke.py` solely to the Dockerfile test target. Production
+image/content, schema and application behavior are unchanged. Validation:
+`docker build --target test -t hexta-pr62-ci-ai-test services/ai` PASS; running
+pytest in that image with network disabled and fake provider: 67 PASS, six DB
+tests skipped. Fresh CI must verify the isolated database cases.
+
+## Remote CI verification — 2026-11-03
+
+Backend CI [run 41598283242](https://github.com/TruongHoang2004/Hexta/actions/runs/41598283242) completed SUCCESS on 165d9b7. Formatting, Go vet/tests with isolated DB, Atlas integrity/schema parity and Python tests in the corrected test image all passed. PR #62 remains open/in-review; no merge or deployment is claimed.

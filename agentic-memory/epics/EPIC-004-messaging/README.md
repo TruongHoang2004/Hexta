@@ -52,3 +52,15 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Remaining work and next handoff
 
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.
+
+## Connector design follow-up — 2026-11-03
+
+Direct Facebook now targets a separate connector service; see [primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-design.md). Normalized Kafka events feed the API consumer; business authority stays in API. Design only, no new runtime verification.
+
+Follow-up: owner rejected the initial connector proposal. [Omni Bridge-based redesign](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-omni-review.md) remains under review; no delivery mechanism is approved by that draft.
+
+## Active Desk control slice — 2026-11-10
+
+- IMPLEMENTED locally/unmerged: projected BOT_ACTIVE / WAITING_STAFF / STAFF_ACTIVE, durable staff queue, reasoned handoff and explicit bot return, generation/version fencing and transactional audit. Reuses existing schema and current active-member/assignee/owner policy.
+- Desk UI exposes waiting work, claim, handoff and return. The simulator starts in staff queue; legacy unassigned staff work remains visible. No online/offline action changes control.
+- [Session](sessions/2026-11-10_chatbot-desk-control.md) records isolated PostgreSQL/race, HTTP and frontend evidence. Granular Desk/Page entitlements, bot settings, AI candidate/send gates, cancellation, live connector, notifications, handoff-history UI and browser acceptance remain open. This slice does not complete EPIC-004.

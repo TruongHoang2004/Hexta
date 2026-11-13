@@ -1,5 +1,9 @@
 # Architecture and ownership
 
+## Connector direction update — 2026-11-03
+
+DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.
+
 Current source snapshot: codex/demo-work-units at b52a8ba; source reviewed in the [2026-10-28 audit](../../reviews/2026-10-28_architecture-compliance_review.md). This is an implemented-versus-target map, not a claim of exhaustive fresh runtime verification.
 
 ## Implemented components

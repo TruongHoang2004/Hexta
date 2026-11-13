@@ -44,3 +44,9 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Remaining work and next handoff
 
 Review target contracts, select a bounded ingress slice with messaging, then implement broker/profile and transactional delivery. Do not enable old compose listener config unchanged.
+
+## Connector design follow-up — 2026-11-03
+
+Direct Facebook now targets a separate connector service; see [primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-design.md). Normalized Kafka events feed the API consumer; business authority stays in API. Design only, no new runtime verification.
+
+Follow-up: owner rejected the initial connector proposal. [Omni Bridge-based redesign](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-omni-review.md) remains under review; no delivery mechanism is approved by that draft.

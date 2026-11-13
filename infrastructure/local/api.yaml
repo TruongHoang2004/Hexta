@@ -19,6 +19,8 @@ oauth:
     client_secret: ''
     redirect_url: http://localhost:8080/api/v1/auth/google/callback
 ai:
+  consult_url: ${AI_CONSULT_URL}
+  internal_token: ${AI_INTERNAL_TOKEN}
   provider: fake
   base_url: http://127.0.0.1:1
   timeout: 30

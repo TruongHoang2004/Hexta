@@ -1,5 +1,9 @@
 # HTTP API design
 
+## Connector direction update — 2026-11-03
+
+DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.
+
 ## Implemented contract inventory
 
 Base is `/api/v1`. Actual routing: [router.go](../../../services/api/internal/present/http/router/router.go); DTOs: [dto directory](../../../services/api/internal/present/http/dto). Current Swagger is generated under `services/api/docs`; verify annotations against controllers before relying on it. Swagger is registered at `/api/v1/swagger/index.html`, not at host-root `/swagger/index.html`.
@@ -133,7 +137,7 @@ Auth/health Swagger now declares response.Response[T], including health dependen
 
 ## Simulator inbox HTTP slice — local 2026-11-02
 
-IMPLEMENTED locally/unmerged under `/api/v1/tenants/{tenantID}`: GET `/conversations` and `/conversations/{id}/messages`; POST `/simulator/messages`, `/turns/{id}/claim`, `/turns/{id}/assign`, `/turns/{id}/send-simulation`. All require current active tenant membership. Pagination is UUID cursor/limit (default 20, maximum 100), with all/unassigned/mine/needs_human conversation filters. Claim/assign compare expected_version; simulated reply additionally compares context_revision and requires current assignee/sales control. Owner administration does not bypass send authority. Simulator inputs and replies use durable body request_key/hash and return 200 saved simulated messages, not 202 real outbound intents. Target `/send`, SSE, escalation, return, proposal and script routes remain unimplemented. [Design](../2026-11-02_messaging-inbox_design.md) specifies DTOs and error mappings; generated Swagger is authoritative for implemented transport shape. No application deployment/merge is claimed.
+IMPLEMENTED locally/unmerged under `/api/v1/tenants/{tenantID}`: GET `/conversations` and `/conversations/{id}/messages`; POST `/simulator/messages`, `/turns/{id}/claim`, `/turns/{id}/assign`, `/turns/{id}/send-simulation`. All require current active tenant membership. Pagination is UUID cursor/limit (default 20, maximum 100), with all/unassigned/mine/needs_human conversation filters. Claim/assign compare expected_version; simulated reply additionally compares context_revision and requires current assignee/sales control. Owner administration does not bypass send authority. Simulator inputs and replies use durable body request_key/hash and return 200 saved simulated messages, not 202 real outbound intents. Target `/send`, SSE, proposal, script and resolution routes remain unimplemented. The local Desk extension below implements handoff and explicit bot return. [Design](../2026-11-02_messaging-inbox_design.md) specifies DTOs and error mappings; generated Swagger is authoritative for implemented transport shape. No application deployment/merge is claimed.
 
 ## Shopping consultant integration — local 2026-11-03
 
@@ -180,3 +184,35 @@ OPEN: the checked-in Python source has no `/internal/v1/consult`; its deployment
 must provide the owner-specified contract (including product IDs/variant metadata)
 for live use. HTTP fixtures verify the integration boundary, not a live Python
 provider or browser checkout. [Primary session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md).
+
+## Chatbot / Desk control extension — local 2026-11-10
+
+IMPLEMENTED locally/unmerged, same tenant route and active-membership gate:
+
+| Endpoint | Request | Authority and effect |
+| --- | --- | --- |
+| POST `/turns/{id}/handoff` | `expected_version`, `reason` | Active member for bot conversation; current assignee or owner for assigned work. Enter WAITING_STAFF, clear assignment, block bot advice. Already waiting conflicts. |
+| POST `/turns/{id}/return-to-bot` | `expected_version` | Current assignee or owner; owner may return queued work. Enter BOT_ACTIVE, clear assignment/escalation. No message replay or model invocation. |
+
+Reasons are the bounded codes `customer_requested_staff`, `insufficient_information`, `ai_error`, `business_review`, `staff_handoff`; free text is rejected. Both commands return the standard 200 envelope with MessagingTurn; stale/closed/duplicate-state mutations conflict (409). Malformed input is 400; missing/currently unauthorized actor is 401/403; tenant-qualified missing resource is 404. Version conflicts make uncertain retry safe without duplicate transitions; these commands do not promise idempotent result replay.
+
+The additive `handling_state` response projects durable fields: system + no assignee + no escalation => BOT_ACTIVE; sales + no assignee => WAITING_STAFF; sales + assignee + no escalation => STAFF_ACTIVE; other combinations => UNKNOWN. Existing control/assignee/lifecycle/revision fields remain available. Simulator conversations start WAITING_STAFF because its AI is disconnected. Claim/assignment clears escalation for assigned work; unassignment enters the queue. `needs_human` filtering includes legacy sales-controlled unassigned rows even when their old flag is false.
+
+Audit commits actor, time, reason, before/after handling state and previous/new assignee with generation/version changes in one transaction. Deploy API before the new web UI so commands and handling_state exist; the UI treats an absent state as unavailable. No physical schema change, application migration or new dependency. No existing automated intents exist to cancel; late-AI acceptance/final dispatch fencing, Page/Desk-specific entitlement and bot enablement settings remain separate work.
+
+
+## Real consultant endpoint — local 2026-11-11
+
+Python now implements authenticated POST `/internal/v1/consult` matching Go's
+ConsultRequest/ConsultResponse, including null Go history. The shared structured
+provider adapter uses a separate consultant schema/prompt while preserving the
+existing preview classifier/candidate prompt. A single bounded inference returns
+message, permitted variant selections, needs_human and quick replies. Product data
+comes from the supplied authorized catalog and is rechecked by Go after inference.
+No order draft or business side effect is generated in this first live-inference
+path. Tenant/session identifiers are excluded from model input. Fake mode is
+explicitly rejected by this endpoint; selecting a real provider without its key
+fails startup. The optional real-inference Compose overlay and `scripts/ai-live.sh`
+connect Go and Python with a shared private internal token. No public API contract
+or schema migration changed. Desk automation, channel sends and durable consulting
+jobs remain separate work.

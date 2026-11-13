@@ -5,6 +5,7 @@ export interface MessagingTurn {
   thread_id: string;
   lifecycle: "open" | "closed";
   control: "system" | "sales";
+  handling_state?: "BOT_ACTIVE" | "WAITING_STAFF" | "STAFF_ACTIVE" | "UNKNOWN";
   assignee_id: string | null;
   needs_human: boolean;
   context_revision: number;
@@ -94,14 +95,16 @@ export const messaging = {
   async command(
     tenant: string,
     turn: MessagingTurn,
-    action: "claim" | "assign",
+    action: "claim" | "assign" | "handoff" | "return-to-bot",
     assignee?: string | null,
+    reason?: string,
   ): Promise<MessagingTurn> {
     const result = await sdk.client.post<{ data: MessagingTurn }>(
       `${base(tenant)}/turns/${turn.id}/${action}`,
       {
         expected_version: turn.version,
         ...(action === "assign" ? { assignee_id: assignee ?? null } : {}),
+        ...(action === "handoff" ? { reason } : {}),
       },
     );
     return result.data.data;

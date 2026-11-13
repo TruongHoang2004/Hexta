@@ -1,5 +1,9 @@
 # Product decisions and domain vocabulary
 
+## Connector direction update — 2026-11-03
+
+DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.
+
 Status: DECIDED unless marked TARGET/OPEN. These requirements are durable session context, not evidence that the application already implements them.
 
 ## Purpose and scope
@@ -31,7 +35,7 @@ Hexta must fit businesses with different operating steps. Packing/shipping are o
 - Every sale in a tenant can see that tenant's conversations. Only the assigned sale can manually send; self-claim an unassigned open turn atomically.
 - The owner can reassign a turn to a current tenant member. Assignment/control changes invalidate obsolete permissions and pending automatic work.
 - When a sale takes a turn, the system must stop automatic sending. This includes queued AI results, not just future incoming messages. Already-dispatched external requests may be impossible to retract; reconcile their outcomes.
-- Returning to system handling is explicit. Do not silently resume automation on resolution, timeout, reconnect or generation completion. TARGET default: retain the assignee on explicit return so the sale can still review proposals.
+- Returning to system handling is explicit. Do not silently resume automation on resolution, timeout, reconnect or generation completion. The 2026-11-09 Desk flow supersedes the former retain-assignee proposal: explicit return clears the staff assignment; a later takeover claims it again.
 - A business owner controls the proposal setting. Proposal enabled => generate for sale review; proposal disabled => eligible automatic reply. Name the internal modes `suggest` and `auto_send`; explain the toggle in UI to avoid reversal.
 - Not every message should invoke a generative model. Route among approved script, AI generation, clarification and human handoff. The owner asked for a model-based evaluation before deciding whether a script suffices; the current exact matcher is only a deterministic fake.
 - Human handoff must stop automation. Unassigned items remain in the assignment queue; do not randomly choose a sale. Customer-facing fallback responses follow business configuration and channel authorization.
@@ -82,3 +86,9 @@ DECIDED: tenant is the paying business customer and top-level customer-product b
 TARGET route/data/authority changes and remaining OPEN delivery/billing details are recorded in [the tenant-first framework plan](../../ARCHIVE_INDEX.md#pruned-2026-10-19-tenant-first-framework-plan). Payment integration, pricing, email delivery/verification, operator bootstrap and suspension policy are not implemented or silently decided by this clarification.
 
 IMPLEMENTED locally/unmerged: approval-first onboarding, route-qualified tenant resources, operator CLI authority and email-addressed manual invitations with explicit acceptance. Seven-day expiry is an implementation default. Email provider/mailbox verification, billing automation and broader suspension policy remain OPEN. Existing tenants are preserved. See [implementation design](../2026-10-19_tenant-onboarding_design.md).
+
+## Chatbot and Desk — owner-approved flow 2026-11-09
+
+DECIDED: BOT_ACTIVE routes eligible work to the bot; WAITING_STAFF queues work durably with bot advice blocked; STAFF_ACTIVE belongs to the assigned staff member. Handling is separate from open/closed lifecycle and staff presence. Offline staff or closing Desk never returns control to the bot. Human request, missing facts, AI failure or business review can trigger a reasoned handoff; a missing summary cannot block it. Claim is atomic; explicit authorized return never replays old messages. Control generations fence stale AI/output; pending-versus-dispatched sends remain distinct.
+
+The 2026-11-10 implementation is the bounded simulator/control slice. Real routing, AI acceptance/dispatch, notifications, granular Desk/Page entitlements and live connector acceptance remain TARGET.

@@ -90,6 +90,8 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				{"post", "/api/v1/tenants/{tenantID}/simulator/messages"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/claim"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/assign"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/handoff"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/return-to-bot"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/send-simulation"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]

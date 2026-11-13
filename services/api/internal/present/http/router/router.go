@@ -100,6 +100,8 @@ func RegisterRoutes(
 	resources.POST("/simulator/messages", messaging.Inbound)
 	resources.POST("/turns/:id/claim", messaging.Claim)
 	resources.POST("/turns/:id/assign", messaging.Assign)
+	resources.POST("/turns/:id/handoff", messaging.Handoff)
+	resources.POST("/turns/:id/return-to-bot", messaging.ReturnToBot)
 	resources.POST("/turns/:id/send-simulation", messaging.Send)
 
 	// Swagger UI

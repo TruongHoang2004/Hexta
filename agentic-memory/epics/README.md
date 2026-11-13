@@ -11,7 +11,7 @@ Updated 2026-11-03. Navigation/status only: read the relevant epic and latest re
 | [EPIC-005](EPIC-005-kafka/README.md) | Kafka event backbone | not-started | false |
 | [EPIC-006](EPIC-006-provider-observability/README.md) | Real providers, checkpoints and self-host traces | in-progress | false |
 | [EPIC-007](EPIC-007-orders-workflows/README.md) | Sales, configurable work and owner overview | in-progress | false |
-| [EPIC-008](EPIC-008-integrations-deployment/README.md) | Pancake connector and eventual VPS deployment | not-started | false |
+| [EPIC-008](EPIC-008-integrations-deployment/README.md) | Direct platform connector design and eventual VPS deployment | in-progress | false |
 
 Current delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) verified OPEN/draft on 2026-10-28; review/merge/manual gates remain. PRs #52–55/#57/#58 verified merged into main. None of these individual deliveries completes a parent epic automatically. No CI-success assertion from this cleanup.
 
@@ -27,4 +27,8 @@ Active provider slice: [2026-11-03 AI adapters](EPIC-002-ai-runtime/sessions/202
 
 Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/2026-11-03_langchain-providers.md) supersedes direct SDK calls; 73 isolated/offline tests passed, local/in-review with live access and merge open.
 
-Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), local/in-review; live Python consult endpoint, browser acceptance and merge remain open.
+Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) open/in-review; live Python consult endpoint, browser acceptance and merge remain open.
+
+Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
+
+Real consultation: [2026-11-11 runtime connection](EPIC-002-ai-runtime/sessions/2026-11-11_real-consultant.md), local/unmerged; API key/live inference acceptance pending.

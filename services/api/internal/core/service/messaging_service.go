@@ -138,7 +138,7 @@ func (s *MessagingService) Inbound(ctx context.Context, tenant, actor string, in
 		}
 		create := turn == nil
 		if create {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: "open", Control: "system", ControlGeneration: 1}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ControlGeneration: 1}
 		}
 		turn.ContextRevision++
 		turn.Version++
@@ -174,6 +174,13 @@ func (s *MessagingService) Command(ctx context.Context, tenant, actor, id, actio
 	if input.ExpectedVersion < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("positive expected_version required")
 	}
+	if action == "handoff" {
+		switch input.Reason {
+		case "customer_requested_staff", "insufficient_information", "ai_error", "business_review", "staff_handoff":
+		default:
+			return nil, apperrors.ErrBadRequest(ctx).SetDetail("valid handoff reason required")
+		}
+	}
 	var result *types.MessagingTurn
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, owner bool) *apperrors.Error {
 		// Lock target membership before the thread, consistent with actor membership checks.
@@ -198,25 +205,54 @@ func (s *MessagingService) Command(ctx context.Context, tenant, actor, id, actio
 		if turn.Lifecycle != "open" || turn.Version != input.ExpectedVersion {
 			return apperrors.ErrConflict(ctx, "turn", "changed; refresh before retrying")
 		}
+		before := *turn
 		switch action {
+		case "handoff":
+			if turn.AssigneeID != nil && *turn.AssigneeID != actor && !owner {
+				return apperrors.ErrForbidden(ctx).SetDetail("current assignee or tenant owner required")
+			}
+			if turn.HandlingState() == "WAITING_STAFF" {
+				return apperrors.ErrConflict(ctx, "turn", "already waiting for staff")
+			}
+			turn.AssigneeID = nil
+			turn.Control = "sales"
+			turn.NeedsHuman = true
+		case "return-to-bot":
+			if !owner && (turn.AssigneeID == nil || *turn.AssigneeID != actor) {
+				return apperrors.ErrForbidden(ctx).SetDetail("current assignee or tenant owner required")
+			}
+			if turn.HandlingState() != "STAFF_ACTIVE" && turn.HandlingState() != "WAITING_STAFF" {
+				return apperrors.ErrConflict(ctx, "turn", "not under staff control")
+			}
+			turn.AssigneeID = nil
+			turn.Control = "system"
+			turn.NeedsHuman = false
 		case "claim":
 			if turn.AssigneeID != nil && *turn.AssigneeID != actor {
 				return apperrors.ErrConflict(ctx, "turn", "already assigned")
 			}
 			turn.AssigneeID = &actor
+			turn.Control = "sales"
+			turn.NeedsHuman = false
 		case "assign":
 			turn.AssigneeID = input.AssigneeID
+			turn.Control = "sales"
+			turn.NeedsHuman = input.AssigneeID == nil
 		default:
 			return apperrors.ErrBadRequest(ctx).SetDetail("unsupported conversation command")
 		}
-		turn.Control = "sales"
 		turn.ControlGeneration++
 		turn.Version++
 		if err := r.SaveTurn(ctx, *turn, false); err != nil {
 			return err
 		}
 		result = turn
-		return r.Audit(ctx, tenant, actor, "messaging."+action, "messaging_turn", id, map[string]any{"version": turn.Version, "assignee_id": turn.AssigneeID})
+		return r.Audit(ctx, tenant, actor, "messaging."+action, "messaging_turn", id, map[string]any{
+			"version": turn.Version, "control_generation": turn.ControlGeneration,
+			"before": before.HandlingState(), "after": turn.HandlingState(),
+			"previous_assignee_id": before.AssigneeID, "assignee_id": turn.AssigneeID,
+			"reason": input.Reason,
+		})
 	})
 	return result, err
 }
@@ -228,17 +264,24 @@ func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id
 	if err := messagingKey(ctx, input.RequestKey); err != nil {
 		return nil, err
 	}
+	// Keep the original serialized command shape: adding handoff-only fields
+	// must not invalidate request hashes for previously saved simulated replies.
+	type replyFingerprint struct {
+		ExpectedVersion, ContextRevision int64
+		AssigneeID                       *string
+		Body, RequestKey                 string
+	}
 	hash := messagingHash(struct {
 		Actor, Turn string
-		Input       types.MessagingCommand
-	}{actor, id, input})
+		Input       replyFingerprint
+	}{actor, id, replyFingerprint{input.ExpectedVersion, input.ContextRevision, input.AssigneeID, input.Body, input.RequestKey}})
 	var result *types.MessagingMessage
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
 		turn, err := messagingLockedTurn(ctx, r, tenant, id)
 		if err != nil {
 			return err
 		}
-		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.Control != "sales" {
+		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
 			return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale under sales control may reply")
 		}
 		old, err := r.MessageByKey(ctx, tenant, input.RequestKey)
