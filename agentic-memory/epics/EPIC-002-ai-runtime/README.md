@@ -76,3 +76,5 @@ checkpoints, business sending integration and merge remain open.
 LangChain follow-up: direct SDK adapters above are superseded by one shared
 LangChainProvider, as explicitly requested by the owner. [Session](sessions/2026-11-03_langchain-providers.md)
 records 73 passing tests; live access and merge remain open.
+
+Real consultant follow-up: [2026-11-11](sessions/2026-11-11_real-consultant.md), local/unmerged. Python consult endpoint and real-provider launch wiring implemented; live acceptance waits for a private OpenAI key.

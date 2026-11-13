@@ -9,6 +9,7 @@ Canonical architecture/contract navigation. Engineering policy is selected throu
 | API/AI schema and desired logical model | [03-database](system/03-database.md) |
 | Implemented HTTP inventory and target contracts | [04-http-api](system/04-http-api.md) |
 | Protobuf, fake AI graph and durable execution | [05-grpc-ai](system/05-grpc-ai.md) |
+| Direct platform connector | [Omni Bridge-based proposal](2026-11-03_connector-omni-bridge_design.md) |
 | Kafka delivery target | [06-kafka-events](system/06-kafka-events.md) |
 | Business workflows and concurrency | [07-workflows](system/07-workflows.md) |
 | Runtime, security, verification limits and operations | [08-operations-security](system/08-operations-security.md) |

@@ -56,3 +56,9 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.
 
 Connector integration: [2026-11-03 primary session](../EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md). Local text ingress/Kafka/API consumer implemented and tested on isolated infrastructure; AI/outbound and merge remain open.
+
+## Active Desk control slice — 2026-11-10
+
+- IMPLEMENTED locally/unmerged: projected BOT_ACTIVE / WAITING_STAFF / STAFF_ACTIVE, durable staff queue, reasoned handoff and explicit bot return, generation/version fencing and transactional audit. Reuses existing schema and current active-member/assignee/owner policy.
+- Desk UI exposes waiting work, claim, handoff and return. The simulator starts in staff queue; legacy unassigned staff work remains visible. No online/offline action changes control.
+- [Session](sessions/2026-11-10_chatbot-desk-control.md) records isolated PostgreSQL/race, HTTP and frontend evidence. Granular Desk/Page entitlements, bot settings, AI candidate/send gates, cancellation, live connector, notifications, handoff-history UI and browser acceptance remain open. This slice does not complete EPIC-004.

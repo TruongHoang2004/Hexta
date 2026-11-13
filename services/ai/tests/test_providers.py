@@ -165,7 +165,8 @@ def test_timeout_and_budget_do_not_retry():
 
 
 def test_factory_key_precedence_missing_key_and_safe_configuration(monkeypatch):
-    assert get_provider("gemini", ProviderConfig()).simulated
+    with pytest.raises(RuntimeError, match="requires a server-side API key"):
+        get_provider("gemini", ProviderConfig())
     monkeypatch.setenv("AI_PROVIDER", "gemini")
     monkeypatch.setenv("AI_API_KEY", "generic-test")
     monkeypatch.setenv("GEMINI_API_KEY", "specific-test")

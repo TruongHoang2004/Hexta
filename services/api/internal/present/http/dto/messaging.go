@@ -17,6 +17,10 @@ type MessagingCommandRequest struct {
 	ExpectedVersion int64   `json:"expected_version" validate:"min=1"`
 	AssigneeID      *string `json:"assignee_id" validate:"omitempty,min=1,max=255"`
 }
+type MessagingHandoffRequest struct {
+	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
+	Reason          string `json:"reason" validate:"required,oneof=customer_requested_staff insufficient_information ai_error business_review staff_handoff"`
+}
 type MessagingSendRequest struct {
 	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
 	ContextRevision int64  `json:"context_revision" validate:"min=1"`
@@ -35,6 +39,7 @@ type MessagingTurn struct {
 	ThreadID          string    `json:"thread_id"`
 	Lifecycle         string    `json:"lifecycle"`
 	Control           string    `json:"control"`
+	HandlingState     string    `json:"handling_state"`
 	AssigneeID        *string   `json:"assignee_id"`
 	NeedsHuman        bool      `json:"needs_human"`
 	ContextRevision   int64     `json:"context_revision"`

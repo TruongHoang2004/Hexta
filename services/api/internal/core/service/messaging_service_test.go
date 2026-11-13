@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -58,6 +59,19 @@ func TestMessagingClaimReplyAuthorityAndStaleContext(t *testing.T) {
 	reply, err := s.SendSimulation(ctx, f.tenant, f.sale, turn.ID, cmd)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Simulate the hash written before handoff Reason existed in the command.
+	type legacyCommand struct {
+		ExpectedVersion, ContextRevision int64
+		AssigneeID                       *string
+		Body, RequestKey                 string
+	}
+	legacyHash := messagingHash(struct {
+		Actor, Turn string
+		Input       legacyCommand
+	}{f.sale, turn.ID, legacyCommand{cmd.ExpectedVersion, cmd.ContextRevision, cmd.AssigneeID, cmd.Body, cmd.RequestKey}})
+	if reply.RequestHash != legacyHash {
+		t.Fatal("reply fingerprint changed across the Desk upgrade")
 	}
 	replay, err := s.SendSimulation(ctx, f.tenant, f.sale, turn.ID, cmd)
 	if err != nil || replay.ID != reply.ID {
@@ -275,4 +289,176 @@ func TestMessagingInputBounds(t *testing.T) {
 	}
 	_, err := s.Inbound(ctx, tenant, "sale", types.MessagingInbound{ExternalKey: "c", DisplayName: "C", Body: "Hi", RequestKey: "bad"})
 	requireSalesStatus(t, err, 400)
+}
+
+func TestMessagingDeskHandoffLifecycle(t *testing.T) {
+	f, s, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	if turn.HandlingState() != "WAITING_STAFF" {
+		t.Fatal("simulator without AI must start in staff queue")
+	}
+	// Reloading the inbox through a new service instance sees persisted work.
+	s = NewMessagingService(repository.NewMessagingRepository(f.db))
+	page, err := s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatal("durable queue lost", err)
+	}
+	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || turn.HandlingState() != "STAFF_ACTIVE" {
+		t.Fatal("claim failed", err)
+	}
+	oldVersion, oldGeneration, oldContext := turn.Version, turn.ControlGeneration, turn.ContextRevision
+	for _, action := range []string{"handoff", "return-to-bot"} {
+		_, err = s.Command(ctx, f.tenant, f.peer, turn.ID, action, types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "staff_handoff"})
+		requireSalesStatus(t, err, 403)
+	}
+	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || turn.HandlingState() != "BOT_ACTIVE" || turn.AssigneeID != nil || turn.ControlGeneration != oldGeneration+1 || turn.ContextRevision != oldContext {
+		t.Fatal("explicit return failed or replayed old context", err)
+	}
+	_, err = s.SendSimulation(ctx, f.tenant, f.sale, turn.ID, types.MessagingCommand{ExpectedVersion: oldVersion, ContextRevision: oldContext, Body: "Stale reply", RequestKey: uuid.NewString()})
+	requireSalesStatus(t, err, 403)
+	_, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: oldVersion})
+	requireSalesStatus(t, err, 409)
+	// New input preserves the chosen controller; no implicit return to staff or bot.
+	_, err = s.Inbound(ctx, f.tenant, f.peer, types.MessagingInbound{ExternalKey: "customer-1", DisplayName: "Customer", Body: "Next question", RequestKey: uuid.NewString()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err := s.Detail(ctx, f.tenant, f.sale, message.ThreadID, types.MessagingQuery{Limit: 20})
+	if err != nil || detail.Conversation.Turn.HandlingState() != "BOT_ACTIVE" || len(detail.Messages) != 2 {
+		t.Fatal("new input changed bot control", err)
+	}
+	turn = detail.Conversation.Turn
+	turn, err = s.Command(ctx, f.tenant, f.peer, turn.ID, "handoff", types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "customer_requested_staff"})
+	if err != nil || turn.HandlingState() != "WAITING_STAFF" {
+		t.Fatal("handoff failed", err)
+	}
+	var audit model.AuditLog
+	if err := f.db.Where("tenant_id = ? AND entity_id = ? AND action = ?", f.tenant, turn.ID, "messaging.handoff").First(&audit).Error; err != nil {
+		t.Fatal(err)
+	}
+	var state struct {
+		Before, After, Reason string
+		ControlGeneration     int64 `json:"control_generation"`
+	}
+	if err := json.Unmarshal([]byte(audit.AfterState), &state); err != nil {
+		t.Fatal(err)
+	}
+	if state.Before != "BOT_ACTIVE" || state.After != "WAITING_STAFF" || state.Reason != "customer_requested_staff" || state.ControlGeneration != turn.ControlGeneration || audit.UserID != f.peer || audit.CreatedAt.IsZero() {
+		t.Fatal("incomplete handoff audit")
+	}
+	_, err = s.Command(ctx, f.tenant, f.peer, turn.ID, "handoff", types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "staff_handoff"})
+	requireSalesStatus(t, err, 409)
+	_, err = s.Command(ctx, f.tenant, f.peer, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: turn.Version})
+	requireSalesStatus(t, err, 403)
+	_, err = s.Inbound(ctx, f.tenant, f.peer, types.MessagingInbound{ExternalKey: "customer-1", DisplayName: "Customer", Body: "Still waiting", RequestKey: uuid.NewString()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err = s.Detail(ctx, f.tenant, f.sale, message.ThreadID, types.MessagingQuery{Limit: 20})
+	if err != nil || detail.Conversation.Turn.HandlingState() != "WAITING_STAFF" {
+		t.Fatal("waiting queue silently resumed bot", err)
+	}
+	turn = detail.Conversation.Turn
+	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || turn.NeedsHuman || turn.HandlingState() != "STAFF_ACTIVE" {
+		t.Fatal("claim did not clear queue flag", err)
+	}
+	page, err = s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
+	if err != nil || len(page.Items) != 0 {
+		t.Fatal("claimed work still in queue", err)
+	}
+	turn, err = s.Command(ctx, f.tenant, f.owner, turn.ID, "assign", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || turn.HandlingState() != "WAITING_STAFF" {
+		t.Fatal("unassignment resumed bot", err)
+	}
+}
+
+func TestMessagingDeskHandoffAuditRollback(t *testing.T) {
+	f, s, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := NewMessagingService(messagingAuditFailure{repository.NewMessagingRepository(f.db)})
+	for _, action := range []string{"handoff", "return-to-bot"} {
+		_, err = broken.Command(ctx, f.tenant, f.sale, turn.ID, action, types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "staff_handoff"})
+		requireSalesStatus(t, err, 500)
+		detail, err := s.Detail(ctx, f.tenant, f.sale, message.ThreadID, types.MessagingQuery{Limit: 20})
+		if err != nil || detail.Conversation.Turn.Version != turn.Version || detail.Conversation.Turn.ControlGeneration != turn.ControlGeneration || detail.Conversation.Turn.HandlingState() != "STAFF_ACTIVE" {
+			t.Fatal("failed audit left partial handoff", err)
+		}
+	}
+}
+
+func TestMessagingDeskConcurrentReturnAndReassignment(t *testing.T) {
+	f, s, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	results := make(chan *apperrors.Error, 2)
+	for _, action := range []string{"assign", "return-to-bot"} {
+		go func(action string) {
+			<-start
+			_, err := s.Command(ctx, f.tenant, f.owner, turn.ID, action, types.MessagingCommand{ExpectedVersion: turn.Version, AssigneeID: &f.peer})
+			results <- err
+		}(action)
+	}
+	close(start)
+	wins, conflicts := 0, 0
+	for range 2 {
+		err := <-results
+		if err == nil {
+			wins++
+		} else if err.GetHttpStatus() == 409 {
+			conflicts++
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if wins != 1 || conflicts != 1 {
+		t.Fatalf("expected one winner, got %d wins/%d conflicts", wins, conflicts)
+	}
+	detail, err := s.Detail(ctx, f.tenant, f.sale, message.ThreadID, types.MessagingQuery{Limit: 20})
+	if err != nil || detail.Conversation.Turn.Version != turn.Version+1 || detail.Conversation.Turn.ControlGeneration != turn.ControlGeneration+1 {
+		t.Fatal("lost control transition", err)
+	}
+}
+
+func TestMessagingDeskAuthorizationAndBounds(t *testing.T) {
+	f, s, _, turn := messagingFixture(t)
+	ctx := context.Background()
+	for _, action := range []string{"handoff", "return-to-bot"} {
+		_, err := s.Command(ctx, f.other, f.owner, turn.ID, action, types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "business_review"})
+		requireSalesStatus(t, err, 404)
+		_, err = s.Command(ctx, f.tenant, "stranger", turn.ID, action, types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "business_review"})
+		requireSalesStatus(t, err, 403)
+	}
+	for _, reason := range []string{"", "free text", strings.Repeat("x", 500)} {
+		_, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "handoff", types.MessagingCommand{ExpectedVersion: turn.Version, Reason: reason})
+		requireSalesStatus(t, err, 400)
+	}
+	if err := f.db.Where("tenant_id = ? AND user_id = ?", f.tenant, f.sale).Delete(&model.TenantMember{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "handoff", types.MessagingCommand{ExpectedVersion: turn.Version, Reason: "ai_error"})
+	requireSalesStatus(t, err, 403)
+}
+
+// Older unassignment retained sales control without setting needs_human.
+// Keep that durable work visible in the new Desk queue without a data migration.
+func TestMessagingDeskLegacyUnassignedQueue(t *testing.T) {
+	f, s, message, turn := messagingFixture(t)
+	if err := f.db.Table("messaging_turns").Where("tenant_id = ? AND id = ?", f.tenant, turn.ID).Update("needs_human", false).Error; err != nil {
+		t.Fatal(err)
+	}
+	page, err := s.Conversations(context.Background(), f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Thread.ID != message.ThreadID || page.Items[0].Turn.HandlingState() != "WAITING_STAFF" {
+		t.Fatal("legacy unassigned staff work disappeared", err)
+	}
 }

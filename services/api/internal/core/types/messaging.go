@@ -39,5 +39,20 @@ type MessagingInbound struct{ ExternalKey, DisplayName, Body, RequestKey string 
 type MessagingCommand struct {
 	ExpectedVersion, ContextRevision int64
 	AssigneeID                       *string
-	Body, RequestKey                 string
+	Body, RequestKey, Reason         string
+}
+
+// HandlingState projects existing durable control fields without a second state store.
+// Unknown combinations fail closed; consumers must not treat them as bot permission.
+func (t MessagingTurn) HandlingState() string {
+	if t.Control == "system" && t.AssigneeID == nil && !t.NeedsHuman {
+		return "BOT_ACTIVE"
+	}
+	if t.Control == "sales" && t.AssigneeID == nil {
+		return "WAITING_STAFF"
+	}
+	if t.Control == "sales" && t.AssigneeID != nil && !t.NeedsHuman {
+		return "STAFF_ACTIVE"
+	}
+	return "UNKNOWN"
 }

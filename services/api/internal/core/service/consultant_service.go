@@ -48,7 +48,7 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 	candidates := make([]types.ConsultProduct, 0)
 	for _, p := range products {
 		for _, v := range p.Variants {
-			if v.PriceProvided {
+			if v.PriceProvided && len(candidates) < 200 {
 				candidates = append(candidates, consultantProduct(p, v))
 			}
 		}

@@ -1,7 +1,6 @@
 """Standardized multi-model adapter using LangChain with strict structured output enforcement."""
 
 import json
-import logging
 import os
 import re
 from typing import Any, Type, TypeVar
@@ -234,8 +233,7 @@ class ModelAdapter:
         if prov in {"openai", "chatgpt"}:
             api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY") or os.getenv("AI_API_KEY")
             if not api_key or not str(api_key).strip():
-                logging.getLogger(__name__).warning("No OpenAI API key configured; using deterministic fake model")
-                return FakeStructuredChatModel()
+                raise RuntimeError("Selected AI provider requires a server-side API key")
             from langchain_openai import ChatOpenAI
 
             base_url = kwargs.get("base_url") or os.getenv("OPENAI_API_BASE") or os.getenv("AI_OPENAI_BASE_URL")
@@ -263,8 +261,7 @@ class ModelAdapter:
                 or os.getenv("AI_API_KEY")
             )
             if not api_key or not str(api_key).strip():
-                logging.getLogger(__name__).warning("No Gemini API key configured; using deterministic fake model")
-                return FakeStructuredChatModel()
+                raise RuntimeError("Selected AI provider requires a server-side API key")
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "gemini-2.5-flash")
@@ -285,8 +282,7 @@ class ModelAdapter:
         if prov in {"anthropic", "claude"}:
             api_key = kwargs.get("api_key") or os.getenv("ANTHROPIC_API_KEY") or os.getenv("AI_API_KEY")
             if not api_key or not str(api_key).strip():
-                logging.getLogger(__name__).warning("No Anthropic API key configured; using deterministic fake model")
-                return FakeStructuredChatModel()
+                raise RuntimeError("Selected AI provider requires a server-side API key")
             from langchain_anthropic import ChatAnthropic
 
             selected_model = model_name or os.getenv("AI_MODEL") or os.getenv("AI_MODEL_NAME", "claude-haiku-4-5")
@@ -336,12 +332,5 @@ class ModelAdapter:
         **kwargs: Any,
     ):
         """Returns a LangChain runnable guaranteed to produce the requested typed schema."""
-        try:
-            model = ModelAdapter.get_model(provider=provider, model_name=model_name, **kwargs)
-            return model.with_structured_output(schema)
-        except Exception as exc:
-            logging.getLogger(__name__).warning(
-                "Failed to initialize model runnable (%s), falling back to FakeStructuredChatModel", exc
-            )
-            fake_model = FakeStructuredChatModel()
-            return fake_model.with_structured_output(schema)
+        model = ModelAdapter.get_model(provider=provider, model_name=model_name, **kwargs)
+        return model.with_structured_output(schema)

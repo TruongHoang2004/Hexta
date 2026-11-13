@@ -117,6 +117,9 @@ image/content, schema and application behavior are unchanged. Validation:
 pytest in that image with network disabled and fake provider: 67 PASS, six DB
 tests skipped. Fresh CI must verify the isolated database cases.
 
+## Remote CI verification — 2026-11-03
+
+Backend CI [run 41598283242](https://github.com/TruongHoang2004/Hexta/actions/runs/41598283242) completed SUCCESS on 165d9b7. Formatting, Go vet/tests with isolated DB, Atlas integrity/schema parity and Python tests in the corrected test image all passed. PR #62 remains open/in-review; no merge or deployment is claimed.
 ## Owner review follow-up — 2026-11-03
 
 Addressed review against efc7a1d on top of latest PR head 165d9b7:

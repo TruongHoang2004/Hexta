@@ -46,6 +46,8 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	group.POST("/simulator/messages", ctrl.Inbound)
 	group.POST("/turns/:id/claim", ctrl.Claim)
 	group.POST("/turns/:id/assign", ctrl.Assign)
+	group.POST("/turns/:id/handoff", ctrl.Handoff)
+	group.POST("/turns/:id/return-to-bot", ctrl.ReturnToBot)
 	group.POST("/turns/:id/send-simulation", ctrl.Send)
 	request := func(method, path, actor, body string, status int) json.RawMessage {
 		t.Helper()
@@ -101,5 +103,20 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	request("POST", "/turns/"+turn.ID+"/assign", "sale", `{"expected_version":2}`, 403)
 	request("POST", "/turns/"+turn.ID+"/send-simulation", "owner", `{"expected_version":2,"context_revision":1,"body":"No","request_key":"`+uuid.NewString()+`"}`, 403)
 	request("POST", "/turns/"+turn.ID+"/send-simulation", "sale", `{"expected_version":2,"context_revision":1,"body":"Reply","request_key":"`+uuid.NewString()+`"}`, 200)
+
+	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":3}`, 400)
+	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":3,"reason":"arbitrary"}`, 400)
+	request("POST", "/turns/"+turn.ID+"/return-to-bot", "", `{"expected_version":3}`, 401)
+	request("POST", "/turns/"+turn.ID+"/return-to-bot", "sale", `{"expected_version":2}`, 409)
+	var returned dto.MessagingTurn
+	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/return-to-bot", "sale", `{"expected_version":3}`, 200), &returned); err != nil {
+		t.Fatal(err)
+	}
+	if returned.HandlingState != "BOT_ACTIVE" || returned.AssigneeID != nil {
+		t.Fatal("bad bot control contract")
+	}
+	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":4,"reason":"customer_requested_staff"}`, 200)
+	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":4,"reason":"customer_requested_staff"}`, 409)
+	request("POST", "/turns/"+turn.ID+"/send-simulation", "sale", `{"expected_version":5,"context_revision":2,"body":"No","request_key":"`+uuid.NewString()+`"}`, 403)
 	request("POST", "/simulator/messages", "sale", `{"external_key":"a","display_name":"A","body":"`+strings.Repeat("a", 33000)+`","request_key":"`+uuid.NewString()+`"}`, 400)
 }

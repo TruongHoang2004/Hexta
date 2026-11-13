@@ -122,3 +122,37 @@ make migrate svc=api
 For host execution, privately export API_DATABASE_URL and AI_DATABASE_URL, then run `make migrate-apply-local svc=all`. API URL selects public with search_path=public; AI migration URL is database-level (no search_path), permitting the first explicit migration to create ai_runtime. Migration credentials must have the required schema/revision permissions. Existing local schema owners are supported without database-wide CREATE grants. The guarded AI initial migration uses --allow-dirty only to adopt the known pre-Atlas table and rejects incompatible columns/constraints/indexes; API never uses that flag.
 
 Go integration tests require Atlas on PATH and API_TEST_DATABASE_URL pointing at a dedicated test PostgreSQL server with CREATE DATABASE privileges. Tests create randomly named databases, apply actual API history and drop those databases on cleanup; no GORM AutoMigrate or SQLite schema substitute. Python tests wait for test-migrate-ai and additionally exercise legacy adoption, incompatible rejection and independent histories in disposable databases. Offline database-free tests remain available without database URLs.
+
+
+## Real OpenAI consultation
+
+The optional `compose.ai-live.yml` overlay connects the existing authenticated web
+consultant (`POST /api/v1/ai/converse`) to Python `/internal/v1/consult`. It uses
+the existing LangChain OpenAI adapter, not the fake graph. Missing real-provider
+credentials fail startup. The consultant endpoint also rejects an explicitly fake
+provider rather than returning demo answers.
+
+1. In the Git-ignored `services/ai/.env` (permissions 0600), set `OPENAI_API_KEY`
+   and a private `AI_INTERNAL_TOKEN` of at least 24 characters. Optionally set
+   `OPENAI_MODEL`; the default is the existing OpenAI adapter's `gpt-4o-mini`.
+   The overlay explicitly selects OpenAI regardless of legacy AI_PROVIDER/AI_MODEL.
+2. The existing local stack must already be provisioned with its private
+   `infrastructure/.env.local` and database migrations. Do not use this command
+   to migrate an unrelated application database.
+3. Run `./scripts/ai-live.sh`. It rebuilds/restarts only AI and API with `--no-deps`.
+   Provider keys enter only Python; Go receives the internal URL and service token.
+4. Check `http://127.0.0.1:58000/health/ready`: provider must be `openai`,
+   simulated must be false. Health confirms configuration, not provider billing
+   or model access. Test one request in the signed-in tenant Storefront assistant
+   to verify actual inference against authorized catalog data.
+
+This path supports natural-language consultation and verified product suggestions.
+It does not create orders, send Facebook messages or automatically reply to Desk
+threads. Desk control transitions remain separate from this member-facing widget.
+No automatic provider retries or hosted prompt tracing are enabled. Errors are
+sanitized; responses are bounded and unknown product IDs are rejected. Model prose
+is still AI-generated; structured product prices/IDs are rechecked by Go.
+
+Rollback: use `./scripts/local.sh up --build -d --no-deps ai api` to restore the
+base fake runtime and disable the optional consultant URL; existing data is retained.
+Do not print resolved Compose configuration or include private env files in reports.

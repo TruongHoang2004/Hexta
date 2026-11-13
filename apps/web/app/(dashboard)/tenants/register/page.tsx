@@ -309,6 +309,14 @@ export default function RegisterTenantPage() {
                   )}
                 </Button>
               </div>
+
+              <p className="text-center text-[11px] text-muted">
+                Workspace data is strictly protected and isolated under our{" "}
+                <Link href="/privacy" className="text-primary hover:underline underline-offset-2">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
             </form>
           </div>
         </div>

@@ -146,6 +146,7 @@ function ThreadDetail({
   const [error, setError] = useState("");
   const [body, setBody] = useState("");
   const [assignee, setAssignee] = useState("");
+  const [reason, setReason] = useState("staff_handoff");
   const pending = useRef<SendInput | null>(null);
   const [uncertain, setUncertain] = useState(false);
   useEffect(() => {
@@ -175,12 +176,12 @@ function ThreadDetail({
   }, [tenant, thread, refresh, externalRefresh]);
   const turn = detail?.conversation.turn;
   const assigned = !!user?.id && turn?.assignee_id === user.id;
-  async function command(action: "claim" | "assign") {
+  async function command(action: "claim" | "assign" | "handoff" | "return-to-bot") {
     if (!turn || busy) return;
     setBusy(true);
     setError("");
     try {
-      await messaging.command(tenant, turn, action, assignee || null);
+      await messaging.command(tenant, turn, action, assignee || null, reason);
       setRefresh((v) => v + 1);
       changed();
     } catch (err) {
@@ -291,9 +292,13 @@ function ThreadDetail({
                   : "Unassigned"}
               </span>
               <span>
-                {turn?.control === "sales"
-                  ? "Human handling"
-                  : "Awaiting human handling · AI not connected"}
+                {turn?.handling_state === "BOT_ACTIVE"
+                  ? "Bot control · AI not connected"
+                  : turn?.handling_state === "STAFF_ACTIVE"
+                    ? "Staff handling"
+                    : turn?.handling_state === "WAITING_STAFF"
+                      ? "Waiting for staff"
+                      : "Refresh to check handling state"}
               </span>
               {turn?.needs_human && <span>Needs human</span>}
               {turn?.lifecycle === "open" &&
@@ -307,6 +312,28 @@ function ThreadDetail({
                   </button>
                 )}
             </div>
+            {turn?.lifecycle === "open" && (assigned || owner || turn.handling_state === "BOT_ACTIVE") && (
+              <div className="flex flex-wrap items-end gap-2">
+                {turn.handling_state !== "WAITING_STAFF" && (
+                  <>
+                    <label className="text-sm">
+                      Handoff reason
+                      <select className={inputStyle} disabled={busy || uncertain} value={reason} onChange={(e) => setReason(e.target.value)}>
+                        <option value="staff_handoff">Staff handoff</option>
+                        <option value="customer_requested_staff">Customer requested staff</option>
+                        <option value="insufficient_information">More information needed</option>
+                        <option value="ai_error">AI unavailable</option>
+                        <option value="business_review">Business review needed</option>
+                      </select>
+                    </label>
+                    <button className={button} disabled={busy || uncertain} onClick={() => void command("handoff")}>Move to staff queue</button>
+                  </>
+                )}
+                {(assigned || owner) && turn.control === "sales" && (
+                  <button className={button} disabled={busy || uncertain} onClick={() => void command("return-to-bot")}>Return to bot</button>
+                )}
+              </div>
+            )}
             {owner && turn && (
               <div className="flex flex-wrap items-end gap-2">
                 <label className="text-sm">
@@ -505,7 +532,7 @@ export function Inbox() {
               <option value="all">All conversations</option>
               <option value="unassigned">Unassigned queue</option>
               <option value="mine">Assigned to me</option>
-              <option value="needs_human">Needs human</option>
+              <option value="needs_human">Waiting for staff</option>
             </select>
           </label>
           <button
@@ -533,6 +560,9 @@ export function Inbox() {
                     >
                       <span className="block font-medium">
                         {row.thread.display_name}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {row.turn?.handling_state === "BOT_ACTIVE" ? "Bot control" : row.turn?.handling_state === "STAFF_ACTIVE" ? "Staff handling" : row.turn?.handling_state === "WAITING_STAFF" ? "Waiting for staff" : "Handling state unavailable"}
                       </span>
                       <span className="block break-words text-xs text-muted">
                         {row.thread.external_key} ·{" "}

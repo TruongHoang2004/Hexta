@@ -65,23 +65,23 @@ def test_gemini_model_configuration(monkeypatch):
     assert model.google_api_key.get_secret_value() == "mock-gemini-key"
 
 
-def test_gemini_without_credentials_falls_back_to_fake(monkeypatch):
-    """Verify Issue 1: Missing Gemini credentials fallback to FakeStructuredChatModel, preventing ValidationError."""
+def test_gemini_without_credentials_fails_closed(monkeypatch):
+    """Missing Gemini credentials must fail instead of silently serving the fake model."""
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.delenv("AI_API_KEY", raising=False)
 
-    model = ModelAdapter.get_model(provider="gemini")
-    assert isinstance(model, FakeStructuredChatModel)
+    with pytest.raises(RuntimeError, match="requires a server-side API key"):
+        ModelAdapter.get_model(provider="gemini")
 
 
-def test_anthropic_model_configuration_and_fallback(monkeypatch):
-    """Verify Issue 1: Anthropic provider is supported and falls back safely when key is absent."""
-    # When no key is provided, falls back to FakeStructuredChatModel
+def test_anthropic_model_configuration_and_missing_key(monkeypatch):
+    """Anthropic provider is supported and fails closed when key is absent."""
+    # When no key is provided, model creation fails
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("AI_API_KEY", raising=False)
-    model = ModelAdapter.get_model(provider="anthropic")
-    assert isinstance(model, FakeStructuredChatModel)
+    with pytest.raises(RuntimeError, match="requires a server-side API key"):
+        ModelAdapter.get_model(provider="anthropic")
 
     # When key is configured, initializes ChatAnthropic
     monkeypatch.setenv("ANTHROPIC_API_KEY", "mock-anthropic-key")
@@ -91,8 +91,8 @@ def test_anthropic_model_configuration_and_fallback(monkeypatch):
     assert anthropic_model.anthropic_api_key.get_secret_value() == "mock-anthropic-key"
 
 
-def test_create_structured_consultant_runnable_fallback_on_unsupported():
-    """Verify Issue 1: create_structured_consultant_runnable never crashes the caller."""
-    runnable = ModelAdapter.create_structured_consultant_runnable(provider="unsupported_xyz")
-    assert runnable is not None
+def test_create_structured_consultant_runnable_rejects_unsupported():
+    """An unsupported provider is a configuration error, not a fake-model fallback."""
+    with pytest.raises(ValueError, match="Unsupported AI_PROVIDER"):
+        ModelAdapter.create_structured_consultant_runnable(provider="unsupported_xyz")
 

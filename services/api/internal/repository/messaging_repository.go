@@ -74,7 +74,7 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 	case "mine":
 		q = q.Where("t.assignee_id = ?", actor)
 	case "needs_human":
-		q = q.Where("t.needs_human = TRUE")
+		q = q.Where("(t.needs_human = TRUE OR (t.control = ? AND t.assignee_id IS NULL))", "sales")
 	}
 	if input.Cursor != "" {
 		q = q.Where("th.id < ?", input.Cursor)

@@ -29,3 +29,7 @@ Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/
 
 Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) open/in-review; live Python consult endpoint, browser acceptance and merge remain open.
 Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md), [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; isolated HTTP → PostgreSQL → Kafka → API member inbox verified. Live Meta, outbound/AI and merge remain open.
+
+Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
+
+Real consultation: [2026-11-11 runtime connection](EPIC-002-ai-runtime/sessions/2026-11-11_real-consultant.md), local/unmerged; API key/live inference acceptance pending.

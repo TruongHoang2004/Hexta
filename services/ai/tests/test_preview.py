@@ -57,13 +57,13 @@ def test_unsupported_provider_is_rejected(monkeypatch):
         create_app(TOKEN)
 
 
-def test_missing_real_credential_falls_back_offline(monkeypatch):
+def test_missing_real_credential_fails_startup(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("AI_API_KEY", "")
     monkeypatch.setenv("AI_GRPC_ENABLED", "false")
-    with TestClient(create_app(TOKEN)) as client:
-        assert client.get("/health/ready").json()["provider"] == "fake"
+    with pytest.raises(RuntimeError, match="requires a server-side API key"):
+        create_app(TOKEN)
 
 
 def test_weak_internal_token_is_rejected(monkeypatch):

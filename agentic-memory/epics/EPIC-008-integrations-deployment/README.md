@@ -16,7 +16,7 @@ Verify live integration capabilities and deploy only after local representative 
 
 - Owner superseded Pancake on 2026-11-03: direct Facebook through a separate Go I/O service, durable inbox/outbox and BasePlugin/platform plugins. Owner has a Page and Meta app; actual access remains unverified.
 - Demo eventually runs on VPS; no host capacity/domain chosen. Measure runnable components before sizing.
-- Only verify documented webhook authentication/send/reconciliation capabilities; do not invent signatures or delivery guarantees.
+- Verify provider webhook authentication/fetch/send capabilities; do not invent delivery guarantees. The first connector design was rejected; the Omni Bridge-based replacement remains a proposal.
 
 ## Acceptance checklist
 

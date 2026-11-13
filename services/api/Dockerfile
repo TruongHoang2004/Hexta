@@ -11,6 +11,7 @@ RUN apk add --no-cache git
 COPY go.work go.work.sum* ./
 COPY packages/shared/go.mod packages/shared/go.sum* ./packages/shared/
 COPY services/api/go.mod services/api/go.sum* ./services/api/
+COPY services/connector/go.mod services/connector/go.sum* ./services/connector/
 COPY test/go.mod test/go.sum* ./test/
 
 # Download dependencies
