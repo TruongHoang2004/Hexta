@@ -40,6 +40,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Sessions
 
 - [2026-10-18_event-backbone-draft](sessions/2026-10-18_event-backbone-draft.md) — in-review; completed: false.
+- [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md) — [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: order.confirmed transactional outbox and relay to `hexta.orders.events.v1`; producer only, no consumer.
 
 ## Remaining work and next handoff
 

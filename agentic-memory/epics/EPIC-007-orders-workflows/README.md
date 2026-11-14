@@ -30,6 +30,8 @@ updated: 2026-11-03
 
 ## Evidence and next handoff
 
+- [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md), [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: tenant-membership middleware, composite tenant FKs for order items/variants and an order.confirmed outbox event in the confirmation transaction.
+
 - [Shopping consultant integration](../EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md): local member-only Storefront and checkout reuse current draft/assigned-sale confirmation gates. Automated Go/web checks pass; live Python and browser acceptance remain open. No sales domain or parent completion claim.
 
 - [Nine-unit plan](../../plans/2026-10-23_demo-work-units_plan.md) and [primary execution session](sessions/2026-10-23_work-unit-execution.md) own exact acceptance, U01–U09 links, automated results, bounded browser checks and approval limits. Read only the needed unit record, not all nine.
