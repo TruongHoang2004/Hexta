@@ -30,6 +30,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/common/log"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/bootstrap"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/constant"
 	"github.com/shopspring/decimal"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -40,7 +41,7 @@ const (
 )
 
 func init() {
-	errors.Init("API", nil)
+	errors.Init(constant.ServiceName, constant.TraceIdName)
 	decimal.MarshalJSONWithoutQuotes = true
 }
 
