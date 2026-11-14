@@ -21,6 +21,7 @@ func RegisterRoutes(
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
+	tenantMiddleware *middleware.TenantMiddleware,
 ) {
 	// Root level public routes
 	params.Public.GET("/ping", func(c *gin.Context) {
@@ -70,6 +71,7 @@ func RegisterRoutes(
 			return
 		}
 	})
+	resources.Use(tenantMiddleware.RequireTenantMember())
 	resources.POST("/orders", salesController.CreateOrder)
 	resources.GET("/orders", salesController.ListOrders)
 	resources.GET("/orders/:id", salesController.GetOrder)

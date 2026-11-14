@@ -13,6 +13,7 @@ type mockTenantRepo struct {
 	slugs      map[string]*model.Tenant
 	members    map[string]*model.TenantMember
 	memberList map[string][]*model.TenantMember
+	cached     map[string]*model.Tenant
 }
 
 func newMockTenantRepo() *mockTenantRepo {
@@ -21,6 +22,7 @@ func newMockTenantRepo() *mockTenantRepo {
 		slugs:      make(map[string]*model.Tenant),
 		members:    make(map[string]*model.TenantMember),
 		memberList: make(map[string][]*model.TenantMember),
+		cached:     make(map[string]*model.Tenant),
 	}
 }
 
@@ -39,7 +41,18 @@ func (m *mockTenantRepo) CreateTenant(ctx context.Context, tenant *model.Tenant,
 	return tenant, nil
 }
 
+// GetTenantByID may serve a stale cached copy, like the cache wrapper.
 func (m *mockTenantRepo) GetTenantByID(ctx context.Context, id string) (*model.Tenant, *errors.Error) {
+	if t, ok := m.cached[id]; ok {
+		return t, nil
+	}
+	if t, ok := m.tenants[id]; ok {
+		return t, nil
+	}
+	return nil, nil
+}
+
+func (m *mockTenantRepo) GetCurrentTenant(ctx context.Context, id string) (*model.Tenant, *errors.Error) {
 	if t, ok := m.tenants[id]; ok {
 		return t, nil
 	}
@@ -180,5 +193,35 @@ func TestTenantService_InviteMember(t *testing.T) {
 	_, err = svc.InviteMember(ctx, "owner-user", tenant.ID, "invited-user", model.RoleMember)
 	if err == nil {
 		t.Fatal("expected conflict error on duplicate invite, got nil")
+	}
+}
+
+func TestTenantService_AuthorizeMember(t *testing.T) {
+	repo := newMockTenantRepo()
+	svc := NewTenantService(repo)
+	ctx := context.Background()
+	repo.tenants["t1"] = &model.Tenant{ID: "t1", Status: model.TenantStatusActive}
+	repo.members["t1:member"] = &model.TenantMember{TenantID: "t1", UserID: "member"}
+
+	tenant, err := svc.AuthorizeMember(ctx, "member", "t1")
+	if err != nil || tenant == nil || tenant.ID != "t1" {
+		t.Fatalf("expected active member to be authorized, got %v, %v", tenant, err)
+	}
+
+	for name, userID := range map[string]string{"non-member": "stranger", "unknown tenant": "member"} {
+		tenantID := "t1"
+		if name == "unknown tenant" {
+			tenantID = "missing"
+		}
+		if _, err := svc.AuthorizeMember(ctx, userID, tenantID); err == nil || err.GetHttpStatus() != 403 {
+			t.Fatalf("%s: expected 403, got %v", name, err)
+		}
+	}
+
+	// A suspended workspace is rejected even while a cached copy still says active.
+	repo.cached["t1"] = &model.Tenant{ID: "t1", Status: model.TenantStatusActive}
+	repo.tenants["t1"] = &model.Tenant{ID: "t1", Status: model.TenantStatusSuspended}
+	if _, err := svc.AuthorizeMember(ctx, "member", "t1"); err == nil || err.GetHttpStatus() != 403 {
+		t.Fatalf("expected suspended workspace to be forbidden, got %v", err)
 	}
 }

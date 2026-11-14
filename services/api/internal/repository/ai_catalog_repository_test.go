@@ -25,9 +25,12 @@ func TestAICatalogTenantFiltersAndLimits(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&model.Product{ID: "archived", TenantID: "alpha", Name: "Catalog Item", Status: model.ProductStatusArchived}).Error)
 	require.NoError(t, db.Create(&model.Product{ID: "variants", TenantID: "alpha", Name: "Unique", Status: model.ProductStatusActive}).Error)
-	// The legacy schema permits a mismatched variant tenant. Preload must still scope it.
-	for _, tenant := range []string{"alpha", "beta"} {
-		variant := model.ProductVariant{ID: tenant + "-variant", TenantID: tenant, ProductID: "variants", SKU: "SKU", VariantName: "Unit", Price: decimal.NewFromInt(25)}
+	require.NoError(t, db.Create(&model.Product{ID: "beta-variants", TenantID: "beta", Name: "Unique", Status: model.ProductStatusActive}).Error)
+	// The composite foreign key rejects a variant whose tenant differs from its product's tenant.
+	mismatched := model.ProductVariant{ID: "mismatched-variant", TenantID: "beta", ProductID: "variants", SKU: "OTHER", VariantName: "Unit", Price: decimal.NewFromInt(25)}
+	require.Error(t, db.Create(&mismatched).Error)
+	for tenant, product := range map[string]string{"alpha": "variants", "beta": "beta-variants"} {
+		variant := model.ProductVariant{ID: tenant + "-variant", TenantID: tenant, ProductID: product, SKU: "SKU", VariantName: "Unit", Price: decimal.NewFromInt(25)}
 		require.NoError(t, db.Create(&variant).Error)
 	}
 	require.NoError(t, db.Create(&model.InventoryItem{ID: "inventory", TenantID: "alpha", VariantID: "alpha-variant", AvailableQty: 8, OnHandQty: 10, ReservedQty: 2}).Error)

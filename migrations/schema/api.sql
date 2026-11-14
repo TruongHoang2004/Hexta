@@ -215,7 +215,7 @@ CREATE TABLE "order_items" (
   "updated_at" timestamptz NULL,
   "price_provided" boolean NOT NULL DEFAULT false,
   PRIMARY KEY ("id"),
-  CONSTRAINT "fk_orders_items" FOREIGN KEY ("order_id") REFERENCES "orders" ("id") ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT "fk_orders_items_tenant" FOREIGN KEY ("tenant_id", "order_id") REFERENCES "orders" ("tenant_id", "id") ON UPDATE CASCADE ON DELETE CASCADE
 );
 -- Create index "idx_order_items_order_id" to table: "order_items"
 CREATE INDEX "idx_order_items_order_id" ON "order_items" ("order_id");
@@ -246,6 +246,8 @@ CREATE INDEX "idx_products_name" ON "products" ("name");
 CREATE INDEX "idx_products_status" ON "products" ("status");
 -- Create index "idx_products_tenant_id" to table: "products"
 CREATE INDEX "idx_products_tenant_id" ON "products" ("tenant_id");
+-- Create index "idx_products_tenant_identity" to table: "products"
+CREATE UNIQUE INDEX "idx_products_tenant_identity" ON "products" ("tenant_id", "id");
 -- Create "product_variants" table
 CREATE TABLE "product_variants" (
   "id" character varying(36) NOT NULL,
@@ -261,7 +263,7 @@ CREATE TABLE "product_variants" (
   "deleted_at" timestamptz NULL,
   "price_provided" boolean NOT NULL DEFAULT false,
   PRIMARY KEY ("id"),
-  CONSTRAINT "fk_products_variants" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT "fk_products_variants_tenant" FOREIGN KEY ("tenant_id", "product_id") REFERENCES "products" ("tenant_id", "id") ON UPDATE CASCADE ON DELETE CASCADE
 );
 -- Create index "idx_product_variants_barcode" to table: "product_variants"
 CREATE INDEX "idx_product_variants_barcode" ON "product_variants" ("barcode");
