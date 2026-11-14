@@ -136,7 +136,11 @@ async def start_server(token: str, address: str, service: AIService | None = Non
         from hexta_ai.durable import DurableAIService
         from hexta_ai.store import RunStore
         service = DurableAIService(token, RunStore(dsn), runner=runner, provider=provider)
-        await service.start()
+        try:
+            await service.start()
+        except BaseException:
+            await service.close()
+            raise
     server = grpc.aio.server(options=[("grpc.max_receive_message_length", 1024 * 1024)])
     rpc.add_AIServiceServicer_to_server(service, server)
     try:

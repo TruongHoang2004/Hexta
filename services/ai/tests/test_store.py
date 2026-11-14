@@ -14,6 +14,12 @@ DSN = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DSN, reason="AI_TEST_DATABASE_URL is required")
 
 
+async def once(method, *args):
+    """Call through a separate pool, like another process, and release its connections."""
+    async with RunStore(DSN) as other:
+        return await getattr(other, method)(*args)
+
+
 def test_durable_submission_recovery_fencing_and_cancellation():
     async def scenario():
         store = RunStore(DSN)
@@ -21,7 +27,7 @@ def test_durable_submission_recovery_fencing_and_cancellation():
         def request(run_id="run1", message="hello"):
             return pb.StartRunRequest(tenant_id=tenant, run_id=run_id, turn_id="turn1", message=message)
         async def expire(row, attempts=None):
-            async with await store.connect() as db:
+            async with store.connect() as db:
                 await db.execute("""UPDATE ai_runtime.runs SET lease_until=clock_timestamp()-interval '1 second'
                     WHERE tenant_id=%s AND run_id=%s""", (tenant, row["run_id"]))
                 if attempts:
@@ -36,19 +42,19 @@ def test_durable_submission_recovery_fencing_and_cancellation():
                 await store.submit(request(message="changed"))
             assert await store.get("other-tenant", "run1") is None
             # This suite is run against an otherwise idle test queue.
-            claimed = await asyncio.gather(store.claim(), RunStore(DSN).claim())
+            claimed = await asyncio.gather(store.claim(), once("claim"))
             rows = [r for r in claimed if r and r["tenant_id"] == tenant]
             assert len(rows) == 1
             first = rows[0]
             await expire(first)
-            recovered = await RunStore(DSN).claim()
+            recovered = await once("claim")
             assert recovered["lease_token"] != first["lease_token"]
             result = store.decode(recovered)
             result.status = pb.RUN_STATUS_SUCCEEDED
             result.text = "candidate"
             assert not await store.finish(first, result)
             assert await store.finish(recovered, result)
-            assert (await RunStore(DSN).get(tenant, "run1")).text == "candidate"
+            assert (await once("get", tenant, "run1")).text == "candidate"
             assert (await store.cancel(tenant, "run1")).status == pb.RUN_STATUS_SUCCEEDED
             assert (await store.submit(request())).status == pb.RUN_STATUS_SUCCEEDED
 
@@ -57,7 +63,7 @@ def test_durable_submission_recovery_fencing_and_cancellation():
             assert (await store.cancel(tenant, "cancel")).status == pb.RUN_STATUS_CANCELLED
             assert not await store.renew(row)
             assert not await store.finish(row, result)
-            assert (await RunStore(DSN).get(tenant, "cancel")).status == pb.RUN_STATUS_CANCELLED
+            assert (await once("get", tenant, "cancel")).status == pb.RUN_STATUS_CANCELLED
 
             await store.submit(request("exhausted"))
             row = await store.claim()
@@ -78,8 +84,9 @@ def test_durable_submission_recovery_fencing_and_cancellation():
             finally:
                 await service.close()
         finally:
-            async with await store.connect() as db:
+            async with store.connect() as db:
                 await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
+            await store.close()
     asyncio.run(scenario())
 
 
@@ -103,7 +110,7 @@ def test_paid_marker_is_committed_fenced_and_retained_on_release():
             assert await store.begin_paid_execution(row)
             assert not await store.begin_paid_execution(row)
             # Another connection sees the marker before a remote call could start.
-            assert (await RunStore(DSN).get(tenant, "paid")).error_code == "LLM_CALL_STARTED"
+            assert (await once("get", tenant, "paid")).error_code == "LLM_CALL_STARTED"
             await store.release(row)
             recovered = await store.claim()
             assert recovered["error_code"] == "LLM_CALL_STARTED"
@@ -116,8 +123,9 @@ def test_paid_marker_is_committed_fenced_and_retained_on_release():
             assert saved.status == pb.RUN_STATUS_FAILED and saved.error_code == "LLM_RECOVERY_UNCERTAIN"
             assert (await store.submit(request)).status == pb.RUN_STATUS_FAILED
         finally:
-            async with await store.connect() as db:
+            async with store.connect() as db:
                 await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
+            await store.close()
     asyncio.run(scenario())
 
 
@@ -175,7 +183,7 @@ def test_durable_grpc_persists_provider_metadata_and_digest_covers_context():
                 assert error.value.code() == grpc.StatusCode.ALREADY_EXISTS
         finally:
             await server.stop(0)
-            await service.close()
-            async with await store.connect() as db:
+            await service.close()  # Also closes the store it owns.
+            async with RunStore(DSN) as cleanup, cleanup.connect() as db:
                 await db.execute("DELETE FROM ai_runtime.runs WHERE tenant_id=%s", (tenant,))
     asyncio.run(scenario())
