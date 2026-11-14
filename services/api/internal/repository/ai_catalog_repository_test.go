@@ -50,6 +50,20 @@ func TestAICatalogTenantFiltersAndLimits(t *testing.T) {
 	products, failure = repo.SearchProducts(ctx, "alpha", "category")
 	require.Nil(t, failure)
 	require.Len(t, products, 10)
+	require.NoError(t, db.Create(&model.Product{ID: "described", TenantID: "alpha", Name: "Áo thun", Description: "Cotton tee for summer", Status: model.ProductStatusActive}).Error)
+	for query, want := range map[string]int{
+		"Cata":                10, // prefixes of a word still match
+		"catalog ITEM":        10, // every word must match, case-insensitively
+		"áo":                  1,  // Vietnamese diacritics are kept
+		"summer cotton":       1,  // description is searchable
+		"catalog & !item | (": 10, // operators are stripped, not interpreted
+		"Catalog Missing":     0,
+		"!!!":                 0,
+	} {
+		products, failure = repo.SearchProducts(ctx, "alpha", query)
+		require.Nil(t, failure, query)
+		require.Len(t, products, want, query)
+	}
 	customers, failure := repo.LookupCustomers(ctx, "alpha", "", "Customer")
 	require.Nil(t, failure)
 	require.Len(t, customers, 5)
@@ -89,4 +103,10 @@ func TestAICatalogTenantFiltersAndLimits(t *testing.T) {
 	_, failure = repo.LookupCustomers(cancelled, "alpha", "", "")
 	require.NotNil(t, failure)
 	require.Equal(t, 500, failure.GetHttpStatus())
+}
+
+func TestProductSearchTerms(t *testing.T) {
+	require.Equal(t, "áo:* & thun:*", productSearchTerms("  Áo-THUN "))
+	require.Equal(t, "a:* & b:* & c:*", productSearchTerms("a:* & !b | (c)"))
+	require.Equal(t, "", productSearchTerms("&|!:*()'"))
 }

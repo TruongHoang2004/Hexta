@@ -234,6 +234,7 @@ CREATE TABLE "products" (
   "created_at" timestamptz NULL,
   "updated_at" timestamptz NULL,
   "deleted_at" timestamptz NULL,
+  "search_vector" tsvector NULL GENERATED ALWAYS AS (to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(category, '') || ' ' || coalesce(description, ''))) STORED,
   PRIMARY KEY ("id")
 );
 -- Create index "idx_products_category" to table: "products"
@@ -242,6 +243,8 @@ CREATE INDEX "idx_products_category" ON "products" ("category");
 CREATE INDEX "idx_products_deleted_at" ON "products" ("deleted_at");
 -- Create index "idx_products_name" to table: "products"
 CREATE INDEX "idx_products_name" ON "products" ("name");
+-- Create index "idx_products_search_vector" to table: "products"
+CREATE INDEX "idx_products_search_vector" ON "products" USING gin ("search_vector");
 -- Create index "idx_products_status" to table: "products"
 CREATE INDEX "idx_products_status" ON "products" ("status");
 -- Create index "idx_products_tenant_id" to table: "products"

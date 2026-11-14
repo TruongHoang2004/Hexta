@@ -46,8 +46,10 @@ services:
     volumes:
       - ./volumes/redis:/data
 
+  # Optional: no Hexta service uses Elasticsearch or Qdrant yet. Start with --profile search-engine.
   elasticsearch:
     image: elasticsearch:8.17.1
+    profiles: ["search-engine"]
     container_name: hexta_elasticsearch
     restart: always
     logging:
@@ -98,6 +100,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.18.3
+    profiles: ["search-engine"]
     container_name: hexta_qdrant
     restart: always
     logging:
