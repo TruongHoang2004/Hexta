@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -141,5 +142,131 @@ func TestSyncCheckpointAndCancellation(t *testing.T) {
 	s.Pool.Exec(ctx, "UPDATE connector.sync_jobs SET state='cancelled',fence=fence+1 WHERE id=$1", id)
 	if s.CommitPage(ctx, j, page) == nil {
 		t.Fatal("cancelled checkpoint")
+	}
+}
+
+func fixtureEvent(c service.Connection, now time.Time) plugin.Item {
+	e := ingress.Event{Platform: "facebook", AccountID: c.AccountID, ConversationKey: "customer", MessageID: uuid.NewString(), Sender: "customer", Recipient: c.AccountID, Direction: "inbound", Type: "message", Text: "fixture", SourceAt: now, ReceivedAt: now, Acquisition: "webhook", Purpose: "live"}
+	e.SourceIdentity = "message:" + e.MessageID
+	return plugin.Item{AccountID: c.AccountID, Event: e}
+}
+
+func TestAcceptDoesNotSerializeUnrelatedReceipts(t *testing.T) {
+	s, blocked := fixtureStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	other := service.Connection{ID: uuid.NewString(), TenantID: uuid.NewString(), Version: 1, Platform: "facebook", AccountID: uuid.NewString(), AppID: blocked.AppID, Enabled: true}
+	if s.PutConnection(ctx, other) != nil {
+		t.Fatal("provision")
+	}
+	// Hold one connection row so an in-flight Accept stops inside its transaction.
+	lock, err := s.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Rollback(ctx)
+	if _, err = lock.Exec(ctx, "SELECT 1 FROM connector.connections WHERE id=$1 FOR UPDATE", blocked.ID); err != nil {
+		t.Fatal(err)
+	}
+	inflight := make(chan error, 1)
+	go func() {
+		inflight <- s.Accept(ctx, blocked.AppID, blocked.Platform, uuid.NewString(), []plugin.Item{fixtureEvent(blocked, now)}, now)
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var waiting bool
+		if err = s.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%connector.connections%FOR SHARE%')").Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("in-flight accept never reached the connection lookup")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// Another receipt for a different Page must commit while the first transaction is still open.
+	unrelated, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if err = s.Accept(unrelated, other.AppID, other.Platform, uuid.NewString(), []plugin.Item{fixtureEvent(other, now)}, now); err != nil {
+		t.Fatal("unrelated receipt was serialized behind an in-flight accept:", err)
+	}
+	if err = lock.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-inflight; err != nil {
+		t.Fatal("in-flight accept", err)
+	}
+}
+
+func TestConcurrentAcceptDeduplicatesWithoutErrors(t *testing.T) {
+	s, c := fixtureStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	first, second := fixtureEvent(c, now), fixtureEvent(c, now)
+	receipt := uuid.NewString()
+	run := func(n int, accept func(i int) error) {
+		t.Helper()
+		var wg sync.WaitGroup
+		errs := make(chan error, n)
+		for i := 0; i < n; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				errs <- accept(i)
+			}(i)
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatal("concurrent accept", err)
+			}
+		}
+	}
+	// Provider retries of one receipt race on the receipt row instead of failing on its primary key.
+	run(8, func(int) error {
+		return s.Accept(ctx, c.AppID, c.Platform, receipt, []plugin.Item{first}, now)
+	})
+	// Different receipts with the same messages in opposite order neither deadlock nor duplicate events.
+	run(8, func(i int) error {
+		items := []plugin.Item{first, second}
+		if i%2 == 1 {
+			items = []plugin.Item{second, first}
+		}
+		return s.Accept(ctx, c.AppID, c.Platform, uuid.NewString(), items, now)
+	})
+	for _, item := range []plugin.Item{first, second} {
+		var count int
+		if err := s.Pool.QueryRow(ctx, "SELECT count(*) FROM connector.events WHERE event_key=$1", service.Envelope(item.Event, c).Identity()).Scan(&count); err != nil || count != 1 {
+			t.Fatal("event identity stored", count, err)
+		}
+	}
+}
+
+func TestAcceptRejectsBatchBeyondPendingCapacity(t *testing.T) {
+	s, c := fixtureStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	var backlog int
+	if err := s.Pool.QueryRow(ctx, "SELECT count(*) FROM connector.events WHERE state IN ('pending','leased')").Scan(&backlog); err != nil {
+		t.Fatal(err)
+	}
+	previous := maxPendingEvents
+	maxPendingEvents = backlog + 1
+	t.Cleanup(func() { maxPendingEvents = previous })
+
+	receipt := uuid.NewString()
+	if s.Accept(ctx, c.AppID, c.Platform, receipt, []plugin.Item{fixtureEvent(c, now), fixtureEvent(c, now)}, now) == nil {
+		t.Fatal("batch above capacity accepted")
+	}
+	var claimed bool
+	if err := s.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM connector.receipts WHERE id=$1)", receipt).Scan(&claimed); err != nil || claimed {
+		t.Fatal("rejected receipt was retained", claimed, err)
+	}
+	// The same receipt is admitted once it fits, so provider retries succeed after the backlog drains.
+	if err := s.Accept(ctx, c.AppID, c.Platform, receipt, []plugin.Item{fixtureEvent(c, now)}, now); err != nil {
+		t.Fatal("batch at capacity", err)
 	}
 }
