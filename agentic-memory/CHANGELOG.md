@@ -1,5 +1,17 @@
 # Consolidated Project Changelog
 
+## 2026-11-14 — Audit hardening (PR #68, in review)
+
+- Sessions stay DB-authoritative; auth repositories bound by interface; unused session cache binding removed (audit R6).
+- `trace_id` restored in API error responses; Tracer middleware registered.
+- Connection pools for GORM and the AI run store (`psycopg-pool`).
+- Connector webhook acceptance no longer serializes on a global advisory lock; admission limit is approximate.
+- Tenant-membership middleware on tenant resource routes; composite tenant FKs for order items and product variants.
+- Elasticsearch/Qdrant moved to an optional Compose profile; indexed product full-text search.
+- Legacy Gemini agent, generation types and dead draft endpoint removed.
+- Transactional outbox for `order.confirmed` with a fenced Kafka relay.
+- Details and verification: [session](epics/EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md).
+
 ## 2026-11-03 — Production-grade AI Shopping Consultant with LangGraph and Multi-Model Adapter
 
 - Built standardized multi-model adapter ([`hexta_ai/models/adapter.py`](file:///Users/truonghoang/orca/workspaces/Hexta/ai/services/ai/hexta_ai/models/adapter.py)) using LangChain supporting `fake`, `openai`, `google` (Gemini), `ollama`, and custom models with strict Pydantic structured output governance (`StructuredConsultantDecision`).

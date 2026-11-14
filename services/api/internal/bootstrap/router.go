@@ -16,25 +16,28 @@ import (
 )
 
 var RouterModule = fx.Options(
-	fx.Provide(func(logger *zap.SugaredLogger, cfg *config.Config) *gin.Engine {
-		r := gin.Default()
-
-		r.Use(cors.New(browserCORSConfig(cfg)))
-		r.Use(middleware.Recovery())
-		r.Use(otelgin.Middleware(constant.ServiceName))
-		r.Use(telemetry.GinMiddleware(logger))
-
-		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-
-		return r
-
-	}),
+	fx.Provide(newRouter),
 
 	fx.Provide(fx.Annotate(router.CreatePublicRouterGroup, fx.ResultTags(`name:"public"`))),
 	fx.Provide(fx.Annotate(router.CreatePrivateRouterGroup, fx.ResultTags(`name:"private"`))),
 
 	fx.Invoke(router.RegisterRoutes),
 )
+
+func newRouter(logger *zap.SugaredLogger, cfg *config.Config) *gin.Engine {
+	r := gin.Default()
+
+	r.Use(cors.New(browserCORSConfig(cfg)))
+	r.Use(middleware.Recovery())
+	r.Use(otelgin.Middleware(constant.ServiceName))
+	// Tracer must follow otelgin so error responses reuse the OpenTelemetry trace ID.
+	r.Use(middleware.Tracer())
+	r.Use(telemetry.GinMiddleware(logger))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	return r
+}
 
 type Params struct {
 	fx.In

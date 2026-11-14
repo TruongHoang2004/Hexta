@@ -32,4 +32,6 @@ Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integratio
 
 Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
 
+Audit hardening: [2026-11-14 session](EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md), [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) OPEN/in-review; eight fixes with isolated DB/Kafka verification, merge open.
+
 Real consultation: [2026-11-11 runtime connection](EPIC-002-ai-runtime/sessions/2026-11-11_real-consultant.md), local/unmerged; API key/live inference acceptance pending.

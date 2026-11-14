@@ -133,3 +133,5 @@ class DurableAIService(AIService):
             self.worker.cancel()
             with suppress(asyncio.CancelledError):
                 await self.worker
+        # Close storage last: a cancelled worker releases its lease through the pool.
+        await self.store.close()

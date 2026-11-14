@@ -47,6 +47,10 @@ type Config struct {
 		MaxTokens     int     `yaml:"max_tokens" mapstructure:"max_tokens"`
 		Temperature   float64 `yaml:"temperature" mapstructure:"temperature"`
 	} `yaml:"ai" mapstructure:"ai"`
+	Kafka struct {
+		// Brokers is a comma-separated list; empty disables the outbox relay and events stay pending.
+		Brokers string `yaml:"brokers" mapstructure:"brokers"`
+	} `yaml:"kafka" mapstructure:"kafka"`
 }
 
 var AppConfig *Config

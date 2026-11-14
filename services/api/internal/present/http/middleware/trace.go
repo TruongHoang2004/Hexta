@@ -25,6 +25,9 @@ func Tracer() gin.HandlerFunc {
 			rand.Read(traceIdByte)
 			traceId = hex.EncodeToString(traceIdByte[:])
 		}
+		// Gin contexts only fall back to the request context when ContextWithFallback is enabled,
+		// so store the trace ID on both for errors built from either context.
+		c.Set(constant.TraceIdName, traceId)
 		traceContext := context.WithValue(c.Request.Context(), constant.TraceIdName, traceId)
 		ctxMetaData := metadata.AppendToOutgoingContext(traceContext, []string{constant.TraceIdName, traceId}...)
 		c.Request = c.Request.WithContext(ctxMetaData)

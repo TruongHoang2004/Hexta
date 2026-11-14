@@ -8,5 +8,6 @@ import (
 func BuildMiddleware() fx.Option {
 	return fx.Provide(
 		middleware.NewAuthMiddleware,
+		middleware.NewTenantMiddleware,
 	)
 }

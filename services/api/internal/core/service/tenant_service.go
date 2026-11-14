@@ -13,6 +13,7 @@ import (
 type ITenantService interface {
 	CreateTenant(ctx context.Context, userID, name, slug, plan string) (*model.Tenant, *errors.Error)
 	GetTenant(ctx context.Context, userID, tenantID string) (*model.Tenant, *errors.Error)
+	AuthorizeMember(ctx context.Context, userID, tenantID string) (*model.Tenant, *errors.Error)
 	GetUserTenants(ctx context.Context, userID string) ([]*model.Tenant, *errors.Error)
 	ListMembers(ctx context.Context, userID, tenantID string) ([]*model.TenantMember, *errors.Error)
 	InviteMember(ctx context.Context, currentUserID, tenantID, targetUserID, role string) (*model.TenantMember, *errors.Error)
@@ -83,6 +84,25 @@ func (s *TenantService) GetTenant(ctx context.Context, userID, tenantID string) 
 		return nil, errors.ErrForbidden(ctx).SetDetail("user does not belong to this workspace")
 	}
 
+	return tenant, nil
+}
+
+// AuthorizeMember requires current membership in an active workspace, read from the database.
+func (s *TenantService) AuthorizeMember(ctx context.Context, userID, tenantID string) (*model.Tenant, *errors.Error) {
+	member, err := s.tenantRepo.GetTenantMember(ctx, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, errors.ErrForbidden(ctx).SetDetail("workspace membership required")
+	}
+	tenant, err := s.tenantRepo.GetCurrentTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if tenant == nil || tenant.Status != model.TenantStatusActive {
+		return nil, errors.ErrForbidden(ctx).SetDetail("workspace is not active")
+	}
 	return tenant, nil
 }
 

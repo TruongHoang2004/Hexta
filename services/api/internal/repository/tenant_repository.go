@@ -12,6 +12,8 @@ import (
 type ITenantRepository interface {
 	CreateTenant(ctx context.Context, tenant *model.Tenant, ownerID string) (*model.Tenant, *errors.Error)
 	GetTenantByID(ctx context.Context, id string) (*model.Tenant, *errors.Error)
+	// GetCurrentTenant always reads the database; authorization must not use cached tenant status.
+	GetCurrentTenant(ctx context.Context, id string) (*model.Tenant, *errors.Error)
 	GetTenantBySlug(ctx context.Context, slug string) (*model.Tenant, *errors.Error)
 	UpdateTenant(ctx context.Context, tenant *model.Tenant) (*model.Tenant, *errors.Error)
 	GetUserTenants(ctx context.Context, userID string) ([]*model.Tenant, *errors.Error)
@@ -63,6 +65,10 @@ func (r *TenantRepository) GetTenantByID(ctx context.Context, id string) (*model
 		return nil, r.returnError(ctx, err)
 	}
 	return &tenant, nil
+}
+
+func (r *TenantRepository) GetCurrentTenant(ctx context.Context, id string) (*model.Tenant, *errors.Error) {
+	return r.GetTenantByID(ctx, id)
 }
 
 func (r *TenantRepository) GetTenantBySlug(ctx context.Context, slug string) (*model.Tenant, *errors.Error) {

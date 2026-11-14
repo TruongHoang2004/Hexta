@@ -43,10 +43,6 @@ func (s *aiControllerServiceStub) Converse(ctx context.Context, tenant, user str
 	return nil
 }
 
-func (s *aiControllerServiceStub) GetDraft(context.Context, string, string) (*types.AIOrderDraft, *apperrors.Error) {
-	return &types.AIOrderDraft{DraftID: "draft", TenantID: "tenant", TotalAmount: decimal.NewFromInt(25)}, nil
-}
-
 func TestAIControllerMapsDomainConversationToExistingSSEContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	stub := &aiControllerServiceStub{}
@@ -83,25 +79,6 @@ func TestAIControllerMapsDomainConversationToExistingSSEContract(t *testing.T) {
 	require.Equal(t, "25", event.Draft.Total)
 	require.Equal(t, "12.5", event.Draft.Items[0].Price)
 	require.Equal(t, 2, event.Draft.Items[0].Quantity)
-}
-
-func TestAIControllerMapsDraftToStandardEnvelope(t *testing.T) {
-	ctrl := NewAIController(validator.New(), &aiControllerServiceStub{})
-	router := gin.New()
-	router.GET("/drafts/:id", ctrl.GetDraft)
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/drafts/draft?tenant_id=tenant", nil)
-	router.ServeHTTP(recorder, request)
-	require.Equal(t, http.StatusOK, recorder.Code)
-	var body struct {
-		Data struct {
-			DraftID string `json:"draft_id"`
-			Total   string `json:"total_amount"`
-		} `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-	require.Equal(t, "draft", body.Data.DraftID)
-	require.Equal(t, "25", body.Data.Total)
 }
 
 func TestConsultantNamedEventsAndValidation(t *testing.T) {

@@ -24,6 +24,7 @@ Owner-approved [2026-11-03 instruction migration](sessions/2026-11-03_ai-instruc
 ## Current evidence and open work
 
 - [2026-10-28 architecture audit](../../reviews/2026-10-28_architecture-compliance_review.md): six OPEN findings covering raw DB errors, auth query context, dormant legacy order atomicity, core/ORM coupling, persistence-derived DTOs and session-cache wiring. The audit records bounded fresh test evidence; no production certification.
+- [2026-11-14 audit hardening](sessions/2026-11-14_audit-hardening.md), [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) OPEN/in-review: R6 addressed by keeping sessions DB-authoritative, plus tracing, pooling, connector lock, tenant isolation, search, legacy AI removal and order outbox. R6 stays open until merge.
 - PRs #52/#53 (system/AI/docs), #54 (tenant/sales) and #55 (thesis) verified merged into main; #57 (workflow/Atlas) and #58 (compliance) also verified merged on 2026-10-28. Old pending-merge text in historical ledgers describes older snapshots. No new CI or runtime test result in this cleanup.
 - [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) remains OPEN/draft. EPIC-007 owns work-unit/overview acceptance, manual gaps and delivery evidence; do not duplicate its implementation log here.
 

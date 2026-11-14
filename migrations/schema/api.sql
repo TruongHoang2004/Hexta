@@ -215,7 +215,7 @@ CREATE TABLE "order_items" (
   "updated_at" timestamptz NULL,
   "price_provided" boolean NOT NULL DEFAULT false,
   PRIMARY KEY ("id"),
-  CONSTRAINT "fk_orders_items" FOREIGN KEY ("order_id") REFERENCES "orders" ("id") ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT "fk_orders_items_tenant" FOREIGN KEY ("tenant_id", "order_id") REFERENCES "orders" ("tenant_id", "id") ON UPDATE CASCADE ON DELETE CASCADE
 );
 -- Create index "idx_order_items_order_id" to table: "order_items"
 CREATE INDEX "idx_order_items_order_id" ON "order_items" ("order_id");
@@ -234,6 +234,7 @@ CREATE TABLE "products" (
   "created_at" timestamptz NULL,
   "updated_at" timestamptz NULL,
   "deleted_at" timestamptz NULL,
+  "search_vector" tsvector NULL GENERATED ALWAYS AS (to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(category, '') || ' ' || coalesce(description, ''))) STORED,
   PRIMARY KEY ("id")
 );
 -- Create index "idx_products_category" to table: "products"
@@ -242,10 +243,14 @@ CREATE INDEX "idx_products_category" ON "products" ("category");
 CREATE INDEX "idx_products_deleted_at" ON "products" ("deleted_at");
 -- Create index "idx_products_name" to table: "products"
 CREATE INDEX "idx_products_name" ON "products" ("name");
+-- Create index "idx_products_search_vector" to table: "products"
+CREATE INDEX "idx_products_search_vector" ON "products" USING gin ("search_vector");
 -- Create index "idx_products_status" to table: "products"
 CREATE INDEX "idx_products_status" ON "products" ("status");
 -- Create index "idx_products_tenant_id" to table: "products"
 CREATE INDEX "idx_products_tenant_id" ON "products" ("tenant_id");
+-- Create index "idx_products_tenant_identity" to table: "products"
+CREATE UNIQUE INDEX "idx_products_tenant_identity" ON "products" ("tenant_id", "id");
 -- Create "product_variants" table
 CREATE TABLE "product_variants" (
   "id" character varying(36) NOT NULL,
@@ -261,7 +266,7 @@ CREATE TABLE "product_variants" (
   "deleted_at" timestamptz NULL,
   "price_provided" boolean NOT NULL DEFAULT false,
   PRIMARY KEY ("id"),
-  CONSTRAINT "fk_products_variants" FOREIGN KEY ("product_id") REFERENCES "products" ("id") ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT "fk_products_variants_tenant" FOREIGN KEY ("tenant_id", "product_id") REFERENCES "products" ("tenant_id", "id") ON UPDATE CASCADE ON DELETE CASCADE
 );
 -- Create index "idx_product_variants_barcode" to table: "product_variants"
 CREATE INDEX "idx_product_variants_barcode" ON "product_variants" ("barcode");
@@ -530,3 +535,21 @@ CREATE TABLE "messaging_ingress_quarantine" (
  reason text NOT NULL,
  received_at timestamptz NOT NULL
 );
+-- Create "domain_events" table
+CREATE TABLE "domain_events" (
+  "id" uuid NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "event_type" character varying(64) NOT NULL,
+  "aggregate_id" character varying(36) NOT NULL,
+  "payload" jsonb NOT NULL,
+  "state" character varying(20) NOT NULL DEFAULT 'pending',
+  "attempts" integer NOT NULL DEFAULT 0,
+  "fence" bigint NOT NULL DEFAULT 0,
+  "available_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
+  "created_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
+  "published_at" timestamptz NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "chk_domain_events_state" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'published'::character varying, 'failed'::character varying])::text[]))
+);
+-- Create index "idx_domain_events_pending" to table: "domain_events"
+CREATE INDEX "idx_domain_events_pending" ON "domain_events" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));

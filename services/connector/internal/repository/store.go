@@ -9,39 +9,52 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"slices"
+	"strings"
 	"time"
 )
 
 type Store struct{ Pool *pgxpool.Pool }
 
+// maxPendingEvents bounds the unpublished backlog. Admission is approximate: concurrent batches can each pass the
+// check before the others commit, so the backlog may exceed it by the other in-flight batches.
+var maxPendingEvents = 100000
+
+type acceptedEvent struct {
+	id, key, state, reason string
+	payload                []byte
+}
+
 // Accept locks connection configuration through commit. No network I/O occurs in this transaction.
+// It takes only row-level locks, so callbacks with different receipts are accepted concurrently.
 func (s *Store) Accept(ctx context.Context, app, platform, receipt string, items []plugin.Item, now time.Time) error {
+	room := maxPendingEvents - len(items)
+	if room < 0 {
+		return errors.New("storage capacity")
+	}
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	// Advisory lock serializes quota checks and receipt retries without keeping payloads in memory after ACK.
-	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(710831)"); err != nil {
+	// Claiming the receipt first deduplicates retries: a concurrent identical batch waits on this row, then sees
+	// the conflict after commit or claims the receipt itself after rollback.
+	tag, err := tx.Exec(ctx, "INSERT INTO connector.receipts(id,app_id,received_at) VALUES($1,$2,$3) ON CONFLICT(id,app_id) DO NOTHING", receipt, app, now)
+	if err != nil {
 		return err
 	}
-	var exists bool
-	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM connector.receipts WHERE id=$1 AND app_id=$2)", receipt, app).Scan(&exists); err != nil {
-		return err
-	}
-	if exists {
+	if tag.RowsAffected() == 0 {
 		return tx.Commit(ctx)
 	}
-	var count int
-	if err = tx.QueryRow(ctx, "SELECT count(*) FROM connector.events WHERE state IN ('pending','leased')").Scan(&count); err != nil {
+	// Counting stops once the backlog is known to leave no room for this batch.
+	var backlog int
+	if err = tx.QueryRow(ctx, "SELECT count(*) FROM (SELECT 1 FROM connector.events WHERE state IN ('pending','leased') LIMIT $1) b", room+1).Scan(&backlog); err != nil {
 		return err
 	}
-	if count+len(items) > 100000 {
+	if backlog > room {
 		return errors.New("storage capacity")
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO connector.receipts(id,app_id,received_at) VALUES($1,$2,$3)", receipt, app, now); err != nil {
-		return err
-	}
+	events := make([]acceptedEvent, 0, len(items))
 	for i, item := range items {
 		var c service.Connection
 		err = tx.QueryRow(ctx, "SELECT id,version,tenant_id,platform,account_id,app_id,enabled FROM connector.connections WHERE app_id=$1 AND platform=$2 AND account_id=$3 FOR SHARE", app, platform, item.AccountID).Scan(&c.ID, &c.Version, &c.TenantID, &c.Platform, &c.AccountID, &c.AppID, &c.Enabled)
@@ -55,22 +68,25 @@ func (s *Store) Accept(ctx context.Context, app, platform, receipt string, items
 			reason = "disabled_connection"
 		}
 		e := service.Envelope(item.Event, c)
-		state := "pending"
-		var payload []byte
-		key := ingress.Hash(app, receipt, string(rune(i)))
+		v := acceptedEvent{id: e.EventID, key: ingress.Hash(app, receipt, string(rune(i))), state: "pending", reason: reason}
 		if reason != "" {
-			state = "quarantine"
+			v.state = "quarantine"
 		} else {
 			if err = e.Validate(); err != nil {
 				return err
 			}
-			key = e.Identity()
-			payload, err = json.Marshal(e)
+			v.key = e.Identity()
+			v.payload, err = json.Marshal(e)
 			if err != nil {
 				return err
 			}
 		}
-		if _, err = tx.Exec(ctx, "INSERT INTO connector.events(id,receipt_id,app_id,event_key,payload,state,reason,available_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_key) DO NOTHING", e.EventID, receipt, app, key, payload, state, reason, now); err != nil {
+		events = append(events, v)
+	}
+	// Overlapping batches (webhook/poll or redelivery) insert shared event keys in one order, so they cannot deadlock.
+	slices.SortStableFunc(events, func(a, b acceptedEvent) int { return strings.Compare(a.key, b.key) })
+	for _, v := range events {
+		if _, err = tx.Exec(ctx, "INSERT INTO connector.events(id,receipt_id,app_id,event_key,payload,state,reason,available_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_key) DO NOTHING", v.id, receipt, app, v.key, v.payload, v.state, v.reason, now); err != nil {
 			return err
 		}
 	}

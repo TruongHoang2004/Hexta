@@ -39,6 +39,10 @@ func (w *TenantCacheWrapper) GetTenantByID(ctx context.Context, id string) (*mod
 	return tenant, err
 }
 
+func (w *TenantCacheWrapper) GetCurrentTenant(ctx context.Context, id string) (*model.Tenant, *errors.Error) {
+	return w.dbRepo.GetCurrentTenant(ctx, id)
+}
+
 func (w *TenantCacheWrapper) GetTenantBySlug(ctx context.Context, slug string) (*model.Tenant, *errors.Error) {
 	if cached, err := w.cache.GetTenantBySlug(ctx, slug); err == nil && cached != nil {
 		return cached, nil
