@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// IAICatalogRepository exposes only tenant-qualified reads to the legacy agent.
+// IAICatalogRepository exposes only tenant-qualified catalog reads for AI candidate selection.
 // It intentionally cannot create orders or mutate stock/customer records.
 type IAICatalogRepository interface {
 	SearchProducts(context.Context, string, string) ([]model.Product, *apperrors.Error)

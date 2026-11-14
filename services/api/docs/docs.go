@@ -3080,43 +3080,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO": {
-            "type": "object",
-            "required": [
-                "product_name",
-                "quantity"
-            ],
-            "properties": {
-                "product_id": {
-                    "type": "string",
-                    "example": "prod_123"
-                },
-                "product_name": {
-                    "type": "string",
-                    "example": "Sữa bắp non 500ml"
-                },
-                "quantity": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 2
-                },
-                "subtotal": {
-                    "type": "number",
-                    "example": 50000
-                },
-                "unit_price": {
-                    "type": "number",
-                    "example": 25000
-                },
-                "variant": {
-                    "type": "string",
-                    "example": "Chai 500ml"
-                },
-                "variant_id": {
-                    "type": "string"
-                }
-            }
-        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthResponse": {
             "type": "object",
             "properties": {
@@ -3384,59 +3347,6 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "integer"
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "customer_name": {
-                    "type": "string",
-                    "example": "Anh Nam"
-                },
-                "customer_phone": {
-                    "type": "string",
-                    "example": "0912345678"
-                },
-                "draft_id": {
-                    "type": "string",
-                    "example": "draft_8f3a9b21-4c5d"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.DraftItemDTO"
-                    }
-                },
-                "notes": {
-                    "type": "string",
-                    "example": "Giao hàng giờ hành chính"
-                },
-                "payment_method": {
-                    "type": "string",
-                    "example": "cod"
-                },
-                "shipping_address": {
-                    "type": "string",
-                    "example": "123 Lê Lợi, Q1, TP.HCM"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "proposed"
-                },
-                "tenant_id": {
-                    "type": "string",
-                    "example": "tenant_123"
-                },
-                "total_amount": {
-                    "type": "number",
-                    "example": 50000
                 }
             }
         },
@@ -4288,15 +4198,6 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingTurn"
-                },
-                "meta": {}
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_OrderDraftDTO": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OrderDraftDTO"
                 },
                 "meta": {}
             }

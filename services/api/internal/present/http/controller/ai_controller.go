@@ -110,36 +110,3 @@ func (ctrl *AIController) Converse(c *gin.Context) {
 		})
 	}
 }
-
-// GetDraft
-// @Summary Retrieve interactive order draft
-// @Description Retrieve a Redis-cached order draft by draft ID for human review and confirmation
-// @Tags AI Agent
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param X-Tenant-ID header string false "Tenant Workspace ID"
-// @Param tenant_id query string false "Tenant Workspace ID"
-// @Param id path string true "Draft ID (e.g. draft_8f3a9b21-4c5d)"
-// @Success 200 {object} response.Response[dto.OrderDraftDTO]
-func (ctrl *AIController) GetDraft(c *gin.Context) {
-	tenantID := ctrl.getTenantID(c)
-	if tenantID == "" {
-		ctrl.ErrorData(c, errors.ErrBadRequest(c.Request.Context()).SetDetail("tenant_id is required via X-Tenant-ID header or query parameter"))
-		return
-	}
-
-	draftID := c.Param("id")
-	if draftID == "" {
-		ctrl.ErrorData(c, errors.ErrBadRequest(c.Request.Context()).SetDetail("draft id is required"))
-		return
-	}
-
-	draft, err := ctrl.aiService.GetDraft(c.Request.Context(), tenantID, draftID)
-	if err != nil {
-		ctrl.ErrorData(c, err)
-		return
-	}
-
-	ctrl.Success(c, dto.AIOrderDraftResponse(draft))
-}

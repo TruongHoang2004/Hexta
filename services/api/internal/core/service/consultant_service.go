@@ -12,6 +12,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type IAIAgentService interface {
+	Converse(ctx context.Context, tenantID, userID string, req *types.AIConversationInput, emitEvent func(*types.AIEvent) error) *apperrors.Error
+}
+
 type IConsultClient interface {
 	Consult(context.Context, *types.ConsultRequest) (*types.ConsultResponse, error)
 }
@@ -128,11 +132,6 @@ func (s *ConsultantService) Converse(ctx context.Context, tenant, actor string, 
 		}
 	}
 	return nil
-}
-
-// The legacy cache API is intentionally not exposed for consultant candidates.
-func (s *ConsultantService) GetDraft(ctx context.Context, tenant, id string) (*types.AIOrderDraft, *apperrors.Error) {
-	return nil, apperrors.ErrNotFound(ctx, "draft", "draft unavailable")
 }
 
 // Keep catalog variant identity and its human-readable label together at both reads.
