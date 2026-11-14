@@ -73,8 +73,8 @@ type JWTClaims struct {
 }
 
 func NewAuthService(
-	identityRepo *repository.IdentityRepository,
-	sessionRepo *repository.SessionRepository,
+	identityRepo repository.IIdentityRepository,
+	sessionRepo repository.ISessionRepository,
 	redisClient *cache.RedisClient,
 	cfg *config.Config,
 ) (*AuthService, error) {
