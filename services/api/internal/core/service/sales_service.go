@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"net/mail"
 	"strings"
 
@@ -362,7 +363,16 @@ func (s *SalesService) Confirm(ctx context.Context, tenant, actor, id string, ve
 		if err := r.SaveOrder(ctx, row, version, false); err != nil {
 			return err
 		}
-		return r.Audit(ctx, tenant, actor, "order.confirmed", "order", row.ID, row)
+		if err := r.Audit(ctx, tenant, actor, "order.confirmed", "order", row.ID, row); err != nil {
+			return err
+		}
+		return r.SaveOutboxEvent(ctx, orderConfirmedEvent(row, actor))
 	})
 	return row, err
+}
+
+// orderConfirmedEvent is committed in the confirmation transaction; the outbox relay publishes it later.
+func orderConfirmedEvent(row *model.Order, actor string) *model.DomainEvent {
+	payload, _ := json.Marshal(types.OrderConfirmed{OrderID: row.ID, OrderNumber: row.OrderNumber, Version: row.Version, TotalAmount: row.TotalAmount, ConfirmedBy: actor})
+	return &model.DomainEvent{ID: uuid.NewString(), TenantID: row.TenantID, EventType: model.DomainEventOrderConfirmed, AggregateID: row.ID, Payload: string(payload), State: model.DomainEventStatePending}
 }

@@ -34,3 +34,5 @@ ai:
   max_tokens: ${AI_MAX_TOKENS}
   temperature: ${AI_TEMPERATURE}
 
+kafka:
+  brokers: ${KAFKA_BROKERS}

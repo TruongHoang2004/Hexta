@@ -1,4 +1,4 @@
-h1:TJA4bQWu24ivBXEziAcUjzAQZt6RTpodJ//qYQyk7Gg=
+h1:mALGSkzoteoHEcA22KfD/BTmEFfZs7JILRnUstgMOaE=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -12,3 +12,4 @@ h1:TJA4bQWu24ivBXEziAcUjzAQZt6RTpodJ//qYQyk7Gg=
 20261103044831_ingress_source_metadata.sql h1:8WPmP4j7FHpqUs2nt6Y0iSygbH0/VdJZSNd80sPyCUY=
 20261113173725_tenant_composite_fks.sql h1:XMjSaPh2vl4ZRTLRyrN7bS3fvU/EZZy3uKfyspdj08A=
 20261114111819_product_search_vector.sql h1:inArtIFLyhQWx9ULJG5SKAfDio6s4aP1w/WP/mHjsv0=
+20261114112552_domain_events_outbox.sql h1:wXli9ZAUnEMIdSPtBjoz9mAgTyk40UbhRiPU9Ipnm0A=

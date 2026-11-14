@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"sync"
 	"testing"
@@ -41,6 +42,15 @@ func salesTestFixture(t *testing.T) salesFixture {
 	}
 	return f
 }
+func (f salesFixture) outboxEvents(t *testing.T, orderID string) []model.DomainEvent {
+	t.Helper()
+	var events []model.DomainEvent
+	if err := f.db.Where("aggregate_id = ? AND event_type = ?", orderID, model.DomainEventOrderConfirmed).Find(&events).Error; err != nil {
+		t.Fatal(err)
+	}
+	return events
+}
+
 func requireSalesStatus(t *testing.T, err *apperrors.Error, status int) {
 	t.Helper()
 	if err == nil || err.GetHttpStatus() != status {
@@ -107,6 +117,15 @@ func TestSalesIncompleteDraftAndConfirmation(t *testing.T) {
 	}
 	_, err = f.service.Confirm(ctx, f.tenant, f.sale, draft.ID, draft.Version)
 	requireSalesStatus(t, err, 409)
+	// Only the committed confirmation leaves an outbox event; rejected attempts roll theirs back.
+	events := f.outboxEvents(t, draft.ID)
+	if len(events) != 1 || events[0].TenantID != f.tenant || events[0].EventType != model.DomainEventOrderConfirmed || events[0].State != model.DomainEventStatePending {
+		t.Fatalf("expected one pending order.confirmed event, got %+v", events)
+	}
+	var payload types.OrderConfirmed
+	if json.Unmarshal([]byte(events[0].Payload), &payload) != nil || payload.OrderID != draft.ID || payload.Version != confirmed.Version || payload.ConfirmedBy != f.sale || payload.OrderNumber != confirmed.OrderNumber {
+		t.Fatalf("unexpected order.confirmed payload %s", events[0].Payload)
+	}
 	input.Version = confirmed.Version
 	_, err = f.service.SaveDraft(ctx, f.tenant, f.sale, draft.ID, input)
 	requireSalesStatus(t, err, 409)
@@ -261,6 +280,9 @@ func TestSalesConcurrentConfirmationPostgres(t *testing.T) {
 	}
 	if success != 1 || conflict != 1 {
 		t.Fatalf("expected one winner and one conflict: %d/%d", success, conflict)
+	}
+	if events := f.outboxEvents(t, draft.ID); len(events) != 1 {
+		t.Fatalf("expected exactly one order.confirmed event, got %d", len(events))
 	}
 }
 

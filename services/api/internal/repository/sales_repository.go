@@ -30,6 +30,7 @@ type ISalesRepository interface {
 	Orders(context.Context, string, int, int) ([]model.Order, int64, *apperrors.Error)
 	SaveOrder(context.Context, *model.Order, int64, bool) *apperrors.Error
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
+	SaveOutboxEvent(context.Context, *model.DomainEvent) *apperrors.Error
 }
 
 type SalesRepository struct{ db *gorm.DB }
@@ -226,6 +227,15 @@ func (r *SalesRepository) SaveOrder(ctx context.Context, row *model.Order, expec
 	}
 	return nil
 }
+
+// SaveOutboxEvent must run inside Transaction so the event commits or rolls back with its business change.
+func (r *SalesRepository) SaveOutboxEvent(ctx context.Context, event *model.DomainEvent) *apperrors.Error {
+	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
+		return salesDBError(ctx, err)
+	}
+	return nil
+}
+
 func (r *SalesRepository) Audit(ctx context.Context, tenant, actor, action, kind, id string, state any) *apperrors.Error {
 	data, err := json.Marshal(state)
 	if err != nil {
