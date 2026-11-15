@@ -9,7 +9,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
@@ -286,7 +288,7 @@ func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id
 			return sourceErr
 		}
 		if strings.HasPrefix(source.ExternalKey, "facebook:") {
-			return apperrors.ErrForbidden(ctx).SetDetail("real channel dispatch is not enabled")
+			return apperrors.ErrForbidden(ctx).SetDetail("real channel conversations must use channel send")
 		}
 		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
 			return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale under sales control may reply")
@@ -325,6 +327,83 @@ func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id
 			return err
 		}
 		return r.Audit(ctx, tenant, actor, "messaging.simulated_reply", "messaging_turn", id, map[string]string{"message_id": result.ID})
+	})
+	return result, err
+}
+
+const outboundIntentTTL = 10 * time.Minute
+
+// SendChannel records an authorized real-channel reply and its single-attempt delivery intent in one transaction.
+// The connector performs the provider call later; this request never calls Meta and never retries.
+func (s *MessagingService) SendChannel(ctx context.Context, tenant, actor, id string, input types.ChannelSendInput) (*types.MessagingMessage, *apperrors.Error) {
+	input.Text = strings.TrimSpace(input.Text)
+	if !messagingText(input.Text, outbound.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
+		return nil, apperrors.ErrBadRequest(ctx).SetDetail("text (1–2000) and positive version/context required")
+	}
+	if _, err := uuid.Parse(input.ClientMessageID); err != nil {
+		return nil, apperrors.ErrBadRequest(ctx).SetDetail("client_message_id must be a UUID")
+	}
+	hash := messagingHash(struct{ Actor, Turn, Text string }{actor, id, input.Text})
+	var result *types.MessagingMessage
+	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
+		turn, err := messagingLockedTurn(ctx, r, tenant, id)
+		if err != nil {
+			return err
+		}
+		thread, err := r.Thread(ctx, tenant, turn.ThreadID, false)
+		if err != nil {
+			return err
+		}
+		if thread.ConnectionID == "" || thread.RecipientID == "" {
+			return apperrors.ErrConflict(ctx, "conversation", "has no connected channel")
+		}
+		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
+			return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale under sales control may reply")
+		}
+		old, err := r.MessageByKey(ctx, tenant, input.ClientMessageID)
+		if err != nil {
+			return err
+		}
+		if old != nil {
+			if old.RequestHash != hash {
+				return apperrors.ErrConflict(ctx, "client message ID", "already used for different input")
+			}
+			result = old
+			return nil
+		}
+		if turn.Lifecycle != "open" || turn.Version != input.ExpectedVersion || turn.ContextRevision != input.ContextRevision {
+			return apperrors.ErrConflict(ctx, "turn", "new activity or ownership change; refresh and review before replying")
+		}
+		conn, err := r.SendConnection(ctx, tenant, thread.ConnectionID)
+		if err != nil {
+			return err
+		}
+		if conn.Status != types.ChannelStatusActive || !conn.Enabled {
+			return apperrors.ErrConflict(ctx, "facebook connection", "is "+conn.Status+"; sending is unavailable")
+		}
+		now := time.Now().UTC()
+		result = &types.MessagingMessage{ID: messagingID(), TenantID: tenant, ThreadID: turn.ThreadID, TurnID: id, Direction: "outbound", ActorID: actor, Body: input.Text, RequestKey: input.ClientMessageID, RequestHash: hash, Status: "channel", CreatedAt: now, ContentType: types.ContentText, DeliveryStatus: types.DeliverySending}
+		if err := r.InsertMessage(ctx, *result); err != nil {
+			return err
+		}
+		intent := types.OutboundIntent{ID: messagingID(), TenantID: tenant, ConnectionID: conn.ID, MessageID: result.ID, ClientMessageID: input.ClientMessageID, RequestHash: hash, RecipientID: thread.RecipientID, Status: types.IntentPending, CreatedAt: now, UpdatedAt: now}
+		attempt := types.OutboundAttempt{ID: messagingID(), TenantID: tenant, IntentID: intent.ID, Status: types.IntentPending, ConnectionVersion: conn.Version, CreatedAt: now}
+		payload, _ := json.Marshal(outbound.IntentEvent{SchemaVersion: 1, IntentID: intent.ID, AttemptID: attempt.ID, CorrelationID: result.ID, TenantID: tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: input.Text, IssuedAt: now, ExpiresAt: now.Add(outboundIntentTTL)})
+		event := &model.DomainEvent{ID: uuid.NewString(), TenantID: tenant, EventType: model.DomainEventOutboundIntent, AggregateID: intent.ID, Payload: string(payload), State: model.DomainEventStatePending}
+		if err := r.InsertOutbound(ctx, intent, attempt, event); err != nil {
+			return err
+		}
+		turn.Version++
+		turn.ContextRevision++
+		turn.LastActivityAt = now
+		if err := r.SaveTurn(ctx, *turn, false); err != nil {
+			return err
+		}
+		thread.UpdatedAt = now
+		if err := r.SaveThread(ctx, *thread); err != nil {
+			return err
+		}
+		return r.Audit(ctx, tenant, actor, "messaging.channel_reply", "messaging_turn", id, map[string]string{"message_id": result.ID, "intent_id": intent.ID})
 	})
 	return result, err
 }

@@ -18,6 +18,9 @@ type Connection struct {
 	AppID         string `json:"app_id"`
 	Enabled       bool   `json:"enabled"`
 	CredentialRef string `json:"credential_ref"`
+	// OAuthSessionID selects freshly exchanged credentials; UnsubscribeOnDisable wipes them (disconnect).
+	OAuthSessionID       string `json:"oauth_session_id,omitempty"`
+	UnsubscribeOnDisable bool   `json:"unsubscribe_on_disable,omitempty"`
 }
 type Accepted struct {
 	Event  ingress.Event

@@ -51,6 +51,17 @@ type Config struct {
 		// Brokers is a comma-separated list; empty disables the outbox relay and events stay pending.
 		Brokers string `yaml:"brokers" mapstructure:"brokers"`
 	} `yaml:"kafka" mapstructure:"kafka"`
+	// Connector is the private machine endpoint for channel credentials; empty URL disables channel management.
+	Connector struct {
+		URL             string `yaml:"url" mapstructure:"url"`
+		ManagementToken string `yaml:"management_token" mapstructure:"management_token"`
+	} `yaml:"connector" mapstructure:"connector"`
+	Facebook struct {
+		AppID        string `yaml:"app_id" mapstructure:"app_id"`
+		GraphVersion string `yaml:"graph_version" mapstructure:"graph_version"`
+		// DialogURL overrides the Meta OAuth dialog host, for isolated tests only.
+		DialogURL string `yaml:"dialog_url" mapstructure:"dialog_url"`
+	} `yaml:"facebook" mapstructure:"facebook"`
 }
 
 var AppConfig *Config

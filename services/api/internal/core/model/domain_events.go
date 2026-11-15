@@ -4,6 +4,8 @@ import "time"
 
 const (
 	DomainEventOrderConfirmed = "order.confirmed"
+	// DomainEventOutboundIntent rows carry a shared outbound.IntentEvent payload for the connector topic.
+	DomainEventOutboundIntent = "outbound.intent"
 
 	DomainEventStatePending   = "pending"
 	DomainEventStateLeased    = "leased"

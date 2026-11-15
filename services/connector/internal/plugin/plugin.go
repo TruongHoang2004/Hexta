@@ -37,11 +37,41 @@ type Settings interface {
 	Subscribe(context.Context, string) error
 }
 
-// Outbound requires a current, single-attempt API permit. No sender is wired in this slice.
+// Outbound requires a current, single-attempt API permit. The generic Sender capability stays unwired;
+// Facebook text delivery uses TextSender through the durable outbound attempt flow.
 type SendRequest struct{ IntentID, AttemptID, Permit, Text string }
 type Sender interface {
 	Send(context.Context, SendRequest) error
 }
+
+// PageCredential is a provider account and its access token, held only in memory or sealed at rest.
+type PageCredential struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Token string `json:"access_token"`
+}
+
+// Provisioner exchanges owner consent and manages the provider webhook subscription.
+type Provisioner interface {
+	ExchangeCode(ctx context.Context, code, redirectURI string) ([]PageCredential, error)
+	Subscribe(ctx context.Context, accountID, token string) error
+	Unsubscribe(ctx context.Context, accountID, token string) error
+}
+
+// TextSender performs exactly one provider call; callers must not retry an Unknown ProviderError.
+type TextSender interface {
+	SendText(ctx context.Context, accountID, token, recipient, text string) (string, error)
+}
+
+// ProviderError is a sanitized provider failure. Unknown means the request may have reached the provider.
+type ProviderError struct {
+	Category string
+	Code     string
+	Unknown  bool
+}
+
+func (e *ProviderError) Error() string { return "provider request failed: " + e.Category }
+
 type Plugin interface {
 	Platform() string
 	Capabilities() Capabilities

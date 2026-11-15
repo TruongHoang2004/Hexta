@@ -6,6 +6,7 @@ import (
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	channelmap "github.com/TruongHoang2004/Hexta/services/api/internal/mapper/channel/persistencemap"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/mapper/messaging/persistencemap"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
 	"gorm.io/gorm"
@@ -27,6 +28,9 @@ type MessagingStore interface {
 	InsertMessage(context.Context, types.MessagingMessage) *apperrors.Error
 	Messages(context.Context, string, string, types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error)
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
+	BindThreadChannel(context.Context, string, string, string, string) *apperrors.Error
+	SendConnection(context.Context, string, string) (*types.ChannelConnection, *apperrors.Error)
+	InsertOutbound(context.Context, types.OutboundIntent, types.OutboundAttempt, *model.DomainEvent) *apperrors.Error
 }
 type MessagingRepository struct{ *SalesRepository }
 
@@ -213,4 +217,36 @@ func (r *MessagingRepository) Messages(ctx context.Context, tenant, thread strin
 		result[i] = persistencemap.Message(row)
 	}
 	return result, next, nil
+}
+
+// BindThreadChannel records the provider recipient once; an existing binding is never reassigned.
+func (r *MessagingRepository) BindThreadChannel(ctx context.Context, tenant, thread, connection, recipient string) *apperrors.Error {
+	if err := r.db.WithContext(ctx).Model(&messagingmodel.Thread{}).Where("tenant_id = ? AND id = ? AND connection_id IS NULL", tenant, thread).
+		Updates(map[string]any{"connection_id": connection, "recipient_id": recipient}).Error; err != nil {
+		return salesDBError(ctx, err)
+	}
+	return nil
+}
+
+// SendConnection share-locks the binding so a concurrent pause/disconnect serializes with intent creation.
+func (r *MessagingRepository) SendConnection(ctx context.Context, tenant, id string) (*types.ChannelConnection, *apperrors.Error) {
+	var row messagingmodel.Connection
+	if err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "SHARE"}).Where("tenant_id = ? AND id = ?", tenant, id).First(&row).Error; err != nil {
+		return nil, salesDBError(ctx, err)
+	}
+	value := channelmap.Connection(row)
+	return &value, nil
+}
+
+// InsertOutbound commits the intent, its single attempt and the outbox event with the outbound message.
+func (r *MessagingRepository) InsertOutbound(ctx context.Context, intent types.OutboundIntent, attempt types.OutboundAttempt, event *model.DomainEvent) *apperrors.Error {
+	intentRow := channelmap.IntentRow(intent)
+	attemptRow := channelmap.AttemptRow(attempt)
+	db := r.db.WithContext(ctx)
+	for _, row := range []any{&intentRow, &attemptRow, event} {
+		if err := db.Create(row).Error; err != nil {
+			return salesDBError(ctx, err)
+		}
+	}
+	return nil
 }

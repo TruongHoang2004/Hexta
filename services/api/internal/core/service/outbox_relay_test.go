@@ -97,3 +97,23 @@ func TestOutboxRelayIdleAndClaimFailure(t *testing.T) {
 	require.NotNil(t, err)
 	require.Empty(t, publisher.keys)
 }
+
+func TestOutboxRelayRoutesIntentsAsRawContractToIntentTopic(t *testing.T) {
+	payload := `{"schema_version":1,"intent_id":"i","connection_id":"conn","recipient_id":"psid","text":"hi"}`
+	intent := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000002", TenantID: "tenant", EventType: model.DomainEventOutboundIntent, AggregateID: "i", Payload: payload, Fence: 1}
+	orders, intents := &fakePublisher{}, &fakePublisher{}
+	store := &fakeOutboxStore{events: []*model.DomainEvent{intent}}
+	claimed, err := NewOutboxRelay(store, orders).WithIntentPublisher(intents).RelayOne(context.Background())
+	require.True(t, claimed)
+	require.Nil(t, err)
+	require.Empty(t, orders.keys, "intents must never reach the order topic")
+	require.Equal(t, []string{"conn:psid"}, intents.keys, "intents are ordered per Page conversation")
+	require.JSONEq(t, payload, string(intents.values[0]), "the connector reads the shared contract, not an envelope")
+
+	// Without an intent publisher the row is released for retry instead of being dropped.
+	store = &fakeOutboxStore{events: []*model.DomainEvent{intent}}
+	claimed, err = NewOutboxRelay(store, orders).RelayOne(context.Background())
+	require.True(t, claimed)
+	require.NotNil(t, err)
+	require.Equal(t, map[string]bool{intent.ID: false}, store.finished)
+}

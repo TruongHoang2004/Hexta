@@ -1,6 +1,6 @@
-# Connector service: Facebook text ingress
+# Connector service: Facebook ingress, Page connection and outbound text
 
-Local implementation, unmerged. The runnable path is signed Page webhook → connector PostgreSQL receipt/event outbox → Kafka → API-owned ingress consumer → existing tenant inbox. Python and outbound sending are not involved. This is at-least-once delivery; a successful provider HTTP response follows the connector transaction, never an in-memory queue or Kafka ACK.
+Local implementation, unmerged. Inbound: signed Page webhook → connector PostgreSQL receipt/event outbox → Kafka → API-owned ingress consumer → tenant inbox (text, plus placeholder events for media). Connection: owner OAuth in the API → connector code exchange and sealed Page tokens → `PUT /internal/connections` with webhook subscription. Outbound: API intent outbox → `hexta.outbound.intent.v1` → one Send API call per attempt → `hexta.outbound.result.v1` / `hexta.connector.health.v1`. Python is not involved. See [the design](../../agentic-memory/designs/2026-11-14_facebook-platform-connection_design.md). This is at-least-once delivery; a successful provider HTTP response follows the connector transaction, never an in-memory queue or Kafka ACK.
 
 ## Ownership and rollout
 
@@ -8,7 +8,12 @@ Local implementation, unmerged. The runnable path is signed Page webhook → con
 
 Connector uses its own PostgreSQL schema/history/revision schema. Provision a dedicated login with access only to `connector`; API's login must have no access to that schema. API authority lives in public `messaging_connections`, not connector tables. Runtime logins do not own migrations. The initial implementation can use separate databases, as the tests do. Do not grant the connector access to API tables.
 
-Connector management uses a service credential, never a user JWT. `PUT /internal/connections` accepts an immutable ID/tenant/platform/Page/app identity and a strictly increasing config version (initial provisioning should use version 1). It changes only enabled state and credential reference. This is a trusted machine endpoint: expose only on a private network/reverse-proxy policy. Only `/webhooks/facebook` belongs on the public HTTPS listener. Tenant-authorized API provisioning and a user-facing connection setup flow remain follow-ups; operator provisioning is the current local path. A management token alone must never be delegated to a browser.
+Connector management uses a service credential, never a user JWT. The API authorizes the tenant owner, then calls the machine endpoints:
+
+- `POST /internal/facebook/oauth/exchange` `{code, redirect_uri}` → `{oauth_session_id, expires_at, pages[{page_id,page_name}]}`. Page tokens are sealed in `connector.oauth_sessions` for 10 minutes and never returned.
+- `PUT /internal/connections` accepts an immutable ID/tenant/platform/Page/app identity and a strictly increasing config version (gaps allowed). It changes enabled state, and optionally `oauth_session_id` (seal that Page's token on the connection and subscribe its webhook) or `unsubscribe_on_disable` (disconnect: unsubscribe and wipe the credential). Replaying the current version is an idempotent no-op. Returns `200 {id, version, enabled, subscribed}`; 422 expired session/credential, 502 Meta failure, 409 conflict. A disconnected binding can be replaced by another tenant's new connection ID; paused/active ones cannot.
+
+These are trusted machine endpoints: expose only on a private network/reverse-proxy policy. Only `/webhooks/facebook` belongs on the public HTTPS listener. A management token alone must never be delegated to a browser.
 
 ## Start locally
 
@@ -20,10 +25,12 @@ From repository root, configure private environment variables; values below are 
 - `META_APP_ID`: the registered Meta app ID.
 - `META_APP_SECRET_FILE`: private mounted file containing its app secret.
 - `META_VERIFY_TOKEN_FILE`: private mounted file containing your verification token.
-- `CONNECTOR_MANAGEMENT_TOKEN_FILE`: private mounted service token file.
+- `CONNECTOR_MANAGEMENT_TOKEN_FILE`: private mounted service token file (the API's `CONNECTOR_MANAGEMENT_TOKEN`).
+- `CONNECTOR_CREDENTIAL_KEY_FILE`: private file with a 32-byte AES-256-GCM key as 64 hex characters. Rotating it makes stored Page tokens unreadable; owners must reconnect Pages.
+- `META_GRAPH_URL` / `META_GRAPH_VERSION`: optional; default `https://graph.facebook.com` and `v21.0`. Override the URL only for isolated tests.
 - `CONNECTOR_LISTEN_ADDR`: defaults to `127.0.0.1:8091`.
 
-Secret files must have at least 16 non-whitespace bytes. No Page token is needed by the webhook receiver. It will be needed for Page subscription or eventual fetch/send; store it in the environment's secret manager, never in a connection JSON, Kafka or chat. `credential_ref` is an opaque reference only; no Page-token resolver or provider API calls are implemented yet.
+Secret files must have at least 16 non-whitespace bytes. The webhook receiver needs no Page token. Page tokens arrive only through the OAuth exchange and are stored sealed in `connector.connections`, bound to the connection ID; they never appear in connection JSON, Kafka, logs or API responses. `credential_ref` is a legacy opaque field.
 
 Apply migrations explicitly using migration-role URLs in a separate shell, then switch to runtime URLs. This delivery has not migrated your application database:
 
@@ -34,9 +41,9 @@ make migrate-apply-local svc=api
 
 The new connector target is explicit/host-operated until Compose role initialization and private connector URL wiring are implemented. Existing `all` apply/status continues to select API/AI; `all` hash/validate includes connector.
 
-Create topic `hexta.ingress.received.v1` using your broker's admin tooling; producer auto-creation is disabled. Configure retention, access controls, partition count and replication for the environment. Connector writes with `acks=all`; it does not claim producer-idempotence or cross-system exactly-once.
+Create topics `hexta.ingress.received.v1`, `hexta.outbound.intent.v1`, `hexta.outbound.result.v1` and `hexta.connector.health.v1` using your broker's admin tooling; producer auto-creation is disabled. Configure retention, access controls, partition count and replication for the environment. Connector writes with `acks=all`; it does not claim producer-idempotence or cross-system exactly-once.
 
-Provision the API's trusted binding first (operator SQL through its migration/admin login, not connector code):
+The normal path is the owner flow in the web app (Settings → Channels → Connect Facebook Page), which requires the API to have `CONNECTOR_URL`, `CONNECTOR_MANAGEMENT_TOKEN` and `META_APP_ID`, and Meta's valid OAuth redirect set to `<frontend>/channels/facebook/callback`. Manual operator provisioning (receive-only, no Page token) remains possible:
 
 ```sql
 INSERT INTO messaging_connections(id,tenant_id,version,platform,account_id,enabled)
@@ -63,7 +70,7 @@ Official references: [Meta webhook setup](https://developers.facebook.com/docs/g
 
 ## Recovery and operational limits
 
-- One callback supports up to 1 MiB and 1,000 items. All entries are visited. Invalid/malformed/unsupported items are quarantined alongside valid siblings, without raw payload retention. Malformed whole batches receive 503 for retry. Only text and echo events are published; attachments, read/delivery/reaction and other events carry safe quarantine classifications.
+- One callback supports up to 1 MiB and 1,000 items. All entries are visited. Invalid/malformed/unsupported items are quarantined alongside valid siblings, without raw payload retention. Malformed whole batches receive 503 for retry. Text and echo events are published; image/video/audio/file/sticker attachments are published as `unsupported_media` with kinds only (no URLs or binaries). Other attachment kinds, read/delivery/reaction and other events carry safe quarantine classifications.
 - Receipt hash deduplicates identical batches; source message identity deduplicates different batches and webhook/poll overlap. Source revision is empty unless the provider supplies one. No invented revisions or media metadata. Message content and IDs stay private Kafka/DB data; logs contain neither.
 - Normalization happens before ACK, in the request; no post-ACK normalization queue exists. Persisting normalized outbox rows is the durable continuation point. A failed DB transaction/100,000 pending-item admission limit returns 503. Acceptance takes only row-level locks, so callbacks with different receipts commit concurrently; the admission limit is therefore approximate and concurrent batches can overshoot it by up to (connector DB pool size − 1) × 1,000 items. Concurrent retries of one receipt wait on its row and are deduplicated, and overlapping batches insert events in key order to avoid deadlocks. Receipt and published/quarantine retention cleanup is not automated; monitor DB space and apply a reviewed retention policy.
 - Outbox claims use `SKIP LOCKED`, a 30-second lease, fencing, 10-second publication timeout and exponential backoff capped at 300 seconds; after 12 attempts the event is quarantined. A crash after broker ACK but before marking published can duplicate publication. API dedup plus mutation commit together. A crash after API commit before offset commit replays without duplicating the message.
@@ -76,7 +83,7 @@ Official references: [Meta webhook setup](https://developers.facebook.com/docs/g
 
 `SyncService` and durable `sync_jobs` implement page fetching, mode, bounded limits, checkpoint-after-durable-data, lease/fence, retry-after, bounded attempts and terminal cursor-expired recovery. A crash between page storage and checkpoint refetches that page and deduplicates by provider identity. Cancellation sets state=cancelled and increments fence; an already fetched page can persist but cannot advance the checkpoint. History and incremental reconciliation never open active turns or schedule AI. Fixture tests cover the framework; no runtime sync scheduler/management API is wired. Facebook advertises Fetch=false and returns unsupported. Empty/expired cursors must not silently restart a full history: create an explicit reconciliation job after provider-specific recovery is defined.
 
-Outbound is an unsupported capability contract only. Before adding a sender, implement API-owned intents/outbox, current-state single-attempt permits, durable connector attempts and result events. Recheck tenant/control/assignee/context before provider dispatch. Permit revocation cannot undo an HTTP request already handed to the provider. Timeout after possible provider acceptance must be unknown, with reconciliation before resend. Provider accepted/delivered/read are separate states. AI candidates require API revalidation; this ingress slice schedules no AI and sends no real messages.
+Outbound text: the API checks tenant/assignee/context and an active connection, then commits message + intent + attempt + outbox row together. The connector claims `attempt_id` in `connector.outbound_attempts` before calling Meta, rejects expired intents and version/enabled mismatches without a provider call, and records the outcome plus its result (and `auth_expired` health) event in one transaction. A redelivered intent whose attempt is still `dispatching` (crash during the call) becomes `unknown` and is never resent; network/5xx failures are also `unknown`. Meta codes map to `window_24h` (10/2022), `auth_expired` (190, 200–299), `rate_limit`, `invalid_recipient` or `transport`. Pausing/disconnecting cancels pending API intents, but cannot recall an intent already published to Kafka; such a send still reports its real outcome. Provider accepted/delivered/read are separate states; only acceptance is tracked. AI candidates require API revalidation; nothing here schedules AI.
 
 ## Isolated verification
 

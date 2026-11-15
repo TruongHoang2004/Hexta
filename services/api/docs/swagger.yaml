@@ -300,6 +300,64 @@ definitions:
     - content
     - role
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectFacebookPagesRequest:
+    properties:
+      oauth_session_id:
+        type: string
+      page_ids:
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - oauth_session_id
+    - page_ids
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectFacebookPagesResponse:
+    properties:
+      connections:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
+        type: array
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO:
+    properties:
+      account_id:
+        type: string
+      account_name:
+        type: string
+      id:
+        type: string
+      last_error_code:
+        type: string
+      last_error_message:
+        type: string
+      platform:
+        type: string
+      status:
+        type: string
+      tenant_id:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookOAuthPagesResponse:
+    properties:
+      expires_at:
+        type: string
+      oauth_session_id:
+        type: string
+      pages:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SelectableFacebookPageDTO'
+        type: array
+      tenant_id:
+        type: string
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthResponse:
     properties:
       details:
@@ -308,6 +366,13 @@ definitions:
         type: object
       status:
         type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse:
+    properties:
+      connections:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
+        type: array
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest:
     properties:
@@ -405,12 +470,20 @@ definitions:
         type: string
       body:
         type: string
+      content_type:
+        type: string
       created_at:
+        type: string
+      delivery_error_reason:
+        type: string
+      delivery_status:
         type: string
       direction:
         type: string
       id:
         type: string
+      placeholder_meta:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlaceholderMetaDTO'
       status:
         type: string
       thread_id:
@@ -481,6 +554,13 @@ definitions:
         type: string
       version:
         type: integer
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlaceholderMetaDTO:
+    properties:
+      media_kinds:
+        items:
+          type: string
+        type: array
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.PlatformAccessResponse:
     properties:
@@ -738,6 +818,47 @@ definitions:
       total:
         type: integer
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SelectableFacebookPageDTO:
+    properties:
+      availability:
+        type: string
+      page_id:
+        type: string
+      page_name:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SendMessageRequest:
+    properties:
+      client_message_id:
+        type: string
+      context_revision:
+        minimum: 1
+        type: integer
+      expected_version:
+        minimum: 1
+        type: integer
+      text:
+        maxLength: 2000
+        type: string
+    required:
+    - client_message_id
+    - text
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthRequest:
+    properties:
+      redirect_uri:
+        maxLength: 2048
+        type: string
+    required:
+    - redirect_uri
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthResponse:
+    properties:
+      auth_url:
+        type: string
+      expires_at:
+        type: string
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest:
     properties:
       name:
@@ -866,6 +987,17 @@ definitions:
     properties:
       revoked:
         type: boolean
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest:
+    properties:
+      action:
+        enum:
+        - pause
+        - resume
+        - disconnect
+        type: string
+    required:
+    - action
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTenantRequest:
     properties:
@@ -1017,10 +1149,34 @@ definitions:
         type: array
       meta: {}
     type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectFacebookPagesResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectFacebookPagesResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookOAuthPagesResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookOAuthPagesResponse'
+      meta: {}
+    type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_HealthResponse
   : properties:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_LoginResponse
@@ -1111,6 +1267,12 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesProductsResponse'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_StartFacebookOAuthResponse
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse
@@ -1470,6 +1632,61 @@ paths:
       summary: Register user
       tags:
       - Auth
+  /api/v1/channels/facebook/oauth/callback:
+    get:
+      description: Called by the web callback page with Meta's code and state. Consumes
+        the state (single use), requires the same authenticated owner that started
+        the flow, and returns selectable Pages without tokens.
+      parameters:
+      - description: OAuth code
+        in: query
+        name: code
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: Provider error
+        in: query
+        name: error
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookOAuthPagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Complete Facebook Page authorization
+      tags:
+      - Channels
   /api/v1/health:
     get:
       consumes:
@@ -1740,6 +1957,209 @@ paths:
       summary: Update workspace settings
       tags:
       - Tenants
+  /api/v1/tenants/{tenantID}/channels/facebook/connections:
+    get:
+      description: Active tenant membership required. Returns non-disconnected connections
+        with status (active, paused, auth_expired) for settings and Inbox banners.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List Facebook Page connections
+      tags:
+      - Channels
+    post:
+      consumes:
+      - application/json
+      description: Tenant owner only. Pages must come from the owner's own unexpired
+        OAuth session. A Page connected to another workspace returns 409 (1 Page =
+        1 tenant); a Page already connected here is re-authorized.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Pages
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectFacebookPagesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectFacebookPagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Connect selected Facebook Pages
+      tags:
+      - Channels
+  /api/v1/tenants/{tenantID}/channels/facebook/connections/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Tenant owner only. Pause/disconnect cancel pending outbound intents;
+        disconnect wipes the stored Page credential and unsubscribes webhooks. Repeating
+        an action in effect re-syncs the connector.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Connection ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Action
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Pause, resume or disconnect a Facebook Page
+      tags:
+      - Channels
+  /api/v1/tenants/{tenantID}/channels/facebook/oauth/start:
+    post:
+      consumes:
+      - application/json
+      description: Tenant owner only. Returns the Meta OAuth dialog URL with a single-use
+        state valid for 10 minutes. redirect_uri must be the web app /channels/facebook/callback
+        on an allowed origin.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Redirect
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_StartFacebookOAuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start Facebook Page authorization
+      tags:
+      - Channels
   /api/v1/tenants/{tenantID}/conversations:
     get:
       consumes:
@@ -2547,6 +2967,64 @@ paths:
       security:
       - BearerAuth: []
       summary: Move a conversation to the durable staff queue with a reason
+      tags:
+      - Messaging
+  /api/v1/tenants/{tenantID}/turns/{id}/messages:
+    post:
+      consumes:
+      - application/json
+      description: Assigned sale under sales control only; the Page connection must
+        be active. Records the message as sending with a single-attempt delivery intent;
+        the connector reports sent, failed (window_24h, auth_expired, rate_limit,
+        invalid_recipient, transport) or unknown. Never retried automatically. Retrying
+        the same client_message_id returns the original message.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Turn ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send a real Facebook reply as the assigned sale
       tags:
       - Messaging
   /api/v1/tenants/{tenantID}/turns/{id}/return-to-bot:

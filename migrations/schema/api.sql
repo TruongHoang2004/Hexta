@@ -463,8 +463,12 @@ CREATE TABLE "messaging_threads" (
  "display_name" character varying(120) NOT NULL,
  "created_at" timestamptz NOT NULL,
  "updated_at" timestamptz NOT NULL,
+ -- Real-channel binding used for outbound delivery; NULL for simulator threads.
+ "connection_id" uuid NULL,
+ "recipient_id" text NULL CHECK (char_length("recipient_id") BETWEEN 1 AND 255),
  UNIQUE ("tenant_id", "id"),
- UNIQUE ("tenant_id", "external_key")
+ UNIQUE ("tenant_id", "external_key"),
+ CHECK (("connection_id" IS NULL) = ("recipient_id" IS NULL))
 );
 CREATE INDEX "idx_messaging_threads_list" ON "messaging_threads" ("tenant_id", "id" DESC);
 CREATE TABLE "messaging_turns" (
@@ -492,17 +496,25 @@ CREATE TABLE "messaging_messages" (
  "turn_id" uuid NOT NULL,
  "direction" character varying(16) NOT NULL CHECK ("direction" IN ('inbound', 'outbound')),
  "actor_id" character varying(255) NOT NULL,
- "body" text NOT NULL CHECK (char_length("body") BETWEEN 1 AND 4000),
+ "body" text NOT NULL CHECK (char_length("body") <= 4000),
  "request_key" uuid NOT NULL,
  "request_hash" character varying(64) NOT NULL,
- "status" character varying(16) NOT NULL CHECK ("status" IN ('simulated', 'received')),
+ -- channel: a real outbound provider message whose progress is tracked by delivery_status.
+ "status" character varying(16) NOT NULL CHECK ("status" IN ('simulated', 'received', 'channel')),
  "created_at" timestamptz NOT NULL,
+ "content_type" text NOT NULL DEFAULT 'text' CHECK ("content_type" IN ('text', 'unsupported_media')),
+ "placeholder_meta" jsonb NULL,
+ "delivery_status" text NOT NULL DEFAULT 'received' CHECK ("delivery_status" IN ('received', 'sending', 'sent', 'failed', 'unknown')),
+ "delivery_error_reason" text NULL,
+ CONSTRAINT "messaging_messages_body_content_check" CHECK ("content_type" = 'unsupported_media' OR char_length("body") >= 1),
+ UNIQUE ("tenant_id", "id"),
  UNIQUE ("tenant_id", "request_key"),
  FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id")
 );
 CREATE INDEX "idx_messaging_messages_history" ON "messaging_messages" ("tenant_id", "thread_id", "id" DESC);
 
 -- API-owned authority mirror: provisioned by trusted API operator tooling only.
+-- One Page belongs to at most one tenant while not disconnected; disconnected rows are retained for history/FKs.
 CREATE TABLE "messaging_connections" (
  id uuid PRIMARY KEY,
  tenant_id varchar(36) NOT NULL REFERENCES tenants(id),
@@ -510,8 +522,66 @@ CREATE TABLE "messaging_connections" (
  platform text NOT NULL,
  account_id text NOT NULL,
  enabled boolean NOT NULL,
- UNIQUE(tenant_id,id), UNIQUE(platform,account_id)
+ account_name text NOT NULL DEFAULT '',
+ status text NOT NULL DEFAULT 'active' CHECK(status IN ('active','paused','disconnected','auth_expired')),
+ last_error_code text NULL,
+ last_error_message text NULL,
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(tenant_id,id)
 );
+CREATE UNIQUE INDEX "uq_messaging_connections_active_page" ON "messaging_connections" (platform, account_id) WHERE status <> 'disconnected';
+CREATE INDEX "idx_messaging_connections_tenant" ON "messaging_connections" (tenant_id, platform);
+ALTER TABLE "messaging_threads" ADD CONSTRAINT "messaging_threads_connection_fkey" FOREIGN KEY ("tenant_id", "connection_id") REFERENCES "messaging_connections" ("tenant_id", "id");
+
+-- Single-use OAuth CSRF state bound to the initiating owner; only a hash of the browser-held state is stored.
+CREATE TABLE "channel_oauth_states" (
+ id uuid PRIMARY KEY,
+ tenant_id varchar(36) NOT NULL REFERENCES tenants(id),
+ actor_id varchar(255) NOT NULL,
+ platform text NOT NULL CHECK(platform='facebook'),
+ state_hash varchar(64) NOT NULL UNIQUE,
+ redirect_uri text NOT NULL,
+ expires_at timestamptz NOT NULL,
+ consumed_at timestamptz NULL,
+ oauth_session_id text NULL,
+ oauth_session_expires_at timestamptz NULL,
+ pages jsonb NULL,
+ created_at timestamptz NOT NULL
+);
+CREATE INDEX "idx_channel_oauth_states_session" ON "channel_oauth_states" (tenant_id, oauth_session_id) WHERE oauth_session_id IS NOT NULL;
+
+-- Authorized outbound delivery intents; each attempt is executed at most once by the connector.
+CREATE TABLE "outbound_intents" (
+ id uuid PRIMARY KEY,
+ tenant_id varchar(36) NOT NULL,
+ connection_id uuid NOT NULL,
+ message_id uuid NOT NULL,
+ client_message_id text NOT NULL,
+ request_hash varchar(64) NOT NULL,
+ recipient_id text NOT NULL,
+ status text NOT NULL CHECK(status IN ('pending','sent','failed','unknown','cancelled')),
+ error_category text NULL,
+ error_code text NULL,
+ created_at timestamptz NOT NULL,
+ updated_at timestamptz NOT NULL,
+ UNIQUE(tenant_id,id),
+ UNIQUE(tenant_id,client_message_id),
+ FOREIGN KEY(tenant_id,connection_id) REFERENCES messaging_connections(tenant_id,id),
+ FOREIGN KEY(tenant_id,message_id) REFERENCES messaging_messages(tenant_id,id)
+);
+CREATE INDEX "idx_outbound_intents_pending" ON "outbound_intents" (connection_id) WHERE status = 'pending';
+CREATE TABLE "outbound_attempts" (
+ id uuid PRIMARY KEY,
+ tenant_id varchar(36) NOT NULL,
+ intent_id uuid NOT NULL,
+ connection_version bigint NOT NULL CHECK(connection_version>0),
+ status text NOT NULL CHECK(status IN ('pending','sent','failed','unknown','cancelled')),
+ provider_message_id text NULL,
+ created_at timestamptz NOT NULL,
+ completed_at timestamptz NULL,
+ FOREIGN KEY(tenant_id,intent_id) REFERENCES outbound_intents(tenant_id,id)
+);
+CREATE INDEX "idx_outbound_attempts_intent" ON "outbound_attempts" (tenant_id, intent_id);
 CREATE TABLE "messaging_ingress" (
  identity text PRIMARY KEY,
  event_id uuid NOT NULL,

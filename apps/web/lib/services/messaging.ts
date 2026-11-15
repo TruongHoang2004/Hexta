@@ -31,8 +31,13 @@ export interface MessagingMessage {
   direction: "inbound" | "outbound";
   actor_id: string;
   body: string;
-  status: "simulated" | "received";
+  // channel: a real provider reply whose progress is in delivery_status.
+  status: "simulated" | "received" | "channel";
   created_at: string;
+  content_type: "text" | "unsupported_media";
+  placeholder_meta: { media_kinds: string[] } | null;
+  delivery_status: "received" | "sending" | "sent" | "failed" | "unknown";
+  delivery_error_reason: string;
 }
 export interface MessagingDetail {
   conversation: Conversation;
@@ -55,6 +60,12 @@ export interface SendInput {
   context_revision: number;
   body: string;
   request_key: string;
+}
+export interface ChannelSendInput {
+  client_message_id: string;
+  text: string;
+  expected_version: number;
+  context_revision: number;
 }
 const base = (tenant: string) => `/api/v1/tenants/${tenant}`;
 export const messaging = {
@@ -106,6 +117,18 @@ export const messaging = {
         ...(action === "assign" ? { assignee_id: assignee ?? null } : {}),
         ...(action === "handoff" ? { reason } : {}),
       },
+    );
+    return result.data.data;
+  },
+  // Real Facebook reply; retry with the same client_message_id to replay instead of duplicating.
+  async sendChannel(
+    tenant: string,
+    turn: string,
+    input: ChannelSendInput,
+  ): Promise<MessagingMessage> {
+    const result = await sdk.client.post<{ data: MessagingMessage }>(
+      `${base(tenant)}/turns/${turn}/messages`,
+      input,
     );
     return result.data.data;
   },

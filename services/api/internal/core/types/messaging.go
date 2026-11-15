@@ -6,6 +6,8 @@ type MessagingScope struct{ Active, Member, Owner bool }
 type MessagingThread struct {
 	ID, TenantID, ExternalKey, DisplayName string
 	CreatedAt, UpdatedAt                   time.Time
+	// ConnectionID/RecipientID bind a real-channel thread for outbound delivery; empty for simulator threads.
+	ConnectionID, RecipientID string
 }
 type MessagingTurn struct {
 	ID, TenantID, ThreadID, Lifecycle, Control  string
@@ -17,6 +19,9 @@ type MessagingTurn struct {
 type MessagingMessage struct {
 	ID, TenantID, ThreadID, TurnID, Direction, ActorID, Body, RequestKey, RequestHash, Status string
 	CreatedAt                                                                                 time.Time
+	ContentType, DeliveryStatus, DeliveryErrorReason                                          string
+	// MediaKinds is set for unsupported_media placeholders (e.g. image, sticker); no media is stored.
+	MediaKinds []string
 }
 type MessagingConversation struct {
 	Thread MessagingThread
