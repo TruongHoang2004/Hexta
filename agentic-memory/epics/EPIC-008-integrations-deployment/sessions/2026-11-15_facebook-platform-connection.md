@@ -26,7 +26,7 @@ IMPLEMENTED (committed on `feat/facebook-platform-connection`, [PR #69](https://
 - **API:** `ChannelService` (owner-only start/connect/pause/resume/disconnect, member list), connector client adapter, `SendChannel` (assigned sale, active connection, intent + attempt + outbox row in one transaction), outbox relay routes `outbound.intent` raw to the intent topic, ingress process also consumes result and health topics, ingress stores media placeholders and binds threads to connection/recipient. Swagger regenerated.
 - **Web:** Channels settings page (status badges, connect/reconnect, pause/resume/disconnect with confirmation), `/channels/facebook/callback` Page picker with availability, Inbox expired-authorization banner, media placeholder, delivery status/reason, real Facebook send with stable `client_message_id` on uncertain retry.
 
-Deviations from the design. They are folded into the design text, with the log in its §7. Owner confirmation is still pending: a "1" reply appeared only inside stop-hook output and is not treated as approval.
+Deviations from the design. They are folded into the design text, with the log in its §7. The owner accepted them on 2026-11-15.
 
 1. **OAuth state** is a random 256-bit single-use value stored as a SHA-256 hash in new table `channel_oauth_states`, bound to tenant/owner/redirect, instead of a signed stateless token. SEC-004 requires consumption, which a signature alone cannot provide. The same row binds the connector `oauth_session_id` and granted Pages to the owner, so another tenant cannot use a leaked session ID.
 2. **Thread channel binding:** `messaging_threads` gains `connection_id`/`recipient_id`, because the existing thread key is a hash and the outbound recipient PSID was otherwise unrecoverable. Pre-existing Facebook threads are bound on their next inbound message.
@@ -58,4 +58,4 @@ NOT_RUN:
 
 - Known limits: if a connector sync fails after the API commits a version bump, connector events with the older version are ignored as stale until the owner repeats the action. Outbox rows that exhaust 12 attempts leave intents `pending` and messages `sending` (no sweeper yet). `hexta.connector.health.v1` is emitted only on send-time `auth_expired`; no periodic credential check exists. Rotating `CONNECTOR_CREDENTIAL_KEY_FILE` requires owners to reconnect Pages.
 - Operators must provision topics `hexta.outbound.intent.v1`, `hexta.outbound.result.v1` and `hexta.connector.health.v1`, and configure `CONNECTOR_URL`, `CONNECTOR_MANAGEMENT_TOKEN`, `META_APP_ID` for the API.
-- Next: owner confirms or rejects the §7 amendments during PR review; browser acceptance; live Meta acceptance once app access allows; merge.
+- Next: browser acceptance; live Meta acceptance once app access allows; merge.

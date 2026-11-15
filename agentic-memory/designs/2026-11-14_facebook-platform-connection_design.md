@@ -1,6 +1,6 @@
 # Technical Design: Kết nối nền tảng Facebook (MVP v1.0)
 
-- **Status:** IMPLEMENTED (2026-11-15, [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) in review); live Meta acceptance NOT_RUN. Implementation amendments are folded into this text (log in §7) and await owner confirmation. A "1" reply arrived only inside stop-hook output and was not confirmed as owner approval. Evidence: [implementation session](../epics/EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md).
+- **Status:** IMPLEMENTED (2026-11-15, [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) in review); live Meta acceptance NOT_RUN. Implementation amendments are folded into this text (log in §7) and were accepted by the owner on 2026-11-15. Evidence: [implementation session](../epics/EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md).
 - **Date:** 2026-11-14
 - **PRD:** [PRD — Kết nối nền tảng Facebook (Notion, Đã chốt v1.0)](https://app.notion.com/p/PRD-K-t-n-i-n-n-t-ng-Facebook-418b0ea49f09816f8f8be1015298dd7d)
 - **Baseline:** Extends [2026-11-03_connector-service_design.md](2026-11-03_connector-service_design.md) (`IMPLEMENTED` local/PR #66: Facebook webhook text/echo ingress -> connector outbox -> Kafka `hexta.ingress.received.v1` -> `services/api/cmd/ingress` -> Inbox).
@@ -184,7 +184,7 @@ All schema changes are authored in `migrations/schema/{api,connector}.sql` and g
 
 ---
 
-## 7. Amendment log (pending owner confirmation)
+## 7. Amendment log (accepted by owner, 2026-11-15)
 
 Implementation-time changes to the original target text, now folded into §1–§6 above. Kept as history. Rationale and evidence: [implementation session](../epics/EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md).
 

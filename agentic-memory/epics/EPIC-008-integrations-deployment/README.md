@@ -44,4 +44,4 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Remaining work and next handoff
 
-Tenant-authorized provisioning and single-attempt outbound are implemented locally (2026-11-15 session); design deviations are folded into the design and await owner confirmation in PR review. Then verify live Meta OAuth/receipt/send after app access, add an outbox-exhaustion sweeper and credential health checks, and add provider-specific fetch only after capability confirmation. No live sends or deployment implied.
+Tenant-authorized provisioning and single-attempt outbound are implemented locally (2026-11-15 session); design deviations are folded into the design and were accepted by the owner on 2026-11-15. Then verify live Meta OAuth/receipt/send after app access, add an outbox-exhaustion sweeper and credential health checks, and add provider-specific fetch only after capability confirmation. No live sends or deployment implied.
