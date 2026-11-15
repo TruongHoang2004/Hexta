@@ -1,5 +1,13 @@
 # Consolidated Project Changelog
 
+## 2026-11-15 — Facebook platform connection (PR in review)
+
+- Owners connect Facebook Pages through Meta OAuth and a Page picker; 1 Page = 1 tenant enforced by a partial unique index. Pause, resume, disconnect and reconnect from Channel settings.
+- Connector stores Page tokens AES-256-GCM sealed, subscribes/unsubscribes webhooks, and sends text through the Send API exactly once per attempt; outcomes (`sent`/`failed`/`unknown`) and `auth_expired` health flow back over Kafka.
+- API records reply intents through the transactional outbox; Inbox shows delivery status, media placeholders and an expired-authorization banner.
+- New topics: `hexta.outbound.intent.v1`, `hexta.outbound.result.v1`, `hexta.connector.health.v1`. New connector setting `CONNECTOR_CREDENTIAL_KEY_FILE`; API settings `CONNECTOR_URL`, `CONNECTOR_MANAGEMENT_TOKEN`, `META_APP_ID`.
+- Details, deviations and verification: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md).
+
 ## 2026-11-14 — Audit hardening (PR #68, in review)
 
 - Sessions stay DB-authoritative; auth repositories bound by interface; unused session cache binding removed (audit R6).

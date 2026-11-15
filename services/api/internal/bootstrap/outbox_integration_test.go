@@ -41,6 +41,9 @@ func TestOutboxRelayPublishesCommittedEventToKafka(t *testing.T) {
 		t.Fatal(err)
 	}
 	publisher := kafkatransport.NewTopicPublisher([]string{broker}, topic)
+	// The shared default transport caches topic metadata for seconds; a writer from an earlier test in this
+	// process would not yet know this new topic and the single relay attempt would fail as unknown topic.
+	publisher.Writer.Transport = &kafka.Transport{}
 	defer publisher.Writer.Close()
 	claimed, failure := service.NewOutboxRelay(repository.NewOutboxRepository(db), publisher).RelayOne(ctx)
 	if failure != nil || !claimed {

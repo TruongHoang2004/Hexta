@@ -8,7 +8,12 @@ CREATE TABLE "connector"."connections" (
  app_id text NOT NULL,
  enabled boolean NOT NULL,
  credential_ref text NOT NULL DEFAULT '',
- UNIQUE(platform,account_id)
+ -- AES-256-GCM encrypted Page access token; wiped on disconnect.
+ credential_ciphertext bytea NULL,
+ key_version int NULL,
+ token_updated_at timestamptz NULL,
+ UNIQUE(platform,account_id),
+ CHECK((credential_ciphertext IS NULL) = (key_version IS NULL))
 );
 CREATE TABLE "connector"."receipts" (
  id text NOT NULL,
@@ -44,3 +49,36 @@ CREATE TABLE "connector"."sync_jobs" (
  attempts int NOT NULL DEFAULT 0,
  available_at timestamptz NOT NULL
 );
+-- Ephemeral encrypted Page token staging between OAuth exchange and connection provisioning.
+CREATE TABLE "connector"."oauth_sessions" (
+ id uuid PRIMARY KEY,
+ app_id text NOT NULL,
+ payload_ciphertext bytea NOT NULL,
+ key_version int NOT NULL,
+ expires_at timestamptz NOT NULL,
+ created_at timestamptz NOT NULL
+);
+CREATE INDEX "connector_oauth_sessions_expiry" ON "connector"."oauth_sessions"(expires_at);
+-- Connector-side idempotency: one provider call per attempt_id, never retried automatically.
+CREATE TABLE "connector"."outbound_attempts" (
+ attempt_id uuid PRIMARY KEY,
+ intent_id uuid NOT NULL,
+ connection_id uuid NOT NULL,
+ status text NOT NULL CHECK(status IN ('dispatching','sent','failed','unknown')),
+ provider_message_id text NULL,
+ error_category text NULL,
+ error_code text NULL,
+ created_at timestamptz NOT NULL
+);
+-- Result/health outbox published to Kafka after the durable outcome commits.
+CREATE TABLE "connector"."outbound_events" (
+ id uuid PRIMARY KEY,
+ topic text NOT NULL CHECK(topic IN ('hexta.outbound.result.v1','hexta.connector.health.v1')),
+ event_key text NOT NULL,
+ payload bytea NOT NULL,
+ state text NOT NULL CHECK(state IN ('pending','leased','published','quarantine')),
+ fence bigint NOT NULL DEFAULT 0,
+ attempts int NOT NULL DEFAULT 0,
+ available_at timestamptz NOT NULL
+);
+CREATE INDEX "connector_outbound_events_ready" ON "connector"."outbound_events"(state,available_at);

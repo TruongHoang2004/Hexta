@@ -279,3 +279,30 @@ func (ctrl *MessagingController) ReturnToBot(c *gin.Context) {
 	}
 	ctrl.Success(c, httpmap.Turn(*result))
 }
+
+// SendChannel
+// @Summary Send a real Facebook reply as the assigned sale
+// @Description Assigned sale under sales control only; the Page connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn ID"
+// @Param request body dto.SendMessageRequest true "Message"
+// @Success 200 {object} response.Response[dto.MessagingMessage]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/messages [post]
+func (ctrl *MessagingController) SendChannel(c *gin.Context) {
+	var input dto.SendMessageRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.SendChannel(c.Request.Context(), tenant, actor, c.Param("id"), types.ChannelSendInput{ClientMessageID: input.ClientMessageID, Text: input.Text, ExpectedVersion: input.ExpectedVersion, ContextRevision: input.ContextRevision})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Message(*result))
+}

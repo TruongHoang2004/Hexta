@@ -7,16 +7,73 @@ import { sdk } from "@/lib/sdk";
 import { errorText } from "@/lib/services/sales";
 import {
   messaging,
+  type ChannelSendInput,
   type Conversation,
   type InboxFilter,
   type InboundInput,
   type MessagingDetail,
+  type MessagingMessage,
   type SendInput,
 } from "@/lib/services/messaging";
+import {
+  channels,
+  deliveryReasonText,
+  type FacebookConnection,
+} from "@/lib/services/channels";
+import { ExpiredConnectionBanner } from "@/components/channels/expired-banner";
 import { useAuthStore } from "@/store/useAuthStore";
 
 const button =
   "rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-background";
+const mediaLabel: Record<string, string> = {
+  image: "an image",
+  video: "a video",
+  audio: "a voice message",
+  file: "a file",
+  sticker: "a sticker",
+};
+function MessageContent({ message }: { message: MessagingMessage }) {
+  if (message.content_type === "unsupported_media") {
+    const kinds = message.placeholder_meta?.media_kinds ?? [];
+    return (
+      <p className="mt-1 rounded-lg border border-dashed border-border p-2 text-sm text-muted">
+        Customer sent{" "}
+        {kinds.length
+          ? kinds.map((k) => mediaLabel[k] ?? "an attachment").join(", ")
+          : "an attachment"}
+        . Media is not shown in Hexta — open the conversation in Facebook to
+        view it.
+      </p>
+    );
+  }
+  return <p className="mt-1 whitespace-pre-wrap break-words">{message.body}</p>;
+}
+function DeliveryStatus({ message }: { message: MessagingMessage }) {
+  if (message.status === "received")
+    return <p className="mt-1 text-xs text-muted">Received from Facebook</p>;
+  if (message.status === "simulated")
+    return <p className="mt-1 text-xs text-muted">Simulation only</p>;
+  switch (message.delivery_status) {
+    case "sent":
+      return <p className="mt-1 text-xs text-green-700">Sent to Facebook</p>;
+    case "failed":
+      return (
+        <p role="note" className="mt-1 text-xs text-red-700">
+          {deliveryReasonText[message.delivery_error_reason] ??
+            "Not sent to Facebook."}
+        </p>
+      );
+    case "unknown":
+      return (
+        <p role="note" className="mt-1 text-xs text-amber-800">
+          Delivery unknown: Facebook may have received it. Check the Page inbox
+          before sending again.
+        </p>
+      );
+    default:
+      return <p className="mt-1 text-xs text-muted">Sending… Refresh to update.</p>;
+  }
+}
 const inputStyle =
   "w-full rounded-lg border border-border bg-background p-2 text-sm";
 
@@ -148,6 +205,7 @@ function ThreadDetail({
   const [assignee, setAssignee] = useState("");
   const [reason, setReason] = useState("staff_handoff");
   const pending = useRef<SendInput | null>(null);
+  const pendingChannel = useRef<ChannelSendInput | null>(null);
   const [uncertain, setUncertain] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -190,9 +248,11 @@ function ThreadDetail({
       setBusy(false);
     }
   }
+  const facebook = detail?.conversation.source === "facebook";
   async function send(event: React.FormEvent) {
     event.preventDefault();
     if (!turn || busy || !body.trim()) return;
+    if (facebook) return sendChannel(turn.id, turn.version, turn.context_revision);
     const values = {
       expected_version: turn.version,
       context_revision: turn.context_revision,
@@ -217,6 +277,35 @@ function ThreadDetail({
           err.status === 409 ||
           (!uncertain && err.status >= 400 && err.status < 500));
       if (rejected) pending.current = null;
+      setUncertain(!rejected);
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  // Real sends keep the same client_message_id across uncertain retries so the API replays instead of duplicating.
+  async function sendChannel(turnID: string, version: number, context: number) {
+    if (!pendingChannel.current) {
+      pendingChannel.current = {
+        client_message_id: crypto.randomUUID(),
+        text: body.trim(),
+        expected_version: version,
+        context_revision: context,
+      };
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await messaging.sendChannel(tenant, turnID, pendingChannel.current);
+      pendingChannel.current = null;
+      setUncertain(false);
+      setBody("");
+      setRefresh((v) => v + 1);
+      changed();
+    } catch (err) {
+      const rejected =
+        err instanceof SDKApiError && err.status >= 400 && err.status < 500;
+      if (rejected) pendingChannel.current = null;
       setUncertain(!rejected);
       setError(errorText(err));
     } finally {
@@ -382,15 +471,15 @@ function ThreadDetail({
                   <p className="text-xs text-muted">
                     {message.status === "received"
                       ? "Customer · Facebook Messenger"
-                      : message.direction === "inbound"
-                        ? "Customer · simulated input"
-                        : "Sale · simulated reply"}{" "}
+                      : message.status === "channel"
+                        ? "Sale · Facebook reply"
+                        : message.direction === "inbound"
+                          ? "Customer · simulated input"
+                          : "Sale · simulated reply"}{" "}
                     · {new Date(message.created_at).toLocaleString()}
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap break-words">
-                    {message.body}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">{message.status === "received" ? "Received from Facebook" : "Simulation only"}</p>
+                  <MessageContent message={message} />
+                  <DeliveryStatus message={message} />
                 </li>
               ))}
             </ol>
@@ -401,26 +490,30 @@ function ThreadDetail({
                   aria-label="Reply"
                   className={inputStyle}
                   rows={3}
-                  maxLength={4000}
+                  maxLength={facebook ? 2000 : 4000}
                   value={body}
-                  disabled={
-                    detail.conversation.source === "facebook" || busy || uncertain || !assigned || turn?.control !== "sales"
-                  }
+                  disabled={busy || uncertain || !assigned || turn?.control !== "sales"}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder={
-                    assigned
-                      ? "Write a simulated reply…"
-                      : "Claim this conversation to reply"
+                    !assigned
+                      ? "Claim this conversation to reply"
+                      : facebook
+                        ? "Write a reply to send on Facebook…"
+                        : "Write a simulated reply…"
                   }
                 />
               </label>
               <button
                 className={button}
-                disabled={
-                  detail.conversation.source === "facebook" || busy || !assigned || turn?.control !== "sales" || !body.trim()
-                }
+                disabled={busy || !assigned || turn?.control !== "sales" || !body.trim()}
               >
-                {detail.conversation.source === "facebook" ? "Facebook sending is not enabled" : uncertain ? "Retry previous save" : "Save simulated reply"}
+                {uncertain
+                  ? facebook
+                    ? "Retry previous send"
+                    : "Retry previous save"
+                  : facebook
+                    ? "Send on Facebook"
+                    : "Save simulated reply"}
               </button>
             </form>
           </>
@@ -443,7 +536,20 @@ export function Inbox() {
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [connections, setConnections] = useState<FacebookConnection[]>([]);
   const tenantID = tenant?.id ?? "";
+  useEffect(() => {
+    if (!tenantID) return;
+    const controller = new AbortController();
+    // Banner data only; a failure here must not hide the Inbox.
+    channels
+      .list(tenantID, controller.signal)
+      .then((rows) => {
+        if (!controller.signal.aborted) setConnections(rows);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [tenantID, refresh]);
   useEffect(() => {
     if (!tenantID) return;
     const controller = new AbortController();
@@ -500,10 +606,16 @@ export function Inbox() {
         role="note"
         className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
       >
-        Facebook text messages and simulator conversations appear here. Facebook
-        sending, AI replies and automatic turn expiry are not enabled.
-        Use Refresh to check new activity.
+        Facebook and simulator conversations appear here. Assigned sales can
+        reply to Facebook customers; Facebook media is shown as a placeholder.
+        AI replies and automatic turn expiry are not enabled. Use Refresh to
+        check new activity and delivery status.
       </p>
+      <ExpiredConnectionBanner
+        tenant={tenant.id}
+        connections={connections}
+        owner={tenant.owner_id === user?.id}
+      />
       <Simulator
         tenant={tenant.id}
         onSaved={(thread) => {

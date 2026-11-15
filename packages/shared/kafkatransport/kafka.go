@@ -21,5 +21,10 @@ func (p *Publisher) Publish(ctx context.Context, key string, value []byte) error
 	return p.Writer.WriteMessages(ctx, kafka.Message{Key: []byte(key), Value: value})
 }
 func NewReader(brokers []string, group string) *kafka.Reader {
-	return kafka.NewReader(kafka.ReaderConfig{Brokers: brokers, GroupID: group, Topic: ingress.Topic, CommitInterval: 0, MaxBytes: 2 << 20})
+	return NewTopicReader(brokers, group, ingress.Topic)
+}
+
+// NewTopicReader commits offsets explicitly (CommitInterval 0) after the consumer's durable mutation.
+func NewTopicReader(brokers []string, group, topic string) *kafka.Reader {
+	return kafka.NewReader(kafka.ReaderConfig{Brokers: brokers, GroupID: group, Topic: topic, CommitInterval: 0, MaxBytes: 2 << 20})
 }

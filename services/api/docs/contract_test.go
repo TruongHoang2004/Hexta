@@ -40,7 +40,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingController{}, &controller.ChannelController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -93,6 +93,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/handoff"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/return-to-bot"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/send-simulation"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/messages"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]
 				require.True(t, exists, "missing messaging operation %s", endpoint.route)
@@ -103,6 +104,21 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				failure := resolveSchema(t, spec, op.Responses["409"].Schema)
 				require.Contains(t, failure.Properties, "detail")
 				require.Contains(t, failure.Properties, "http_status")
+			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"post", "/api/v1/tenants/{tenantID}/channels/facebook/oauth/start"},
+				{"get", "/api/v1/channels/facebook/oauth/callback"},
+				{"get", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
+				{"post", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
+				{"patch", "/api/v1/tenants/{tenantID}/channels/facebook/connections/{id}"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing channel operation %s", endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route])
+				payload := resolveSchema(t, spec, resolveSchema(t, spec, op.Responses["200"].Schema).Properties["data"])
+				_, exposesToken := payload.Properties["access_token"]
+				require.False(t, exposesToken, "channel responses must never carry provider tokens")
 			}
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")

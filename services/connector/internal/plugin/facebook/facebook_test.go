@@ -37,3 +37,29 @@ func TestBatchAndAuthentication(t *testing.T) {
 		t.Fatal("batch mapping")
 	}
 }
+
+func TestMediaBecomesPlaceholderWithoutBinaryReferences(t *testing.T) {
+	body := []byte(`{"object":"page","entry":[{"id":"p1","messaging":[
+{"sender":{"id":"u"},"recipient":{"id":"p1"},"timestamp":1700000000000,"message":{"mid":"m1","attachments":[{"type":"image","payload":{"url":"https://cdn.example/private.jpg"}}]}},
+{"sender":{"id":"u"},"recipient":{"id":"p1"},"timestamp":1700000000000,"message":{"mid":"m2","sticker_id":369239263222822,"attachments":[{"type":"image","payload":{"url":"https://cdn.example/s.png","sticker_id":369239263222822}}]}},
+{"sender":{"id":"u"},"recipient":{"id":"p1"},"timestamp":1700000000000,"message":{"mid":"m3","attachments":[{"type":"audio"},{"type":"file"}]}},
+{"sender":{"id":"u"},"recipient":{"id":"p1"},"timestamp":1700000000000,"message":{"mid":"m4","attachments":[{"type":"template"}]}}]}]}`)
+	items, err := FacebookPlugin{}.Parse(body, time.Now())
+	if err != nil || len(items) != 4 {
+		t.Fatal(err, len(items))
+	}
+	for i, want := range [][]string{{"image"}, {"sticker"}, {"audio", "file"}} {
+		e := items[i].Event
+		if items[i].Reason != "" || e.Type != "unsupported_media" || e.Text != "" || len(e.Attachments) != len(want) {
+			t.Fatal("media mapping", i, items[i].Reason, e.Type)
+		}
+		for j, kind := range want {
+			if e.Attachments[j].Type != kind || e.Attachments[j].Reference != "" {
+				t.Fatal("attachment kind", i, e.Attachments[j])
+			}
+		}
+	}
+	if items[3].Reason != "unsupported_attachment" {
+		t.Fatal("unknown attachment kind must stay quarantined")
+	}
+}

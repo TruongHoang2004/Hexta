@@ -77,8 +77,12 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 						MID string `json:"mid"`
 					} `json:"reply_to"`
 					Attachments []struct {
-						Type string `json:"type"`
+						Type    string `json:"type"`
+						Payload struct {
+							StickerID json.RawMessage `json:"sticker_id"`
+						} `json:"payload"`
 					} `json:"attachments"`
+					StickerID json.RawMessage `json:"sticker_id"`
 				} `json:"message"`
 				Reaction json.RawMessage `json:"reaction"`
 				Read     json.RawMessage `json:"read"`
@@ -112,13 +116,27 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 					e.Type = "echo"
 					e.ConversationKey = m.Recipient.ID
 				}
+				// Media is surfaced as a placeholder carrying kinds only; URLs/binaries are never stored.
 				for _, a := range m.Message.Attachments {
-					e.Attachments = append(e.Attachments, ingress.Attachment{Type: a.Type})
+					kind := a.Type
+					if kind == "image" && (len(a.Payload.StickerID) > 0 || len(m.Message.StickerID) > 0) {
+						kind = "sticker"
+					}
+					if !ingress.MediaKinds[kind] {
+						item.Reason = "unsupported_attachment"
+					}
+					e.Attachments = append(e.Attachments, ingress.Attachment{Type: kind})
 				}
 				if len(e.Attachments) > 0 {
+					e.Text = ""
+					if !m.Message.Echo {
+						e.Type = ingress.TypeUnsupportedMedia
+					}
+				}
+				if len(e.Attachments) > 10 {
 					item.Reason = "unsupported_attachment"
 				}
-				if e.MessageID == "" || e.Text == "" || len([]rune(e.Text)) > 4000 || m.Timestamp <= 0 || e.Sender == "" || len(e.Sender) > 255 || e.Recipient == "" || len(e.Recipient) > 255 || entry.ID == "" || (!m.Message.Echo && e.Recipient != entry.ID) || (m.Message.Echo && e.Sender != entry.ID) {
+				if e.MessageID == "" || (e.Text == "" && len(e.Attachments) == 0) || len([]rune(e.Text)) > 4000 || m.Timestamp <= 0 || e.Sender == "" || len(e.Sender) > 255 || e.Recipient == "" || len(e.Recipient) > 255 || entry.ID == "" || (!m.Message.Echo && e.Recipient != entry.ID) || (m.Message.Echo && e.Sender != entry.ID) {
 					item.Reason = "invalid_message"
 				}
 			}

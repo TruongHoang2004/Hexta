@@ -22,12 +22,39 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 			return nil
 		}
 		// History, echo and receipts cannot create active turns or schedule AI.
-		if e.Type != "message" || e.Direction != "inbound" || e.Purpose != "live" || e.Text == "" || len([]rune(e.Text)) > 4000 || len(e.Attachments) > 0 {
+		if e.Direction != "inbound" || e.Purpose != "live" {
 			return nil
 		}
-		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: "facebook:" + e.Key(), DisplayName: "Facebook Messenger", CreatedAt: e.ReceivedAt, UpdatedAt: e.ReceivedAt})
+		message := types.MessagingMessage{ContentType: types.ContentText, Body: e.Text}
+		switch e.Type {
+		case ingress.TypeMessage:
+			if e.Text == "" || len([]rune(e.Text)) > 4000 || len(e.Attachments) > 0 {
+				return nil
+			}
+		case ingress.TypeUnsupportedMedia:
+			// Placeholder only: kinds are recorded, media is never fetched or stored.
+			if e.Text != "" || len(e.Attachments) == 0 || len(e.Attachments) > 10 {
+				return nil
+			}
+			for _, a := range e.Attachments {
+				if !ingress.MediaKinds[a.Type] {
+					return nil
+				}
+				message.MediaKinds = append(message.MediaKinds, a.Type)
+			}
+			message.ContentType = types.ContentUnsupportedMedia
+		default:
+			return nil
+		}
+		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: "facebook:" + e.Key(), DisplayName: "Facebook Messenger", CreatedAt: e.ReceivedAt, UpdatedAt: e.ReceivedAt, ConnectionID: e.ConnectionID, RecipientID: e.ConversationKey})
 		if err != nil {
 			return err
+		}
+		// Threads created before channel binding existed are bound on their next inbound message.
+		if thread.ConnectionID == "" {
+			if err = tx.BindThreadChannel(ctx, e.TenantID, thread.ID, e.ConnectionID, e.ConversationKey); err != nil {
+				return err
+			}
 		}
 		turn, err := tx.CurrentTurn(ctx, e.TenantID, thread.ID)
 		if err != nil {
@@ -48,7 +75,9 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 				return err
 			}
 		}
-		if err = tx.InsertMessage(ctx, types.MessagingMessage{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, TurnID: turn.ID, Direction: "inbound", ActorID: e.Sender, Body: e.Text, RequestKey: uuid.NewSHA1(uuid.NameSpaceOID, []byte(e.Identity())).String(), RequestHash: ingress.Hash(e.Text), Status: "received", CreatedAt: e.SourceAt}); err != nil {
+		message.ID, message.TenantID, message.ThreadID, message.TurnID, message.Direction, message.ActorID = messagingID(), e.TenantID, thread.ID, turn.ID, "inbound", e.Sender
+		message.RequestKey, message.RequestHash, message.Status, message.DeliveryStatus, message.CreatedAt = uuid.NewSHA1(uuid.NameSpaceOID, []byte(e.Identity())).String(), ingress.Hash(e.Text), "received", types.DeliveryReceived, e.SourceAt
+		if err = tx.InsertMessage(ctx, message); err != nil {
 			return err
 		}
 		if e.ReceivedAt.After(thread.UpdatedAt) {

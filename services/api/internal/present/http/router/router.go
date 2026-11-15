@@ -18,6 +18,7 @@ func RegisterRoutes(
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
 	messaging *controller.MessagingController,
+	channels *controller.ChannelController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
@@ -56,6 +57,8 @@ func RegisterRoutes(
 	account.POST("/invitations/preview", onboarding.PreviewInvitation)
 	account.POST("/invitations/accept", onboarding.AcceptInvitation)
 	account.POST("/invitations/decline", onboarding.DeclineInvitation)
+	// Tenant is derived from the single-use OAuth state; the service rechecks owner authority.
+	account.GET("/channels/facebook/oauth/callback", channels.FacebookOAuthCallback)
 	tenantGroup := account.Group("/tenants")
 	tenantGroup.GET("", tenantController.GetUserTenants)
 	tenantGroup.GET("/:tenantID", tenantController.GetTenant)
@@ -105,6 +108,12 @@ func RegisterRoutes(
 	resources.POST("/turns/:id/handoff", messaging.Handoff)
 	resources.POST("/turns/:id/return-to-bot", messaging.ReturnToBot)
 	resources.POST("/turns/:id/send-simulation", messaging.Send)
+	resources.POST("/turns/:id/messages", messaging.SendChannel)
+
+	resources.POST("/channels/facebook/oauth/start", channels.StartFacebookOAuth)
+	resources.GET("/channels/facebook/connections", channels.ListFacebookConnections)
+	resources.POST("/channels/facebook/connections", channels.ConnectFacebookPages)
+	resources.PATCH("/channels/facebook/connections/:id", channels.UpdateFacebookConnection)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

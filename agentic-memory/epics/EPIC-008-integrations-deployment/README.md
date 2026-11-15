@@ -3,7 +3,7 @@ epic: EPIC-008
 title: Direct platform connector and eventual VPS deployment
 status: in-progress
 completed: false
-updated: 2026-11-03
+updated: 2026-11-15
 ---
 
 # Direct platform connector and eventual VPS deployment
@@ -39,8 +39,9 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Sessions
 
 - [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
+- [2026-11-15 Facebook platform connection](sessions/2026-11-15_facebook-platform-connection.md) — [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged: owner OAuth + Page picker, pause/resume/disconnect, media placeholders, single-attempt outbound send with result/health events. Isolated mock-Meta E2E verified; live Meta NOT_RUN.
 - [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md) — [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: connector acceptance no longer uses a global advisory lock; admission limit is now approximate.
 
 ## Remaining work and next handoff
 
-Finish tenant-authorized provisioning, verify Meta live receipt, add provider-specific fetch only after capability confirmation, and implement API permits/outbound attempts before sending. No live sends or deployment implied.
+Tenant-authorized provisioning and single-attempt outbound are implemented locally (2026-11-15 session); design deviations are folded into the design and were accepted by the owner on 2026-11-15. Then verify live Meta OAuth/receipt/send after app access, add an outbox-exhaustion sweeper and credential health checks, and add provider-specific fetch only after capability confirmation. No live sends or deployment implied.

@@ -31,7 +31,7 @@ func fixtureStore(t *testing.T) (*Store, service.Connection) {
 	t.Cleanup(pool.Close)
 	s := &Store{pool}
 	c := service.Connection{ID: uuid.NewString(), TenantID: uuid.NewString(), Version: 1, Platform: "facebook", AccountID: uuid.NewString(), AppID: uuid.NewString(), Enabled: true}
-	if s.PutConnection(context.Background(), c) != nil {
+	if s.PutConnection(context.Background(), c, service.CredentialChange{}) != nil {
 		t.Fatal("provision")
 	}
 	return s, c
@@ -89,12 +89,12 @@ func TestDurableAcceptanceDuplicateQuarantineAndFencing(t *testing.T) {
 	changed := c
 	changed.TenantID = uuid.NewString()
 	changed.Version++
-	if s.PutConnection(ctx, changed) == nil {
+	if s.PutConnection(ctx, changed, service.CredentialChange{}) == nil {
 		t.Fatal("tenant reassignment")
 	}
 	c.Enabled = false
 	c.Version++
-	if s.PutConnection(ctx, c) != nil {
+	if s.PutConnection(ctx, c, service.CredentialChange{}) != nil {
 		t.Fatal("disable")
 	}
 	r := uuid.NewString()
@@ -156,7 +156,7 @@ func TestAcceptDoesNotSerializeUnrelatedReceipts(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 	other := service.Connection{ID: uuid.NewString(), TenantID: uuid.NewString(), Version: 1, Platform: "facebook", AccountID: uuid.NewString(), AppID: blocked.AppID, Enabled: true}
-	if s.PutConnection(ctx, other) != nil {
+	if s.PutConnection(ctx, other, service.CredentialChange{}) != nil {
 		t.Fatal("provision")
 	}
 	// Hold one connection row so an in-flight Accept stops inside its transaction.

@@ -2,10 +2,12 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
+	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
@@ -31,7 +33,8 @@ func registerOutboxRelay(lc fx.Lifecycle, cfg *config.Config, store repository.I
 		return
 	}
 	publisher := kafkatransport.NewTopicPublisher(strings.Split(brokers, ","), types.OrderEventsTopic)
-	relay := service.NewOutboxRelay(store, publisher)
+	intents := kafkatransport.NewTopicPublisher(strings.Split(brokers, ","), outbound.IntentTopic)
+	relay := service.NewOutboxRelay(store, publisher).WithIntentPublisher(intents)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	lc.Append(fx.Hook{
@@ -49,7 +52,7 @@ func registerOutboxRelay(lc fx.Lifecycle, cfg *config.Config, store repository.I
 			case <-stopCtx.Done():
 				return stopCtx.Err()
 			}
-			return publisher.Writer.Close()
+			return errors.Join(publisher.Writer.Close(), intents.Writer.Close())
 		},
 	})
 }

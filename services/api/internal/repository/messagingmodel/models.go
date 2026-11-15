@@ -3,12 +3,14 @@ package messagingmodel
 import "time"
 
 type Thread struct {
-	ID          string
-	TenantID    string
-	ExternalKey string
-	DisplayName string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID           string
+	TenantID     string
+	ExternalKey  string
+	DisplayName  string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	ConnectionID *string
+	RecipientID  *string
 }
 
 func (Thread) TableName() string { return "messaging_threads" }
@@ -41,6 +43,74 @@ type Message struct {
 	RequestHash string
 	Status      string
 	CreatedAt   time.Time
+	ContentType string
+	// PlaceholderMeta is jsonb {"media_kinds":[...]} for unsupported_media rows.
+	PlaceholderMeta     *string `gorm:"type:jsonb"`
+	DeliveryStatus      string
+	DeliveryErrorReason *string
 }
 
 func (Message) TableName() string { return "messaging_messages" }
+
+type Connection struct {
+	ID               string
+	TenantID         string
+	Version          int64
+	Platform         string
+	AccountID        string
+	Enabled          bool
+	AccountName      string
+	Status           string
+	LastErrorCode    *string
+	LastErrorMessage *string
+	UpdatedAt        time.Time
+}
+
+func (Connection) TableName() string { return "messaging_connections" }
+
+type OAuthState struct {
+	ID                    string
+	TenantID              string
+	ActorID               string
+	Platform              string
+	StateHash             string
+	RedirectURI           string
+	ExpiresAt             time.Time
+	ConsumedAt            *time.Time
+	OAuthSessionID        *string    `gorm:"column:oauth_session_id"`
+	OAuthSessionExpiresAt *time.Time `gorm:"column:oauth_session_expires_at"`
+	Pages                 *string    `gorm:"type:jsonb"`
+	CreatedAt             time.Time
+}
+
+func (OAuthState) TableName() string { return "channel_oauth_states" }
+
+type OutboundIntent struct {
+	ID              string
+	TenantID        string
+	ConnectionID    string
+	MessageID       string
+	ClientMessageID string
+	RequestHash     string
+	RecipientID     string
+	Status          string
+	ErrorCategory   *string
+	ErrorCode       *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func (OutboundIntent) TableName() string { return "outbound_intents" }
+
+type OutboundAttempt struct {
+	ID                string
+	TenantID          string
+	IntentID          string
+	ConnectionVersion int64
+	Status            string
+	ProviderMessageID *string
+	CreatedAt         time.Time
+	CompletedAt       *time.Time
+}
+
+func (OutboundAttempt) TableName() string { return "outbound_attempts" }

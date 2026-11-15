@@ -12,6 +12,16 @@ import (
 
 const Topic = "hexta.ingress.received.v1"
 
+// Event types. UnsupportedMedia carries attachment kinds only; binary media is never fetched or stored.
+const (
+	TypeMessage          = "message"
+	TypeEcho             = "echo"
+	TypeUnsupportedMedia = "unsupported_media"
+)
+
+// MediaKinds are the attachment kinds carried by unsupported_media events.
+var MediaKinds = map[string]bool{"image": true, "video": true, "audio": true, "file": true, "sticker": true}
+
 type Event struct {
 	SchemaVersion     int          `json:"schema_version"`
 	EventID           string       `json:"event_id"`

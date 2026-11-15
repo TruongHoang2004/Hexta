@@ -47,15 +47,30 @@ type MessagingTurn struct {
 	Version           int64     `json:"version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
 }
+
+// SendMessageRequest sends a real-channel reply. Version/context guard against replying to stale context.
+type SendMessageRequest struct {
+	ClientMessageID string `json:"client_message_id" validate:"required,uuid"`
+	Text            string `json:"text" validate:"required,max=2000"`
+	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
+	ContextRevision int64  `json:"context_revision" validate:"min=1"`
+}
+type PlaceholderMetaDTO struct {
+	MediaKinds []string `json:"media_kinds"`
+}
 type MessagingMessage struct {
-	ID        string    `json:"id"`
-	ThreadID  string    `json:"thread_id"`
-	TurnID    string    `json:"turn_id"`
-	Direction string    `json:"direction"`
-	ActorID   string    `json:"actor_id"`
-	Body      string    `json:"body"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                  string              `json:"id"`
+	ThreadID            string              `json:"thread_id"`
+	TurnID              string              `json:"turn_id"`
+	Direction           string              `json:"direction"`
+	ActorID             string              `json:"actor_id"`
+	Body                string              `json:"body"`
+	Status              string              `json:"status"`
+	CreatedAt           time.Time           `json:"created_at"`
+	ContentType         string              `json:"content_type"`
+	PlaceholderMeta     *PlaceholderMetaDTO `json:"placeholder_meta"`
+	DeliveryStatus      string              `json:"delivery_status"`
+	DeliveryErrorReason string              `json:"delivery_error_reason"`
 }
 
 type MessagingConversation struct {

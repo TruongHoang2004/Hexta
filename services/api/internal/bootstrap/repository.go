@@ -11,6 +11,7 @@ func BuildRepository() fx.Option {
 		repository.NewTenantOnboardingRepository,
 		repository.NewWorkflowRepository,
 		fx.Annotate(repository.NewMessagingRepository, fx.As(new(repository.MessagingStore))),
+		fx.Annotate(repository.NewChannelRepository, fx.As(new(repository.ChannelStore))),
 		repository.NewBaseRepository,
 		fx.Annotate(repository.NewSalesRepository, fx.As(new(repository.ISalesRepository))),
 		fx.Annotate(repository.NewIdentityRepository, fx.As(new(repository.IIdentityRepository))),

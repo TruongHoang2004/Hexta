@@ -120,14 +120,72 @@ func (s *Store) Finish(ctx context.Context, v Leased, success bool) error {
 	return err
 }
 
-// PutConnection is trusted machine provisioning, with immutable tenant/account/app identity and monotonic versions.
-func (s *Store) PutConnection(ctx context.Context, c service.Connection) error {
-	tag, err := s.Pool.Exec(ctx, `INSERT INTO connector.connections(id,version,tenant_id,platform,account_id,app_id,enabled,credential_ref) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,credential_ref=excluded.credential_ref WHERE connections.tenant_id=excluded.tenant_id AND connections.platform=excluded.platform AND connections.account_id=excluded.account_id AND connections.app_id=excluded.app_id AND connections.version+1=excluded.version`, c.ID, c.Version, c.TenantID, c.Platform, c.AccountID, c.AppID, c.Enabled, c.CredentialRef)
-	if err == nil && tag.RowsAffected() != 1 {
-		return errors.New("configuration conflict")
+// PutConnection is trusted machine provisioning, with immutable tenant/account/app identity and strictly increasing
+// versions (gaps allowed, so an API retry after a failed sync converges).
+// Replaying the current version with the same enabled state is an idempotent no-op, so the API can retry a sync.
+// A disconnected binding (disabled, credential wiped) for the same Page may be replaced by a new connection ID.
+func (s *Store) PutConnection(ctx context.Context, c service.Connection, credential service.CredentialChange) error {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return err
 	}
-	return err
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `DELETE FROM connector.connections WHERE platform=$1 AND account_id=$2 AND id<>$3 AND NOT enabled AND credential_ciphertext IS NULL`, c.Platform, c.AccountID, c.ID); err != nil {
+		return err
+	}
+	var ciphertext []byte
+	var keyVersion *int
+	if credential.Set != nil {
+		ciphertext, keyVersion = credential.Set.Ciphertext, &credential.Set.KeyVersion
+	}
+	tag, err := tx.Exec(ctx, `INSERT INTO connector.connections(id,version,tenant_id,platform,account_id,app_id,enabled,credential_ref,credential_ciphertext,key_version,token_updated_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CASE WHEN $9::bytea IS NULL THEN NULL ELSE now() END)
+		ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,credential_ref=excluded.credential_ref,
+			credential_ciphertext=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN $9 ELSE connections.credential_ciphertext END,
+			key_version=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN $10 ELSE connections.key_version END,
+			token_updated_at=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN now() ELSE connections.token_updated_at END
+		WHERE connections.tenant_id=excluded.tenant_id AND connections.platform=excluded.platform AND connections.account_id=excluded.account_id AND connections.app_id=excluded.app_id AND connections.version<excluded.version`,
+		c.ID, c.Version, c.TenantID, c.Platform, c.AccountID, c.AppID, c.Enabled, c.CredentialRef, ciphertext, keyVersion, credential.Wipe)
+	if err != nil {
+		return service.ErrConflict
+	}
+	if tag.RowsAffected() != 1 {
+		var replay bool
+		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM connector.connections WHERE id=$1 AND version=$2 AND enabled=$3 AND tenant_id=$4 AND platform=$5 AND account_id=$6 AND app_id=$7)`, c.ID, c.Version, c.Enabled, c.TenantID, c.Platform, c.AccountID, c.AppID).Scan(&replay)
+		if err != nil {
+			return err
+		}
+		if !replay {
+			return service.ErrConflict
+		}
+		if credential.Wipe {
+			if _, err = tx.Exec(ctx, `UPDATE connector.connections SET credential_ciphertext=NULL,key_version=NULL,token_updated_at=NULL WHERE id=$1`, c.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) ConnectionCredential(ctx context.Context, id string) (service.Connection, *service.Sealed, error) {
+	var c service.Connection
+	var sealed service.Sealed
+	var key *int
+	err := s.Pool.QueryRow(ctx, `SELECT id,version,tenant_id,platform,account_id,app_id,enabled,credential_ciphertext,key_version FROM connector.connections WHERE id=$1`, id).Scan(&c.ID, &c.Version, &c.TenantID, &c.Platform, &c.AccountID, &c.AppID, &c.Enabled, &sealed.Ciphertext, &key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return c, nil, service.ErrConnectionMissing
+	}
+	if err != nil {
+		return c, nil, err
+	}
+	if key == nil {
+		return c, nil, nil
+	}
+	sealed.KeyVersion = *key
+	return c, &sealed, nil
 }
 
 var _ service.InboundStore = (*Store)(nil)
 var _ service.SyncStore = (*Store)(nil)
+var _ service.ChannelStore = (*Store)(nil)
+var _ service.OutboundStore = (*Store)(nil)

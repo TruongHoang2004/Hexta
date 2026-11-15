@@ -36,3 +36,12 @@ ai:
 
 kafka:
   brokers: ${KAFKA_BROKERS}
+
+connector:
+  url: ${CONNECTOR_URL}
+  management_token: ${CONNECTOR_MANAGEMENT_TOKEN}
+
+facebook:
+  app_id: ${META_APP_ID}
+  graph_version: ${META_GRAPH_VERSION}
+  dialog_url: ${META_OAUTH_DIALOG_URL}

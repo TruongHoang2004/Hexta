@@ -30,6 +30,8 @@ Provider follow-up: [shared LangChain integration](EPIC-002-ai-runtime/sessions/
 Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/sessions/2026-11-03_shopping-consultant.md), [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) open/in-review; live Python consult endpoint, browser acceptance and merge remain open.
 Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md), [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; isolated HTTP → PostgreSQL → Kafka → API member inbox verified. Live Meta, outbound/AI and merge remain open.
 
+Facebook platform connection: [2026-11-15 session](EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md), [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged; owner OAuth/Page management, media placeholders and single-attempt sends verified against mock Meta in isolation. Live Meta and merge open.
+
 Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
 
 Audit hardening: [2026-11-14 session](EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md), [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) OPEN/in-review; eight fixes with isolated DB/Kafka verification, merge open.

@@ -73,7 +73,8 @@ func TestConnectorFacebookToInbox(t *testing.T) {
 	secret := "fixture-app-secret-123456"
 	verify := "fixture-verify-token-123456"
 	management := "fixture-management-123456"
-	for name, value := range map[string]string{"secret": secret, "verify": verify, "management": management} {
+	credentialKey := strings.Repeat("a1", 32)
+	for name, value := range map[string]string{"secret": secret, "verify": verify, "management": management, "credential": credentialKey} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(value), 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +86,7 @@ func TestConnectorFacebookToInbox(t *testing.T) {
 	addr := listener.Addr().String()
 	listener.Close()
 	child := exec.CommandContext(ctx, binary)
-	child.Env = append(os.Environ(), "CONNECTOR_DATABASE_URL="+connectorDB, "KAFKA_BROKERS=127.0.0.1:1", "META_APP_ID="+app, "META_APP_SECRET_FILE="+filepath.Join(dir, "secret"), "META_VERIFY_TOKEN_FILE="+filepath.Join(dir, "verify"), "CONNECTOR_MANAGEMENT_TOKEN_FILE="+filepath.Join(dir, "management"), "CONNECTOR_LISTEN_ADDR="+addr)
+	child.Env = append(os.Environ(), "CONNECTOR_DATABASE_URL="+connectorDB, "KAFKA_BROKERS=127.0.0.1:1", "META_APP_ID="+app, "META_APP_SECRET_FILE="+filepath.Join(dir, "secret"), "META_VERIFY_TOKEN_FILE="+filepath.Join(dir, "verify"), "CONNECTOR_MANAGEMENT_TOKEN_FILE="+filepath.Join(dir, "management"), "CONNECTOR_CREDENTIAL_KEY_FILE="+filepath.Join(dir, "credential"), "CONNECTOR_LISTEN_ADDR="+addr)
 	if err := child.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +116,7 @@ func TestConnectorFacebookToInbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != 204 {
+	if resp.StatusCode != 200 {
 		t.Fatal("provisioning", resp.StatusCode)
 	}
 	t.Setenv("KAFKA_BROKERS", broker)
