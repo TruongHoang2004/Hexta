@@ -18,7 +18,7 @@ Branch `feat/facebook-platform-connection` from `fix/audit-hardening` @ `b417ed3
 
 ## Outcome and decisions
 
-IMPLEMENTED (committed on `feat/facebook-platform-connection`, PR in review; not merged):
+IMPLEMENTED (committed on `feat/facebook-platform-connection`, [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open against `main`; not merged):
 
 - **Shared contracts:** `packages/shared/outbound` (intent/result/health events with validation); `ingress` adds `unsupported_media` and media kinds; `kafkatransport.NewTopicReader`.
 - **Schemas (Atlas-generated):** API `20261114164249_facebook_platform_connection` + data backfill `20261114164302_backfill_connection_status` (disabled → `paused`); connector `20261114164319_facebook_platform_connection`.
