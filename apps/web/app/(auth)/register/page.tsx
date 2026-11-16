@@ -2,7 +2,7 @@
 
 import { BrandLogo } from "@/components/brand-logo";
 import { useState } from "react";
-import { sdk } from "@/lib/sdk";
+import { apiUrl, sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Input, Label, toast } from "@hexta/ui";
@@ -152,7 +152,9 @@ export default function RegisterPage() {
                   variant="outline" 
                   className="w-full h-11 bg-background" 
                   onClick={() => {
-                    window.location.href = "http://localhost:8080/api/v1/auth/google/login";
+                    // Full navigation to the API's OAuth redirect, not a Next.js page.
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                    window.location.href = `${apiUrl}/api/v1/auth/google/login`;
                   }}
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

@@ -1,10 +1,12 @@
 # Deploy Hexta to a single server (hexta.org)
 
-Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stack with Docker Compose behind Caddy. The local demo stack (`compose.demo.yml`) is separate and is not used here.
+Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stack with Docker Compose behind Caddy. CI builds every application image; the server only pulls and runs them. The local demo stack (`compose.demo.yml`) is separate and is not used here.
 
 | Path | Purpose |
 | --- | --- |
 | `infrastructure/compose.prod.yml` | Production stack: Caddy, Postgres, Redis, Redpanda, migrations, api, ingress, ai, connector, web |
+| `infrastructure/compose.prod.build.yml` | Local testing only: builds the same images from the working tree |
+| `.github/workflows/docker-ci-cd.yml` | Builds and pushes `api`, `connector`, `ai`, `web`, `migrator` to GHCR on every `main` commit |
 | `infrastructure/prod/Caddyfile` | HTTPS edge and routing |
 | `infrastructure/prod/api.yaml` | API configuration (values come from `.env`) |
 | `infrastructure/prod/init-db.sh` | One-time database and role creation |
@@ -26,7 +28,8 @@ ingress (Kafka consumer) ◄──► Redpanda ──► Postgres (db hexta)
 - Only ports 80 and 443 are published. The connector's `/internal/*` control plane, AI, Postgres, Redis and Kafka are reachable only on the Compose network.
 - Each service has its own database login: `hexta_api` owns database `hexta`, `hexta_ai` owns schema `ai_runtime`, and `hexta_connector` owns the separate database `hexta_connector`.
 - Migrations run as one-shot Atlas jobs before the services that need them; no service changes schema at startup.
-- Memory limits total about 6.5 GB, leaving headroom for builds and the OS.
+- Memory limits total about 6.5 GB, leaving headroom for the OS.
+- Images come from `ghcr.io/truonghoang2004/hexta/<service>:sha-<7-char commit>`, published by CI for every commit on `main`. `HEXTA_IMAGE_TAG` in `.env` selects the version. The web image calls the API on its own origin, so the same image works on any domain.
 
 ## 1. Prerequisites
 
@@ -49,7 +52,7 @@ sudo ufw allow 443/tcp
 sudo ufw allow 443/udp
 sudo ufw enable
 
-# 4 GB swap so image builds on 2 vCPU do not run out of memory.
+# 4 GB swap as memory headroom.
 sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
 sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
@@ -66,7 +69,7 @@ cd /opt/hexta
 git checkout main
 ```
 
-For a private repository, use a read-only deploy key.
+The checkout supplies only configuration (Compose file, Caddyfile, API config, init script); images come from GHCR. For a private repository, use a read-only deploy key.
 
 ## 4. Configuration and secrets
 
@@ -80,7 +83,10 @@ for k in POSTGRES_PASSWORD API_DB_PASSWORD AI_DB_PASSWORD CONNECTOR_DB_PASSWORD 
   sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
 done
 sed -i 's|^ACME_EMAIL=.*|ACME_EMAIL=<your email>|' .env
+sed -i "s|^HEXTA_IMAGE_TAG=.*|HEXTA_IMAGE_TAG=sha-$(git -C /opt/hexta rev-parse --short=7 HEAD)|" .env
 ```
+
+`HEXTA_IMAGE_TAG` must name a `main` commit whose **Docker CI/CD** run succeeded. Check it under the repository's Actions tab before deploying.
 
 Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key, `META_APP_ID`. Use hex values for passwords because they are embedded in database URLs.
 
@@ -102,7 +108,7 @@ Back up `.env` and `secrets/` to a password manager or another offline store. Lo
 
 ```sh
 cd /opt/hexta
-./scripts/prod.sh build                 # 15–30 minutes on 2 vCPU the first time
+./scripts/prod.sh pull
 ./scripts/prod.sh up -d --wait
 ./scripts/prod.sh ps -a
 ```
@@ -126,6 +132,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -d '{}' \
 
 Then in a browser: open `https://hexta.org/register`, create the owner account and a workspace.
 
+If `pull` reports `denied` for an image, that GHCR package is private. Either make it public (GitHub → the package → Package settings → Change visibility), or on the server run `docker login ghcr.io -u <github user>` with a personal access token that has only `read:packages`.
+
 ## 7. Connect channels
 
 - **Telegram:** Settings → Channels → paste a @BotFather token. The connector registers `https://hexta.org/webhooks/telegram/<connection id>` automatically. Message the bot from a private chat and check the Inbox.
@@ -141,17 +149,19 @@ Then in a browser: open `https://hexta.org/register`, create the owner account a
 ```sh
 cd /opt/hexta
 ./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > ~/hexta-pre-update-$(date +%F-%H%M).sql.gz
-git fetch origin && git checkout <commit or tag>   # record the previous commit first: git rev-parse HEAD
-./scripts/prod.sh build
+grep '^HEXTA_IMAGE_TAG=' infrastructure/prod/.env      # note the running version for rollback
+git fetch origin && git checkout <main commit>          # configuration for that version
+sed -i "s|^HEXTA_IMAGE_TAG=.*|HEXTA_IMAGE_TAG=sha-$(git rev-parse --short=7 HEAD)|" infrastructure/prod/.env
+./scripts/prod.sh pull
 ./scripts/prod.sh up -d --wait
 ./scripts/prod.sh ps -a
 ```
 
-Migration jobs rerun on every `up`; they apply only new migrations and exit 0 when there are none. Rebuild the web image (`build`) whenever `DOMAIN` changes, because its API URL is set at build time.
+Migration jobs rerun on every `up`; they apply only new migrations and exit 0 when there are none. Keep the checkout and `HEXTA_IMAGE_TAG` on the same commit so configuration and images match.
 
 ## 9. Roll back
 
-- **Code only (no new migration):** `git checkout <previous commit> && ./scripts/prod.sh build && ./scripts/prod.sh up -d --wait`.
+- **Code only (no new migration):** `git checkout <previous commit>`, set `HEXTA_IMAGE_TAG` back to its `sha-…` tag, then `./scripts/prod.sh pull && ./scripts/prod.sh up -d --wait`.
 - **With migrations:** migrations are forward-only and additive by policy, so the previous code normally still runs on the newer schema. Roll back the code as above. Restore a backup (section 10) only for a destructive migration, and accept losing data written since that backup.
 
 ## 10. Backups
@@ -188,7 +198,6 @@ Never run `down -v` on the server: it deletes the database volume. Never print `
 ## Known limits
 
 - One host, no high availability. Disk loss means restoring from an off-server backup.
-- Images are built on the server from the checked-out commit. CI publishes only `api`, `web` and `migrator` images to GHCR, and the `web` image bakes in a `localhost` API URL, so GHCR images are not used yet.
 - Each service uses one login for migrations and runtime; separate migrator/runtime roles are a follow-up.
 - No metrics or alerting are wired; use `ps`, `logs` and `docker stats`.
-- Verified locally on 2026-11-16 by running this stack with `DOMAIN=localhost`, covering routing, health, migrations and topic creation. NOT_RUN on a real server: public certificates, DNS, live Facebook/Telegram callbacks and backup restore.
+- Verified locally on 2026-11-16 by running this stack with `DOMAIN=localhost` and images built through `compose.prod.build.yml` (same Dockerfiles and build args as CI), covering routing, health, migrations, topic creation, and register/login on one origin. NOT_RUN: the first CI publish of the `connector` and `ai` images, and on a real server public certificates, DNS, live Facebook/Telegram callbacks and backup restore.
