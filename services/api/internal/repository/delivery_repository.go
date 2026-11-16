@@ -103,8 +103,16 @@ func (r *DeliveryRepository) SetMessageDelivery(ctx context.Context, tenant, id,
 // MarkAuthExpired moves only an active binding at or below the reported version; paused/disconnected/newer
 // (reconnected) bindings are left untouched.
 func (r *DeliveryRepository) MarkAuthExpired(ctx context.Context, tenant, id string, version int64, code string, now time.Time) *apperrors.Error {
-	if err := r.db.WithContext(ctx).Model(&messagingmodel.Connection{}).Where("tenant_id = ? AND id = ? AND status = ? AND version <= ?", tenant, id, types.ChannelStatusActive, version).
-		Updates(map[string]any{"status": types.ChannelStatusAuthExpired, "last_error_code": code, "last_error_message": gorm.Expr("CASE WHEN platform = ? THEN ? ELSE ? END", types.ChannelPlatformTelegram, "Telegram rejected the Bot Token (revoked or invalid); rotate the token", "Facebook authorization expired or was revoked; reconnect the Page"), "updated_at": now}).Error; err != nil {
+	var row messagingmodel.Connection
+	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id = ? AND id = ? AND status = ? AND version <= ?", tenant, id, types.ChannelStatusActive, version).First(&row).Error
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return salesDBError(ctx, err)
+	}
+	if err := r.db.WithContext(ctx).Model(&messagingmodel.Connection{}).Where("tenant_id = ? AND id = ? AND version = ?", tenant, id, row.Version).
+		Updates(map[string]any{"status": types.ChannelStatusAuthExpired, "last_error_code": code, "last_error_message": types.ChannelAuthExpiredMessages[row.Platform], "updated_at": now}).Error; err != nil {
 		return salesDBError(ctx, err)
 	}
 	return nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
 	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
@@ -19,6 +20,13 @@ const (
 	tgRotated    = "777001:AAFixtureSecretPart_bbbbbbbbbbbbbbbbbbbb"
 	tgOtherToken = "888002:AAFixtureSecretPart_cccccccccccccccccccc"
 )
+
+func deref(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
 
 func telegramFixture(t *testing.T) (salesFixture, *ChannelService, *fakeConnector) {
 	f, s, connector := channelServiceFixture(t)
@@ -59,14 +67,28 @@ func TestTelegramConnectOwnerOnlyAndOneBotOneTenant(t *testing.T) {
 	}
 	// The API stores no token anywhere it owns.
 	var leaks, audits int64
-	if err := f.db.Raw("SELECT count(*) FROM messaging_connections WHERE concat_ws(' ', account_id, account_name, account_username, last_error_code, last_error_message) LIKE ?", "%AAFixture%").Scan(&leaks).Error; err != nil {
+	var rows []messagingmodel.Connection
+	if err := f.db.Where("tenant_id = ?", f.tenant).Find(&rows).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := f.db.Raw("SELECT count(*) FROM audit_logs WHERE tenant_id = ? AND (after_state::text LIKE ? OR coalesce(before_state::text,'') LIKE ?)", f.tenant, "%AAFixture%", "%AAFixture%").Scan(&audits).Error; err != nil {
+	for _, row := range rows {
+		if strings.Contains(strings.Join([]string{row.AccountID, row.AccountName, row.AccountUsername, deref(row.LastErrorCode), deref(row.LastErrorMessage)}, " "), "AAFixture") {
+			leaks++
+		}
+	}
+	var logs []model.AuditLog
+	if err := f.db.Where("tenant_id = ?", f.tenant).Find(&logs).Error; err != nil {
 		t.Fatal(err)
 	}
 	var connectAudits int64
-	f.db.Raw("SELECT count(*) FROM audit_logs WHERE tenant_id = ? AND action = 'channel.telegram.connect'", f.tenant).Scan(&connectAudits)
+	for _, log := range logs {
+		if strings.Contains(log.AfterState+deref(log.BeforeState), "AAFixture") {
+			audits++
+		}
+		if log.Action == "channel.telegram.connect" {
+			connectAudits++
+		}
+	}
 	if leaks != 0 || audits != 0 || connectAudits != 1 {
 		t.Fatal("bot token persisted by the API or connect not audited", leaks, audits, connectAudits)
 	}

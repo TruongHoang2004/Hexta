@@ -36,6 +36,12 @@ func ChannelThreadPlatform(externalKey string) string {
 	return ""
 }
 
+// ChannelAuthExpiredMessages are the owner-facing reasons shown when a platform rejects the stored credential.
+var ChannelAuthExpiredMessages = map[string]string{
+	ChannelPlatformFacebook: "Facebook authorization expired or was revoked; reconnect the Page",
+	ChannelPlatformTelegram: "Telegram rejected the Bot Token (revoked or invalid); rotate the token",
+}
+
 // ChannelConnection is the API-owned authority mirror of a provider account binding (1 Page/Bot = 1 tenant).
 // AccountUsername is the Telegram @bot_username; credentials are never part of this value.
 type ChannelConnection struct {
