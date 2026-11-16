@@ -20,7 +20,7 @@ These are trusted machine endpoints: expose only on a private network/reverse-pr
 
 ## Start locally
 
-From repository root, configure private environment variables; values below are names, not credentials:
+From repository root, configure private environment variables (template: [`.env.example`](.env.example)); values below are names, not credentials:
 
 - `CONNECTOR_DATABASE_URL`: connector runtime PostgreSQL URL.
 - `API_DATABASE_URL`: API runtime PostgreSQL URL for the separate consumer.
