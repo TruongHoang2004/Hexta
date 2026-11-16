@@ -18,6 +18,7 @@ import (
 type schema struct {
 	Ref        string            `json:"$ref"`
 	Properties map[string]schema `json:"properties"`
+	Items      *schema           `json:"items"`
 }
 type operation struct {
 	Parameters []struct {
@@ -111,14 +112,23 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				{"get", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
 				{"post", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
 				{"patch", "/api/v1/tenants/{tenantID}/channels/facebook/connections/{id}"},
+				{"get", "/api/v1/tenants/{tenantID}/channels/telegram/connections"},
+				{"post", "/api/v1/tenants/{tenantID}/channels/telegram/connections"},
+				{"patch", "/api/v1/tenants/{tenantID}/channels/telegram/connections/{id}"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]
 				require.True(t, exists, "missing channel operation %s", endpoint.route)
 				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id").Replace(endpoint.route)
 				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route])
 				payload := resolveSchema(t, spec, resolveSchema(t, spec, op.Responses["200"].Schema).Properties["data"])
-				_, exposesToken := payload.Properties["access_token"]
-				require.False(t, exposesToken, "channel responses must never carry provider tokens")
+				for _, field := range []string{"access_token", "bot_token", "webhook_secret"} {
+					_, exposesToken := payload.Properties[field]
+					require.False(t, exposesToken, "channel responses must never carry provider tokens")
+				}
+				if list, ok := payload.Properties["connections"]; ok && list.Items != nil {
+					_, exposesToken := resolveSchema(t, spec, *list.Items).Properties["bot_token"]
+					require.False(t, exposesToken, "channel list responses must never carry provider tokens")
+				}
 			}
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")

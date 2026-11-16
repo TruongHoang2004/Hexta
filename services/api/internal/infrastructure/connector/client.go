@@ -100,6 +100,22 @@ func (c *Client) Exchange(ctx context.Context, code, redirectURI string) (*types
 	return result, nil
 }
 
+// VerifyTelegramBot asks the connector to call getMe. The token travels only in this private request body.
+func (c *Client) VerifyTelegramBot(ctx context.Context, token string) (*types.TelegramBot, error) {
+	var out struct {
+		BotID       string `json:"bot_id"`
+		DisplayName string `json:"display_name"`
+		Username    string `json:"username"`
+	}
+	if err := c.call(ctx, http.MethodPost, "/internal/telegram/bots/verify", map[string]string{"bot_token": token}, &out); err != nil {
+		return nil, err
+	}
+	if out.BotID == "" || len(out.BotID) > 20 || len(out.DisplayName) > 1024 || len(out.Username) > 64 {
+		return nil, types.ErrConnectorUnavailable
+	}
+	return &types.TelegramBot{ID: out.BotID, DisplayName: out.DisplayName, Username: out.Username}, nil
+}
+
 func (c *Client) Upsert(ctx context.Context, conn types.ConnectorConnection) (*types.ConnectorUpsertResult, error) {
 	input := map[string]any{"id": conn.ID, "version": conn.Version, "tenant_id": conn.TenantID, "platform": conn.Platform, "account_id": conn.AccountID, "app_id": conn.AppID, "enabled": conn.Enabled, "credential_ref": ""}
 	if conn.OAuthSessionID != "" {
@@ -107,6 +123,9 @@ func (c *Client) Upsert(ctx context.Context, conn types.ConnectorConnection) (*t
 	}
 	if conn.UnsubscribeOnDisable {
 		input["unsubscribe_on_disable"] = true
+	}
+	if conn.BotToken != "" {
+		input["bot_token"] = conn.BotToken
 	}
 	var out struct {
 		ID         string `json:"id"`

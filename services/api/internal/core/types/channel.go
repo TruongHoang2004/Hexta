@@ -2,11 +2,16 @@ package types
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
 const (
 	ChannelPlatformFacebook = "facebook"
+	ChannelPlatformTelegram = "telegram"
+
+	// ChannelAppTelegram is the connector app identity shared by all Telegram connections.
+	ChannelAppTelegram = "telegram"
 
 	ChannelStatusActive       = "active"
 	ChannelStatusPaused       = "paused"
@@ -18,13 +23,33 @@ const (
 	PageOwnedByOtherTenant         = "owned_by_other_tenant"
 )
 
-// ChannelConnection is the API-owned authority mirror of a provider account binding (1 Page = 1 tenant).
+// ChannelThreadNames are the inbox display names of real channel threads, keyed by platform. A thread whose external
+// key starts with "<platform>:" belongs to that channel and cannot be written through the simulator.
+var ChannelThreadNames = map[string]string{ChannelPlatformFacebook: "Facebook Messenger", ChannelPlatformTelegram: "Telegram"}
+
+// ChannelThreadPlatform returns the platform of a real channel thread key, or "" for simulator threads.
+func ChannelThreadPlatform(externalKey string) string {
+	platform, _, found := strings.Cut(externalKey, ":")
+	if _, ok := ChannelThreadNames[platform]; found && ok {
+		return platform
+	}
+	return ""
+}
+
+// ChannelAuthExpiredMessages are the owner-facing reasons shown when a platform rejects the stored credential.
+var ChannelAuthExpiredMessages = map[string]string{
+	ChannelPlatformFacebook: "Facebook authorization expired or was revoked; reconnect the Page",
+	ChannelPlatformTelegram: "Telegram rejected the Bot Token (revoked or invalid); rotate the token",
+}
+
+// ChannelConnection is the API-owned authority mirror of a provider account binding (1 Page/Bot = 1 tenant).
+// AccountUsername is the Telegram @bot_username; credentials are never part of this value.
 type ChannelConnection struct {
-	ID, TenantID, Platform, AccountID, AccountName, Status string
-	Version                                                int64
-	Enabled                                                bool
-	LastErrorCode, LastErrorMessage                        string
-	UpdatedAt                                              time.Time
+	ID, TenantID, Platform, AccountID, AccountName, AccountUsername, Status string
+	Version                                                                 int64
+	Enabled                                                                 bool
+	LastErrorCode, LastErrorMessage                                         string
+	UpdatedAt                                                               time.Time
 }
 
 type ChannelPage struct {
@@ -65,6 +90,13 @@ type ConnectorConnection struct {
 	Enabled                                  bool
 	OAuthSessionID                           string
 	UnsubscribeOnDisable                     bool
+	// BotToken is a raw Telegram Bot Token on connect/rotate only; it is forwarded to the connector, never stored.
+	BotToken string
+}
+
+// TelegramBot is a bot identity verified by the connector with getMe.
+type TelegramBot struct {
+	ID, DisplayName, Username string
 }
 
 type ConnectorUpsertResult struct {

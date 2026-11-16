@@ -3,7 +3,7 @@ epic: EPIC-008
 title: Direct platform connector and eventual VPS deployment
 status: in-progress
 completed: false
-updated: 2026-11-15
+updated: 2026-11-16
 ---
 
 # Direct platform connector and eventual VPS deployment
@@ -21,6 +21,7 @@ Verify live integration capabilities and deploy only after local representative 
 ## Acceptance checklist
 
 - [ ] Actual Facebook app/Page entitlement, payload/revision/auth/send/lookup behavior verified.
+- [ ] Live Telegram bot (real token, public HTTPS webhook, text/media, block/revoke) verified.
 - [ ] Live connector mappings/credentials, quotas and unknown-send reconciliation.
 - [ ] Media storage/processing and privacy/retention requirements resolved.
 - [ ] VPS/domain/resources, HTTPS/private networks, broker/trace budgets and backup restore tested.
@@ -40,6 +41,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 - [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
 - [2026-11-15 Facebook platform connection](sessions/2026-11-15_facebook-platform-connection.md) — [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged: owner OAuth + Page picker, pause/resume/disconnect, media placeholders, single-attempt outbound send with result/health events. Isolated mock-Meta E2E verified; live Meta NOT_RUN.
+- [2026-11-16 Telegram Bot connection](sessions/2026-11-16_telegram-bot-connection.md) — [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) open, not merged: owner Bot Token connect/rotate, pause/resume/disconnect, private-chat webhook with secret header, media placeholders, single-attempt sendMessage with `bot_blocked`/`chat_not_found`. Isolated mock-Bot-API E2E verified; live Telegram NOT_RUN.
 - [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md) — [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: connector acceptance no longer uses a global advisory lock; admission limit is now approximate.
 
 ## Remaining work and next handoff

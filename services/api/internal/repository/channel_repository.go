@@ -55,11 +55,12 @@ func (r *ChannelRepository) Within(ctx context.Context, fn func(ChannelStore) *a
 	return nil
 }
 
-// channelDBError maps the 1-Page-1-tenant partial unique index to a stable conflict without SQL detail.
+// channelDBError maps the 1-account-1-tenant partial unique index (Facebook Page, Telegram Bot) to a stable
+// conflict without SQL detail.
 func channelDBError(ctx context.Context, err error) *apperrors.Error {
 	var pg *pgconn.PgError
 	if stderrors.As(err, &pg) && pg.Code == "23505" && pg.ConstraintName == "uq_messaging_connections_active_page" {
-		return apperrors.ErrConflict(ctx, "page", "is already connected to another workspace")
+		return apperrors.ErrConflict(ctx, "channel account", "is already connected to another workspace")
 	}
 	return salesDBError(ctx, err)
 }
@@ -176,7 +177,7 @@ func (r *ChannelRepository) InsertConnection(ctx context.Context, value types.Ch
 func (r *ChannelRepository) SaveConnection(ctx context.Context, value types.ChannelConnection, expected int64) *apperrors.Error {
 	row := persistencemap.ConnectionRow(value)
 	result := r.db.WithContext(ctx).Model(&messagingmodel.Connection{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, expected).
-		Select("version", "enabled", "account_name", "status", "last_error_code", "last_error_message", "updated_at").Updates(&row)
+		Select("version", "enabled", "account_name", "account_username", "status", "last_error_code", "last_error_message", "updated_at").Updates(&row)
 	if result.Error != nil {
 		return channelDBError(ctx, result.Error)
 	}

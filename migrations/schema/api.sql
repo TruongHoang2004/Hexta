@@ -523,6 +523,8 @@ CREATE TABLE "messaging_connections" (
  account_id text NOT NULL,
  enabled boolean NOT NULL,
  account_name text NOT NULL DEFAULT '',
+ -- Telegram @bot_username; empty for Facebook.
+ account_username text NOT NULL DEFAULT '',
  status text NOT NULL DEFAULT 'active' CHECK(status IN ('active','paused','disconnected','auth_expired')),
  last_error_code text NULL,
  last_error_message text NULL,

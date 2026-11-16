@@ -22,10 +22,10 @@ func text(value *string) string {
 }
 
 func Connection(row messagingmodel.Connection) types.ChannelConnection {
-	return types.ChannelConnection{ID: row.ID, TenantID: row.TenantID, Platform: row.Platform, AccountID: row.AccountID, AccountName: row.AccountName, Status: row.Status, Version: row.Version, Enabled: row.Enabled, LastErrorCode: text(row.LastErrorCode), LastErrorMessage: text(row.LastErrorMessage), UpdatedAt: row.UpdatedAt}
+	return types.ChannelConnection{ID: row.ID, TenantID: row.TenantID, Platform: row.Platform, AccountID: row.AccountID, AccountName: row.AccountName, AccountUsername: row.AccountUsername, Status: row.Status, Version: row.Version, Enabled: row.Enabled, LastErrorCode: text(row.LastErrorCode), LastErrorMessage: text(row.LastErrorMessage), UpdatedAt: row.UpdatedAt}
 }
 func ConnectionRow(value types.ChannelConnection) messagingmodel.Connection {
-	return messagingmodel.Connection{ID: value.ID, TenantID: value.TenantID, Platform: value.Platform, AccountID: value.AccountID, AccountName: value.AccountName, Status: value.Status, Version: value.Version, Enabled: value.Enabled, LastErrorCode: optional(value.LastErrorCode), LastErrorMessage: optional(value.LastErrorMessage), UpdatedAt: value.UpdatedAt}
+	return messagingmodel.Connection{ID: value.ID, TenantID: value.TenantID, Platform: value.Platform, AccountID: value.AccountID, AccountName: value.AccountName, AccountUsername: value.AccountUsername, Status: value.Status, Version: value.Version, Enabled: value.Enabled, LastErrorCode: optional(value.LastErrorCode), LastErrorMessage: optional(value.LastErrorMessage), UpdatedAt: value.UpdatedAt}
 }
 
 type storedPage struct {

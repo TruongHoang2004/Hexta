@@ -1,5 +1,13 @@
 # Consolidated Project Changelog
 
+## 2026-11-16 — Telegram Bot connection ([PR #71](https://github.com/TruongHoang2004/Hexta/pull/71), in review)
+
+- Owners connect a Telegram bot with its @BotFather token, rotate the token (same bot only), and pause/resume/disconnect it in Channel settings; 1 Bot = 1 tenant via the existing partial unique index.
+- Connector seals the Bot Token and a per-connection webhook secret (AES-256-GCM), registers `/webhooks/telegram/{connectionId}`, accepts private 1-1 messages only (text, or media as placeholders), and drops group/channel updates before the outbox.
+- Outbound reuses the single-attempt intent flow; new failure categories `bot_blocked` and `chat_not_found`; 401 marks the bot `auth_expired`.
+- Inbox: platform-aware labels and delivery reasons, generic expired banner, composer locked for inactive connections. New connector settings `TELEGRAM_WEBHOOK_BASE_URL`, `TELEGRAM_API_URL`.
+- Details, design amendments and verification: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md).
+
 ## 2026-11-15 — Facebook platform connection (PR in review)
 
 - Owners connect Facebook Pages through Meta OAuth and a Page picker; 1 Page = 1 tenant enforced by a partial unique index. Pause, resume, disconnect and reconnect from Channel settings.

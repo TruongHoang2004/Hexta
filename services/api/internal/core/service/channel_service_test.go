@@ -18,9 +18,24 @@ import (
 )
 
 type fakeConnector struct {
-	pages   []types.ChannelPage
-	upserts []types.ConnectorConnection
-	fail    error
+	pages     []types.ChannelPage
+	upserts   []types.ConnectorConnection
+	fail      error
+	bots      map[string]types.TelegramBot
+	verifies  int
+	verifyErr error
+}
+
+func (f *fakeConnector) VerifyTelegramBot(_ context.Context, token string) (*types.TelegramBot, error) {
+	f.verifies++
+	if f.verifyErr != nil {
+		return nil, f.verifyErr
+	}
+	bot, ok := f.bots[token]
+	if !ok {
+		return nil, types.ErrConnectorCredential
+	}
+	return &bot, nil
 }
 
 func (f *fakeConnector) Exchange(context.Context, string, string) (*types.ConnectorExchange, error) {

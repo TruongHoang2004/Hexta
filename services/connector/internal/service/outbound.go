@@ -33,10 +33,11 @@ type OutboundStore interface {
 }
 
 type OutboundService struct {
-	Store  OutboundStore
-	Sender plugin.TextSender
-	Sealer Sealer
-	Now    func() time.Time
+	Store OutboundStore
+	// Senders maps a platform to its provider; an intent for an unconfigured platform fails without a call.
+	Senders map[string]plugin.TextSender
+	Sealer  Sealer
+	Now     func() time.Time
 }
 
 func (s *OutboundService) now() time.Time {
@@ -72,6 +73,8 @@ func (s *OutboundService) Handle(ctx context.Context, payload []byte) error {
 			return outcome(intent, outbound.StatusFailed, outbound.ErrorExpired, "", "", now)
 		case c.ID == "" || !c.Enabled || c.Version != intent.ConnectionVersion || c.TenantID != intent.TenantID || c.AccountID != intent.AccountID || c.Platform != intent.Platform:
 			return outcome(intent, outbound.StatusFailed, outbound.ErrorConnectionInactive, "", "", now)
+		case s.Senders[c.Platform] == nil:
+			return outcome(intent, outbound.StatusFailed, outbound.ErrorConnectionInactive, "platform_unavailable", "", now)
 		case credential == nil:
 			return authExpired(outcome(intent, outbound.StatusFailed, outbound.ErrorAuthExpired, "no_credential", "", now), c, now)
 		}
@@ -85,7 +88,7 @@ func (s *OutboundService) Handle(ctx context.Context, payload []byte) error {
 		return s.Store.FinishAttempt(ctx, *outcome(intent, outbound.StatusFailed, outbound.ErrorTransport, "credential_unreadable", "", s.now()))
 	}
 	call, cancel := context.WithTimeout(ctx, sendTimeout)
-	providerID, sendErr := s.Sender.SendText(call, intent.AccountID, string(token), intent.RecipientID, intent.Text)
+	providerID, sendErr := s.Senders[dispatch.Connection.Platform].SendText(call, intent.AccountID, string(token), intent.RecipientID, intent.Text)
 	cancel()
 	at := s.now()
 	result := outcome(intent, outbound.StatusSent, "", "", providerID, at)

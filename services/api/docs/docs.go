@@ -1076,6 +1076,245 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tenants/{tenantID}/channels/telegram/connections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners. Bot Tokens are never included.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Channels"
+                ],
+                "summary": "List Telegram bot connections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant owner only. Verifies the @BotFather Bot Token with getMe through the connector, which stores it encrypted and registers the webhook; the token is never returned. A bot connected to another workspace returns 409 (1 Bot = 1 tenant); a bot already connected here is re-activated with the new token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Channels"
+                ],
+                "summary": "Connect a Telegram bot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Bot Token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectTelegramBotRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/channels/telegram/connections/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant owner only. Pause/disconnect cancel pending outbound intents and delete the webhook; disconnect also wipes the stored Bot Token and webhook secret. rotate_token requires bot_token for the same bot (a different bot returns 409) and re-activates the connection. Repeating pause/resume/disconnect in effect re-syncs the connector.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Channels"
+                ],
+                "summary": "Pause, resume, disconnect or rotate the token of a Telegram bot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Connection ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Action",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tenants/{tenantID}/conversations": {
             "get": {
                 "security": [
@@ -2321,7 +2560,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Assigned sale under sales control only; the Page connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.",
+                "description": "Assigned sale under sales control only; the conversation's Page/bot connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, bot_blocked, chat_not_found, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2331,7 +2570,7 @@ const docTemplate = `{
                 "tags": [
                     "Messaging"
                 ],
-                "summary": "Send a real Facebook reply as the assigned sale",
+                "summary": "Send a real channel reply (Facebook or Telegram) as the assigned sale",
                 "parameters": [
                     {
                         "type": "string",
@@ -3580,6 +3819,18 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectTelegramBotRequest": {
+            "type": "object",
+            "required": [
+                "bot_token"
+            ],
+            "properties": {
+                "bot_token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO": {
             "type": "object",
             "properties": {
@@ -3656,6 +3907,17 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO"
+                    }
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse": {
+            "type": "object",
+            "properties": {
+                "connections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO"
                     }
                 }
             }
@@ -3873,6 +4135,10 @@ const docTemplate = `{
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingThread": {
             "type": "object",
             "properties": {
+                "connection_id": {
+                    "description": "ConnectionID names the bound channel connection of a real conversation; empty for simulator threads.",
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -4380,6 +4646,44 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string"
+                },
+                "account_name": {
+                    "type": "string"
+                },
+                "account_username": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_error_code": {
+                    "type": "string"
+                },
+                "last_error_message": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest": {
             "type": "object",
             "required": [
@@ -4588,6 +4892,27 @@ const docTemplate = `{
                         "resume",
                         "disconnect"
                     ]
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "pause",
+                        "resume",
+                        "disconnect",
+                        "rotate_token"
+                    ]
+                },
+                "bot_token": {
+                    "type": "string",
+                    "maxLength": 128
                 }
             }
         },
@@ -4859,6 +5184,15 @@ const docTemplate = `{
                 "meta": {}
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse"
+                },
+                "meta": {}
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_LoginResponse": {
             "type": "object",
             "properties": {
@@ -4999,6 +5333,15 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthResponse"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO"
                 },
                 "meta": {}
             }

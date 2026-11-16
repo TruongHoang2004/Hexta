@@ -46,7 +46,11 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 		default:
 			return nil
 		}
-		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: "facebook:" + e.Key(), DisplayName: "Facebook Messenger", CreatedAt: e.ReceivedAt, UpdatedAt: e.ReceivedAt, ConnectionID: e.ConnectionID, RecipientID: e.ConversationKey})
+		name, ok := types.ChannelThreadNames[e.Platform]
+		if !ok {
+			return nil
+		}
+		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: e.Platform + ":" + e.Key(), DisplayName: name, CreatedAt: e.ReceivedAt, UpdatedAt: e.ReceivedAt, ConnectionID: e.ConnectionID, RecipientID: e.ConversationKey})
 		if err != nil {
 			return err
 		}

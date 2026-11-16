@@ -114,6 +114,9 @@ func RegisterRoutes(
 	resources.GET("/channels/facebook/connections", channels.ListFacebookConnections)
 	resources.POST("/channels/facebook/connections", channels.ConnectFacebookPages)
 	resources.PATCH("/channels/facebook/connections/:id", channels.UpdateFacebookConnection)
+	resources.GET("/channels/telegram/connections", channels.ListTelegramConnections)
+	resources.POST("/channels/telegram/connections", channels.ConnectTelegramBot)
+	resources.PATCH("/channels/telegram/connections/:id", channels.UpdateTelegramConnection)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

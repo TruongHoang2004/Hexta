@@ -3,17 +3,20 @@ CREATE TABLE "connector"."connections" (
  id uuid PRIMARY KEY,
  version bigint NOT NULL CHECK(version>0),
  tenant_id varchar(36) NOT NULL,
- platform text NOT NULL CHECK(platform='facebook'),
+ platform text NOT NULL CHECK(platform IN ('facebook','telegram')),
  account_id text NOT NULL,
  app_id text NOT NULL,
  enabled boolean NOT NULL,
  credential_ref text NOT NULL DEFAULT '',
- -- AES-256-GCM encrypted Page access token; wiped on disconnect.
+ -- AES-256-GCM encrypted provider credential (Facebook Page token, Telegram Bot Token); wiped on disconnect.
  credential_ciphertext bytea NULL,
  key_version int NULL,
  token_updated_at timestamptz NULL,
+ -- AES-256-GCM encrypted Telegram webhook secret_token (same key_version as the credential); wiped on disconnect.
+ webhook_secret_ciphertext bytea NULL,
  UNIQUE(platform,account_id),
- CHECK((credential_ciphertext IS NULL) = (key_version IS NULL))
+ CHECK((credential_ciphertext IS NULL) = (key_version IS NULL)),
+ CHECK(webhook_secret_ciphertext IS NULL OR credential_ciphertext IS NOT NULL)
 );
 CREATE TABLE "connector"."receipts" (
  id text NOT NULL,

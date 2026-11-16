@@ -133,19 +133,21 @@ func (s *Store) PutConnection(ctx context.Context, c service.Connection, credent
 	if _, err = tx.Exec(ctx, `DELETE FROM connector.connections WHERE platform=$1 AND account_id=$2 AND id<>$3 AND NOT enabled AND credential_ciphertext IS NULL`, c.Platform, c.AccountID, c.ID); err != nil {
 		return err
 	}
-	var ciphertext []byte
+	var ciphertext, secret []byte
 	var keyVersion *int
 	if credential.Set != nil {
-		ciphertext, keyVersion = credential.Set.Ciphertext, &credential.Set.KeyVersion
+		ciphertext, keyVersion, secret = credential.Set.Ciphertext, &credential.Set.KeyVersion, credential.WebhookSecret
 	}
-	tag, err := tx.Exec(ctx, `INSERT INTO connector.connections(id,version,tenant_id,platform,account_id,app_id,enabled,credential_ref,credential_ciphertext,key_version,token_updated_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CASE WHEN $9::bytea IS NULL THEN NULL ELSE now() END)
+	// A new credential replaces the webhook secret too (NULL for platforms without one); a wipe clears both.
+	tag, err := tx.Exec(ctx, `INSERT INTO connector.connections(id,version,tenant_id,platform,account_id,app_id,enabled,credential_ref,credential_ciphertext,key_version,token_updated_at,webhook_secret_ciphertext)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CASE WHEN $9::bytea IS NULL THEN NULL ELSE now() END,$12)
 		ON CONFLICT(id) DO UPDATE SET version=excluded.version,enabled=excluded.enabled,credential_ref=excluded.credential_ref,
 			credential_ciphertext=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN $9 ELSE connections.credential_ciphertext END,
 			key_version=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN $10 ELSE connections.key_version END,
-			token_updated_at=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN now() ELSE connections.token_updated_at END
+			token_updated_at=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN now() ELSE connections.token_updated_at END,
+			webhook_secret_ciphertext=CASE WHEN $11 THEN NULL WHEN $9::bytea IS NOT NULL THEN $12 ELSE connections.webhook_secret_ciphertext END
 		WHERE connections.tenant_id=excluded.tenant_id AND connections.platform=excluded.platform AND connections.account_id=excluded.account_id AND connections.app_id=excluded.app_id AND connections.version<excluded.version`,
-		c.ID, c.Version, c.TenantID, c.Platform, c.AccountID, c.AppID, c.Enabled, c.CredentialRef, ciphertext, keyVersion, credential.Wipe)
+		c.ID, c.Version, c.TenantID, c.Platform, c.AccountID, c.AppID, c.Enabled, c.CredentialRef, ciphertext, keyVersion, credential.Wipe, secret)
 	if err != nil {
 		return service.ErrConflict
 	}
@@ -159,7 +161,13 @@ func (s *Store) PutConnection(ctx context.Context, c service.Connection, credent
 			return service.ErrConflict
 		}
 		if credential.Wipe {
-			if _, err = tx.Exec(ctx, `UPDATE connector.connections SET credential_ciphertext=NULL,key_version=NULL,token_updated_at=NULL WHERE id=$1`, c.ID); err != nil {
+			if _, err = tx.Exec(ctx, `UPDATE connector.connections SET credential_ciphertext=NULL,key_version=NULL,token_updated_at=NULL,webhook_secret_ciphertext=NULL WHERE id=$1`, c.ID); err != nil {
+				return err
+			}
+		} else if credential.Set != nil {
+			// A replayed version carrying a fresh credential must store it, or the provider would be configured with a
+			// webhook secret the connector cannot verify.
+			if _, err = tx.Exec(ctx, `UPDATE connector.connections SET credential_ciphertext=$2,key_version=$3,token_updated_at=now(),webhook_secret_ciphertext=$4 WHERE id=$1`, c.ID, ciphertext, keyVersion, secret); err != nil {
 				return err
 			}
 		}
@@ -183,6 +191,23 @@ func (s *Store) ConnectionCredential(ctx context.Context, id string) (service.Co
 	}
 	sealed.KeyVersion = *key
 	return c, &sealed, nil
+}
+
+func (s *Store) ConnectionSecret(ctx context.Context, id string) (service.Connection, *service.Sealed, error) {
+	var c service.Connection
+	var secret []byte
+	var key *int
+	err := s.Pool.QueryRow(ctx, `SELECT id,version,tenant_id,platform,account_id,app_id,enabled,webhook_secret_ciphertext,key_version FROM connector.connections WHERE id=$1`, id).Scan(&c.ID, &c.Version, &c.TenantID, &c.Platform, &c.AccountID, &c.AppID, &c.Enabled, &secret, &key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return c, nil, service.ErrConnectionMissing
+	}
+	if err != nil {
+		return c, nil, err
+	}
+	if key == nil || secret == nil {
+		return c, nil, nil
+	}
+	return c, &service.Sealed{Ciphertext: secret, KeyVersion: *key}, nil
 }
 
 var _ service.InboundStore = (*Store)(nil)

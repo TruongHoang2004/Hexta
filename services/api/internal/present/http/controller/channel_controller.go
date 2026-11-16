@@ -179,3 +179,79 @@ func (ctrl *ChannelController) UpdateFacebookConnection(c *gin.Context) {
 	}
 	ctrl.Success(c, httpmap.Connection(*result))
 }
+
+// ConnectTelegramBot
+// @Summary Connect a Telegram bot
+// @Description Tenant owner only. Verifies the @BotFather Bot Token with getMe through the connector, which stores it encrypted and registers the webhook; the token is never returned. A bot connected to another workspace returns 409 (1 Bot = 1 tenant); a bot already connected here is re-activated with the new token.
+// @Tags Channels
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param request body dto.ConnectTelegramBotRequest true "Bot Token"
+// @Success 200 {object} response.Response[dto.TelegramConnectionDTO]
+// @Failure 400,401,403,409,422,502,503 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/channels/telegram/connections [post]
+func (ctrl *ChannelController) ConnectTelegramBot(c *gin.Context) {
+	var input dto.ConnectTelegramBotRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.channels.ConnectTelegramBot(c.Request.Context(), tenant, actor, input.BotToken)
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.TelegramConnection(*result))
+}
+
+// ListTelegramConnections
+// @Summary List Telegram bot connections
+// @Description Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners. Bot Tokens are never included.
+// @Tags Channels
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Success 200 {object} response.Response[dto.ListTelegramConnectionsResponse]
+// @Failure 400,401,403 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/channels/telegram/connections [get]
+func (ctrl *ChannelController) ListTelegramConnections(c *gin.Context) {
+	if !ctrl.bind(c, nil) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.channels.ListTelegramConnections(c.Request.Context(), tenant, actor)
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, dto.ListTelegramConnectionsResponse{Connections: httpmap.TelegramConnections(result)})
+}
+
+// UpdateTelegramConnection
+// @Summary Pause, resume, disconnect or rotate the token of a Telegram bot
+// @Description Tenant owner only. Pause/disconnect cancel pending outbound intents and delete the webhook; disconnect also wipes the stored Bot Token and webhook secret. rotate_token requires bot_token for the same bot (a different bot returns 409) and re-activates the connection. Repeating pause/resume/disconnect in effect re-syncs the connector.
+// @Tags Channels
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Connection ID"
+// @Param request body dto.UpdateTelegramConnectionRequest true "Action"
+// @Success 200 {object} response.Response[dto.TelegramConnectionDTO]
+// @Failure 400,401,403,404,409,422,502,503 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/channels/telegram/connections/{id} [patch]
+func (ctrl *ChannelController) UpdateTelegramConnection(c *gin.Context) {
+	var input dto.UpdateTelegramConnectionRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.channels.UpdateTelegramConnection(c.Request.Context(), tenant, actor, c.Param("id"), input.Action, input.BotToken)
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.TelegramConnection(*result))
+}

@@ -139,7 +139,7 @@ func TestOutboundSingleAttemptAndClassification(t *testing.T) {
 	if _, err := channels.Upsert(ctx, c); err != nil {
 		t.Fatal(err)
 	}
-	sender := &service.OutboundService{Store: s, Sender: provider, Sealer: channels.Sealer}
+	sender := &service.OutboundService{Store: s, Senders: map[string]plugin.TextSender{"facebook": provider}, Sealer: channels.Sealer}
 	intent := intentFor(c)
 	payload, _ := json.Marshal(intent)
 	for i := 0; i < 2; i++ {

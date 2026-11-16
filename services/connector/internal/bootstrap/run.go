@@ -7,12 +7,14 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/facebook"
+	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/telegram"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/repository"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/secret"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/transport"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -62,15 +64,24 @@ func Run(ctx context.Context) error {
 	}
 	store := &repository.Store{Pool: pool}
 	p := facebook.FacebookPlugin{}
-	registry, err := plugin.NewRegistry(p)
+	tg := telegram.TelegramPlugin{}
+	registry, err := plugin.NewRegistry(p, tg)
 	if err != nil {
 		return err
 	}
+	// Telegram is enabled by its public HTTPS webhook origin; without it Telegram management returns 503.
+	webhookBase := strings.TrimRight(strings.TrimSpace(os.Getenv("TELEGRAM_WEBHOOK_BASE_URL")), "/")
+	if webhookBase != "" {
+		if u, err := url.Parse(webhookBase); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			return errors.New("invalid telegram webhook base URL")
+		}
+	}
 	inbound := &service.InboundService{Registry: registry, Store: store}
 	graph := facebook.NewGraph(os.Getenv("META_GRAPH_URL"), os.Getenv("META_GRAPH_VERSION"), os.Getenv("META_APP_ID"), appSecret)
-	channels := &service.ChannelService{Store: store, Provider: graph, Sealer: sealer, KeyVer: sealer.Version, AppID: os.Getenv("META_APP_ID")}
-	sender := &service.OutboundService{Store: store, Sender: graph, Sealer: sealer}
-	h := &transport.Handler{Inbound: inbound, Plugin: p, AppID: os.Getenv("META_APP_ID"), Secret: appSecret, VerifyToken: string(verify), ManagementToken: string(management), Channels: channels}
+	bots := telegram.NewBotAPI(os.Getenv("TELEGRAM_API_URL"))
+	channels := &service.ChannelService{Store: store, Provider: graph, Sealer: sealer, KeyVer: sealer.Version, AppID: os.Getenv("META_APP_ID"), Bots: bots, WebhookBase: webhookBase}
+	sender := &service.OutboundService{Store: store, Senders: map[string]plugin.TextSender{"facebook": graph, "telegram": bots}, Sealer: sealer}
+	h := &transport.Handler{Inbound: inbound, Plugin: p, AppID: os.Getenv("META_APP_ID"), Secret: appSecret, VerifyToken: string(verify), ManagementToken: string(management), Channels: channels, Telegram: tg}
 	addr := os.Getenv("CONNECTOR_LISTEN_ADDR")
 	if addr == "" {
 		addr = "127.0.0.1:8091"
