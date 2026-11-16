@@ -5,18 +5,28 @@ export type ConnectionStatus =
   | "paused"
   | "disconnected"
   | "auth_expired";
-export interface FacebookConnection {
+export type ChannelPlatform = "facebook" | "telegram";
+// Bot Tokens and Page tokens never appear in these values; the API returns identities and status only.
+export interface ChannelConnection {
   id: string;
   tenant_id: string;
-  platform: "facebook";
+  platform: ChannelPlatform;
   account_id: string;
   account_name: string;
+  // Telegram @bot_username; absent for Facebook.
+  account_username?: string;
   version: number;
   status: ConnectionStatus;
   last_error_code?: string;
   last_error_message?: string;
   updated_at: string;
 }
+export type FacebookConnection = ChannelConnection & { platform: "facebook" };
+export type TelegramConnection = ChannelConnection & { platform: "telegram" };
+export const platformLabel: Record<ChannelPlatform, string> = {
+  facebook: "Facebook",
+  telegram: "Telegram",
+};
 export interface SelectablePage {
   page_id: string;
   page_name: string;
@@ -92,16 +102,81 @@ export const channels = {
   },
 };
 
-export const deliveryReasonText: Record<string, string> = {
-  window_24h:
-    "Not sent: Facebook only allows replies within 24 hours of the customer's last message.",
-  auth_expired:
-    "Not sent: the Page authorization expired. An owner must reconnect it.",
-  rate_limit: "Not sent: Facebook rate limit reached. Try again later.",
-  invalid_recipient: "Not sent: this customer can no longer be reached.",
-  transport: "Not sent: Facebook could not be reached.",
-  expired: "Not sent: the send request expired before delivery.",
-  connection_inactive: "Not sent: the Page connection changed before delivery.",
-  connection_paused: "Cancelled: the Page connection was paused.",
-  connection_disconnected: "Cancelled: the Page was disconnected.",
+export type TelegramAction = ConnectionAction | "rotate_token";
+const telegramBase = (tenant: string) =>
+  `/api/v1/tenants/${tenant}/channels/telegram/connections`;
+
+// The Bot Token is sent once over the API and never returned; callers must clear it from state after submit.
+export const telegram = {
+  async list(
+    tenant: string,
+    signal?: AbortSignal,
+  ): Promise<TelegramConnection[]> {
+    const result = await sdk.client.get<{
+      data: { connections: TelegramConnection[] };
+    }>(telegramBase(tenant), { signal });
+    return result.data.data.connections;
+  },
+  async connect(tenant: string, botToken: string): Promise<TelegramConnection> {
+    const result = await sdk.client.post<{ data: TelegramConnection }>(
+      telegramBase(tenant),
+      { bot_token: botToken },
+    );
+    return result.data.data;
+  },
+  async update(
+    tenant: string,
+    id: string,
+    action: TelegramAction,
+    botToken?: string,
+  ): Promise<TelegramConnection> {
+    const result = await sdk.client.patch<{ data: TelegramConnection }>(
+      `${telegramBase(tenant)}/${id}`,
+      action === "rotate_token" ? { action, bot_token: botToken } : { action },
+    );
+    return result.data.data;
+  },
 };
+
+// Lists every channel connection for banners and composer locks. A platform that fails to load is omitted.
+export async function listAllConnections(
+  tenant: string,
+  signal?: AbortSignal,
+): Promise<ChannelConnection[] | null> {
+  const results = await Promise.allSettled([
+    channels.list(tenant, signal),
+    telegram.list(tenant, signal),
+  ]);
+  if (results.every((r) => r.status === "rejected")) return null;
+  return results.flatMap((r): ChannelConnection[] =>
+    r.status === "fulfilled" ? r.value : [],
+  );
+}
+
+// Delivery failure text. The platform name is inserted where the reason depends on the provider.
+export function deliveryReasonText(
+  reason: string,
+  platform: ChannelPlatform,
+): string {
+  const name = platformLabel[platform];
+  const account = platform === "telegram" ? "bot" : "Page";
+  const text: Record<string, string> = {
+    window_24h:
+      "Not sent: Facebook only allows replies within 24 hours of the customer's last message.",
+    auth_expired:
+      platform === "telegram"
+        ? "Not sent: Telegram rejected the Bot Token. An owner must rotate the token."
+        : "Not sent: the Page authorization expired. An owner must reconnect it.",
+    rate_limit: `Not sent: ${name} rate limit reached. Try again later.`,
+    invalid_recipient: "Not sent: this customer can no longer be reached.",
+    bot_blocked:
+      "Not sent: the customer blocked the bot or deleted their Telegram account.",
+    chat_not_found: "Not sent: Telegram could not find this chat.",
+    transport: `Not sent: ${name} could not be reached.`,
+    expired: "Not sent: the send request expired before delivery.",
+    connection_inactive: `Not sent: the ${account} connection changed before delivery.`,
+    connection_paused: `Cancelled: the ${account} connection was paused.`,
+    connection_disconnected: `Cancelled: the ${account} was disconnected.`,
+  };
+  return text[reason] ?? `Not sent to ${name}.`;
+}

@@ -32,7 +32,13 @@ const (
 	ErrorTransport          = "transport"
 	ErrorExpired            = "expired"
 	ErrorConnectionInactive = "connection_inactive"
+	// Telegram: the user blocked the bot or deactivated their account (403), or the chat no longer exists (400).
+	ErrorBotBlocked   = "bot_blocked"
+	ErrorChatNotFound = "chat_not_found"
 )
+
+// Platforms that accept outbound intents.
+var Platforms = map[string]bool{"facebook": true, "telegram": true}
 
 const MaxTextRunes = 2000
 
@@ -85,14 +91,14 @@ func validUUID(values ...string) bool {
 	return true
 }
 
-// Key orders deliveries per Page conversation.
+// Key orders deliveries per provider conversation.
 func (e IntentEvent) Key() string { return e.ConnectionID + ":" + e.RecipientID }
 
 func (e IntentEvent) Validate() error {
 	if e.SchemaVersion != 1 || !validUUID(e.IntentID, e.AttemptID, e.CorrelationID, e.TenantID, e.ConnectionID) {
 		return errors.New("invalid outbound intent identity")
 	}
-	if e.ConnectionVersion < 1 || e.Platform != "facebook" || e.AccountID == "" || e.RecipientID == "" || len(e.RecipientID) > 255 {
+	if e.ConnectionVersion < 1 || !Platforms[e.Platform] || e.AccountID == "" || e.RecipientID == "" || len(e.RecipientID) > 255 {
 		return errors.New("invalid outbound intent target")
 	}
 	if e.Text == "" || !utf8.ValidString(e.Text) || utf8.RuneCountInString(e.Text) > MaxTextRunes {

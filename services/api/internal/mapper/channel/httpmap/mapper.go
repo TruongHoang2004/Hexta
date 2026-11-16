@@ -26,3 +26,14 @@ func OAuthPages(value types.ChannelOAuthPages) dto.FacebookOAuthPagesResponse {
 	}
 	return result
 }
+
+func TelegramConnection(value types.ChannelConnection) dto.TelegramConnectionDTO {
+	return dto.TelegramConnectionDTO{ID: value.ID, TenantID: value.TenantID, Platform: value.Platform, AccountID: value.AccountID, AccountName: value.AccountName, AccountUsername: value.AccountUsername, Version: value.Version, Status: value.Status, LastErrorCode: value.LastErrorCode, LastErrorMessage: value.LastErrorMessage, UpdatedAt: value.UpdatedAt}
+}
+func TelegramConnections(values []types.ChannelConnection) []dto.TelegramConnectionDTO {
+	result := make([]dto.TelegramConnectionDTO, len(values))
+	for i, v := range values {
+		result[i] = TelegramConnection(v)
+	}
+	return result
+}

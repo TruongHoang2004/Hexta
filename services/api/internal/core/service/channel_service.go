@@ -26,10 +26,12 @@ const (
 	channelFacebookScopes = "pages_show_list,pages_messaging,pages_manage_metadata"
 )
 
-// IChannelConnector is the connector machine control plane. Page tokens never cross this boundary.
+// IChannelConnector is the connector machine control plane. Page tokens never cross this boundary; a Telegram Bot
+// Token crosses it only inbound, on connect/rotate, and is never returned.
 type IChannelConnector interface {
 	Exchange(ctx context.Context, code, redirectURI string) (*types.ConnectorExchange, error)
 	Upsert(ctx context.Context, conn types.ConnectorConnection) (*types.ConnectorUpsertResult, error)
+	VerifyTelegramBot(ctx context.Context, token string) (*types.TelegramBot, error)
 }
 
 // ChannelSettings is non-secret Meta app configuration plus the browser origins allowed as OAuth redirects.
@@ -106,14 +108,16 @@ func (s *ChannelService) validRedirect(raw string) bool {
 }
 
 // connectorError maps adapter failures to safe public errors.
-func connectorError(ctx context.Context, err error) *apperrors.Error {
+func connectorError(ctx context.Context, platform string, err error) *apperrors.Error {
 	switch {
+	case stderrors.Is(err, types.ErrConnectorCredential) && platform == types.ChannelPlatformTelegram:
+		return apperrors.ErrSystemError(ctx, "telegram rejected the bot token; rotate the token").SetHTTPStatus(http.StatusUnprocessableEntity)
 	case stderrors.Is(err, types.ErrConnectorCredential):
 		return apperrors.ErrSystemError(ctx, "facebook authorization expired; connect again").SetHTTPStatus(http.StatusUnprocessableEntity)
 	case stderrors.Is(err, types.ErrConnectorProvider):
-		return apperrors.ErrSystemError(ctx, "facebook is unavailable; try again").SetHTTPStatus(http.StatusBadGateway)
+		return apperrors.ErrSystemError(ctx, platform+" is unavailable; try again").SetHTTPStatus(http.StatusBadGateway)
 	case stderrors.Is(err, types.ErrConnectorConflict):
-		return apperrors.ErrConflict(ctx, "page", "is managed by another configuration")
+		return apperrors.ErrConflict(ctx, "channel account", "is managed by another configuration")
 	}
 	return apperrors.ErrSystemError(ctx, "channel connector unavailable; try again").SetHTTPStatus(http.StatusServiceUnavailable)
 }
@@ -216,7 +220,7 @@ func (s *ChannelService) CompleteFacebookOAuth(ctx context.Context, actor, code,
 	exchange, exchangeErr := s.connector.Exchange(call, code, flow.RedirectURI)
 	cancel()
 	if exchangeErr != nil {
-		return nil, connectorError(ctx, exchangeErr)
+		return nil, connectorError(ctx, types.ChannelPlatformFacebook, exchangeErr)
 	}
 	result := &types.ChannelOAuthPages{TenantID: flow.TenantID, OAuthSessionID: exchange.OAuthSessionID, ExpiresAt: exchange.ExpiresAt}
 	err = s.authorized(ctx, flow.TenantID, actor, true, func(r repository.ChannelStore) *apperrors.Error {
@@ -247,10 +251,15 @@ func (s *ChannelService) ListFacebookConnections(ctx context.Context, tenant, ac
 }
 
 // sync pushes committed configuration to the connector. A failure is recorded on the row; retrying the same
-// action re-syncs because connector versions only need to increase.
-func (s *ChannelService) sync(ctx context.Context, c types.ChannelConnection, session string, unsubscribe bool) *apperrors.Error {
+// action re-syncs because connector versions only need to increase. extra carries the per-call credential fields
+// (OAuth session, Bot Token, disconnect wipe).
+func (s *ChannelService) sync(ctx context.Context, c types.ChannelConnection, extra types.ConnectorConnection) *apperrors.Error {
+	app := s.settings.AppID
+	if c.Platform == types.ChannelPlatformTelegram {
+		app = types.ChannelAppTelegram
+	}
 	call, cancel := context.WithTimeout(ctx, channelConnectorWait)
-	_, err := s.connector.Upsert(call, types.ConnectorConnection{ID: c.ID, TenantID: c.TenantID, Platform: c.Platform, AccountID: c.AccountID, AppID: s.settings.AppID, Version: c.Version, Enabled: c.Enabled, OAuthSessionID: session, UnsubscribeOnDisable: unsubscribe})
+	_, err := s.connector.Upsert(call, types.ConnectorConnection{ID: c.ID, TenantID: c.TenantID, Platform: c.Platform, AccountID: c.AccountID, AppID: app, Version: c.Version, Enabled: c.Enabled, OAuthSessionID: extra.OAuthSessionID, UnsubscribeOnDisable: extra.UnsubscribeOnDisable, BotToken: extra.BotToken})
 	cancel()
 	if err == nil {
 		return nil
@@ -258,7 +267,7 @@ func (s *ChannelService) sync(ctx context.Context, c types.ChannelConnection, se
 	_ = s.store.Within(ctx, func(r repository.ChannelStore) *apperrors.Error {
 		return r.RecordConnectionError(ctx, c.TenantID, c.ID, c.Version, connectorErrorCode(err), "channel sync failed; retry the action")
 	})
-	return connectorError(ctx, err)
+	return connectorError(ctx, c.Platform, err)
 }
 
 // ConnectFacebookPages binds selected Pages from the owner's own OAuth session. The partial unique index enforces
@@ -323,7 +332,7 @@ func (s *ChannelService) ConnectFacebookPages(ctx context.Context, tenant, actor
 		return nil, err
 	}
 	for i, c := range result {
-		if err := s.sync(ctx, c, session, false); err != nil {
+		if err := s.sync(ctx, c, types.ConnectorConnection{OAuthSessionID: session}); err != nil {
 			return nil, err
 		}
 		result[i].LastErrorCode, result[i].LastErrorMessage = "", ""
@@ -337,6 +346,12 @@ func (s *ChannelService) UpdateFacebookConnection(ctx context.Context, tenant, a
 	if err := s.configured(ctx); err != nil {
 		return nil, err
 	}
+	return s.updateConnection(ctx, types.ChannelPlatformFacebook, tenant, actor, id, action)
+}
+
+// updateConnection applies pause/resume/disconnect to one platform's connection. Pause and disconnect cancel the
+// connection's pending outbound intents in the same transaction.
+func (s *ChannelService) updateConnection(ctx context.Context, platform, tenant, actor, id, action string) (*types.ChannelConnection, *apperrors.Error) {
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("invalid connection ID")
 	}
@@ -351,7 +366,7 @@ func (s *ChannelService) UpdateFacebookConnection(ctx context.Context, tenant, a
 		if err != nil {
 			return err
 		}
-		if c.Platform != types.ChannelPlatformFacebook {
+		if c.Platform != platform {
 			return apperrors.ErrNotFound(ctx, "connection", "not found")
 		}
 		result = *c
@@ -378,12 +393,12 @@ func (s *ChannelService) UpdateFacebookConnection(ctx context.Context, tenant, a
 				return err
 			}
 		}
-		return r.Audit(ctx, tenant, actor, "channel.facebook."+action, "messaging_connection", id, map[string]any{"version": result.Version, "status": result.Status})
+		return r.Audit(ctx, tenant, actor, "channel."+platform+"."+action, "messaging_connection", id, map[string]any{"version": result.Version, "status": result.Status})
 	})
 	if err != nil {
 		return nil, err
 	}
-	if err := s.sync(ctx, result, "", action == "disconnect"); err != nil {
+	if err := s.sync(ctx, result, types.ConnectorConnection{UnsubscribeOnDisable: action == "disconnect"}); err != nil {
 		return nil, err
 	}
 	return &result, nil

@@ -3,11 +3,10 @@ package httpmap
 import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
-	"strings"
 )
 
 func Thread(value types.MessagingThread) dto.MessagingThread {
-	return dto.MessagingThread{ID: value.ID, DisplayName: value.DisplayName, ExternalKey: value.ExternalKey, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
+	return dto.MessagingThread{ID: value.ID, DisplayName: value.DisplayName, ExternalKey: value.ExternalKey, ConnectionID: value.ConnectionID, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 }
 func Turn(value types.MessagingTurn) dto.MessagingTurn {
 	return dto.MessagingTurn{ID: value.ID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, HandlingState: value.HandlingState(), AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt}
@@ -25,8 +24,8 @@ func Message(value types.MessagingMessage) dto.MessagingMessage {
 
 func Conversation(value types.MessagingConversation) dto.MessagingConversation {
 	result := dto.MessagingConversation{Thread: Thread(value.Thread), Source: "simulator"}
-	if strings.HasPrefix(value.Thread.ExternalKey, "facebook:") {
-		result.Source = "facebook"
+	if platform := types.ChannelThreadPlatform(value.Thread.ExternalKey); platform != "" {
+		result.Source = platform
 	}
 	if value.Turn != nil {
 		turn := Turn(*value.Turn)

@@ -58,6 +58,19 @@ type Provisioner interface {
 	Unsubscribe(ctx context.Context, accountID, token string) error
 }
 
+// BotIdentity is a provider bot account verified with its own token.
+type BotIdentity struct{ ID, DisplayName, Username string }
+
+// ErrInvalidCredential means the provider rejected a credential or it is malformed.
+var ErrInvalidCredential = errors.New("invalid credential")
+
+// BotProvisioner verifies bot tokens and manages a per-connection, secret-authenticated webhook (Telegram).
+type BotProvisioner interface {
+	GetMe(ctx context.Context, token string) (BotIdentity, error)
+	SetWebhook(ctx context.Context, token, callback, secret string) error
+	DeleteWebhook(ctx context.Context, token string) error
+}
+
 // TextSender performs exactly one provider call; callers must not retry an Unknown ProviderError.
 type TextSender interface {
 	SendText(ctx context.Context, accountID, token, recipient, text string) (string, error)

@@ -18,11 +18,13 @@ export interface Conversation {
     id: string;
     display_name: string;
     external_key: string;
+    // Bound channel connection of a real conversation; absent for simulator threads.
+    connection_id?: string;
     created_at: string;
     updated_at: string;
   };
   turn: MessagingTurn | null;
-  source: "simulator" | "facebook";
+  source: "simulator" | "facebook" | "telegram";
 }
 export interface MessagingMessage {
   id: string;

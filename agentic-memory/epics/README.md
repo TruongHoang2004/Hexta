@@ -11,7 +11,7 @@ Updated 2026-11-03. Navigation/status only: read the relevant epic and latest re
 | [EPIC-005](EPIC-005-kafka/README.md) | Kafka event backbone | in-progress | false |
 | [EPIC-006](EPIC-006-provider-observability/README.md) | Real providers, checkpoints and self-host traces | in-progress | false |
 | [EPIC-007](EPIC-007-orders-workflows/README.md) | Sales, configurable work and owner overview | in-progress | false |
-| [EPIC-008](EPIC-008-integrations-deployment/README.md) | Direct Facebook connector and eventual VPS deployment | in-progress | false |
+| [EPIC-008](EPIC-008-integrations-deployment/README.md) | Direct Facebook/Telegram connector and eventual VPS deployment | in-progress | false |
 
 Current delivery: [PR #59](https://github.com/TruongHoang2004/Hexta/pull/59) verified OPEN/draft on 2026-10-28; review/merge/manual gates remain. PRs #52–55/#57/#58 verified merged into main. None of these individual deliveries completes a parent epic automatically. No CI-success assertion from this cleanup.
 
@@ -31,6 +31,8 @@ Shopping consultant slice: [Go SSE + web widget/checkout](EPIC-002-ai-runtime/se
 Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integrations-deployment/sessions/2026-11-03_connector-ingress.md), [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; isolated HTTP → PostgreSQL → Kafka → API member inbox verified. Live Meta, outbound/AI and merge remain open.
 
 Facebook platform connection: [2026-11-15 session](EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md), [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged; owner OAuth/Page management, media placeholders and single-attempt sends verified against mock Meta in isolation. Live Meta and merge open.
+
+Telegram Bot connection: [2026-11-16 session](EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md), PR open, not merged; owner Bot Token connect/rotate, private-chat ingress and single-attempt sends verified against a mock Bot API in isolation. Live Telegram and merge open.
 
 Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
 

@@ -28,11 +28,13 @@ type MessagingSendRequest struct {
 	RequestKey      string `json:"request_key" validate:"required,uuid"`
 }
 type MessagingThread struct {
-	ID          string    `json:"id"`
-	DisplayName string    `json:"display_name"`
-	ExternalKey string    `json:"external_key"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	ExternalKey string `json:"external_key"`
+	// ConnectionID names the bound channel connection of a real conversation; empty for simulator threads.
+	ConnectionID string    `json:"connection_id,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 type MessagingTurn struct {
 	ID                string    `json:"id"`

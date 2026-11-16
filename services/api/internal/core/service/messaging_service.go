@@ -106,7 +106,7 @@ func (s *MessagingService) Inbound(ctx context.Context, tenant, actor string, in
 	input.ExternalKey = strings.TrimSpace(input.ExternalKey)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.Body = strings.TrimSpace(input.Body)
-	if strings.HasPrefix(input.ExternalKey, "facebook:") || !messagingText(input.ExternalKey, 120) || !messagingText(input.DisplayName, 120) || !messagingText(input.Body, 4000) {
+	if types.ChannelThreadPlatform(input.ExternalKey) != "" || !messagingText(input.ExternalKey, 120) || !messagingText(input.DisplayName, 120) || !messagingText(input.Body, 4000) {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("external_key/display_name (1–120) and body (1–4000) required")
 	}
 	if err := messagingKey(ctx, input.RequestKey); err != nil {
@@ -287,7 +287,7 @@ func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id
 		if sourceErr != nil {
 			return sourceErr
 		}
-		if strings.HasPrefix(source.ExternalKey, "facebook:") {
+		if types.ChannelThreadPlatform(source.ExternalKey) != "" {
 			return apperrors.ErrForbidden(ctx).SetDetail("real channel conversations must use channel send")
 		}
 		if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
@@ -379,7 +379,7 @@ func (s *MessagingService) SendChannel(ctx context.Context, tenant, actor, id st
 			return err
 		}
 		if conn.Status != types.ChannelStatusActive || !conn.Enabled {
-			return apperrors.ErrConflict(ctx, "facebook connection", "is "+conn.Status+"; sending is unavailable")
+			return apperrors.ErrConflict(ctx, conn.Platform+" connection", "is "+conn.Status+"; sending is unavailable")
 		}
 		now := time.Now().UTC()
 		result = &types.MessagingMessage{ID: messagingID(), TenantID: tenant, ThreadID: turn.ThreadID, TurnID: id, Direction: "outbound", ActorID: actor, Body: input.Text, RequestKey: input.ClientMessageID, RequestHash: hash, Status: "channel", CreatedAt: now, ContentType: types.ContentText, DeliveryStatus: types.DeliverySending}

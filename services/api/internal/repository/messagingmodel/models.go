@@ -60,6 +60,7 @@ type Connection struct {
 	AccountID        string
 	Enabled          bool
 	AccountName      string
+	AccountUsername  string
 	Status           string
 	LastErrorCode    *string
 	LastErrorMessage *string

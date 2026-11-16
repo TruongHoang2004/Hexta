@@ -93,13 +93,6 @@ export function FacebookChannelSettings() {
   if (!tenant) return null;
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Channels</h1>
-        <p className="mt-2 text-sm text-muted">
-          Connect Facebook Pages so customer messages arrive in the Inbox and
-          assigned sales can reply. Each Page can belong to one workspace.
-        </p>
-      </div>
       <ExpiredConnectionBanner
         tenant={tenant.id}
         connections={rows}

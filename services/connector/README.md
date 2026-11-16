@@ -1,6 +1,6 @@
-# Connector service: Facebook ingress, Page connection and outbound text
+# Connector service: Facebook and Telegram ingress, connection and outbound text
 
-Local implementation, unmerged. Inbound: signed Page webhook → connector PostgreSQL receipt/event outbox → Kafka → API-owned ingress consumer → tenant inbox (text, plus placeholder events for media). Connection: owner OAuth in the API → connector code exchange and sealed Page tokens → `PUT /internal/connections` with webhook subscription. Outbound: API intent outbox → `hexta.outbound.intent.v1` → one Send API call per attempt → `hexta.outbound.result.v1` / `hexta.connector.health.v1`. Python is not involved. See [the design](../../agentic-memory/designs/2026-11-14_facebook-platform-connection_design.md). This is at-least-once delivery; a successful provider HTTP response follows the connector transaction, never an in-memory queue or Kafka ACK.
+Local implementation, unmerged. Telegram Bot connections (Bot Token onboarding/rotation, private 1-1 chats, outbound text) follow [the Telegram design](../../agentic-memory/designs/2026-11-16_telegram-bot-connection_design.md); see "Telegram bots" below. Inbound: signed Page webhook → connector PostgreSQL receipt/event outbox → Kafka → API-owned ingress consumer → tenant inbox (text, plus placeholder events for media). Connection: owner OAuth in the API → connector code exchange and sealed Page tokens → `PUT /internal/connections` with webhook subscription. Outbound: API intent outbox → `hexta.outbound.intent.v1` → one Send API call per attempt → `hexta.outbound.result.v1` / `hexta.connector.health.v1`. Python is not involved. See [the design](../../agentic-memory/designs/2026-11-14_facebook-platform-connection_design.md). This is at-least-once delivery; a successful provider HTTP response follows the connector transaction, never an in-memory queue or Kafka ACK.
 
 ## Ownership and rollout
 
@@ -13,7 +13,10 @@ Connector management uses a service credential, never a user JWT. The API author
 - `POST /internal/facebook/oauth/exchange` `{code, redirect_uri}` → `{oauth_session_id, expires_at, pages[{page_id,page_name}]}`. Page tokens are sealed in `connector.oauth_sessions` for 10 minutes and never returned.
 - `PUT /internal/connections` accepts an immutable ID/tenant/platform/Page/app identity and a strictly increasing config version (gaps allowed). It changes enabled state, and optionally `oauth_session_id` (seal that Page's token on the connection and subscribe its webhook) or `unsubscribe_on_disable` (disconnect: unsubscribe and wipe the credential). Replaying the current version is an idempotent no-op. Returns `200 {id, version, enabled, subscribed}`; 422 expired session/credential, 502 Meta failure, 409 conflict. A disconnected binding can be replaced by another tenant's new connection ID; paused/active ones cannot.
 
-These are trusted machine endpoints: expose only on a private network/reverse-proxy policy. Only `/webhooks/facebook` belongs on the public HTTPS listener. A management token alone must never be delegated to a browser.
+- `POST /internal/telegram/bots/verify` `{bot_token}` → `{bot_id, display_name, username}` (getMe). The token is not stored; 400 malformed, 422 rejected by Telegram, 502 Telegram unavailable, 503 Telegram not configured.
+- For `platform: "telegram"`, `PUT /internal/connections` uses `app_id: "telegram"`, a numeric `account_id` (bot ID) and optional `bot_token` (connect/rotate; only with `enabled: true` and only for that bot). See "Telegram bots".
+
+These are trusted machine endpoints: expose only on a private network/reverse-proxy policy. Only `/webhooks/facebook` and `/webhooks/telegram/{connectionId}` belong on the public HTTPS listener. A management token alone must never be delegated to a browser.
 
 ## Start locally
 
@@ -29,6 +32,8 @@ From repository root, configure private environment variables; values below are 
 - `CONNECTOR_CREDENTIAL_KEY_FILE`: private file with a 32-byte AES-256-GCM key as 64 hex characters. Rotating it makes stored Page tokens unreadable; owners must reconnect Pages.
 - `META_GRAPH_URL` / `META_GRAPH_VERSION`: optional; default `https://graph.facebook.com` and `v21.0`. Override the URL only for isolated tests.
 - `CONNECTOR_LISTEN_ADDR`: defaults to `127.0.0.1:8091`.
+- `TELEGRAM_WEBHOOK_BASE_URL`: optional public HTTPS origin that reaches this connector (Telegram requires HTTPS). Unset disables Telegram management (503). Webhooks are registered at `<base>/webhooks/telegram/<connection id>`.
+- `TELEGRAM_API_URL`: optional; defaults to `https://api.telegram.org`. Override only for isolated tests.
 
 Secret files must have at least 16 non-whitespace bytes. The webhook receiver needs no Page token. Page tokens arrive only through the OAuth exchange and are stored sealed in `connector.connections`, bound to the connection ID; they never appear in connection JSON, Kafka, logs or API responses. `credential_ref` is a legacy opaque field.
 
@@ -68,6 +73,16 @@ Run these in separate terminals. Run the existing API/frontend as usual, then op
 
 Official references: [Meta webhook setup](https://developers.facebook.com/docs/graph-api/webhooks/getting-started), [Messenger webhooks](https://developers.facebook.com/docs/messenger-platform/webhooks), [Meta's Messenger collection](https://www.postman.com/meta/messenger-platform-api/documentation/iyp204x/messenger-platform-api). Direct Meta docs returned HTTP 429 during this session. Meta's collection documents the Page and `pages_messaging` prerequisites; no app-specific permission or live capability was verified. Real Conversations API access, scopes and Graph version must be checked before implementing Facebook fetch. Reference-project code is not evidence of your app's access.
 
+## Telegram bots
+
+Owners paste a @BotFather Bot Token in Settings → Channels. The API checks the owner, the connector calls `getMe`, and the API binds the bot ID to the tenant (1 Bot = 1 tenant via the same partial unique index as Pages). The connector then seals the token and a fresh random webhook `secret_token` (AES-256-GCM, bound to the connection ID) in `connector.connections`, commits, and calls `setWebhook` with `allowed_updates=["message"]`. Rotation must present a token for the same bot ID (else API 409), gets a new secret and re-registers the webhook. Pause calls `deleteWebhook(drop_pending_updates=true)`; resume re-registers with the stored secret; disconnect deletes the webhook and wipes token and secret. `deleteWebhook` is best effort: a revoked token cannot delete it, and a disabled connection quarantines updates anyway.
+
+`POST /webhooks/telegram/{connectionId}` compares `X-Telegram-Bot-Api-Secret-Token` with the decrypted secret in constant time (403 when wrong or the connection/secret is unknown). Only `message` updates in `private` chats are accepted: text → `event_type=message`; photo/video/animation/video note/audio/voice/document/sticker → `unsupported_media` with kinds only (captions dropped, no file IDs/URLs). Group, supergroup and channel messages and other update types are acknowledged with 200 and dropped before the outbox. Other private content (location, contact, …) and text over 4,000 characters are quarantined. Accepted updates return 200 only after receipt + outbox commit (receipt hash = connection + body, so Telegram redelivery deduplicates); storage failure is 503 so Telegram retries; an unparseable verified body is 400.
+
+`sendMessage` outcomes: 200 → `sent`; 403 → `bot_blocked`; 400 "chat not found" → `chat_not_found`; 401/404 → `auth_expired` plus a health event (API marks the bot `auth_expired`; rotate the token); 429 → `rate_limit`; other 4xx → failed `transport`; 5xx/network → `unknown`. None are retried automatically. Tokens appear only in the Bot API request path; errors and logs never include URLs.
+
+Live acceptance (real @BotFather token, public HTTPS webhook, block/revoke) is NOT_RUN; isolated tests use a mock Bot API.
+
 ## Recovery and operational limits
 
 - One callback supports up to 1 MiB and 1,000 items. All entries are visited. Invalid/malformed/unsupported items are quarantined alongside valid siblings, without raw payload retention. Malformed whole batches receive 503 for retry. Text and echo events are published; image/video/audio/file/sticker attachments are published as `unsupported_media` with kinds only (no URLs or binaries). Other attachment kinds, read/delivery/reaction and other events carry safe quarantine classifications.
@@ -98,7 +113,7 @@ make migrate-apply-local svc=connector
 export CONNECTOR_TEST_DATABASE_URL="$CONNECTOR_DATABASE_URL"
 export API_TEST_DATABASE_URL='postgres://postgres:fixture@127.0.0.1:55439/postgres?sslmode=disable'
 export KAFKA_TEST_BROKERS=127.0.0.1:59092
-go test -race ./services/connector/... ./services/api/internal/bootstrap ./services/api/internal/core/service
+go test -race -p 1 ./services/connector/... ./services/api/... ./packages/shared/...
 make migrate-validate
 pnpm --filter web lint
 pnpm --filter web build

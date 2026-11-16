@@ -50,3 +50,31 @@ type ListFacebookConnectionsResponse struct {
 type UpdateFacebookConnectionRequest struct {
 	Action string `json:"action" validate:"required,oneof=pause resume disconnect"`
 }
+
+// ConnectTelegramBotRequest carries a raw Bot Token. It is forwarded to the connector and never logged, stored or
+// returned by the API.
+type ConnectTelegramBotRequest struct {
+	BotToken string `json:"bot_token" validate:"required,max=128"`
+}
+
+// UpdateTelegramConnectionRequest: bot_token is required for rotate_token and rejected otherwise.
+type UpdateTelegramConnectionRequest struct {
+	Action   string `json:"action" validate:"required,oneof=pause resume disconnect rotate_token"`
+	BotToken string `json:"bot_token,omitempty" validate:"required_if=Action rotate_token,max=128"`
+}
+type TelegramConnectionDTO struct {
+	ID               string    `json:"id"`
+	TenantID         string    `json:"tenant_id"`
+	Platform         string    `json:"platform"`
+	AccountID        string    `json:"account_id"`
+	AccountName      string    `json:"account_name"`
+	AccountUsername  string    `json:"account_username,omitempty"`
+	Version          int64     `json:"version"`
+	Status           string    `json:"status"`
+	LastErrorCode    string    `json:"last_error_code,omitempty"`
+	LastErrorMessage string    `json:"last_error_message,omitempty"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+type ListTelegramConnectionsResponse struct {
+	Connections []TelegramConnectionDTO `json:"connections"`
+}

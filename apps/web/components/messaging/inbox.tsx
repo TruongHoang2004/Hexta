@@ -16,9 +16,11 @@ import {
   type SendInput,
 } from "@/lib/services/messaging";
 import {
-  channels,
   deliveryReasonText,
-  type FacebookConnection,
+  listAllConnections,
+  platformLabel,
+  type ChannelConnection,
+  type ChannelPlatform,
 } from "@/lib/services/channels";
 import { ExpiredConnectionBanner } from "@/components/channels/expired-banner";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -32,7 +34,13 @@ const mediaLabel: Record<string, string> = {
   file: "a file",
   sticker: "a sticker",
 };
-function MessageContent({ message }: { message: MessagingMessage }) {
+function MessageContent({
+  message,
+  platform,
+}: {
+  message: MessagingMessage;
+  platform: ChannelPlatform | null;
+}) {
   if (message.content_type === "unsupported_media") {
     const kinds = message.placeholder_meta?.media_kinds ?? [];
     return (
@@ -41,33 +49,40 @@ function MessageContent({ message }: { message: MessagingMessage }) {
         {kinds.length
           ? kinds.map((k) => mediaLabel[k] ?? "an attachment").join(", ")
           : "an attachment"}
-        . Media is not shown in Hexta — open the conversation in Facebook to
-        view it.
+. Media is not shown in Hexta — open the conversation in{" "}
+        {platform ? platformLabel[platform] : "the channel"} to view it.
       </p>
     );
   }
   return <p className="mt-1 whitespace-pre-wrap break-words">{message.body}</p>;
 }
-function DeliveryStatus({ message }: { message: MessagingMessage }) {
-  if (message.status === "received")
-    return <p className="mt-1 text-xs text-muted">Received from Facebook</p>;
-  if (message.status === "simulated")
+function DeliveryStatus({
+  message,
+  platform,
+}: {
+  message: MessagingMessage;
+  platform: ChannelPlatform | null;
+}) {
+  if (message.status === "simulated" || !platform)
     return <p className="mt-1 text-xs text-muted">Simulation only</p>;
+  const name = platformLabel[platform];
+  if (message.status === "received")
+    return <p className="mt-1 text-xs text-muted">Received from {name}</p>;
   switch (message.delivery_status) {
     case "sent":
-      return <p className="mt-1 text-xs text-green-700">Sent to Facebook</p>;
+      return <p className="mt-1 text-xs text-green-700">Sent to {name}</p>;
     case "failed":
       return (
         <p role="note" className="mt-1 text-xs text-red-700">
-          {deliveryReasonText[message.delivery_error_reason] ??
-            "Not sent to Facebook."}
+          {deliveryReasonText(message.delivery_error_reason, platform)}
         </p>
       );
     case "unknown":
       return (
         <p role="note" className="mt-1 text-xs text-amber-800">
-          Delivery unknown: Facebook may have received it. Check the Page inbox
-          before sending again.
+          Delivery unknown: {name} may have received it. Check the{" "}
+          {platform === "telegram" ? "Telegram chat" : "Page inbox"} before
+          sending again.
         </p>
       );
     default:
@@ -187,6 +202,7 @@ function ThreadDetail({
   members,
   changed,
   externalRefresh,
+  connections,
 }: {
   tenant: string;
   thread: string;
@@ -194,6 +210,8 @@ function ThreadDetail({
   members: TenantMember[];
   changed: () => void;
   externalRefresh: number;
+  // null while unknown; the API still rejects sends on inactive connections.
+  connections: ChannelConnection[] | null;
 }) {
   const { user } = useAuthStore();
   const [detail, setDetail] = useState<MessagingDetail | null>(null);
@@ -248,11 +266,27 @@ function ThreadDetail({
       setBusy(false);
     }
   }
-  const facebook = detail?.conversation.source === "facebook";
+  const source = detail?.conversation.source;
+  const platform: ChannelPlatform | null =
+    source === "facebook" || source === "telegram" ? source : null;
+  const channelName = platform ? platformLabel[platform] : "";
+  // A known connection that is not active (paused, auth_expired, or disconnected and so absent) locks the composer.
+  const connectionID = detail?.conversation.thread.connection_id;
+  const connection = connections?.find((c) => c.id === connectionID);
+  const locked =
+    !!platform &&
+    !!connectionID &&
+    connections !== null &&
+    connection?.status !== "active";
+  const lockReason = !connection
+    ? `This ${channelName} connection was disconnected; the conversation is read-only.`
+    : connection.status === "paused"
+      ? `This ${channelName} connection is paused; replies are read-only until the owner resumes it.`
+      : `This ${channelName} connection needs the owner to ${platform === "telegram" ? "rotate the bot token" : "reconnect the Page"}; replies are read-only.`;
   async function send(event: React.FormEvent) {
     event.preventDefault();
-    if (!turn || busy || !body.trim()) return;
-    if (facebook) return sendChannel(turn.id, turn.version, turn.context_revision);
+    if (!turn || busy || !body.trim() || locked) return;
+    if (platform) return sendChannel(turn.id, turn.version, turn.context_revision);
     const values = {
       expected_version: turn.version,
       context_revision: turn.context_revision,
@@ -470,19 +504,27 @@ function ThreadDetail({
                 >
                   <p className="text-xs text-muted">
                     {message.status === "received"
-                      ? "Customer · Facebook Messenger"
+                      ? `Customer · ${detail.conversation.thread.display_name}`
                       : message.status === "channel"
-                        ? "Sale · Facebook reply"
+                        ? `Sale · ${channelName} reply`
                         : message.direction === "inbound"
                           ? "Customer · simulated input"
                           : "Sale · simulated reply"}{" "}
                     · {new Date(message.created_at).toLocaleString()}
                   </p>
-                  <MessageContent message={message} />
-                  <DeliveryStatus message={message} />
+                  <MessageContent message={message} platform={platform} />
+                  <DeliveryStatus message={message} platform={platform} />
                 </li>
               ))}
             </ol>
+            {locked && (
+              <p
+                role="status"
+                className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950"
+              >
+                {lockReason}
+              </p>
+            )}
             <form onSubmit={send} className="space-y-2">
               <label className="text-sm">
                 Reply
@@ -490,29 +532,43 @@ function ThreadDetail({
                   aria-label="Reply"
                   className={inputStyle}
                   rows={3}
-                  maxLength={facebook ? 2000 : 4000}
+                  maxLength={platform ? 2000 : 4000}
                   value={body}
-                  disabled={busy || uncertain || !assigned || turn?.control !== "sales"}
+                  disabled={
+                    busy ||
+                    uncertain ||
+                    locked ||
+                    !assigned ||
+                    turn?.control !== "sales"
+                  }
                   onChange={(e) => setBody(e.target.value)}
                   placeholder={
-                    !assigned
-                      ? "Claim this conversation to reply"
-                      : facebook
-                        ? "Write a reply to send on Facebook…"
-                        : "Write a simulated reply…"
+                    locked
+                      ? "Replies are unavailable for this connection"
+                      : !assigned
+                        ? "Claim this conversation to reply"
+                        : platform
+                          ? `Write a reply to send on ${channelName}…`
+                          : "Write a simulated reply…"
                   }
                 />
               </label>
               <button
                 className={button}
-                disabled={busy || !assigned || turn?.control !== "sales" || !body.trim()}
+                disabled={
+                  busy ||
+                  locked ||
+                  !assigned ||
+                  turn?.control !== "sales" ||
+                  !body.trim()
+                }
               >
                 {uncertain
-                  ? facebook
+                  ? platform
                     ? "Retry previous send"
                     : "Retry previous save"
-                  : facebook
-                    ? "Send on Facebook"
+                  : platform
+                    ? `Send on ${channelName}`
                     : "Save simulated reply"}
               </button>
             </form>
@@ -536,14 +592,15 @@ export function Inbox() {
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [connections, setConnections] = useState<FacebookConnection[]>([]);
+  const [connections, setConnections] = useState<ChannelConnection[] | null>(
+    null,
+  );
   const tenantID = tenant?.id ?? "";
   useEffect(() => {
     if (!tenantID) return;
     const controller = new AbortController();
-    // Banner data only; a failure here must not hide the Inbox.
-    channels
-      .list(tenantID, controller.signal)
+    // Banner and composer-lock data only; a failure here must not hide the Inbox.
+    listAllConnections(tenantID, controller.signal)
       .then((rows) => {
         if (!controller.signal.aborted) setConnections(rows);
       })
@@ -606,14 +663,15 @@ export function Inbox() {
         role="note"
         className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
       >
-        Facebook and simulator conversations appear here. Assigned sales can
-        reply to Facebook customers; Facebook media is shown as a placeholder.
+        Facebook, Telegram and simulator conversations appear here. Assigned
+        sales can reply to Facebook and Telegram customers; media is shown as
+        a placeholder.
         AI replies and automatic turn expiry are not enabled. Use Refresh to
         check new activity and delivery status.
       </p>
       <ExpiredConnectionBanner
         tenant={tenant.id}
-        connections={connections}
+        connections={connections ?? []}
         owner={tenant.owner_id === user?.id}
       />
       <Simulator
@@ -718,6 +776,7 @@ export function Inbox() {
             members={members}
             changed={() => setRefresh((v) => v + 1)}
             externalRefresh={detailRefresh}
+            connections={connections}
           />
         ) : (
           <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted">

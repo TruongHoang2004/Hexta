@@ -8,6 +8,7 @@ import (
 	"errors"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/facebook"
+	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/telegram"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"net/http"
 	"net/http/httptest"
@@ -49,6 +50,116 @@ func (c channelsStub) Exchange(context.Context, string, string) (service.OAuthSe
 }
 func (c channelsStub) Upsert(_ context.Context, conn service.Connection) (service.UpsertResult, error) {
 	return service.UpsertResult{ID: conn.ID, Version: conn.Version, Enabled: conn.Enabled, Subscribed: true}, c.err
+}
+
+func (c channelsStub) VerifyBot(context.Context, string) (plugin.BotIdentity, error) {
+	return plugin.BotIdentity{ID: "123456", DisplayName: "Shop Bot", Username: "shop_bot"}, c.err
+}
+func (c channelsStub) WebhookSecret(_ context.Context, id string) (service.Connection, []byte, error) {
+	if c.err != nil {
+		return service.Connection{}, nil, c.err
+	}
+	return service.Connection{ID: id, Version: 1, TenantID: "t", Platform: "telegram", AccountID: "123456", AppID: telegram.AppID, Enabled: true}, []byte("webhook-secret"), nil
+}
+
+type recordingStore struct {
+	items []plugin.Item
+	err   error
+}
+
+func (s *recordingStore) Accept(_ context.Context, _, _, _ string, items []plugin.Item, _ time.Time) error {
+	s.items = append(s.items, items...)
+	return s.err
+}
+
+func TestTelegramWebhookSecretDropAndAcknowledge(t *testing.T) {
+	tg := telegram.TelegramPlugin{}
+	registry, _ := plugin.NewRegistry(tg)
+	store := &recordingStore{}
+	h := &Handler{Telegram: tg, Channels: channelsStub{}, Inbound: &service.InboundService{Registry: registry, Store: store}}
+	id := "6f1c2b52-8c86-4a39-9a51-1b7f6f8e1c11"
+	private := `{"update_id":1,"message":{"message_id":3,"date":1700000000,"from":{"id":42},"chat":{"id":42,"type":"private"},"text":"hi"}}`
+	group := `{"update_id":2,"message":{"message_id":4,"date":1700000000,"from":{"id":42},"chat":{"id":-5,"type":"group"},"text":"hi"}}`
+	call := func(path, body, secret string) int {
+		r := httptest.NewRequest("POST", path, strings.NewReader(body))
+		if secret != "" {
+			r.Header.Set(telegram.SecretHeader, secret)
+		}
+		w := httptest.NewRecorder()
+		h.Routes().ServeHTTP(w, r)
+		return w.Code
+	}
+	if call("/webhooks/telegram/"+id, private, "") != 403 || call("/webhooks/telegram/"+id, private, "wrong") != 403 || len(store.items) != 0 {
+		t.Fatal("secret verification")
+	}
+	if call("/webhooks/telegram/not-a-uuid", private, "webhook-secret") != 404 {
+		t.Fatal("connection path")
+	}
+	if call("/webhooks/telegram/"+id, group, "webhook-secret") != 200 || len(store.items) != 0 {
+		t.Fatal("group updates must be acknowledged and dropped before the outbox")
+	}
+	if call("/webhooks/telegram/"+id, `nope`, "webhook-secret") != 400 {
+		t.Fatal("malformed update")
+	}
+	if call("/webhooks/telegram/"+id, private, "webhook-secret") != 200 || len(store.items) != 1 {
+		t.Fatal("private update must be accepted")
+	}
+	e := store.items[0].Event
+	if store.items[0].AccountID != "123456" || e.AccountID != "123456" || e.Recipient != "123456" || e.ConversationKey != "42" {
+		t.Fatal("bot binding", store.items[0])
+	}
+	store.err = errors.New("private storage failure")
+	if call("/webhooks/telegram/"+id, private, "webhook-secret") != 503 {
+		t.Fatal("no ACK before commit")
+	}
+	h.Channels = channelsStub{err: service.ErrConnectionMissing}
+	if call("/webhooks/telegram/"+id, private, "webhook-secret") != 403 {
+		t.Fatal("unknown connection must not be distinguishable")
+	}
+}
+
+func TestTelegramManagementValidation(t *testing.T) {
+	h := &Handler{AppID: "app", ManagementToken: "management-token-123456", Channels: channelsStub{}}
+	call := func(method, path, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		r.Header.Set("Authorization", "Bearer "+h.ManagementToken)
+		w := httptest.NewRecorder()
+		h.Routes().ServeHTTP(w, r)
+		return w
+	}
+	token := "123456:AAFixtureSecretPart_abcdefghijklmnopq"
+	if w := call("POST", "/internal/telegram/bots/verify", `{"bot_token":"`+token+`"}`); w.Code != 200 || !strings.Contains(w.Body.String(), `"bot_id":"123456"`) || strings.Contains(w.Body.String(), token) {
+		t.Fatal("verify response", w.Code, w.Body.String())
+	}
+	if call("POST", "/internal/telegram/bots/verify", `{"bot_token":"nope"}`).Code != 400 {
+		t.Fatal("malformed token")
+	}
+	h.Channels = channelsStub{err: service.ErrCredential}
+	if call("POST", "/internal/telegram/bots/verify", `{"bot_token":"`+token+`"}`).Code != 422 {
+		t.Fatal("rejected token status")
+	}
+	h.Channels = channelsStub{err: service.ErrUnavailable}
+	if call("POST", "/internal/telegram/bots/verify", `{"bot_token":"`+token+`"}`).Code != 503 {
+		t.Fatal("unconfigured status")
+	}
+	h.Channels = channelsStub{}
+	base := `"id":"6f1c2b52-8c86-4a39-9a51-1b7f6f8e1c11","version":2,"tenant_id":"t","platform":"telegram","app_id":"telegram"`
+	for body, want := range map[string]int{
+		`{` + base + `,"account_id":"123456","enabled":true,"bot_token":"` + token + `"}`:    200,
+		`{` + base + `,"account_id":"123456","enabled":false,"unsubscribe_on_disable":true}`: 200,
+		`{` + base + `,"account_id":"999999","enabled":true,"bot_token":"` + token + `"}`:    400,
+		`{` + base + `,"account_id":"123456","enabled":false,"bot_token":"` + token + `"}`:   400,
+		`{` + base + `,"account_id":"bot","enabled":true}`:                                   400,
+		`{` + base + `,"account_id":"123456","enabled":true,"oauth_session_id":"s"}`:         400,
+	} {
+		if w := call("PUT", "/internal/connections", body); w.Code != want {
+			t.Fatal("telegram upsert validation", body, w.Code)
+		}
+	}
+	fb := `{"id":"6f1c2b52-8c86-4a39-9a51-1b7f6f8e1c11","version":2,"tenant_id":"t","platform":"facebook","account_id":"p","app_id":"app","enabled":true,"bot_token":"` + token + `"}`
+	if call("PUT", "/internal/connections", fb).Code != 400 {
+		t.Fatal("facebook connection must not carry a bot token")
+	}
 }
 
 func TestManagementEndpointsRequireTokenAndHideTokens(t *testing.T) {

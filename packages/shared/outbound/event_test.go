@@ -32,6 +32,11 @@ func TestIntentValidation(t *testing.T) {
 			t.Fatal("accepted invalid intent:", name)
 		}
 	}
+	telegram := validIntent()
+	telegram.Platform, telegram.AccountID, telegram.RecipientID = "telegram", "123456", "987654"
+	if err := telegram.Validate(); err != nil {
+		t.Fatal("rejected telegram intent", err)
+	}
 }
 
 func TestResultValidation(t *testing.T) {
@@ -46,6 +51,12 @@ func TestResultValidation(t *testing.T) {
 	r.ErrorCategory = ErrorWindow24h
 	if r.Validate() != nil {
 		t.Fatal("rejected classified failure")
+	}
+	for _, category := range []string{ErrorBotBlocked, ErrorChatNotFound} {
+		r.ErrorCategory = category
+		if r.Validate() != nil {
+			t.Fatal("rejected telegram failure category", category)
+		}
 	}
 	r.Status = "delivered"
 	if r.Validate() == nil {

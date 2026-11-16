@@ -281,8 +281,8 @@ func (ctrl *MessagingController) ReturnToBot(c *gin.Context) {
 }
 
 // SendChannel
-// @Summary Send a real Facebook reply as the assigned sale
-// @Description Assigned sale under sales control only; the Page connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.
+// @Summary Send a real channel reply (Facebook or Telegram) as the assigned sale
+// @Description Assigned sale under sales control only; the conversation's Page/bot connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, bot_blocked, chat_not_found, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.
 // @Tags Messaging
 // @Accept json
 // @Produce json
