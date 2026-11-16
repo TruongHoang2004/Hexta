@@ -1,12 +1,14 @@
 # Deploy Hexta to a single server (hexta.org)
 
-Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stack with Docker Compose behind Caddy. CI builds every application image; the server only pulls and runs them. The local demo stack (`compose.demo.yml`) is separate and is not used here.
+Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stack with Docker Compose behind Caddy. Deploys are GitOps-style: CI builds every image and opens a release PR; merging it is the approval, and a deploy agent on the server applies it within a minute. The server never builds. The local demo stack (`compose.demo.yml`) is separate and is not used here.
 
 | Path | Purpose |
 | --- | --- |
 | `infrastructure/compose.prod.yml` | Production stack: Caddy, Postgres, Redis, Redpanda, migrations, api, ingress, ai, connector, web |
 | `infrastructure/compose.prod.build.yml` | Local testing only: builds the same images from the working tree |
-| `.github/workflows/docker-ci-cd.yml` | Builds and pushes `api`, `connector`, `ai`, `web`, `migrator` to GHCR on every `main` commit |
+| `.github/workflows/docker-ci-cd.yml` | Builds and pushes `api`, `connector`, `ai`, `web`, `migrator` to GHCR on every `main` commit, then opens or updates the release PR |
+| `infrastructure/prod/release.env` | Desired production image tag (`sha-<7 chars>`); changed only by the release PR |
+| `scripts/deploy-agent.sh` + `infrastructure/prod/systemd/` | Server agent and its one-minute systemd timer |
 | `infrastructure/prod/Caddyfile` | HTTPS edge and routing |
 | `infrastructure/prod/api.yaml` | API configuration (values come from `.env`) |
 | `infrastructure/prod/init-db.sh` | One-time database and role creation |
@@ -29,7 +31,22 @@ ingress (Kafka consumer) ◄──► Redpanda ──► Postgres (db hexta)
 - Each service has its own database login: `hexta_api` owns database `hexta`, `hexta_ai` owns schema `ai_runtime`, and `hexta_connector` owns the separate database `hexta_connector`.
 - Migrations run as one-shot Atlas jobs before the services that need them; no service changes schema at startup.
 - Memory limits total about 6.5 GB, leaving headroom for the OS.
-- Images come from `ghcr.io/truonghoang2004/hexta/<service>:sha-<7-char commit>`, published by CI for every commit on `main`. `HEXTA_IMAGE_TAG` in `.env` selects the version. The web image calls the API on its own origin, so the same image works on any domain.
+- Images come from `ghcr.io/truonghoang2004/hexta/<service>:sha-<7-char commit>`, published by CI for every commit on `main`. The web image calls the API on its own origin, so the same image works on any domain.
+
+### Release flow
+
+```
+merge to main ─► Docker CI/CD builds 5 images (sha-X) ─► release PR "Release sha-X to production"
+                                                            │ you review and merge (= approval)
+server: hexta-deploy.timer (every minute) ─► deploy-agent.sh sees release.env = sha-X on origin/main
+   ─► checks out commit X (configuration matches the images) ─► all 5 images exist? ─► pg_dumpall backup
+   ─► pull ─► up -d --wait ─► https health check ─► success: record sha-X ─► Telegram notice (optional)
+                                                └─► failure: back to the previous commit + tag, notify, never retry sha-X
+```
+
+- One rolling release PR (`release/production`): a newer `main` build replaces its contents, so merging always ships the newest approved images.
+- Merging the release PR does not rebuild anything (`release.env` is excluded from the build trigger).
+- The agent's state lives in `infrastructure/prod/state/` (git-ignored): `deployed` = running tag, `failed` = last rejected tag.
 
 ## 1. Prerequisites
 
@@ -83,12 +100,9 @@ for k in POSTGRES_PASSWORD API_DB_PASSWORD AI_DB_PASSWORD CONNECTOR_DB_PASSWORD 
   sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
 done
 sed -i 's|^ACME_EMAIL=.*|ACME_EMAIL=<your email>|' .env
-sed -i "s|^HEXTA_IMAGE_TAG=.*|HEXTA_IMAGE_TAG=sha-$(git -C /opt/hexta rev-parse --short=7 HEAD)|" .env
 ```
 
-`HEXTA_IMAGE_TAG` must name a `main` commit whose **Docker CI/CD** run succeeded. Check it under the repository's Actions tab before deploying.
-
-Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key, `META_APP_ID`. Use hex values for passwords because they are embedded in database URLs.
+Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key, `META_APP_ID`, and `DEPLOY_NOTIFY_TELEGRAM_TOKEN` / `DEPLOY_NOTIFY_TELEGRAM_CHAT_ID` for deploy notifications. Use hex values for passwords because they are embedded in database URLs.
 
 Connector secret files (the connector runs as uid 10001):
 
@@ -106,12 +120,21 @@ Back up `.env` and `secrets/` to a password manager or another offline store. Lo
 
 ## 5. First deployment
 
+One-time GitHub setup:
+1. Repository → Settings → Actions → General → Workflow permissions: enable **Allow GitHub Actions to create and approve pull requests**. Without it, CI still pushes the `release/production` branch and its run summary links to open the PR by hand.
+2. After a `main` commit's **Docker CI/CD** run succeeds, review and merge the **Release sha-… to production** PR. Before the first merge, `release.env` is empty and the agent does nothing.
+
+On the server, install the agent (runs as `deploy`) and watch it:
+
 ```sh
-cd /opt/hexta
-./scripts/prod.sh pull
-./scripts/prod.sh up -d --wait
-./scripts/prod.sh ps -a
+sudo cp /opt/hexta/infrastructure/prod/systemd/hexta-deploy.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now hexta-deploy.timer
+journalctl -u hexta-deploy -f        # "deployed sha-…" when done
+cd /opt/hexta && ./scripts/prod.sh ps -a
 ```
+
+The agent checks out the released commit in detached mode; keep the checkout free of local edits (secrets, `.env`, `state/` and `backups/` are git-ignored). To deploy without waiting for the timer: `sudo systemctl start hexta-deploy`.
 
 Expected:
 - `migrate-api`, `migrate-ai`, `migrate-connector` and `kafka-topics` show `exited (0)`.
@@ -132,7 +155,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -d '{}' \
 
 Then in a browser: open `https://hexta.org/register`, create the owner account and a workspace.
 
-If `pull` reports `denied` for an image, that GHCR package is private. Either make it public (GitHub → the package → Package settings → Change visibility), or on the server run `docker login ghcr.io -u <github user>` with a personal access token that has only `read:packages`.
+If the agent logs `image … not available yet` for a tag whose CI run succeeded, that GHCR package is private. Either make it public (GitHub → the package → Package settings → Change visibility), or on the server run `docker login ghcr.io -u <github user>` with a personal access token that has only `read:packages`.
 
 ## 7. Connect channels
 
@@ -141,27 +164,20 @@ If `pull` reports `denied` for an image, that GHCR package is private. Either ma
   1. In the Meta app, set the webhook callback to `https://hexta.org/webhooks/facebook`, using the value in `secrets/meta_verify_token` as the verify token.
   2. Set the valid OAuth redirect to `https://hexta.org/channels/facebook/callback`.
   3. Put the real app secret in `secrets/meta_app_secret` and `META_APP_ID` in `.env`.
-  4. Run `./scripts/prod.sh up -d --wait connector api`.
+  4. Run `./scripts/prod.sh up -d --wait connector api` (configuration changes in `.env` or `secrets/` are applied by hand; the agent only reacts to new releases).
 - **Google login:** set the authorized redirect URI to `https://hexta.org/api/v1/auth/google/callback`.
 
 ## 8. Update to a new version
 
-```sh
-cd /opt/hexta
-./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > ~/hexta-pre-update-$(date +%F-%H%M).sql.gz
-grep '^HEXTA_IMAGE_TAG=' infrastructure/prod/.env      # note the running version for rollback
-git fetch origin && git checkout <main commit>          # configuration for that version
-sed -i "s|^HEXTA_IMAGE_TAG=.*|HEXTA_IMAGE_TAG=sha-$(git rev-parse --short=7 HEAD)|" infrastructure/prod/.env
-./scripts/prod.sh pull
-./scripts/prod.sh up -d --wait
-./scripts/prod.sh ps -a
-```
+Merge the release PR. Nothing to run on the server: within about a minute the agent backs up the database (`infrastructure/prod/backups/pre-<tag>-*.sql.gz`, kept 14 days), deploys and health-checks. Follow it with `journalctl -u hexta-deploy -f` or the Telegram notices.
 
-Migration jobs rerun on every `up`; they apply only new migrations and exit 0 when there are none. Keep the checkout and `HEXTA_IMAGE_TAG` on the same commit so configuration and images match.
+Migration jobs rerun on every deploy; they apply only new migrations and exit 0 when there are none.
 
 ## 9. Roll back
 
-- **Code only (no new migration):** `git checkout <previous commit>`, set `HEXTA_IMAGE_TAG` back to its `sha-…` tag, then `./scripts/prod.sh pull && ./scripts/prod.sh up -d --wait`.
+- **Automatic:** a deploy that fails to start or fails the health check is rolled back to the previous release; the failed tag is not retried until `release.env` changes.
+- **Deliberate (code only, no new migration):** revert the release PR's merge commit on `main` (GitHub "Revert" button). The agent deploys the previous tag within a minute.
+- **Emergency, from the server:** `sudo systemctl stop hexta-deploy.timer`, then `git checkout <previous commit> && HEXTA_IMAGE_TAG=sha-<previous> ./scripts/prod.sh up -d --wait && echo sha-<previous> > infrastructure/prod/state/deployed`. Re-enable the timer only after `release.env` on `main` points to a good tag.
 - **With migrations:** migrations are forward-only and additive by policy, so the previous code normally still runs on the newer schema. Roll back the code as above. Restore a backup (section 10) only for a destructive migration, and accept losing data written since that backup.
 
 ## 10. Backups
@@ -186,7 +202,9 @@ Redpanda holds only in-flight events. The connector and API keep their durable o
 
 | Task | Command |
 | --- | --- |
-| Status | `./scripts/prod.sh ps -a` |
+| Status | `./scripts/prod.sh ps -a`; running tag: `cat infrastructure/prod/state/deployed` |
+| Deploy agent | `systemctl list-timers hexta-deploy.timer`, `journalctl -u hexta-deploy --since today` |
+| Pause automatic deploys | `sudo systemctl stop hexta-deploy.timer` (start it again to resume) |
 | Logs | `./scripts/prod.sh logs -f --tail=200 api` (or `connector`, `ingress`, `ai`, `web`, `caddy`) |
 | Restart one service | `./scripts/prod.sh restart connector` |
 | Resource use | `docker stats --no-stream` |
@@ -199,5 +217,5 @@ Never run `down -v` on the server: it deletes the database volume. Never print `
 
 - One host, no high availability. Disk loss means restoring from an off-server backup.
 - Each service uses one login for migrations and runtime; separate migrator/runtime roles are a follow-up.
-- No metrics or alerting are wired; use `ps`, `logs` and `docker stats`.
-- Verified locally on 2026-11-16 by running this stack with `DOMAIN=localhost` and images built through `compose.prod.build.yml` (same Dockerfiles and build args as CI), covering routing, health, migrations, topic creation, and register/login on one origin. NOT_RUN: the first CI publish of the `connector` and `ai` images, and on a real server public certificates, DNS, live Facebook/Telegram callbacks and backup restore.
+- No metrics or alerting are wired beyond deploy notices; use `ps`, `logs` and `docker stats`.
+- Verified locally on 2026-11-16 by running this stack with `DOMAIN=localhost` and images built through `compose.prod.build.yml` (same Dockerfiles and build args as CI), covering routing, health, migrations, topic creation, and register/login on one origin. The deploy agent was tested in a Linux container against a throwaway git remote with stubbed Docker/Compose: empty release, invalid tag, images not yet published, first deploy, no-op repeat, failed deploy with automatic rollback and backup, no retry of a failed tag, and recovery on the next release. NOT_RUN: the first CI publish of the `connector` and `ai` images and of the release PR, the agent against real Docker on a server, public certificates, DNS, live Facebook/Telegram callbacks and backup restore.

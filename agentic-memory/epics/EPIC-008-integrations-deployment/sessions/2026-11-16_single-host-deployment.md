@@ -34,3 +34,12 @@ The owner has one server (2 vCPU, 16 GB RAM) and asked for a runbook to deploy H
 
 - Owner runs the runbook on the real server and reports results.
 - Follow-ups: separate migrator/runtime DB roles, publish ai/connector images and a runtime-configurable web API URL so GHCR images can replace on-host builds, metrics/alerting, off-host backups.
+
+## Follow-up: CI-built images and release-PR deploys (2026-11-16)
+
+Owner asked not to build on the VPS, then chose a GitOps-style flow without Kubernetes (option A: deploy on approval).
+
+- PR #74: Docker CI/CD publishes `api`, `connector`, `ai`, `web`, `migrator` as `sha-<7>` on every `main` commit; web image is same-origin (empty `NEXT_PUBLIC_API_URL`); Google login links no longer hardcode `localhost:8080`; `compose.prod.yml` pulls by tag.
+- Release PR + agent (stacked on PR #74): CI updates one rolling `release/production` PR that sets `infrastructure/prod/release.env`; merging is the approval. `scripts/deploy-agent.sh` (systemd timer, every minute) checks out the released commit, verifies images, backs up, pulls, starts, health-checks through Caddy, and rolls back automatically. Optional Telegram notices.
+- Repository setting "Allow GitHub Actions to create and approve pull requests" is off; until the owner enables it, CI pushes the branch and links a manual PR in the run summary.
+- Verification: agent decision paths PASS in a Debian container with a throwaway git remote and stubbed Docker (9 cases). Real CI release PR and the agent on a real server NOT_RUN.
