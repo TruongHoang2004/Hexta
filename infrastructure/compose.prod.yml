@@ -1,0 +1,283 @@
+# Single-host production stack for hexta.org (sized for 2 vCPU / 16 GB). Run only through scripts/prod.sh, which
+# loads infrastructure/prod/.env. Only Caddy publishes ports (80/443); every other service stays on the internal
+# network. Images are built on the host from the checked-out commit.
+name: hexta-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-migrator: &migrator
+  build:
+    context: ..
+    dockerfile: Dockerfile.migrate
+  image: hexta/migrator:local
+  logging: *logging
+  restart: "no"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    volumes:
+      - ./prod/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      connector:
+        condition: service_started
+    mem_limit: 256m
+    logging: *logging
+
+  postgres:
+    image: postgres:17.7-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?Set API_DB_PASSWORD}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?Set AI_DB_PASSWORD}
+      CONNECTOR_DB_PASSWORD: ${CONNECTOR_DB_PASSWORD:?Set CONNECTOR_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prod/init-db.sh:/docker-entrypoint-initdb.d/10-hexta.sh:ro
+    healthcheck:
+      # TCP check: the init-time temporary server listens on the socket only, so this passes after init completes.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 2g
+    shm_size: 256m
+    logging: *logging
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+    logging: *logging
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.18
+    restart: unless-stopped
+    # The image defaults to developer mode (fsync bypassed); production mode keeps fsync for durable data.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        rpk redpanda mode production >/dev/null &&
+        exec rpk redpanda start --smp=1 --memory=1G --reserve-memory=0M --overprovisioned --node-id=0 --check=false
+        --kafka-addr=0.0.0.0:9092 --advertise-kafka-addr=redpanda:9092
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1536m
+    logging: *logging
+
+  # Producers never auto-create topics; this job creates them idempotently.
+  kafka-topics:
+    image: redpandadata/redpanda:v24.3.18
+    restart: "no"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        for t in hexta.ingress.received.v1 hexta.outbound.intent.v1 hexta.outbound.result.v1
+        hexta.connector.health.v1 hexta.orders.events.v1;
+        do rpk topic describe "$$t" -X brokers=redpanda:9092 >/dev/null 2>&1
+        || rpk topic create "$$t" -p 3 -r 1 -X brokers=redpanda:9092 || exit 1; done
+    logging: *logging
+
+  migrate-api:
+    <<: *migrator
+    environment:
+      MIGRATE_TARGET: api
+      API_DATABASE_URL: postgres://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
+    command: ["apply"]
+
+  migrate-ai:
+    <<: *migrator
+    environment:
+      MIGRATE_TARGET: ai
+      AI_DATABASE_URL: postgres://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
+    command: ["apply"]
+
+  migrate-connector:
+    <<: *migrator
+    environment:
+      MIGRATE_TARGET: connector
+      CONNECTOR_DATABASE_URL: postgres://hexta_connector:${CONNECTOR_DB_PASSWORD}@postgres:5432/hexta_connector?sslmode=disable
+    command: ["apply"]
+
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    image: hexta/api:local
+    restart: unless-stopped
+    depends_on:
+      migrate-api:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      kafka-topics:
+        condition: service_completed_successfully
+    environment:
+      DOMAIN: ${DOMAIN}
+      API_DB_PASSWORD: ${API_DB_PASSWORD}
+      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:?Set JWT_ACCESS_TOKEN_SECRET}
+      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:?Set JWT_REFRESH_TOKEN_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN}
+      CONNECTOR_MANAGEMENT_TOKEN: ${CONNECTOR_MANAGEMENT_TOKEN:?Set CONNECTOR_MANAGEMENT_TOKEN}
+      META_APP_ID: ${META_APP_ID:-}
+    volumes:
+      - ./prod/api.yaml:/app/config/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    mem_limit: 512m
+    logging: *logging
+
+  # Kafka consumer: ingress events, outbound results and connector health.
+  ingress:
+    image: hexta/api:local
+    restart: unless-stopped
+    command: ["./ingress"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_DATABASE_URL: postgresql://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
+      KAFKA_BROKERS: redpanda:9092
+    mem_limit: 256m
+    logging: *logging
+
+  ai:
+    build:
+      context: ../services/ai
+    image: hexta/ai:local
+    restart: unless-stopped
+    depends_on:
+      migrate-ai:
+        condition: service_completed_successfully
+    environment:
+      AI_DATABASE_URL: postgresql://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN}
+      AI_PROVIDER: ${AI_PROVIDER:-fake}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LANGSMITH_TRACING: "false"
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    logging: *logging
+
+  connector:
+    build:
+      context: ..
+      dockerfile: services/connector/Dockerfile
+    image: hexta/connector:local
+    restart: unless-stopped
+    depends_on:
+      migrate-connector:
+        condition: service_completed_successfully
+      kafka-topics:
+        condition: service_completed_successfully
+    environment:
+      CONNECTOR_DATABASE_URL: postgres://hexta_connector:${CONNECTOR_DB_PASSWORD}@postgres:5432/hexta_connector?sslmode=disable
+      KAFKA_BROKERS: redpanda:9092
+      CONNECTOR_LISTEN_ADDR: 0.0.0.0:8091
+      CONNECTOR_MANAGEMENT_TOKEN_FILE: /run/secrets/connector_management_token
+      CONNECTOR_CREDENTIAL_KEY_FILE: /run/secrets/connector_credential_key
+      META_APP_ID: ${META_APP_ID:-facebook-disabled}
+      META_APP_SECRET_FILE: /run/secrets/meta_app_secret
+      META_VERIFY_TOKEN_FILE: /run/secrets/meta_verify_token
+      TELEGRAM_WEBHOOK_BASE_URL: https://${DOMAIN}
+    secrets:
+      - connector_management_token
+      - connector_credential_key
+      - meta_app_secret
+      - meta_verify_token
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    logging: *logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Same origin as the API (Caddy routes /api/*), so auth cookies stay first-party.
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}
+    image: hexta/web:local
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    mem_limit: 512m
+    logging: *logging
+
+secrets:
+  connector_management_token:
+    file: ./prod/secrets/connector_management_token
+  connector_credential_key:
+    file: ./prod/secrets/connector_credential_key
+  meta_app_secret:
+    file: ./prod/secrets/meta_app_secret
+  meta_verify_token:
+    file: ./prod/secrets/meta_verify_token
+
+volumes:
+  postgres_data:
+  redpanda_data:
+  caddy_data:
+  caddy_config:

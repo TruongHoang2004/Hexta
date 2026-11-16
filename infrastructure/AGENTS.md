@@ -1,6 +1,6 @@
 # Infrastructure and local operations
 
-Use [the current demo guide](README.demo.md), `compose.demo.yml` and `scripts/local.sh` at repository root for the current complete local stack. `README.md` describes separate legacy Compose configurations. Inspect the actual profile and includes before choosing commands; do not mix stacks by assumption.
+Use [the current demo guide](README.demo.md), `compose.demo.yml` and `scripts/local.sh` at repository root for the current complete local stack. The single-host production deployment (hexta.org) uses [its runbook](README.deploy.md), `compose.prod.yml`, `prod/` and `scripts/prod.sh`; never run its `down -v` against a live server. `README.md` describes separate legacy Compose configurations. Inspect the actual profile and includes before choosing commands; do not mix stacks by assumption.
 
 - Preserve startup ordering, health/readiness, network scope, ports, image/build provenance and persistent volume ownership. Review changed configuration with its actual application consumer.
 - Use private environment configuration and sanitized examples. Do not print resolved secret-bearing Compose configuration, DSNs or tokens to logs/artifacts. Validate configuration with quiet output where supported.
