@@ -135,8 +135,8 @@ func TestConnectorTelegramConnectIngressSendAndResults(t *testing.T) {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %s", output)
 	}
-	management := "fixture-management-123456"
-	for name, value := range map[string]string{"secret": "fixture-app-secret-123456", "verify": "fixture-verify-token-123456", "management": management, "credential": strings.Repeat("c3", 32)} {
+	management := randomSecret(t, 24)
+	for name, value := range map[string]string{"secret": randomSecret(t, 24), "verify": randomSecret(t, 24), "management": management, "credential": randomSecret(t, 32)} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(value), 0600); err != nil {
 			t.Fatal(err)
 		}

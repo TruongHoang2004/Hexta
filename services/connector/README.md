@@ -81,7 +81,13 @@ Owners paste a @BotFather Bot Token in Settings → Channels. The API checks the
 
 `sendMessage` outcomes: 200 → `sent`; 403 → `bot_blocked`; 400 "chat not found" → `chat_not_found`; 401/404 → `auth_expired` plus a health event (API marks the bot `auth_expired`; rotate the token); 429 → `rate_limit`; other 4xx → failed `transport`; 5xx/network → `unknown`. None are retried automatically. Tokens appear only in the Bot API request path; errors and logs never include URLs.
 
-Live acceptance (real @BotFather token, public HTTPS webhook, block/revoke) is NOT_RUN; isolated tests use a mock Bot API.
+Isolated tests use a mock Bot API and generate all connector secrets at runtime. Live acceptance is `TestLiveTelegramWebhookAcceptance` (`services/api/internal/bootstrap`), skipped unless configured through the environment only — never commit or write these values to files:
+
+- `TELEGRAM_LIVE_BOT_TOKEN`: a dedicated test bot's token. Use a separate name from `TELEGRAM_BOT_TOKEN`, which the agent notification scripts read from the git-ignored root `.env`.
+- `TELEGRAM_LIVE_WEBHOOK_BASE_URL`: a public HTTPS origin that forwards only `POST /webhooks/telegram/*` to `TELEGRAM_LIVE_CONNECTOR_ADDR` (default `127.0.0.1:18091`).
+- `TELEGRAM_LIVE_WAIT`: optional, default `5m`.
+
+With the isolated variables below also set, run `go test -race -count=1 -v -run TestLiveTelegramWebhookAcceptance ./services/api/internal/bootstrap`, then send the bot a text and a photo in a private chat. The test checks inbound text and placeholder, one live reply (`sent`) and webhook removal on disconnect.
 
 ## Recovery and operational limits
 

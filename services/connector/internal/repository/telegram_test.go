@@ -3,6 +3,8 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -58,7 +60,11 @@ func botToken(id, suffix string) string {
 func TestTelegramConnectionLifecycle(t *testing.T) {
 	s, _ := fixtureStore(t)
 	ctx := context.Background()
-	sealer, err := secret.NewSealer(strings.Repeat("0f", 32), 1)
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatal(err)
+	}
+	sealer, err := secret.NewSealer(hex.EncodeToString(key), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
