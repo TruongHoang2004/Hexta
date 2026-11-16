@@ -1,6 +1,6 @@
 # Technical Design: Kết nối nền tảng Telegram Bot (MVP v1.0)
 
-- **Status:** IMPLEMENTED (2026-11-16, PR in review, not merged); live Telegram acceptance NOT_RUN. Implementation amendments are listed in §7 and await owner acceptance. Evidence: [implementation session](../epics/EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md).
+- **Status:** IMPLEMENTED (2026-11-16, [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) in review, not merged); live Telegram acceptance NOT_RUN. Implementation amendments are listed in §7 and await owner acceptance. Evidence: [implementation session](../epics/EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md).
 - **Date:** 2026-11-16
 - **PRD:** [PRD — Kết nối nền tảng Telegram Bot (Notion, Đã chốt v1.0)](https://app.notion.com/p/PRD-K-t-n-i-n-n-t-ng-Telegram-Bot-419b0ea49f09816d95a4d4f3e5da8252)
 - **Baseline:** Reuses the connector architecture (`BasePlugin` + durable receipt/outbox + Kafka) from [2026-11-03_connector-service_design.md](2026-11-03_connector-service_design.md) and the shared outbound/health contracts defined in [2026-11-14_facebook-platform-connection_design.md](2026-11-14_facebook-platform-connection_design.md).

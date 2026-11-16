@@ -1,6 +1,6 @@
 # Consolidated Project Changelog
 
-## 2026-11-16 — Telegram Bot connection (PR in review)
+## 2026-11-16 — Telegram Bot connection ([PR #71](https://github.com/TruongHoang2004/Hexta/pull/71), in review)
 
 - Owners connect a Telegram bot with its @BotFather token, rotate the token (same bot only), and pause/resume/disconnect it in Channel settings; 1 Bot = 1 tenant via the existing partial unique index.
 - Connector seals the Bot Token and a per-connection webhook secret (AES-256-GCM), registers `/webhooks/telegram/{connectionId}`, accepts private 1-1 messages only (text, or media as placeholders), and drops group/channel updates before the outbox.

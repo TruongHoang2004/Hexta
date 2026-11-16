@@ -14,11 +14,11 @@ Implement [the Telegram Bot connection design](../../../designs/2026-11-16_teleg
 
 ## Starting evidence
 
-Branch `feat/telegram-bot-connection` from `chore/docs-cleanup` @ `fb9e4c0` (Facebook connection PR #69 already on that history). Rules read: root AGENTS, rule router, API/shared/migrations/frontend/web AGENTS, Go conventions, boundaries, services, repositories, Atlas, verification, authorization, controller validation, errors, Fx, DTO, responses, client adapters, routing, Swagger, configuration, observability, mappers, delivery workflow, cross-service skill.
+Branch `feat/telegram-bot-connection` from `chore/docs-cleanup` @ `fb9e4c0`, later rebased onto `main`. Uncommitted Facebook payload-type edits (`plugin/facebook/facebook.go`, `payload.go`) appeared in the working tree during the session from another source; they were preserved and not committed. Rules read: root AGENTS, rule router, API/shared/migrations/frontend/web AGENTS, Go conventions, boundaries, services, repositories, Atlas, verification, authorization, controller validation, errors, Fx, DTO, responses, client adapters, routing, Swagger, configuration, observability, mappers, delivery workflow, cross-service skill.
 
 ## Outcome and decisions
 
-IMPLEMENTED on `feat/telegram-bot-connection` (PR open against `main`; not merged):
+IMPLEMENTED on `feat/telegram-bot-connection` ([PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) open against `main`; not merged). Rebased onto `main` @ `edfb1dc` so the PR excludes the unmerged docs-cleanup commit (PR #70).:
 
 - **Shared:** `outbound.ErrorBotBlocked`, `ErrorChatNotFound`; `outbound.Platforms` lets intents target `telegram`. No new topics.
 - **Schemas (Atlas-generated):** API `20261116020138_telegram_bot_connection` (`messaging_connections.account_username`); connector `20261116020151_telegram_bot_connection` (`platform` check adds `telegram`, `webhook_secret_ciphertext`, check that a secret implies a credential). Connector diff ran with host Atlas because the migrator container cannot start Docker dev databases (same as the Facebook delivery).
