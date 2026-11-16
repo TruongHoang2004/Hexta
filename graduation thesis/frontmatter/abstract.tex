@@ -1,2 +1,13 @@
 % !TeX root = ../main.tex
 \FrontPage{TÓM TẮT}
+
+Trong hoạt động thương mại trực tuyến của doanh nghiệp vừa và nhỏ kinh doanh sản phẩm vật lý qua tư vấn, việc vận hành trên các công cụ rời rạc đối mặt bốn thách thức cốt lõi: sự đứt gãy giữa tiếp thị đầu phễu và quy trình tư vấn -- đơn hàng; rủi ro trí tuệ nhân tạo (AI) tự suy đoán thông tin thiếu hoặc gửi phản hồi đè khi nhân viên đã tiếp nhận hội thoại; khoảng trống trạng thái giữa đơn nháp và cơ chế bàn giao nội bộ; cùng yêu cầu cô lập dữ liệu và phân quyền chặt chẽ trên nền tảng đa doanh nghiệp (multi-tenant).
+
+Khóa luận đề xuất và xây dựng nền tảng hạt nhân \textbf{Hexta} theo kiến trúc phân tách trách nhiệm rõ ràng. Lớp giao diện web giao tiếp hoàn toàn qua dịch vụ nghiệp vụ trung tâm viết bằng Go, thành phần nắm độc quyền xác thực phiên, phân quyền theo trạng thái hiện hành, quản lý dữ liệu chủ, đơn hàng, quy trình và quyết định gửi tin. Phần kết nối kênh trực tiếp được tách thành một dịch vụ kết nối độc lập hỗ trợ Facebook Page và Telegram Bot, truyền sự kiện bền vững qua Apache Kafka (Redpanda) theo mẫu hộp thư đi và hộp thư đến giao dịch (Transactional Outbox / Consumer Inbox). Dịch vụ thực thi AI viết bằng Python sử dụng LangGraph và LangChain đa nhà cung cấp qua giao thức gRPC/Protobuf với cơ chế thuê khóa có thời hạn trên PostgreSQL, chỉ tiếp nhận ảnh chụp ngữ cảnh được cấp phép để trả về ứng viên phản hồi.
+
+Các đóng góp chính của khóa luận gồm: (1) đơn nháp bền vững tách biệt với cổng xác nhận có điều kiện, phân biệt rõ trường hợp chưa cung cấp giá với giá bằng không và ràng buộc địa chỉ theo nhu cầu giao hàng; (2) quy trình tuần tự có phiên bản bất biến với hai chế độ bàn giao chuyển trực tiếp và chờ xác nhận tiếp nhận; (3) hàng rào điều khiển hội thoại ba trạng thái (bot tự động xử lý, hàng đợi chờ nhân viên, nhân viên phụ trách) kèm bộ đếm thế hệ điều khiển đơn điệu nhằm vô hiệu hóa tác vụ AI hoặc lệnh tự động cũ ngay khi nhân viên tiếp quản; và (4) phân định minh bạch ranh giới giữa phần đã cài đặt, kiểm chứng cô lập với các phần thiết kế mục tiêu.
+
+Trên môi trường thực nghiệm cục bộ có thể tái lập với dữ liệu mô phỏng gắn nhãn, hệ thống đã vượt qua 19 gói kiểm thử Go có race detector, 109 bài kiểm thử AI Python, 35 bài kiểm thử SDK, cùng các kiểm tra lược đồ Atlas, lint và build. Kết quả khẳng định khả năng cô lập đa doanh nghiệp, nhất quán giao dịch và kiểm soát AI an toàn, đồng thời mở sẵn trục định danh và sự kiện cho hệ sinh thái tiếp thị -- bán hàng mở rộng.
+
+\medskip
+\noindent\textbf{Từ khóa:} Đa doanh nghiệp (Multi-tenant), Điều phối quy trình bất biến, Hội thoại đa kênh, Trí tuệ nhân tạo có kiểm soát, LangGraph, Transactional Outbox, Kafka.
