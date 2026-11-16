@@ -1,5 +1,11 @@
 # Consolidated Project Changelog
 
+## 2026-11-16 — Single-host production deployment (in review)
+
+- `infrastructure/compose.prod.yml`, `scripts/prod.sh` and `infrastructure/README.deploy.md`: Caddy HTTPS edge for hexta.org, Postgres/Redis/Redpanda, Atlas migration jobs, api, ingress, ai, connector and web on one 2 vCPU / 16 GB host.
+- New connector Dockerfile; API image includes the ingress consumer.
+- Details and verification: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-16_single-host-deployment.md).
+
 ## 2026-11-16 — Telegram Bot connection ([PR #71](https://github.com/TruongHoang2004/Hexta/pull/71), merged)
 
 - Owners connect a Telegram bot with its @BotFather token, rotate the token (same bot only), and pause/resume/disconnect it in Channel settings; 1 Bot = 1 tenant via the existing partial unique index.

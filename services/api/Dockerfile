@@ -25,6 +25,7 @@ COPY services/api ./services/api
 WORKDIR /app/services/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/api ./cmd/main.go
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/platform-operator ./cmd/platform-operator
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/ingress ./cmd/ingress
 
 FROM alpine:latest
 
@@ -34,6 +35,8 @@ RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /app/bin/api .
 COPY --from=builder /app/bin/platform-operator .
+# Kafka consumer for ingress, outbound results and connector health; run with command ./ingress.
+COPY --from=builder /app/bin/ingress .
 COPY --from=builder /app/services/api/config ./config
 
 EXPOSE 8080

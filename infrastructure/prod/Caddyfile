@@ -1,0 +1,46 @@
+# Public edge for hexta.org. Caddy obtains and renews Let's Encrypt certificates automatically.
+# Only the web app, /api/* and the provider webhooks are reachable; the connector's /internal/* control plane,
+# the AI runtime, Postgres, Redis and Kafka are never routed.
+{
+	email {$ACME_EMAIL}
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Facebook verification (GET) and callbacks (POST); Telegram per-connection callbacks (POST).
+	@webhooks path /webhooks/facebook /webhooks/telegram/*
+	handle @webhooks {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy connector:8091
+	}
+	handle /webhooks/* {
+		respond 404
+	}
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
