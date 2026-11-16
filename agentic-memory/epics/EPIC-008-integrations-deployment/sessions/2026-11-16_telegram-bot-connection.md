@@ -41,11 +41,12 @@ Isolated infrastructure: `infrastructure/compose.connector-test.yml` (Postgres 5
 | Format | `sh scripts/check-gofmt.sh`; `gofmt -l services/connector packages/shared` | PASS |
 | Web | `pnpm --filter web lint`; `pnpm --filter web build` | PASS |
 | Whitespace | `git diff --check` | PASS |
-| Live Telegram | real @BotFather token, public HTTPS webhook, live text/media, block/revoke | NOT_RUN |
+| Live Bot API client | owner-supplied test bot @hexta_test_bot; temporary uncommitted test (token read from a private scratch file, never written to the repo) | PASS: `getMe` identity; `sendMessage` to a non-existent chat → `chat_not_found`/400; wrong-secret token → `getMe` rejected and `sendMessage` → `auth_expired`/401; errors contain no token |
+| Live Telegram webhook/E2E | public HTTPS webhook, live inbound text/media, live successful send, block | NOT_RUN: a public tunnel (cloudflared quick tunnel) was denied by the session permission policy; no chat has messaged the bot yet |
 | Browser acceptance | manual UI walkthrough | NOT_RUN |
 
 ## Unresolved work and handoff
 
 - Owner review of the §7 amendments and the PR; merge is the owner's action.
-- Live Telegram acceptance needs a public HTTPS origin for `TELEGRAM_WEBHOOK_BASE_URL` and a real bot.
+- Live webhook acceptance needs a public HTTPS origin for `TELEGRAM_WEBHOOK_BASE_URL` (tunnel or deployed host) and a person messaging the test bot. The test bot token was shared in the conversation; revoke it in @BotFather after testing.
 - No periodic token health check: a revoked token is detected on the next send (401) only.
