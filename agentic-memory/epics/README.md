@@ -32,7 +32,7 @@ Active connector slice: [2026-11-03 direct Facebook ingress](EPIC-008-integratio
 
 Facebook platform connection: [2026-11-15 session](EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md), [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged; owner OAuth/Page management, media placeholders and single-attempt sends verified against mock Meta in isolation. Live Meta and merge open.
 
-Telegram Bot connection: [2026-11-16 session](EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md), [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) open, not merged; owner Bot Token connect/rotate, private-chat ingress and single-attempt sends verified against a mock Bot API in isolation. Live Telegram and merge open.
+Telegram Bot connection: [2026-11-16 session](EPIC-008-integrations-deployment/sessions/2026-11-16_telegram-bot-connection.md), [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) merged into `main` (`cec936c`); owner Bot Token connect/rotate, private-chat ingress and single-attempt sends verified against a mock Bot API in isolation. Live Telegram webhook acceptance open.
 
 Active Desk slice: [2026-11-10 Chatbot / Desk control](EPIC-004-messaging/sessions/2026-11-10_chatbot-desk-control.md), local/unmerged; durable queue and explicit control transitions implemented. AI routing/dispatch, live channels and granular Desk entitlements remain open.
 

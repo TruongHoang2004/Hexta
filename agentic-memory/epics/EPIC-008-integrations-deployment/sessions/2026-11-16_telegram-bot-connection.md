@@ -1,7 +1,7 @@
 ---
 epic: EPIC-008
 session: 2026-11-16_telegram-bot-connection
-status: in-review
+status: done
 completed: false
 date: 2026-11-16
 ---
@@ -18,7 +18,7 @@ Branch `feat/telegram-bot-connection` from `chore/docs-cleanup` @ `fb9e4c0`, lat
 
 ## Outcome and decisions
 
-IMPLEMENTED on `feat/telegram-bot-connection` ([PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) open against `main`; not merged). Rebased onto `main` @ `edfb1dc` so the PR excludes the unmerged docs-cleanup commit (PR #70).:
+IMPLEMENTED and MERGED: [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) squash-merged into `main` as `cec936c` on 2026-11-16 (merge verified). Follow-ups in the same PR: env-driven live acceptance test (`TELEGRAM_LIVE_*`), runtime-generated test secrets, `services/connector/.env.example` and API channel settings in `services/api/.env.example`, and GORM instead of raw SQL for `MarkAuthExpired` and test checks. Rebased onto `main` @ `edfb1dc` so the PR excludes the unmerged docs-cleanup commit (PR #70).:
 
 - **Shared:** `outbound.ErrorBotBlocked`, `ErrorChatNotFound`; `outbound.Platforms` lets intents target `telegram`. No new topics.
 - **Schemas (Atlas-generated):** API `20261116020138_telegram_bot_connection` (`messaging_connections.account_username`); connector `20261116020151_telegram_bot_connection` (`platform` check adds `telegram`, `webhook_secret_ciphertext`, check that a secret implies a credential). Connector diff ran with host Atlas because the migrator container cannot start Docker dev databases (same as the Facebook delivery).
@@ -47,6 +47,7 @@ Isolated infrastructure: `infrastructure/compose.connector-test.yml` (Postgres 5
 
 ## Unresolved work and handoff
 
-- Owner review of the §7 amendments and the PR; merge is the owner's action.
+- Owner acceptance of the design §7 amendments is not separately recorded (the PR merge is the only signal).
+- `completed` stays false: live webhook acceptance is NOT_RUN.
 - Live webhook acceptance needs a public HTTPS origin for `TELEGRAM_WEBHOOK_BASE_URL` (tunnel or deployed host) and a person messaging the test bot. The test bot token was shared in the conversation; revoke it in @BotFather after testing.
 - No periodic token health check: a revoked token is detected on the next send (401) only.
