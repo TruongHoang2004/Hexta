@@ -8,6 +8,13 @@
 - New topics: `hexta.outbound.intent.v1`, `hexta.outbound.result.v1`, `hexta.connector.health.v1`. New connector setting `CONNECTOR_CREDENTIAL_KEY_FILE`; API settings `CONNECTOR_URL`, `CONNECTOR_MANAGEMENT_TOKEN`, `META_APP_ID`.
 - Details, deviations and verification: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-15_facebook-platform-connection.md).
 
+## 2026-11-14 — PRD and technical-design skills
+
+- Added `dev-prd` skill (What/Why-only PRDs, Notion persistence, 13-section structure, readiness checks) and its Claude adapter.
+- `dev-design` now respects PRD scope and enumerates every schema, HTTP, gRPC and Kafka contract change with DTOs.
+- Condensed the `code-review` skill under its 4,000-byte budget (wording only); instruction validator passes.
+- Details and verification: [session](epics/EPIC-001-system-design/sessions/2026-11-14_prd-design-skills.md).
+
 ## 2026-11-14 — Audit hardening (PR #68, in review)
 
 - Sessions stay DB-authoritative; auth repositories bound by interface; unused session cache binding removed (audit R6).

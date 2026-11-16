@@ -11,6 +11,7 @@ Use this skill when architecting new services, database schemas, API contracts, 
 
 ### 1. Context & Architecture Alignment
 - Select applicable domain guidance through [the root router](../../../rules/README.md). Derive boundaries and contracts from actual code and approved design; do not apply Go-specific templates to Python or frontend-only work.
+- Stay strictly within the approved PRD scope; do not pull in out-of-scope domain orchestration (such as unrelated routing or workflow logic).
 
 ### 2. Formulate the Technical Design Document
 Include only sections relevant to the requested design:
@@ -18,13 +19,14 @@ Include only sections relevant to the requested design:
 2. **System Architecture & Data Flow**:
    - Mermaid diagram illustrating module interactions.
    - Synchronous (HTTP/gRPC) vs Asynchronous (queues/events) flows.
-3. **Data Model & Schema (when persistence changes)**:
-   - Entity tables, data types, primary keys, foreign keys, and indexes.
-   - Migration script outline.
-4. **API Contracts**:
-   - HTTP method, route, request DTO, response DTO.
-   - Swagger or protobuf ownership and compatibility where applicable.
-   - Error mappings in the owning service; Go business errors use the existing shared errors package.
+3. **Data Model & Atlas Migrations (explicitly list all schema changes)**:
+   - Every added/modified/removed table, column, data type, primary key, foreign key, and partial/unique index in `migrations/schema/{api,connector,ai}.sql`.
+   - Note the owning service and `make migrate-diff` target.
+4. **Inter-Service Communication, API Contracts & DTOs (explicitly list every change)**:
+   - **HTTP Endpoints:** Every added, modified, or removed route (method, path, authZ), with concrete **Request DTO** and **Response DTO** definitions.
+   - **gRPC (`proto/`):** Every added, modified, or removed RPC and message DTO (or explicitly state `No changes`).
+   - **Kafka Topics:** Every added or modified topic, producer → consumer pair, and exact **event envelope / payload DTO**.
+   - Swagger or protobuf ownership and compatibility where applicable; Go business errors use the existing shared errors package.
 5. **Security, Caching & Performance Considerations**:
    - Authentication & Authorization checks.
    - Existing cache behavior and invalidation only when affected; no new caching assumption.
