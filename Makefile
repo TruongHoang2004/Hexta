@@ -111,3 +111,31 @@ ts-build:
 ts-dev:
 	@if [ -z "$(filter)" ]; then echo "Error: filter is required (e.g. make ts-dev filter=web)"; exit 1; fi
 	@pnpm --filter $(filter) run dev
+
+# ==============================
+# Graduation Thesis (LaTeX -> PDF)
+# ==============================
+
+.PHONY: thesis thesis-pdf thesis-watch thesis-clean thesis-distclean
+
+THESIS_DIR := graduation thesis
+THESIS_MAIN := main.tex
+THESIS_PATH := /Library/TeX/texbin:$(PATH)
+
+# Compile graduation thesis (main.tex -> main.pdf) using XeLaTeX via latexmk
+thesis thesis-pdf:
+	@PATH="$(THESIS_PATH)" command -v latexmk >/dev/null 2>&1 || { echo "Error: latexmk not found. Install MacTeX/TeX Live or add /Library/TeX/texbin to PATH." >&2; exit 1; }
+	@cd "$(THESIS_DIR)" && PATH="$(THESIS_PATH)" latexmk -xelatex -interaction=nonstopmode -halt-on-error "$(THESIS_MAIN)"
+
+# Watch and auto-recompile graduation thesis on file changes
+thesis-watch:
+	@PATH="$(THESIS_PATH)" command -v latexmk >/dev/null 2>&1 || { echo "Error: latexmk not found. Install MacTeX/TeX Live or add /Library/TeX/texbin to PATH." >&2; exit 1; }
+	@cd "$(THESIS_DIR)" && PATH="$(THESIS_PATH)" latexmk -xelatex -pvc -interaction=nonstopmode "$(THESIS_MAIN)"
+
+# Remove intermediate LaTeX build artifacts, keeping main.pdf
+thesis-clean:
+	@cd "$(THESIS_DIR)" && PATH="$(THESIS_PATH)" latexmk -c "$(THESIS_MAIN)"
+
+# Remove all LaTeX build artifacts including main.pdf
+thesis-distclean:
+	@cd "$(THESIS_DIR)" && PATH="$(THESIS_PATH)" latexmk -C "$(THESIS_MAIN)"

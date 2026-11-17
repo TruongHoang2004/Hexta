@@ -1,19 +1,355 @@
 % !TeX root = ../main.tex
 \chapter{CHI TIẾT CƠ SỞ DỮ LIỆU}\label{app:database}
-Bảng~\ref{tab:schema} mô tả các trường của bảng đơn hàng liên quan trực tiếp đến lưu nháp và xác nhận. Đây là phần trích lược để giải thích nghiệp vụ, không thay thế toàn bộ định nghĩa trong migration. Các bảng hội thoại và quy trình mục tiêu ở Chương~\ref{chap:design} chưa được coi là lược đồ đã triển khai.
+
+Phụ lục này trình bày cấu trúc đầy đủ của 39 bảng dữ liệu vật lý đã được hiện thực hóa và quản lý phiên bản lược đồ tường minh qua Atlas (cấu hình gốc tại \texttt{atlas.hcl}) tính đến thời điểm hoàn thành khóa luận, bao gồm các khóa chính, khóa ngoại tổ hợp, ràng buộc kiểm tra (\texttt{CHECK}), chỉ mục duy nhất bộ phận và toàn bộ lịch sử 22 tệp migration SQL. Các thực thể chỉ tồn tại ở mức đặc tả thiết kế mục tiêu trong Chương~\ref{chap:design} (như \texttt{scripts}, \texttt{script\_\hspace{0pt}versions}, \texttt{reply\_\hspace{0pt}proposals}, \texttt{exception\_\hspace{0pt}cases}) không nằm trong danh sách bảng vật lý dưới đây.
+
+\section{Tổng quan các lược đồ và quyền sở hữu dữ liệu}
+Hệ thống phân tách ranh giới sở hữu dữ liệu giữa ba dịch vụ bằng ba môi trường Atlas độc lập, đi kèm ba tài khoản cơ sở dữ liệu riêng biệt nhằm ngăn chặn việc đọc/ghi chéo bảng trực tiếp giữa các dịch vụ. Bảng~\ref{tab:app-schema-overview} tổng hợp phân bố 39 bảng và 22 tệp migration theo từng vùng sở hữu.
+
 \begin{table}[htbp]
   \centering
-  \caption{Các thuộc tính liên quan đến kiểm soát đơn hàng}\label{tab:schema}
-  \begin{tabularx}{\linewidth}{@{}llX@{}}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Phân bố lược đồ, tài khoản sở hữu và lịch sử Atlas migration}\label{tab:app-schema-overview}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{2.2cm}
+    >{\raggedright\arraybackslash}p{2.9cm}
+    >{\raggedright\arraybackslash}p{2.6cm}
+    >{\raggedright\arraybackslash}p{1.2cm}
+    >{\raggedright\arraybackslash}p{1.5cm}
+    >{\raggedright\arraybackslash}X@{}}
     \toprule
-    Thuộc tính & Kiểu dữ liệu & Mô tả \\
+    Lược đồ & CSDL / Vai trò & Bảng lịch sử Atlas & Số bảng & Số migration & Phạm vi trách nhiệm \\
     \midrule
-    \texttt{id} & varchar(36) & Định danh đơn hàng, khóa chính. \\
-    \texttt{tenant\_id} & varchar(36) & Doanh nghiệp sở hữu; mọi thao tác phải kiểm tra phạm vi. \\
-    \texttt{version} & bigint & Phiên bản dùng kiểm soát cập nhật cạnh tranh. \\
-    \texttt{requires\_delivery} & boolean & Xác định có bắt buộc địa chỉ khi xác nhận. \\
-    \texttt{delivery\_address} & text & Địa chỉ giao nhận nếu cần giao hàng. \\
+    \texttt{public} &
+    CSDL \texttt{hexta}, vai trò \texttt{hexta\_\hspace{0pt}api} &
+    \texttt{atlas\_\hspace{0pt}schema\_\hspace{0pt}revisions} &
+    31 &
+    17 &
+    Định danh, tenant, khách hàng, sản phẩm, đơn hàng, quy trình, hội thoại, kết nối kênh và outbox miền (\texttt{services/\hspace{0pt}api}). \\
+    \texttt{ai\_\hspace{0pt}runtime} &
+    CSDL \texttt{hexta}, vai trò \texttt{hexta\_\hspace{0pt}ai} &
+    \texttt{atlas\_\hspace{0pt}ai\_\hspace{0pt}revisions} &
+    1 &
+    1 &
+    Lưu trữ bền vững tác vụ AI và khóa thuê thực thi (\texttt{services/\hspace{0pt}ai}); không có quyền ghi tổng quát lên \texttt{public}. \\
+    \texttt{connector} &
+    CSDL \texttt{hexta\_\hspace{0pt}connector}, vai trò \texttt{hexta\_\hspace{0pt}connector} &
+    \texttt{atlas\_\hspace{0pt}connector\_\hspace{0pt}revisions} &
+    7 &
+    4 &
+    Cấu hình kênh mã hóa AES-256-GCM, biên nhận webhook, hàng đợi outbox và gửi tin một lần (\texttt{services/\hspace{0pt}connector}). \\
+    \midrule
+    \textbf{Tổng cộng} & \textbf{3 vai trò độc lập} & \textbf{3 lịch sử tách biệt} & \textbf{39} & \textbf{22} & \textbf{Quản lý thống nhất qua \texttt{atlas.hcl} và kiểm băm \texttt{atlas.sum}.} \\
     \bottomrule
   \end{tabularx}
 \end{table}
-Dòng hàng và biến thể sản phẩm có cờ \texttt{price\_provided}; giá trị tiền dùng kiểu số thập phân. Không suy ra một dòng có giá mặc định bằng không là đã được người dùng nhập giá. Migration bán hàng ngày 19/10/2026 bổ sung các trường này theo hướng bảo toàn dữ liệu cũ. Lược đồ onboarding bổ sung đơn đăng ký, người vận hành và lời mời; token lời mời chỉ được lưu dạng băm. Lược đồ \texttt{ai\_runtime} có lịch sử migration riêng do Python quản lý.
+
+\section{Nhóm bảng định danh, doanh nghiệp và xét duyệt gia nhập}
+Nhóm này gồm 7 bảng trong lược đồ \texttt{public} phục vụ xác thực đa nhà cung cấp (\texttt{identities}, \texttt{sessions}), xét duyệt hồ sơ đăng ký doanh nghiệp (\texttt{platform\_\hspace{0pt}operators}, \texttt{tenant\_\hspace{0pt}registration\_\hspace{0pt}requests}), quản lý tổ chức và lời mời thành viên (\texttt{tenants}, \texttt{tenant\_\hspace{0pt}members}, \texttt{tenant\_\hspace{0pt}invitations}). Hệ thống sử dụng \texttt{user\_\hspace{0pt}id} dạng chuỗi nhất quán thay cho bảng \texttt{users} tách rời, chỉ lưu giá trị băm SHA-256 của mã mời trong \texttt{token\_\hspace{0pt}hash} và đọc trực tiếp trạng thái phiên từ \texttt{sessions} qua \texttt{ISession\hspace{0pt}Repository} để lệnh thu hồi có hiệu lực tức thời. Chi tiết được trình bày trong Bảng~\ref{tab:app-auth-tenant}.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Chi tiết nhóm bảng định danh, doanh nghiệp và xét duyệt gia nhập}\label{tab:app-auth-tenant}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.5cm}
+    >{\raggedright\arraybackslash}p{4.9cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Ràng buộc toàn vẹn \& chỉ mục chính \\
+    \midrule
+    \texttt{identities} &
+    \texttt{id} (\texttt{bigserial} PK), \texttt{user\_id} (\texttt{text}), \texttt{provider} (\texttt{varchar(50)}), \texttt{identifier} (\texttt{varchar(255)}), \texttt{password} (\texttt{varchar(255)} nullable) &
+    Unique \texttt{idx\_\hspace{0pt}identities\_\hspace{0pt}provider\_\hspace{0pt}identifier} trên \texttt{(provider, identifier)}; chỉ mục \texttt{idx\_\hspace{0pt}identities\_\hspace{0pt}user\_id}. Hỗ trợ cả đăng nhập mật khẩu và OAuth. \\
+    \texttt{sessions} &
+    \texttt{id} (\texttt{bigserial} PK), \texttt{user\_id}, \texttt{token}, \texttt{provider}, \texttt{device\_info}, \texttt{ip\_address}, \texttt{is\_active} (\texttt{boolean}), \texttt{expires\_at}, \texttt{revoked\_at} &
+    Bảng nguồn thẩm quyền về hiệu lực phiên đăng nhập của người dùng; truy vấn trực tiếp từ PostgreSQL bởi \texttt{ISessionRepository}. \\
+    \texttt{platform\_\hspace{0pt}operators} &
+    \texttt{user\_id} (\texttt{varchar(255)} PK), \texttt{created\_at} (\texttt{timestamptz}) &
+    Danh sách định danh người vận hành nền tảng có quyền phê duyệt hoặc từ chối hồ sơ đăng ký doanh nghiệp mới. \\
+    \texttt{tenants} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{name}, \texttt{slug}, \texttt{plan} (\texttt{'free'}), \texttt{status} (\texttt{'active'}), \texttt{owner\_id} &
+    Unique \texttt{idx\_\hspace{0pt}tenants\_\hspace{0pt}slug} trên \texttt{(slug)}; chỉ mục \texttt{idx\_\hspace{0pt}tenants\_\hspace{0pt}owner\_id}. Ranh giới doanh nghiệp gốc của toàn nền tảng. \\
+    \texttt{tenant\_\hspace{0pt}members} &
+    \texttt{id} (\texttt{bigserial} PK), \texttt{tenant\_id}, \texttt{user\_id}, \texttt{role} (\texttt{'member'}), \texttt{created\_at}, \texttt{updated\_at} &
+    FK \texttt{fk\_\hspace{0pt}tenants\_\hspace{0pt}members} tới \texttt{tenants(id)} (\texttt{ON DELETE CASCADE}); unique \texttt{idx\_\hspace{0pt}tenant\_\hspace{0pt}user} trên \texttt{(tenant\_id, user\_id)}. \\
+    \texttt{tenant\_\hspace{0pt}registration\_\hspace{0pt}requests} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{applicant\_id}, \texttt{name}, \texttt{slug}, \texttt{status}, \texttt{tenant\_id} (nullable), \texttt{reviewed\_by}, \texttt{review\_reason}, \texttt{reviewed\_at} &
+    \texttt{CHECK (status IN ('pending', 'approved', 'rejected'))}; FK \texttt{tenant\_id} tới \texttt{tenants(id)}; partial unique \texttt{idx\_\hspace{0pt}tenant\_\hspace{0pt}registration\_\hspace{0pt}active\_\hspace{0pt}slug} trên \texttt{(slug) WHERE status <> 'rejected'}. \\
+    \texttt{tenant\_\hspace{0pt}invitations} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{email}, \texttt{role}, \texttt{invited\_by}, \texttt{token\_hash} (\texttt{varchar(64)}), \texttt{status}, \texttt{expires\_at}, \texttt{accepted\_by} &
+    Unique \texttt{token\_hash}; \texttt{CHECK (role = 'member')}; \texttt{CHECK (status IN ('pending', 'accepted', 'declined', 'revoked'))}; partial unique \texttt{idx\_\hspace{0pt}tenant\_\hspace{0pt}pending\_\hspace{0pt}invitation\_\hspace{0pt}email} trên \texttt{(tenant\_id, email) WHERE status = 'pending'}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Nhóm bảng danh mục, đơn hàng và kiểm soát xác nhận}
+Nhóm này gồm 10 bảng trong lược đồ \texttt{public} phục vụ quản lý khách hàng (\texttt{customers}), danh mục sản phẩm và chỉ mục tìm kiếm toàn văn (\texttt{products}, \texttt{product\_\hspace{0pt}variants}), đơn nháp và xác nhận đơn có điều kiện (\texttt{orders}, \texttt{order\_\hspace{0pt}items}), nền tảng dữ liệu kho (\texttt{inventory\_\hspace{0pt}items}, \texttt{stock\_\hspace{0pt}movements}), bảng nháp di sản (\texttt{ai\_\hspace{0pt}drafts}), nhật ký kiểm toán (\texttt{audit\_\hspace{0pt}logs}) và bảng outbox sự kiện miền (\texttt{domain\_\hspace{0pt}events}).
+
+Trong thiết kế kiểm soát xác nhận đơn hàng, \texttt{orders} lưu trường \texttt{version} (\texttt{bigint}) để kiểm soát cập nhật cạnh tranh lạc quan, cùng cặp thuộc tính \texttt{requires\_\hspace{0pt}delivery} (\texttt{boolean}) và \texttt{delivery\_\hspace{0pt}address} (\texttt{text}) nhằm chỉ bắt buộc địa chỉ khi đơn có yêu cầu giao hàng. Trên cả \texttt{product\_\hspace{0pt}variants} và \texttt{order\_\hspace{0pt}items}, cờ \texttt{price\_\hspace{0pt}provided} (\texttt{boolean}) tách biệt rõ ràng trường hợp người dùng chưa nhập đơn giá (\texttt{false}) với đơn giá được nhập tường minh bằng không (\texttt{0}), tránh suy diễn nhầm sản phẩm chưa định giá thành miễn phí; toàn bộ giá trị tiền tệ sử dụng kiểu \texttt{numeric(15,2)}. Migration ngày 19/10/2026 bổ sung các trường này theo hướng bảo toàn dữ liệu cũ, còn các migration ngày 13--14/11/2026 nâng cấp khóa ngoại tổ hợp kèm \texttt{tenant\_\hspace{0pt}id}, bổ sung cột sinh tự động \texttt{search\_\hspace{0pt}vector} kèm chỉ mục GIN cho \texttt{products} và bảng \texttt{domain\_\hspace{0pt}events} cho luồng phát sự kiện đơn hàng xác nhận. Bảng~\ref{tab:schema} tổng hợp cấu trúc và ràng buộc của cả 10 bảng thuộc nhóm này.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.12}
+  \caption{Chi tiết nhóm bảng danh mục, đơn hàng, tồn kho và lưu vết kiểm soát}\label{tab:schema}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.1cm}
+    >{\raggedright\arraybackslash}p{5.5cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Ràng buộc, chỉ mục \& vai trò kiểm soát \\
+    \midrule
+    \texttt{customers} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{full\_name}, \texttt{phone} (\texttt{varchar(32)}), \texttt{email}, \texttt{address}, \texttt{deleted\_at} &
+    Partial unique \texttt{idx\_\hspace{0pt}customers\_\hspace{0pt}tenant\_\hspace{0pt}phone} trên \texttt{(tenant\_id, phone) WHERE phone <> '' AND deleted\_at IS NULL}; hỗ trợ xóa mềm giữ lịch sử đơn hàng. \\
+    \texttt{products} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{name}, \texttt{description}, \texttt{category}, \texttt{status} (\texttt{'active'}), \texttt{deleted\_at}, \texttt{search\_vector} (\texttt{tsvector} \texttt{GENERATED ALWAYS ... STORED}) &
+    Unique \texttt{idx\_\hspace{0pt}products\_\hspace{0pt}tenant\_\hspace{0pt}identity} trên \texttt{(tenant\_id, id)}; chỉ mục GIN \texttt{idx\_\hspace{0pt}products\_\hspace{0pt}search\_\hspace{0pt}vector} ghép \texttt{name}, \texttt{category}, \texttt{description} theo cấu hình \texttt{'simple'}. \\
+    \texttt{product\_\hspace{0pt}variants} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{product\_id}, \texttt{sku}, \texttt{variant\_name}, \texttt{price}/\hspace{0pt}\texttt{cost\_price} (\texttt{numeric(15,2)}), \texttt{barcode}, \texttt{price\_provided} (\texttt{boolean}) &
+    FK tổ hợp \texttt{fk\_\hspace{0pt}products\_\hspace{0pt}variants\_\hspace{0pt}tenant} tới \texttt{products(tenant\_id, id)} (\texttt{ON DELETE CASCADE}); unique \texttt{idx\_\hspace{0pt}variants\_\hspace{0pt}tenant\_\hspace{0pt}sku} trên \texttt{(tenant\_id, sku)}. \\
+    \texttt{orders} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{order\_number}, \texttt{customer\_id}, \texttt{employee\_id}, \texttt{status} (\texttt{'draft'}), \texttt{payment\_status}, \texttt{subtotal}/\hspace{0pt}\texttt{discount}/\hspace{0pt}\texttt{total\_amount} (\texttt{numeric(15,2)}), \texttt{source}, \texttt{version} (\texttt{bigint}), \texttt{requires\_delivery} (\texttt{boolean}), \texttt{delivery\_address} (\texttt{text}) &
+    Unique \texttt{idx\_\hspace{0pt}orders\_\hspace{0pt}tenant\_\hspace{0pt}number} trên \texttt{(tenant\_id, order\_number)} và \texttt{idx\_\hspace{0pt}orders\_\hspace{0pt}tenant\_\hspace{0pt}identity} trên \texttt{(tenant\_id, id)}; \texttt{version} khóa lạc quan khi sửa/xác nhận. \\
+    \texttt{order\_items} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{order\_id}, \texttt{variant\_id}, \texttt{quantity} (\texttt{bigint}), \texttt{price}/\hspace{0pt}\texttt{line\_total} (\texttt{numeric(15,2)}), \texttt{price\_provided} (\texttt{boolean}) &
+    FK tổ hợp \texttt{fk\_\hspace{0pt}orders\_\hspace{0pt}items\_\hspace{0pt}tenant} tới \texttt{orders(tenant\_id, id)} (\texttt{ON DELETE CASCADE}); chỉ mục theo \texttt{tenant\_id}, \texttt{order\_id}, \texttt{variant\_id}. \\
+    \texttt{inventory\_\hspace{0pt}items} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{variant\_id}, \texttt{on\_hand\_qty}, \texttt{reserved\_qty}, \texttt{available\_qty}, \texttt{safety\_threshold} (mặc định 5) &
+    Unique \texttt{idx\_\hspace{0pt}inventory\_\hspace{0pt}tenant\_\hspace{0pt}variant} trên \texttt{(tenant\_id, variant\_id)}. Thuộc nền tảng dữ liệu kho; luồng xác nhận đơn thủ công hiện chưa tự động trừ kho. \\
+    \texttt{stock\_\hspace{0pt}movements} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{inventory\_id}, \texttt{movement\_type}, \texttt{quantity}, \texttt{balance\_after}, \texttt{reference\_type}, \texttt{reference\_id} &
+    Lưu vết biến động tồn kho theo từng tham chiếu nghiệp vụ; lập chỉ mục theo \texttt{tenant\_id}, \texttt{inventory\_id}, \texttt{movement\_type}, \texttt{reference\_id}, \texttt{created\_at}. \\
+    \texttt{ai\_drafts} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{user\_id}, \texttt{intent}, \texttt{prompt}, \texttt{draft\_payload} (\texttt{jsonb}), \texttt{status}, \texttt{expires\_at} &
+    Bảng di sản từ lược đồ nền 2026-10-09; các tuyến HTTP AI cũ gắn với bảng này đã được gỡ bỏ ở đợt tăng cường kiểm toán ngày 14/11/2026. \\
+    \texttt{audit\_logs} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{user\_id}, \texttt{action}, \texttt{entity\_type}, \texttt{entity\_id}, \texttt{source}, \texttt{before\_state} (\texttt{jsonb}), \texttt{after\_state} (\texttt{jsonb} \texttt{NOT NULL}), \texttt{created\_at} &
+    Lưu vết toàn bộ thao tác thay đổi đơn hàng, điều phối Desk và đối soát cùng tác nhân và ảnh chụp trước/sau trong cùng giao dịch. \\
+    \texttt{domain\_\hspace{0pt}events} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{event\_type}, \texttt{aggregate\_id}, \texttt{payload} (\texttt{jsonb}), \texttt{state}, \texttt{attempts}, \texttt{fence}, \texttt{available\_at}, \texttt{published\_at} &
+    \texttt{CHECK (state IN ('pending', 'leased', 'published', 'failed'))}; partial index \texttt{idx\_\hspace{0pt}domain\_\hspace{0pt}events\_\hspace{0pt}pending} trên \texttt{(available\_at) WHERE state IN ('pending', 'leased')}. Outbox của \texttt{services/\hspace{0pt}api}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Nhóm bảng quy trình phiên bản bất biến và điều phối công việc}
+Nhóm này gồm 5 bảng trong lược đồ \texttt{public} được bổ sung qua migration \texttt{20261020075908\_\hspace{0pt}order\_\hspace{0pt}workflows.sql} nhằm hiện thực hóa mô hình quy trình tuần tự bất biến (\texttt{workflow\_\hspace{0pt}definitions}, \texttt{workflow\_\hspace{0pt}versions}, \texttt{workflow\_\hspace{0pt}steps}) và điều phối công việc gắn đơn hàng đã xác nhận (\texttt{work\_\hspace{0pt}items}, \texttt{work\_\hspace{0pt}events}). Toàn bộ quan hệ cha -- con đều sử dụng khóa ngoại tổ hợp kèm \texttt{tenant\_\hspace{0pt}id} và ràng buộc \texttt{CHECK} trực tiếp ở tầng PostgreSQL (Bảng~\ref{tab:app-workflows}).
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Chi tiết nhóm bảng quy trình phiên bản bất biến và điều phối công việc}\label{tab:app-workflows}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.2cm}
+    >{\raggedright\arraybackslash}p{5.2cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Khóa ngoại tổ hợp \& ràng buộc \texttt{CHECK} \\
+    \midrule
+    \texttt{workflow\_\hspace{0pt}definitions} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{name} (\texttt{varchar(120)}), \texttt{version} (\texttt{bigint}), \texttt{create\_hash} (\texttt{varchar(64)}) &
+    Unique \texttt{(tenant\_id, id)}; FK \texttt{tenant\_id} tới \texttt{tenants(id)}; \texttt{CHECK (version >= 0)}; chỉ mục \texttt{idx\_\hspace{0pt}workflow\_\hspace{0pt}definitions\_\hspace{0pt}tenant\_id}. \\
+    \texttt{workflow\_\hspace{0pt}versions} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{definition\_id}, \texttt{number} (\texttt{bigint}), \texttt{name} (\texttt{varchar(120)}), \texttt{created\_at} &
+    Unique \texttt{idx\_\hspace{0pt}workflow\_\hspace{0pt}version\_\hspace{0pt}number} trên \texttt{(tenant\_id, definition\_id, number)} và \texttt{(tenant\_id, id)}; FK tổ hợp \texttt{(tenant\_id, definition\_id)} tới \texttt{workflow\_\hspace{0pt}definitions}; \texttt{CHECK (number > 0)}. \\
+    \texttt{workflow\_\hspace{0pt}steps} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{workflow\_version\_id}, \texttt{ordinal} (\texttt{integer}), \texttt{name}, \texttt{handoff\_mode} (\texttt{varchar(16)}) &
+    Unique \texttt{idx\_\hspace{0pt}workflow\_\hspace{0pt}step\_\hspace{0pt}ordinal} trên \texttt{(workflow\_version\_id, ordinal)} và \texttt{(tenant\_id, workflow\_version\_id, ordinal)}; FK tổ hợp tới \texttt{workflow\_\hspace{0pt}versions}; \texttt{CHECK (ordinal >= 0 AND ordinal < 30)}; \texttt{CHECK (handoff\_mode IN ('direct', 'acceptance'))}. \\
+    \texttt{work\_items} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{order\_id}, \texttt{workflow\_version\_id}, \texttt{current\_step}, \texttt{responsible\_id}, \texttt{recipient\_id}, \texttt{state}, \texttt{version}, \texttt{created\_by}, \texttt{request\_key}, \texttt{create\_hash} &
+    Unique \texttt{idx\_\hspace{0pt}work\_\hspace{0pt}create\_\hspace{0pt}key} trên \texttt{(tenant\_id, created\_by, request\_key)} và \texttt{(tenant\_id, id)}; 3 FK tổ hợp tới \texttt{orders}, \texttt{workflow\_\hspace{0pt}versions} và \texttt{workflow\_\hspace{0pt}steps(tenant\_id, workflow\_version\_id, ordinal)}; \texttt{CHECK (state IN ('active', 'waiting', 'completed'))}; \texttt{CHECK (version > 0)}; ràng buộc \texttt{work\_\hspace{0pt}items\_\hspace{0pt}check} buộc \texttt{waiting} phải có \texttt{responsible\_id} khác \texttt{recipient\_id} (cả hai khác rỗng) và các trạng thái khác có \texttt{recipient\_id IS NULL}; \texttt{work\_\hspace{0pt}items\_\hspace{0pt}check1} buộc \texttt{completed} có \texttt{responsible\_id IS NOT NULL}. \\
+    \texttt{work\_events} &
+    \texttt{id} (\texttt{varchar(36)} PK), \texttt{tenant\_id}, \texttt{work\_item\_id}, \texttt{version}, \texttt{actor\_id}, \texttt{action}, \texttt{from\_responsible\_id}, \texttt{responsible\_id}, \texttt{recipient\_id}, \texttt{from\_step}, \texttt{current\_step}, \texttt{state} &
+    Unique \texttt{idx\_\hspace{0pt}work\_\hspace{0pt}event\_\hspace{0pt}version} trên \texttt{(work\_item\_id, version)}; FK tổ hợp \texttt{(tenant\_id, work\_item\_id)} tới \texttt{work\_items}; \texttt{CHECK (action IN ('created', 'handoff', 'accept', 'assign', 'complete'))}; \texttt{CHECK (state IN ('active', 'waiting', 'completed'))}; \texttt{CHECK (version > 0)}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Nhóm bảng hội thoại, điều khiển Desk và kết nối kênh}
+Nhóm này gồm 9 bảng trong lược đồ \texttt{public} phục vụ liên kết kênh Facebook Page và Telegram Bot (\texttt{messaging\_\hspace{0pt}connections}, \texttt{channel\_\hspace{0pt}oauth\_\hspace{0pt}states}), quản lý hội thoại và hàng rào lượt tư vấn (\texttt{messaging\_\hspace{0pt}threads}, \texttt{messaging\_\hspace{0pt}turns}, \texttt{messaging\_\hspace{0pt}messages}), điều phối gửi tin một lần (\texttt{outbound\_\hspace{0pt}intents}, \texttt{outbound\_\hspace{0pt}attempts}) và hộp thư tiếp nhận từ Kafka kèm cách ly bản tin lỗi (\texttt{messaging\_\hspace{0pt}ingress}, \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine}).
+
+Trong cụm bảng này, hai chỉ mục duy nhất bộ phận đóng vai trò bảo vệ bất biến nghiệp vụ then chốt ở tầng cơ sở dữ liệu: chỉ mục \texttt{idx\_\hspace{0pt}messaging\_\hspace{0pt}one\_\hspace{0pt}open\_\hspace{0pt}turn} trên bảng \texttt{messaging\_\hspace{0pt}turns} theo cặp cột \texttt{(tenant\_\hspace{0pt}id, thread\_\hspace{0pt}id)} với điều kiện \texttt{WHERE lifecycle = 'open'} bảo đảm mỗi luồng hội thoại chỉ có tối đa một lượt tư vấn đang mở tại một thời điểm; và chỉ mục \texttt{uq\_\hspace{0pt}messaging\_\hspace{0pt}connections\_\hspace{0pt}active\_\hspace{0pt}page} trên bảng \texttt{messaging\_\hspace{0pt}connections} theo cặp cột \texttt{(platform, account\_\hspace{0pt}id)} với điều kiện \texttt{WHERE status <> 'disconnected'} bảo đảm mỗi trang Facebook hoặc bot Telegram chỉ gắn với tối đa một doanh nghiệp đang hoạt động nhưng vẫn bảo toàn lịch sử các kết nối đã ngắt. Chi tiết 9 bảng được trình bày lần lượt trong Bảng~\ref{tab:app-messaging} và Bảng~\ref{tab:app-messaging-delivery}.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Chi tiết nhóm bảng kết nối kênh, luồng hội thoại và lượt tư vấn}\label{tab:app-messaging}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.4cm}
+    >{\raggedright\arraybackslash}p{5.0cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Ràng buộc toàn vẹn \& chỉ mục trọng yếu \\
+    \midrule
+    \texttt{messaging\_\hspace{0pt}connections} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{version}, \texttt{platform}, \texttt{account\_id}, \texttt{enabled}, \texttt{account\_name}, \texttt{account\_username}, \texttt{status}, \texttt{last\_error\_code}, \texttt{last\_error\_message} &
+    Unique \texttt{(tenant\_id, id)}; \texttt{CHECK (version > 0)}; \texttt{CHECK (status IN ('active', 'paused', 'disconnected', 'auth\_expired'))}; partial unique \texttt{uq\_\hspace{0pt}messaging\_\hspace{0pt}connections\_\hspace{0pt}active\_\hspace{0pt}page} trên \texttt{(platform, account\_id) WHERE status <> 'disconnected'}. \\
+    \texttt{channel\_\hspace{0pt}oauth\_states} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{actor\_id}, \texttt{platform}, \texttt{state\_hash} (\texttt{varchar(64)}), \texttt{redirect\_uri}, \texttt{expires\_at}, \texttt{consumed\_at}, \texttt{oauth\_session\_id}, \texttt{pages} (\texttt{jsonb}) &
+    Unique \texttt{state\_hash}; \texttt{CHECK (platform = 'facebook')}; partial index \texttt{idx\_\hspace{0pt}channel\_\hspace{0pt}oauth\_\hspace{0pt}states\_\hspace{0pt}session} trên \texttt{(tenant\_id, oauth\_session\_id) WHERE oauth\_session\_id IS NOT NULL}. Chống CSRF OAuth một lần. \\
+    \texttt{messaging\_\hspace{0pt}threads} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{external\_key}, \texttt{display\_name}, \texttt{connection\_id} (nullable), \texttt{recipient\_id} (nullable) &
+    Unique \texttt{(tenant\_id, id)} và \texttt{(tenant\_id, external\_key)}; \texttt{CHECK ((connection\_id IS NULL) = (recipient\_id IS NULL))}; FK tổ hợp \texttt{messaging\_\hspace{0pt}threads\_\hspace{0pt}connection\_\hspace{0pt}fkey} tới \texttt{messaging\_\hspace{0pt}connections}. \\
+    \texttt{messaging\_\hspace{0pt}turns} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{thread\_id}, \texttt{lifecycle}, \texttt{assignee\_id}, \texttt{control}, \texttt{needs\_human}, \texttt{context\_revision}, \texttt{control\_generation}, \texttt{version}, \texttt{last\_activity\_at} &
+    \texttt{CHECK (lifecycle IN ('open', 'closed'))}; \texttt{CHECK (control IN ('system', 'sales'))}; các biến đếm \texttt{> 0}; partial unique \texttt{idx\_\hspace{0pt}messaging\_\hspace{0pt}one\_\hspace{0pt}open\_\hspace{0pt}turn} trên \texttt{(tenant\_id, thread\_id) WHERE lifecycle = 'open'}; FK tổ hợp tới \texttt{messaging\_\hspace{0pt}threads}. \\
+    \texttt{messaging\_\hspace{0pt}messages} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{thread\_id}, \texttt{turn\_id}, \texttt{direction}, \texttt{actor\_id}, \texttt{body}, \texttt{request\_key}, \texttt{request\_hash}, \texttt{status}, \texttt{content\_type}, \texttt{placeholder\_meta} (\texttt{jsonb}), \texttt{delivery\_status}, \texttt{delivery\_error\_reason} &
+    Unique \texttt{(tenant\_id, request\_key)}; \texttt{CHECK (status IN ('simulated', 'received', 'channel'))}; \texttt{CHECK (content\_type IN ('text', 'unsupported\_media'))}; \texttt{CHECK (delivery\_status IN ('received', 'sending', 'sent', 'failed', 'unknown'))}; kiểm tra \texttt{char\_length(body) <= 4000}; FK tổ hợp tới \texttt{messaging\_\hspace{0pt}turns}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.15}
+  \caption{Chi tiết nhóm bảng gửi tin, tiếp nhận Kafka và cách ly lỗi}\label{tab:app-messaging-delivery}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.4cm}
+    >{\raggedright\arraybackslash}p{5.0cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Ràng buộc toàn vẹn \& chỉ mục trọng yếu \\
+    \midrule
+    \texttt{outbound\_\hspace{0pt}intents} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{connection\_id}, \texttt{message\_id}, \texttt{client\_message\_id}, \texttt{request\_hash}, \texttt{recipient\_id}, \texttt{status}, \texttt{error\_category}, \texttt{error\_code} &
+    Unique \texttt{(tenant\_id, client\_message\_id)} và \texttt{(tenant\_id, id)}; \texttt{CHECK (status IN ('pending', 'sent', 'failed', 'unknown', 'cancelled'))}; FK tổ hợp tới \texttt{messaging\_\hspace{0pt}connections} và \texttt{messaging\_\hspace{0pt}messages}; partial index \texttt{idx\_\hspace{0pt}outbound\_\hspace{0pt}intents\_\hspace{0pt}pending}. \\
+    \texttt{outbound\_\hspace{0pt}attempts} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{tenant\_id}, \texttt{intent\_id}, \texttt{connection\_version}, \texttt{status}, \texttt{provider\_message\_id}, \texttt{created\_at}, \texttt{completed\_at} &
+    FK tổ hợp tới \texttt{outbound\_\hspace{0pt}intents(tenant\_id, id)}; \texttt{CHECK (connection\_version > 0)}; \texttt{CHECK (status IN ('pending', 'sent', 'failed', 'unknown', 'cancelled'))}. \\
+    \texttt{messaging\_\hspace{0pt}ingress} &
+    \texttt{identity} (\texttt{text} PK), \texttt{event\_id}, \texttt{tenant\_id}, \texttt{connection\_id}, \texttt{message\_id}, \texttt{external\_conversation\_key}, \texttt{source\_identity}, \texttt{source\_revision}, \texttt{reply\_to}, \texttt{source\_timestamp}, \texttt{acquisition}, \texttt{purpose}, \texttt{outcome} &
+    FK tổ hợp \texttt{(tenant\_id, connection\_id)} tới \texttt{messaging\_\hspace{0pt}connections}; bảng \emph{Consumer Inbox} chống xử lý lặp khi tiêu thụ bản tin từ Kafka. \\
+    \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine} &
+    \texttt{identity} (\texttt{text} PK), \texttt{reason} (\texttt{text}), \texttt{received\_at} (\texttt{timestamptz}) &
+    Cách ly an toàn các bản tin Kafka sai định dạng, thiếu ánh xạ kết nối hoặc không hợp lệ thay vì chặn phân vùng tiêu thụ. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Nhóm bảng dịch vụ kết nối kênh và thực thi AI bền vững}
+Nhóm này gồm 7 bảng thuộc lược đồ \texttt{connector} của dịch vụ \texttt{services/\hspace{0pt}connector} và 1 bảng thuộc lược đồ \texttt{ai\_\hspace{0pt}runtime} của dịch vụ \texttt{services/\hspace{0pt}ai}. Khác với mô hình giữ phiên làm việc trong bộ nhớ, toàn bộ biên nhận webhook (\texttt{connector.\hspace{0pt}receipts}), sự kiện chờ đẩy lên Kafka (\texttt{connector.\hspace{0pt}events}, \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}events}), khóa kiểm soát gửi một lần theo \texttt{attempt\_\hspace{0pt}id} (\texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}attempts}) và tác vụ AI có khóa thuê (\texttt{ai\_\hspace{0pt}runtime.\hspace{0pt}runs}) đều được lưu bền vững trên PostgreSQL để phục hồi an toàn sau khởi động lại tiến trình (Bảng~\ref{tab:app-connector-ai}).
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.12}
+  \caption{Chi tiết bảng của dịch vụ kết nối kênh (\texttt{connector}) và thực thi AI (\texttt{ai\_runtime})}\label{tab:app-connector-ai}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.4cm}
+    >{\raggedright\arraybackslash}p{5.0cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Tên bảng & Khóa chính \& thuộc tính trọng tâm & Ràng buộc toàn vẹn, chỉ mục \& cơ chế vận hành \\
+    \midrule
+    \texttt{connector.\hspace{0pt}connections} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{version}, \texttt{tenant\_id}, \texttt{platform}, \texttt{account\_id}, \texttt{app\_id}, \texttt{enabled}, \texttt{credential\_ref}, \texttt{credential\_\hspace{0pt}ciphertext} (\texttt{bytea}), \texttt{key\_version} (\texttt{int}), \texttt{token\_updated\_at}, \texttt{webhook\_\hspace{0pt}secret\_\hspace{0pt}ciphertext} (\texttt{bytea}) &
+    Unique \texttt{(platform, account\_id)}; \texttt{CHECK (platform IN ('facebook', 'telegram'))}; \texttt{CHECK ((credential\_\hspace{0pt}ciphertext IS NULL) = (key\_version IS NULL))}; \texttt{CHECK (webhook\_\hspace{0pt}secret\_\hspace{0pt}ciphertext IS NULL OR credential\_\hspace{0pt}ciphertext IS NOT NULL)}. Token và secret mã hóa AES-256-GCM được xóa sạch khi ngắt kết nối. \\
+    \texttt{connector.\hspace{0pt}receipts} &
+    \texttt{(id, app\_id)} (PK tổ hợp), \texttt{received\_at} (\texttt{timestamptz}) &
+    Ghi nhận biên nhận webhook bền vững trong cùng giao dịch với \texttt{connector.\hspace{0pt}events} trước khi trả HTTP~200 cho nhà cung cấp. \\
+    \texttt{connector.\hspace{0pt}events} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{receipt\_id}, \texttt{app\_id}, \texttt{event\_key} (\texttt{text} UNIQUE), \texttt{payload} (\texttt{bytea}), \texttt{state}, \texttt{reason}, \texttt{fence}, \texttt{attempts}, \texttt{available\_at} &
+    FK tổ hợp \texttt{(receipt\_id, app\_id)} tới \texttt{connector.\hspace{0pt}receipts}; \texttt{CHECK (state IN ('pending', 'leased', 'published', 'quarantine'))}; chỉ mục \texttt{connector\_\hspace{0pt}events\_\hspace{0pt}ready} trên \texttt{(state, available\_at)}. \\
+    \texttt{connector.\hspace{0pt}sync\_jobs} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{app\_id}, \texttt{platform}, \texttt{account\_id}, \texttt{cursor}, \texttt{mode}, \texttt{page\_limit}, \texttt{state}, \texttt{reason}, \texttt{fence}, \texttt{attempts}, \texttt{available\_at} &
+    \texttt{CHECK (mode IN ('history', 'incremental'))}; \texttt{CHECK (page\_limit BETWEEN 1 AND 100)}; \texttt{CHECK (state IN ('pending', 'leased', 'done', 'quarantine', 'cancelled'))}. \\
+    \texttt{connector.\hspace{0pt}oauth\_sessions} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{app\_id}, \texttt{payload\_ciphertext} (\texttt{bytea}), \texttt{key\_version} (\texttt{int}), \texttt{expires\_at}, \texttt{created\_at} &
+    Chỉ mục \texttt{connector\_\hspace{0pt}oauth\_\hspace{0pt}sessions\_\hspace{0pt}expiry} trên \texttt{(expires\_at)}. Lưu tạm danh sách Page token đã mã hóa giữa bước đổi mã OAuth và bước gắn kết nối. \\
+    \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}attempts} &
+    \texttt{attempt\_id} (\texttt{uuid} PK), \texttt{intent\_id} (\texttt{uuid}), \texttt{connection\_id} (\texttt{uuid}), \texttt{status}, \texttt{provider\_message\_id}, \texttt{error\_category}, \texttt{error\_code}, \texttt{created\_at} &
+    \texttt{CHECK (status IN ('dispatching', 'sent', 'failed', 'unknown'))}. Bảo đảm tính bất biến tối đa một lần gọi API nhà cung cấp cho mỗi \texttt{attempt\_id}; không tự động gửi lại khi chuyển sang \texttt{unknown}. \\
+    \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}events} &
+    \texttt{id} (\texttt{uuid} PK), \texttt{topic}, \texttt{event\_key}, \texttt{payload} (\texttt{bytea}), \texttt{state}, \texttt{fence}, \texttt{attempts}, \texttt{available\_at} &
+    \texttt{CHECK (topic IN ('hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1', 'hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1'))}; \texttt{CHECK (state IN ('pending', 'leased', 'published', 'quarantine'))}; chỉ mục \texttt{connector\_\hspace{0pt}outbound\_\hspace{0pt}events\_\hspace{0pt}ready}. \\
+    \texttt{ai\_runtime.\hspace{0pt}runs} &
+    \texttt{(tenant\_id, run\_id)} (PK tổ hợp), \texttt{request} (\texttt{bytea}), \texttt{digest} (\texttt{bytea}), \texttt{result} (\texttt{bytea}), \texttt{status} (\texttt{smallint}), \texttt{attempts}, \texttt{lease\_token} (\texttt{uuid}), \texttt{lease\_until}, \texttt{error\_code} &
+    \texttt{CHECK (status BETWEEN 1 AND 5)} (1: queued, 2: running, 3: succeeded, 4: failed, 5: cancelled); \texttt{CHECK ((status = 2) = (lease\_token IS NOT NULL AND lease\_until IS NOT NULL))}; chỉ mục hàng đợi \texttt{runs\_queue} trên \texttt{(status, lease\_until, created\_at)}. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Lịch sử tiến hóa lược đồ (Atlas Migrations)}
+Toàn bộ thay đổi cơ sở dữ liệu được quản lý thành lịch sử tuyến tính kèm tệp kiểm băm \texttt{atlas.\hspace{0pt}sum} tại ba thư mục tách biệt gồm \texttt{migrations/\hspace{0pt}api/} (17 tệp), \texttt{migrations/\hspace{0pt}ai/} (1 tệp) và \texttt{migrations/\hspace{0pt}connector/} (4 tệp), loại bỏ hoàn toàn cơ chế tự động đồng bộ lược đồ (\texttt{Auto\hspace{0pt}Migrate}) khi ứng dụng khởi động. Bảng~\ref{tab:app-migrations-api} liệt kê 17 tệp migration của dịch vụ API và Bảng~\ref{tab:app-migrations-ai-connector} liệt kê 5 tệp migration của dịch vụ AI và Connector.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.08}
+  \caption{Danh sách 17 tệp migration của lược đồ \texttt{public} (\texttt{migrations/api/})}\label{tab:app-migrations-api}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedleft\arraybackslash}p{0.6cm}
+    >{\raggedright\arraybackslash}p{6.3cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    STT & Tên tệp migration & Nội dung thay đổi lược đồ \\
+    \midrule
+    1 & \texttt{20260220100303\_\hspace{0pt}init.sql} & Tạo bảng \texttt{identities} và \texttt{sessions} cùng các chỉ mục ban đầu. \\
+    2 & \texttt{20260912083721\_\hspace{0pt}fix\_identities\_\hspace{0pt}provider\_\hspace{0pt}unique\_index.sql} & Cho phép \texttt{identities.password} null; đổi chỉ mục duy nhất thành \texttt{(provider, identifier)}. \\
+    3 & \texttt{20260912160000\_\hspace{0pt}create\_tenants.sql} & Tạo \texttt{tenants}, \texttt{tenant\_members} kèm \texttt{fk\_tenants\_members} và unique \texttt{(tenant\_id, user\_id)}. \\
+    4 & \texttt{20261009180000\_\hspace{0pt}create\_core\_\hspace{0pt}business\_schema.sql} & Tạo 9 bảng cốt lõi: \texttt{products}, \texttt{product\_variants}, \texttt{inventory\_items}, \texttt{stock\_movements}, \texttt{customers}, \texttt{orders}, \texttt{order\_items}, \texttt{audit\_logs}, \texttt{ai\_drafts}. \\
+    5 & \texttt{20261019030000\_\hspace{0pt}sales\_demo.sql} & Thêm \texttt{price\_provided}, \texttt{orders.version}, \texttt{requires\_delivery}, \texttt{delivery\_address}; cập nhật bản ghi cũ và partial index SĐT. \\
+    6 & \texttt{20261019040000\_\hspace{0pt}tenant\_onboarding.sql} & Tạo \texttt{platform\_operators}, \texttt{tenant\_\hspace{0pt}registration\_\hspace{0pt}requests} và \texttt{tenant\_invitations}. \\
+    7 & \texttt{20261020075908\_\hspace{0pt}order\_workflows.sql} & Thêm \texttt{idx\_\hspace{0pt}orders\_\hspace{0pt}tenant\_\hspace{0pt}identity}; tạo 5 bảng quy trình bất biến \texttt{workflow\_*} và \texttt{work\_*}. \\
+    8 & \texttt{20261102163407\_\hspace{0pt}messaging\_inbox.sql} & Tạo cụm hộp thư mô phỏng: \texttt{messaging\_threads}, \texttt{messaging\_turns}, \texttt{messaging\_messages}. \\
+    9 & \texttt{20261103044131\_\hspace{0pt}messaging\_ingress.sql} & Mở rộng \texttt{messaging\_messages.status} (\texttt{'received'}); tạo \texttt{messaging\_connections} và \texttt{messaging\_ingress}. \\
+    10 & \texttt{20261103044624\_\hspace{0pt}ingress\_quarantine.sql} & Tạo bảng cách ly bản tin Kafka lỗi \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine}. \\
+    11 & \texttt{20261103044831\_\hspace{0pt}ingress\_source\_metadata.sql} & Thêm siêu dữ liệu nguồn (\texttt{source\_identity}, \texttt{source\_revision}, \texttt{source\_timestamp}, ...) vào \texttt{messaging\_ingress}. \\
+    12 & \texttt{20261113173725\_\hspace{0pt}tenant\_composite\_fks.sql} & Thêm \texttt{idx\_\hspace{0pt}products\_\hspace{0pt}tenant\_\hspace{0pt}identity}; nâng cấp FK \texttt{order\_items} và \texttt{product\_variants} thành FK tổ hợp kèm \texttt{tenant\_id}. \\
+    13 & \texttt{20261114111819\_\hspace{0pt}product\_search\_vector.sql} & Thêm cột sinh \texttt{products.search\_vector} (\texttt{tsvector}) và chỉ mục GIN \texttt{idx\_\hspace{0pt}products\_\hspace{0pt}search\_\hspace{0pt}vector}. \\
+    14 & \texttt{20261114112552\_\hspace{0pt}domain\_events\_outbox.sql} & Tạo bảng Transactional Outbox \texttt{domain\_events} và partial index \texttt{idx\_\hspace{0pt}domain\_\hspace{0pt}events\_\hspace{0pt}pending}. \\
+    15 & \texttt{20261114164249\_\hspace{0pt}facebook\_platform\_\hspace{0pt}connection.sql} & Tạo \texttt{channel\_oauth\_states}, \texttt{outbound\_intents}, \texttt{outbound\_attempts}; mở rộng kết nối, luồng và trạng thái gửi. \\
+    16 & \texttt{20261114164302\_\hspace{0pt}backfill\_connection\_\hspace{0pt}status.sql} & Chuyển các \texttt{messaging\_connections} cũ có \texttt{enabled = false} sang \texttt{status = 'paused'}. \\
+    17 & \texttt{20261116020138\_\hspace{0pt}telegram\_bot\_connection.sql} & Thêm cột \texttt{account\_username} vào \texttt{messaging\_connections} phục vụ kết nối Telegram Bot. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.12}
+  \caption{Danh sách tệp migration của lược đồ \texttt{ai\_runtime} và \texttt{connector}}\label{tab:app-migrations-ai-connector}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{3.6cm}
+    >{\raggedright\arraybackslash}p{5.5cm}
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Thư mục & Tên tệp migration & Nội dung thay đổi lược đồ \\
+    \midrule
+    \texttt{migrations/\hspace{0pt}ai/} &
+    \texttt{20261020100000\_\hspace{0pt}durable\_runs.sql} &
+    Tạo lược đồ \texttt{ai\_runtime}, bảng \texttt{ai\_runtime.runs}, chỉ mục \texttt{runs\_queue} và khối kiểm tra tiếp nhận an toàn bảng cũ vào quản lý Atlas. \\
+    \midrule
+    \texttt{migrations/\hspace{0pt}connector/} &
+    \texttt{20261103044130\_\hspace{0pt}connector\_ingress.sql} &
+    Tạo lược đồ \texttt{connector} cùng 3 bảng nền: \texttt{connections}, \texttt{receipts} và \texttt{events} (outbox webhook đầu vào). \\
+    \texttt{migrations/\hspace{0pt}connector/} &
+    \texttt{20261103044329\_\hspace{0pt}sync\_jobs.sql} &
+    Tạo bảng \texttt{connector.sync\_jobs} quản lý hàng đợi đồng bộ lịch sử và tăng dần theo điểm kiểm tra \texttt{cursor}. \\
+    \texttt{migrations/\hspace{0pt}connector/} &
+    \texttt{20261114164319\_\hspace{0pt}facebook\_platform\_\hspace{0pt}connection.sql} &
+    Thêm cột mã hóa thông tin xác thực vào \texttt{connector.connections}; tạo \texttt{oauth\_sessions}, \texttt{outbound\_attempts}, \texttt{outbound\_events}. \\
+    \texttt{migrations/\hspace{0pt}connector/} &
+    \texttt{20261116020151\_\hspace{0pt}telegram\_bot\_\hspace{0pt}connection.sql} &
+    Mở rộng \texttt{CHECK} của \texttt{connector.\hspace{0pt}connections.\hspace{0pt}platform} thêm \texttt{'telegram'} và bổ sung cột \texttt{webhook\_\hspace{0pt}secret\_\hspace{0pt}ciphertext} kèm ràng buộc đi kèm credential. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
