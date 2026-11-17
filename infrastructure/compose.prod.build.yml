@@ -1,0 +1,29 @@
+# Local testing only: builds the production images from the working tree instead of pulling CI images.
+#   HEXTA_IMAGE_REGISTRY=hexta HEXTA_IMAGE_TAG=local ./scripts/prod.sh -f infrastructure/compose.prod.build.yml up -d --build --wait
+# Never use on the server; production runs the CI-built images named by HEXTA_IMAGE_TAG.
+services:
+  migrate-api:
+    build: &migrator_build
+      context: ..
+      dockerfile: Dockerfile.migrate
+  migrate-ai:
+    build: *migrator_build
+  migrate-connector:
+    build: *migrator_build
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+  ai:
+    build:
+      context: ../services/ai
+  connector:
+    build:
+      context: ..
+      dockerfile: services/connector/Dockerfile
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ""

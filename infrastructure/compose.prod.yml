@@ -1,6 +1,7 @@
 # Single-host production stack for hexta.org (sized for 2 vCPU / 16 GB). Run only through scripts/prod.sh, which
 # loads infrastructure/prod/.env. Only Caddy publishes ports (80/443); every other service stays on the internal
-# network. Images are built on the host from the checked-out commit.
+# network. Application images are built by CI (.github/workflows/docker-ci-cd.yml) and pulled by HEXTA_IMAGE_TAG;
+# the server never builds. compose.prod.build.yml adds local builds for testing only.
 name: hexta-prod
 
 x-logging: &logging
@@ -10,10 +11,7 @@ x-logging: &logging
     max-file: "5"
 
 x-migrator: &migrator
-  build:
-    context: ..
-    dockerfile: Dockerfile.migrate
-  image: hexta/migrator:local
+  image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/migrator:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
   logging: *logging
   restart: "no"
   depends_on:
@@ -137,10 +135,7 @@ services:
     command: ["apply"]
 
   api:
-    build:
-      context: ..
-      dockerfile: services/api/Dockerfile
-    image: hexta/api:local
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/api:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       migrate-api:
@@ -171,7 +166,7 @@ services:
 
   # Kafka consumer: ingress events, outbound results and connector health.
   ingress:
-    image: hexta/api:local
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/api:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
     command: ["./ingress"]
     depends_on:
@@ -184,9 +179,7 @@ services:
     logging: *logging
 
   ai:
-    build:
-      context: ../services/ai
-    image: hexta/ai:local
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/ai:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       migrate-ai:
@@ -215,10 +208,7 @@ services:
     logging: *logging
 
   connector:
-    build:
-      context: ..
-      dockerfile: services/connector/Dockerfile
-    image: hexta/connector:local
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/connector:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       migrate-connector:
@@ -246,14 +236,9 @@ services:
     mem_limit: 256m
     logging: *logging
 
+  # The image calls the API on its own origin (Caddy routes /api/*), so auth cookies stay first-party.
   web:
-    build:
-      context: ..
-      dockerfile: apps/web/Dockerfile
-      args:
-        # Same origin as the API (Caddy routes /api/*), so auth cookies stay first-party.
-        NEXT_PUBLIC_API_URL: https://${DOMAIN}
-    image: hexta/web:local
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/web:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
     depends_on:
       api:

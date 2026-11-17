@@ -11,4 +11,10 @@ fi
 for s in connector_management_token connector_credential_key meta_app_secret meta_verify_token; do
     [ -s "infrastructure/prod/secrets/$s" ] || { echo "Missing infrastructure/prod/secrets/$s" >&2; exit 1; }
 done
+# Image version: an explicit HEXTA_IMAGE_TAG wins; otherwise the tag the deploy agent last deployed.
+if [ -z "${HEXTA_IMAGE_TAG:-}" ] && [ -s infrastructure/prod/state/deployed ]; then
+    HEXTA_IMAGE_TAG=$(cat infrastructure/prod/state/deployed)
+    export HEXTA_IMAGE_TAG
+fi
+# Extra -f files (local build override) must come before the Compose command; see compose.prod.build.yml.
 exec docker compose --env-file "$env_file" -f infrastructure/compose.prod.yml "$@"

@@ -1,25 +1,25 @@
 name: Docker CI/CD
 
 on:
+  # Every main commit publishes images tagged sha-<7 chars>, so the server can deploy any main commit by its sha.
   push:
     branches:
       - main
-    paths:
-      - 'services/api/**'
-      - 'apps/web/**'
-      - 'packages/**'
-      - 'Dockerfile.migrate'
-      - 'atlas.hcl'
-      - 'scripts/migrate.sh'
-      - 'migrations/**'
-      - '.github/workflows/docker-ci-cd.yml'
+    # Merging a release PR changes only release.env; it deploys existing images and needs no rebuild.
+    paths-ignore:
+      - 'infrastructure/prod/release.env'
   pull_request:
     branches:
       - main
     paths:
       - 'services/api/**'
+      - 'services/connector/**'
+      - 'services/ai/**'
       - 'apps/web/**'
       - 'packages/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - 'pnpm-lock.yaml'
       - 'Dockerfile.migrate'
       - 'atlas.hcl'
       - 'scripts/migrate.sh'
@@ -41,16 +41,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Images deployed by infrastructure/compose.prod.yml; the server pulls them by sha tag and never builds.
         include:
           - name: api
+            context: .
             file: services/api/Dockerfile
-            image: ghcr.io/${{ github.repository }}/api
+          - name: connector
+            context: .
+            file: services/connector/Dockerfile
+          - name: ai
+            context: services/ai
+            file: services/ai/Dockerfile
           - name: web
+            context: .
             file: apps/web/Dockerfile
-            image: ghcr.io/${{ github.repository }}/web
+            # Empty = same-origin API calls (/api/...), so one image serves any domain behind the Caddy edge.
+            build-args: |
+              NEXT_PUBLIC_API_URL=
           - name: migrator
+            context: .
             file: Dockerfile.migrate
-            image: ghcr.io/${{ github.repository }}/migrator
 
     steps:
       - name: Checkout Code
@@ -71,20 +81,64 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image }}
+          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
           file: ${{ matrix.file }}
+          build-args: ${{ matrix.build-args }}
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # GitOps release: propose the new images for production. Merging the PR is the approval; the server's
+  # deploy agent (scripts/deploy-agent.sh) applies infrastructure/prod/release.env from main.
+  release-pr:
+    name: Open Production Release PR
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: production-release-pr
+      cancel-in-progress: false
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update release branch and pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="sha-${GITHUB_SHA::7}"
+          branch=release/production
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          sed -i "s/^HEXTA_IMAGE_TAG=.*/HEXTA_IMAGE_TAG=$tag/" infrastructure/prod/release.env
+          if git diff --quiet; then
+            echo "Production already targets $tag." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -q -am "chore(release): deploy $tag to production"
+          git push -q -f origin "$branch"
+          title="Release $tag to production"
+          body="Deploys images \`$tag\` (commit $GITHUB_SHA) to production. Built by run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID.
+
+          Merging this PR is the deploy approval: the server's deploy agent picks it up within about a minute, backs up the database, pulls the images, starts the stack and rolls back automatically if the health check fails. A newer main build replaces this PR's contents."
+          if [ "$(gh pr view "$branch" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
+            gh pr edit "$branch" --title "$title" --body "$body"
+          elif ! gh pr create --base main --head "$branch" --title "$title" --body "$body"; then
+            echo "Could not open the release PR automatically (enable 'Allow GitHub Actions to create and approve pull requests' in repository settings). Open it manually: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch?expand=1" >> "$GITHUB_STEP_SUMMARY"
+          fi
