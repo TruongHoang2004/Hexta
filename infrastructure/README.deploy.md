@@ -4,7 +4,7 @@ Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stac
 
 | Path | Purpose |
 | --- | --- |
-| `infrastructure/compose.prod.yml` | Production stack: Caddy, Postgres, Redis, Redpanda, migrations, api, ingress, ai, connector, web |
+| `infrastructure/compose.prod.yml` | Production stack: Caddy, Postgres, Redis, Kafka (Confluent `cp-kafka`, KRaft), migrations, api, ingress, ai, connector, web |
 | `infrastructure/compose.prod.build.yml` | Local testing only: builds the same images from the working tree |
 | `.github/workflows/docker-ci-cd.yml` | Builds and pushes `api`, `connector`, `ai`, `web`, `migrator` to GHCR on every `main` commit, then opens or updates the release PR |
 | `infrastructure/prod/release.env` | Desired production image tag (`sha-<7 chars>`); changed only by the release PR |
@@ -19,11 +19,11 @@ Runbook for one Linux host (sized for 2 vCPU / 16 GB RAM) running the whole stac
 ## Architecture
 
 ```
-Internet ──443──► Caddy ──/api/*──────────────► api:8080 ──► Postgres (db hexta), Redis, Redpanda, ai:8000
+Internet ──443──► Caddy ──/api/*──────────────► api:8080 ──► Postgres (db hexta), Redis, Kafka, ai:8000
                     │──/webhooks/facebook,
-                    │  /webhooks/telegram/*──► connector:8091 ──► Postgres (db hexta_connector), Redpanda
+                    │  /webhooks/telegram/*──► connector:8091 ──► Postgres (db hexta_connector), Kafka
                     └──everything else──────► web:3000
-ingress (Kafka consumer) ◄──► Redpanda ──► Postgres (db hexta)
+ingress (Kafka consumer) ◄──► Kafka ──► Postgres (db hexta)
 ```
 
 - One origin (`https://hexta.org`) serves the web app and `/api/*`, so auth cookies stay first-party and no CORS is needed.
@@ -138,7 +138,7 @@ The agent checks out the released commit in detached mode; keep the checkout fre
 
 Expected:
 - `migrate-api`, `migrate-ai`, `migrate-connector` and `kafka-topics` show `exited (0)`.
-- `postgres`, `redis`, `redpanda`, `api`, `ai`, `web` are `healthy`.
+- `postgres`, `redis`, `kafka`, `api`, `ai`, `web` are `healthy`.
 - `connector`, `ingress` and `caddy` are `running`.
 
 The first start also issues TLS certificates; check with `./scripts/prod.sh logs caddy | grep -i certificate`.
@@ -196,7 +196,7 @@ crontab -e
 2. Run `gunzip -c <dump> | ./scripts/prod.sh exec -T postgres psql -U postgres`.
 3. Run `./scripts/prod.sh up -d --wait`.
 
-Redpanda holds only in-flight events. The connector and API keep their durable outboxes in Postgres, so a lost Redpanda volume is recreated by `kafka-topics` and the outboxes republish pending events.
+Kafka holds only in-flight events. The connector and API keep their durable outboxes in Postgres, so a lost Kafka volume is recreated by `kafka-topics` and the outboxes republish pending events.
 
 ## 11. Operations
 

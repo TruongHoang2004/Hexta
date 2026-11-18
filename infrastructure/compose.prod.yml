@@ -77,40 +77,53 @@ services:
     mem_limit: 256m
     logging: *logging
 
-  redpanda:
-    image: redpandadata/redpanda:v24.3.18
+  # Confluent cp-kafka (Apache Kafka) in single-node KRaft mode, the same image as the local stack.
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
     restart: unless-stopped
-    # The image defaults to developer mode (fsync bypassed); production mode keeps fsync for durable data.
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - >-
-        rpk redpanda mode production >/dev/null &&
-        exec rpk redpanda start --smp=1 --memory=1G --reserve-memory=0M --overprovisioned --node-id=0 --check=false
-        --kafka-addr=0.0.0.0:9092 --advertise-kafka-addr=redpanda:9092
+    environment:
+      CLUSTER_ID: hHx7qL2bQ0eWm1cZ9yK3dA
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # A single broker has no replica to fall back on, so fsync every message before acknowledging it.
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms768m -Xmx768m
     volumes:
-      - redpanda_data:/var/lib/redpanda/data
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 5s
-      timeout: 5s
+      timeout: 10s
       retries: 30
+      start_period: 20s
     mem_limit: 1536m
     logging: *logging
 
   # Producers never auto-create topics; this job creates them idempotently.
   kafka-topics:
-    image: redpandadata/redpanda:v24.3.18
+    image: confluentinc/cp-kafka:7.6.1
     restart: "no"
     depends_on:
-      redpanda:
+      kafka:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
         for t in hexta.ingress.received.v1 hexta.outbound.intent.v1 hexta.outbound.result.v1
         hexta.connector.health.v1 hexta.orders.events.v1;
-        do rpk topic describe "$$t" -X brokers=redpanda:9092 >/dev/null 2>&1
-        || rpk topic create "$$t" -p 3 -r 1 -X brokers=redpanda:9092 || exit 1; done
+        do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
+        --partitions 3 --replication-factor 1 || exit 1; done
     logging: *logging
 
   migrate-api:
@@ -174,7 +187,7 @@ services:
         condition: service_healthy
     environment:
       API_DATABASE_URL: postgresql://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
-      KAFKA_BROKERS: redpanda:9092
+      KAFKA_BROKERS: kafka:9092
     mem_limit: 256m
     logging: *logging
 
@@ -217,7 +230,7 @@ services:
         condition: service_completed_successfully
     environment:
       CONNECTOR_DATABASE_URL: postgres://hexta_connector:${CONNECTOR_DB_PASSWORD}@postgres:5432/hexta_connector?sslmode=disable
-      KAFKA_BROKERS: redpanda:9092
+      KAFKA_BROKERS: kafka:9092
       CONNECTOR_LISTEN_ADDR: 0.0.0.0:8091
       CONNECTOR_MANAGEMENT_TOKEN_FILE: /run/secrets/connector_management_token
       CONNECTOR_CREDENTIAL_KEY_FILE: /run/secrets/connector_credential_key
@@ -263,6 +276,6 @@ secrets:
 
 volumes:
   postgres_data:
-  redpanda_data:
+  kafka_data:
   caddy_data:
   caddy_config:
