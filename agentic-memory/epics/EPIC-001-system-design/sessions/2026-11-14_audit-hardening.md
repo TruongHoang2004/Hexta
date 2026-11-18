@@ -32,10 +32,10 @@ IMPLEMENTED (in review, not merged):
 ## Verification and evidence
 
 - `sh scripts/check-gofmt.sh`, `go vet` for api/shared/connector/test: pass.
-- `go test -race -count=1 -p 1 ./services/api/... ./packages/shared/... ./services/connector/...` with disposable fixture PostgreSQL (`infrastructure/compose.connector-test.yml`) and Redpanda: 19 packages pass.
+- `go test -race -count=1 -p 1 ./services/api/... ./packages/shared/... ./services/connector/...` with disposable fixture PostgreSQL (`infrastructure/compose.connector-test.yml`) and its Kafka broker: 19 packages pass.
 - `./scripts/local.sh --profile test run --build --rm ai-tests`: 109 passed, 0 skipped.
 - `make migrate-validate` and desired/history sync at each schema commit: pass. FK upgrade: applies on consistent data; a mismatched row fails and rolls back.
-- Outbox relay published to real Redpanda and the consumed envelope matched; event marked published.
+- Outbox relay published to a real Kafka broker and the consumed envelope matched; event marked published.
 - Regression checks confirmed new tests fail on old code (unregistered Tracer, missing Gin-context trace, global connector lock).
 - NOT_RUN: `go test ./test/...` (needs running servers), live Meta, live Kafka consumers, browser acceptance.
 
