@@ -1,0 +1,24 @@
+% !TeX root = ../main.tex
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \node[state] (bot) at (0,0) {\texttt{BOT\_ACTIVE}\\[-1pt]{\scriptsize\texttt{system}, không người, \texttt{needs\_human=false}}};
+    \node[state] (wai) at (10.2,0) {\texttt{WAITING\_STAFF}\\[-1pt]{\scriptsize\texttt{sales}, chưa có người phụ trách}};
+    \node[state] (stf) at (5.1,-4.4) {\texttt{STAFF\_ACTIVE}\\[-1pt]{\scriptsize\texttt{sales}, có người phụ trách}};
+    \node[state,dashed] (unk) at (0,-6.6) {\texttt{UNKNOWN}\\[-1pt]{\scriptsize tổ hợp bất thường: chặn gửi}};
+    \node[initial dot] (init) at (0,1.7) {};
+    \draw[->,thick] (init) -- node[tr,right] {lượt mới} (bot);
+    % BOT <-> WAITING
+    \draw[->,thick] (bot.north east) to[bend left=14] node[tr,above] {\texttt{handoff} (mã lý do) \;|\; \texttt{assign}(không ai)} (wai.north west);
+    \draw[->,thick] (wai.west) -- node[tr] {\texttt{return-to-bot}} (bot.east);
+    % -> STAFF
+    \draw[->,thick] (bot.south) to[bend right=12] node[tr,left,text width=2.6cm] {\texttt{claim} |\\\texttt{assign}(nhân viên)} (stf.west);
+    \draw[->,thick] (wai.south) to[bend left=12] node[tr,right,text width=2.6cm] {\texttt{claim} |\\\texttt{assign}(nhân viên)} (stf.east);
+    % STAFF ->
+    \draw[->,thick] (stf.north east) to[bend right=10] node[tr,pos=0.55] {\texttt{handoff} |\\\texttt{assign}(không ai)} (wai.south west);
+    \draw[->,thick] (stf.north west) to[bend left=10] node[tr,pos=0.55] {\texttt{return-to-bot}} (bot.south east);
+    \draw[->,thick] (stf.south east) .. controls +(1.6,-1.2) and +(1.9,0.3) .. node[tr,right] {\texttt{assign}(người khác)} (stf.east);
+    \node[note,anchor=north west,text width=7.6cm] at (3.1,-6.0) {Mỗi lệnh khóa luồng hội thoại, đối chiếu \texttt{expected\_version}, tăng đồng thời \texttt{version} và \texttt{control\_generation} (hàng rào điều khiển), ghi \texttt{audit\_logs} trạng thái trước/sau. Chỉ người phụ trách ở \texttt{STAFF\_ACTIVE} được gửi tin ra kênh.};
+  \end{tikzpicture}
+  \caption{Máy trạng thái điều phối lượt hội thoại trên Desk, chiếu từ bộ ba (\texttt{control}, \texttt{assignee\_id}, \texttt{needs\_human})}\label{fig:state-desk}
+\end{figure}

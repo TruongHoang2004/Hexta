@@ -1,0 +1,19 @@
+% !TeX root = ../main.tex
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \node[initial dot] (init) at (0,0) {};
+    \node[state] (act) at (4,0) {\texttt{active}\\[-1pt]{\scriptsize bước $i$, người phụ trách $r$}};
+    \node[state] (wai) at (11,0) {\texttt{waiting}\\[-1pt]{\scriptsize bước $i$ giữ nguyên, $r$ giữ nguyên}};
+    \node[state] (com) at (4,-4.6) {\texttt{completed}};
+    \node[final dot] (fin) at (7.2,-4.6) {};
+    \draw[->,thick] (init) -- node[tr,above] {tạo từ đơn\\đã xác nhận} node[tr,below] {bước 0} (act);
+    \draw[->,thick] (act.north east) to[bend left=18] node[tr,above] {\texttt{handoff}($n$) tại bước \texttt{acceptance}\\ghi \texttt{recipient\_id} $:= n$} (wai.north west);
+    \draw[->,thick] (wai.south west) to[bend left=26] node[tr,below,text width=5.4cm] {\texttt{accept} bởi đúng $n$: $r := n$, $i := i+1$\\\texttt{assign}($m$) bởi chủ DN: $r := m$,\\hủy đề cử, giữ bước $i$} (act.south east);
+    \draw[->,thick] (act.north west) .. controls +(-0.6,1.9) and +(0.6,1.9) .. node[tr,above] {\texttt{handoff}($n$) tại bước \texttt{direct}: $r := n$, $i := i+1$\\\texttt{assign}($m$) bởi chủ DN: $r := m$} (act.north);
+    \draw[->,thick] (act) -- node[tr,left,text width=2.6cm] {\texttt{complete} bởi $r$\\tại bước cuối cùng} (com);
+    \draw[->,thick] (com) -- (fin);
+    \node[note,anchor=north west,text width=6.1cm] at (8.4,-3.2) {Mỗi lệnh khóa dòng \texttt{FOR UPDATE}, đối chiếu \texttt{expected\_version}, tăng \texttt{version} và ghi một bản ghi \texttt{work\_events}. Ràng buộc \texttt{CHECK}: ở \texttt{waiting} thì \texttt{recipient\_id} $\neq$ \texttt{responsible\_id}; ngoài \texttt{waiting} thì \texttt{recipient\_id} là \texttt{NULL}.};
+  \end{tikzpicture}
+  \caption{Máy trạng thái của một công việc (\texttt{work\_items}) với hai chế độ bàn giao \texttt{direct} và \texttt{acceptance}}\label{fig:state-work-item}
+\end{figure}
