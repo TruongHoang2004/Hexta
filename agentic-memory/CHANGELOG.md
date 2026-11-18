@@ -1,5 +1,12 @@
 # Consolidated Project Changelog
 
+## 2026-11-18 — Load capacity targets (in review)
+
+- Owner-set TARGET load goals T1–T5 on two hosts (infrastructure 2 vCPU / 4 GB, applications 2 vCPU / 16 GB): 300 msg/s sustained ingress (stretch 500), 1,000 msg/s burst, 100 outbound sends/s without cross-tenant blocking, 500 staff req/s, and a 5 min Kafka outage without loss or duplicates. Baseline ~1 msg/s measured locally: the shared kafka-go writer leaves `BatchTimeout` at its 1 s default.
+- Recorded in [08-operations-security.md](designs/system/08-operations-security.md#load-capacity-targets-target-owner-set-2026-11-18) with the code bottlenecks to solve; thesis Chapters 1, 3 and 4 updated. No measurement yet.
+- Kafka broker: Confluent `cp-kafka:7.6.1` (KRaft, per-message fsync, no topic auto-create) replaces Redpanda in `compose.prod.yml`, `prod/api.yaml` and `compose.connector-test.yml`.
+- Details: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-18_load-capacity-targets.md).
+
 ## 2026-11-16 — Single-host production deployment (in review)
 
 - `infrastructure/compose.prod.yml`, `scripts/prod.sh` and `infrastructure/README.deploy.md`: Caddy HTTPS edge for hexta.org, Postgres/Redis/Redpanda, Atlas migration jobs, api, ingress, ai, connector and web on one 2 vCPU / 16 GB host.

@@ -21,7 +21,7 @@ xuất trực tiếp từ các tệp khai báo phụ thuộc và cấu hình đi
     Môi trường phát triển và điều phối container &
     Hệ điều hành macOS / Linux; Docker Compose điều phối stack cục bộ qua \texttt{scripts/local.sh} (\texttt{infrastructure/compose.demo.yml} gắn cổng trên
     \texttt{127.0.0.1}),
-    cụm fixture cô lập \texttt{infrastructure/compose.connector-test.yml} (\texttt{Postgres :55439}, \texttt{Redpanda :59092}), và cấu hình máy chủ đơn
+    cụm fixture cô lập \texttt{infrastructure/compose.connector-test.yml} (\texttt{Postgres :55439}, \texttt{Kafka :59092}), và cấu hình máy chủ đơn
     \texttt{infrastructure/compose.prod.yml} (\texttt{scripts/prod.sh}) định cỡ cho phần cứng 2 vCPU, 16 GB RAM đứng sau \texttt{caddy:2.8-alpine} tự động cấp TLS (chỉ mở cổng 80/443). \\
     Backend và dịch vụ kết nối kênh (Go) &
     \texttt{go.work} dùng Go 1.26.2 cho 4 module (\texttt{packages/shared}, \texttt{services/api}, \texttt{services/connector}, \texttt{test}). \texttt{services/api} sử dụng Gin v1.12.0,
@@ -37,7 +37,7 @@ xuất trực tiếp từ các tệp khai báo phụ thuộc và cấu hình đi
     Next.js 16.3.0, React 19.2.8, TypeScript 5, Tailwind CSS 4, Zustand 5.0.15, \texttt{react-markdown}, quản lý workspace bằng \texttt{pnpm} 10.x;
     gói \texttt{@hexta/sdk} dùng Axios 1.19.0, \texttt{tsup} 8.5.1, Vitest 5.0.0 và thư viện giao diện \texttt{@hexta/ui}. \\
     Cơ sở dữ liệu, bộ nhớ đệm và thông điệp &
-    PostgreSQL \texttt{17.7-alpine3.23}, Redis \texttt{7.4-alpine}, Redpanda \texttt{v24.3.18} (tương thích Kafka API; chế độ sản xuất giữ \texttt{fsync}), và công cụ quản lý
+    PostgreSQL \texttt{17.7-alpine3.23}, Redis \texttt{7.4-alpine}, Kafka \texttt{cp-\hspace{0pt}kafka:\hspace{0pt}7.6.1} của Confluent (KRaft một nút, ghi đĩa \texttt{fsync} từng thông điệp, tắt tự tạo topic), và công cụ quản lý
     lược đồ Atlas CLI (\texttt{arigaio/atlas}). \\
     \bottomrule
   \end{tabularx}
@@ -49,7 +49,7 @@ tái lập không cần khóa trả phí.
 Ở cấu hình máy chủ đơn (\texttt{compose.\hspace{0pt}prod.\hspace{0pt}yml} và \texttt{infrastructure/\hspace{0pt}prod/\hspace{0pt}Caddyfile}), chỉ \texttt{caddy} phơi cổng công khai \texttt{80/443}: mọi đường dẫn
 \texttt{/api/*} chuyển tới \texttt{api:8080}, chỉ hai điểm nhận \texttt{/webhooks/\hspace{0pt}facebook} và \texttt{/webhooks/\hspace{0pt}telegram/*} (giới hạn thân 1 MB) định tuyến tới
 \texttt{connector:8091}, các đường dẫn \texttt{/webhooks/*} khác trả về 404, phần còn lại chuyển tới \texttt{web:3000}.
-Mặt phẳng điều khiển \texttt{/internal/*} của Connector, dịch vụ AI, PostgreSQL, Redis và Redpanda hoàn toàn ẩn trong mạng nội bộ Compose.
+Mặt phẳng điều khiển \texttt{/internal/*} của Connector, dịch vụ AI, PostgreSQL, Redis và Kafka hoàn toàn ẩn trong mạng nội bộ Compose.
 Hệ thống khởi tạo tường minh theo cơ chế lũy đẳng năm topic Kafka (3 phân vùng mỗi topic) gồm: \texttt{hexta.\hspace{0pt}ingress.\hspace{0pt}received.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}intent.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1} và \texttt{hexta.\hspace{0pt}orders.\hspace{0pt}events.\hspace{0pt}v1}.
 
 Mã nguồn toàn hệ thống được tổ chức theo mô hình monorepo gồm các phân vùng sở hữu rõ ràng:
@@ -257,7 +257,7 @@ Bảng~\ref{tab:eval-results}.
     Hạng mục & Lệnh thực thi, phạm vi và bằng chứng ghi nhận & Kết quả \\
     \midrule
     Go API, Shared và Connector (\texttt{-race}) &
-    \texttt{go test -race -count=1 -p 1 ./services/api/... ./services/connector/... ./packages/shared/...} với PostgreSQL (\texttt{compose.connector-test.yml}) và Redpanda cô lập: đạt toàn bộ \textbf{19 gói} ở đợt kiểm thử \textit{audit-hardening}; các phiên tích hợp Facebook/Telegram đều đạt toàn bộ ca E2E và Outbox (gồm \texttt{TestConnectorFacebookToInbox}, \texttt{TestOutboxRelayPublishesCommittedEventToKafka}, \texttt{TestConnectorFacebookOAuthSendAndDeliveryResults}, \texttt{TestConnectorTelegramConnectIngressSendAndResults}). &
+    \texttt{go test -race -count=1 -p 1 ./services/api/... ./services/connector/... ./packages/shared/...} với PostgreSQL (\texttt{compose.connector-test.yml}) và Kafka cô lập: đạt toàn bộ \textbf{19 gói} ở đợt kiểm thử \textit{audit-hardening} (khi đó chạy trên Redpanda); sau khi chuyển sang Confluent \texttt{cp-\hspace{0pt}kafka:\hspace{0pt}7.6.1}, lần chạy lại ngày 18/11/2026 đạt \textbf{22/22 gói}, 203 ca \texttt{PASS}, 0 ca lỗi, chỉ bỏ qua ca nghiệm thu Telegram thật; các phiên tích hợp Facebook/Telegram đều đạt toàn bộ ca E2E và Outbox (gồm \texttt{TestConnectorFacebookToInbox}, \texttt{TestOutboxRelayPublishesCommittedEventToKafka}, \texttt{TestConnectorFacebookOAuthSendAndDeliveryResults}, \texttt{TestConnectorTelegramConnectIngressSendAndResults}). &
     PASS (19 gói) \\
     Dịch vụ AI Python &
     \texttt{./scripts/local.sh --profile test run --build --rm ai-tests} kết hợp \texttt{test-postgres} đã chạy migration Atlas: \textbf{109 passed, 0 skipped} ở đợt \textit{audit-hardening} (các đợt trước đạt 70/70 và 73/73 khi gắn DB; 70 passed, 6 skipped khi chưa gắn DSN). &
@@ -311,7 +311,7 @@ mục dưới đây hiện ở trạng thái \textbf{chưa thực thi (\texttt{N
   \item \textbf{Triển khai VPS thật, kiểm thử tải và bộ test liên dịch vụ \texttt{test/...}:} Cấu hình \texttt{compose.\hspace{0pt}prod.\hspace{0pt}yml} mới chạy thử với \texttt{DOMAIN=\hspace{0pt}localhost},
     còn \texttt{deploy-\hspace{0pt}agent.\hspace{0pt}sh} mới kiểm thử trong container giả lập Docker;
   vận hành trên VPS 2 vCPU / 16 GB RAM thật với chứng chỉ Let's Encrypt thật, diễn tập khôi phục sao lưu, bộ kiểm thử \texttt{go test ./\hspace{0pt}test/...} (cần cụm máy chủ chạy đồng
-  thời) và kiểm thử tải quy mô lớn là \texttt{NOT\_RUN}.
+  thời) và kiểm thử tải là \texttt{NOT\_RUN}. Bộ mục tiêu chịu tải T1--T5 (Bảng~\ref{tab:load-targets}) đã được xác lập cho cấu hình hai máy (máy hạ tầng 2 vCPU / 4 GB và máy ứng dụng 2 vCPU / 16 GB) nhưng chưa có số đo trên máy chủ thật; mốc xuất phát khoảng 1 tin/giây mới chỉ được đo cục bộ ở bước ghi Kafka; việc tách triển khai thành hai máy cũng chưa được cài đặt.
   \item \textbf{Duyệt giao diện thủ công toàn trình trên trình duyệt:} Ngoài kiểm thử khói bán hàng ban đầu và kiểm tra lint/build tự động, việc duyệt thủ công đa tài khoản
     trên trình duyệt đối với quy trình công việc nhiều bước, hộp thư Desk, cấu hình kênh Facebook/Telegram, tương thích di động và thao tác bàn phím vẫn là \texttt{NOT\_RUN}.
 \end{enumerate}

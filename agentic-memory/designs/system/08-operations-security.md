@@ -56,6 +56,44 @@ Trace viewer access is separate from broad tenant conversation visibility. Restr
 
 Database transactions stay short, with explicit leases/version predicates. Future Kafka ingest/outbox gives durable fan-out and backpressure. AI concurrency/rate/token quotas must be tenant/provider-aware; coalesce obsolete contexts and cancel stale work. No measured throughput, latency SLO, broker partition count or VPS resource fit has been established.
 
+### Load capacity targets (TARGET, owner-set 2026-11-18)
+
+The owner wants an impressive but physically feasible goal on the two existing servers, without adding hardware (owner decision, 2026-11-18):
+
+- Infrastructure host, 2 vCPU / 4 GB: PostgreSQL, Kafka (Confluent `cp-kafka`, single-node KRaft), Redis.
+- Application host, 2 vCPU / 16 GB: Caddy, `api`, `cmd/ingress`, `connector`, `ai`, `web`.
+- The hosts connect over a private network; PostgreSQL and Kafka are not exposed publicly.
+
+The current `infrastructure/compose.prod.yml` still deploys everything on one host; the split is TARGET.
+
+Broker (owner decision, 2026-11-18): Confluent `confluentinc/cp-kafka:7.6.1` replaces Redpanda in production and the connector test fixture, matching the local stack. Single-node KRaft, topic auto-creation disabled, `log.flush.interval.messages=1` so an acknowledged batch is fsynced before the relay marks it published (a single broker has no replica to recover from). The flush applies per appended batch, so batched producers amortize it.
+
+Baseline and ceiling (estimates unless stated):
+
+- Baseline ~1 msg/s through Kafka, MEASURED locally on 2026-11-18 (Docker Desktop, `cp-kafka:7.6.1` with per-message flush): `kafkatransport.NewTopicPublisher` takes ~1,013 ms per synchronous single-message write because `BatchTimeout` is unset and kafka-go defaults it to 1 s; with `BatchTimeout = 1ms` the same writer takes ~4.2 ms (238 msg/s). Not yet measured on the VPS.
+- Estimated physical ceiling is PostgreSQL on the infrastructure host (2 vCPU shared with Kafka): ~5,000–8,000 row writes/s, i.e. ~600–1,000 msg/s at ~9 row writes per message with batching. Kafka and the application host are not expected to bind first; VPS disk fsync latency is the largest unknown.
+- Before load testing, calibrate the ceiling on the real hosts with `fio` (fsync latency), `pgbench` and `kafka-producer-perf-test`; keep the target near 50–60% of the measured ceiling and lower it if the hardware is slower than estimated.
+
+Pass criteria for every scenario also include: no container OOM-killed on either host (current limits for PostgreSQL 2g, Kafka 1536m with 768m heap and Redis 256m already sum to ~3.8 GB). Measurement uses AI `fake` mode and simulated Meta/Telegram providers, so provider latency and platform quotas are excluded. Nothing below is measured on the target hosts yet.
+
+| ID | Scenario | Pass criteria |
+| --- | --- | --- |
+| T1 | Sustained ingress 300 msg/s for 30 min (stretch 500 msg/s) | Webhook → Desk visible p95 < 3 s; zero lost, zero duplicate messages |
+| T2 | Burst 1,000 msg/s for 60 s (60,000 events) | Zero webhook 5xx; backlog drained ≤ 5 min after the burst |
+| T3 | Outbound 100 sends/s; mock provider 300 ms, one Page hitting the 15 s timeout | Other tenants' send p95 < 3 s (no cross-tenant head-of-line blocking) |
+| T4 | Staff API 500 req/s, 80% reads / 20% writes | Read p95 < 300 ms, write p95 < 500 ms; 5xx < 0.1% (`409` version conflicts excluded) |
+| T5 | Kafka stopped 5 min during T1 | Webhooks keep returning `200`; after recovery all messages reach Desk, none lost or duplicated |
+
+Known blockers in current code (2026-11-18), each a proposal rather than an approved mechanism:
+
+- `packages/shared/kafkatransport` leaves kafka-go `BatchTimeout` at its 1 s default, capping every synchronous relay at ~1 event/s. Direction: set an explicit small `BatchTimeout` and publish batches (T1–T3, T5).
+- Connector ingress relay and outbound-result relay lease one event per transaction (`LIMIT 1`) and publish synchronously with RequireAll; the API outbox relay calls `RelayOne` per iteration. `cmd/ingress` applies one message per transaction per topic. Direction: batched leases/publishes and batched consumer transactions that still commit offsets only after the DB commit (T1, T2, T5).
+- Each webhook counts pending events (bounded by the remaining room under `maxPendingEvents = 100000`), so acceptance cost grows with the backlog during a burst; 100,000 events also cover only ~5.5 min of Kafka outage at 300 msg/s. Direction: a maintained counter instead of a scan, and a cap sized from the disk budget (T2, T5).
+- Connector `consumeIntents` sends one intent at a time for all tenants. Direction: partition- or connection-parallel dispatch with per-connection concurrency limits (T3).
+- Single-host Compose. Direction: split into infrastructure and application stacks, re-budget memory within 4 GB (PostgreSQL buffers, Kafka JVM heap, Redis `maxmemory`), and bind PostgreSQL/Kafka to the private network with Kafka advertised on the private address (T1–T5).
+- Authorization stays DB-authoritative per request; T4 is addressed by query/index work, not by caching grants.
+- The Python durable worker processes runs serially and is bounded by the LLM provider; AI throughput is excluded from T1–T5 and needs its own queue-age target.
+
 Monitor run age/backlog/recovery failures, outbox oldest event, Kafka lag age/disk/ISR/DLQ, per-tenant AI budget, error rate, unknown sends and trace export failures. Separate operational event history from retained business/audit records. Redis outage must not erase new business proposals. No automatic retention purge is implemented yet.
 
 ## Verification evidence and current delivery limits

@@ -2,7 +2,7 @@
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}
-    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{apps/web})},3.65/api/{\texttt{SalesService}},7.4/db/{PostgreSQL\\(\texttt{public})},10.6/rel/{\texttt{OutboxRelay}},13.6/kfk/{Kafka /\\Redpanda}} {
+    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{apps/web})},3.65/api/{\texttt{SalesService}},7.4/db/{PostgreSQL\\(\texttt{public})},10.6/rel/{\texttt{OutboxRelay}},13.6/kfk/{Kafka\\(Confluent)}} {
       \node[lifeline head] (\n) at (\x,0) {\t};
       \draw[lifeline] (\x,-0.5) -- (\x,-10.4);
     }

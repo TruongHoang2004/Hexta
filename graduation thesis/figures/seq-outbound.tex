@@ -2,7 +2,7 @@
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}
-    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{STAFF\_ACTIVE})},3.65/api/{\texttt{services/api}\\+ CSDL \texttt{public}},7.0/kfk/{Kafka /\\Redpanda},10.3/con/{\texttt{services/}\\\texttt{connector}},13.6/prv/{Meta Send API\\/ Telegram}} {
+    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{STAFF\_ACTIVE})},3.65/api/{\texttt{services/api}\\+ CSDL \texttt{public}},7.0/kfk/{Kafka\\(Confluent)},10.3/con/{\texttt{services/}\\\texttt{connector}},13.6/prv/{Meta Send API\\/ Telegram}} {
       \node[lifeline head] (\n) at (\x,0) {\t};
       \draw[lifeline] (\x,-0.5) -- (\x,-10.9);
     }

@@ -96,14 +96,56 @@ Các yêu cầu chức năng của hệ thống được chia thành tám nhóm 
     Phản hồi lỗi chuẩn hóa mã lỗi an toàn kèm \texttt{trace\_\hspace{0pt}id} 32 ký tự, không làm rò rỉ chuỗi SQL thô, token hay ngoại lệ nội bộ của nhà cung cấp.
   \item \textbf{Khả năng tái lập môi trường và quản lý lược đồ bằng Atlas:} Vô hiệu hóa hoàn toàn cơ chế tự động đồng bộ mô hình lúc khởi chạy (\texttt{AutoMigrate}).
     Toàn bộ tiến hóa lược đồ vận hành qua ba môi trường độc lập (\texttt{api}, \texttt{ai}, \texttt{connector}) trong \texttt{atlas.\hspace{0pt}hcl} với tập lệnh SQL có phiên bản và tổng kiểm \texttt{atlas.\hspace{0pt}sum}, đóng gói chạy cô lập qua Docker Compose.
+  \item \textbf{Khả năng chịu tải mục tiêu trên hai máy chủ nhỏ:} Mục tiêu được đặt trên đúng hai máy chủ sẵn có, không mở rộng phần cứng, để thách thức nằm ở tối ưu kiến trúc thay vì tăng tài nguyên: máy hạ tầng 2 vCPU / 4 GB RAM chạy PostgreSQL, Kafka (Confluent \texttt{cp-\hspace{0pt}kafka}) và Redis; máy ứng dụng 2 vCPU / 16 GB RAM chạy Caddy, \texttt{api}, \texttt{cmd/\hspace{0pt}ingress}, \texttt{connector}, \texttt{ai} và \texttt{web}; hai máy kết nối qua mạng riêng.
+    Mốc xuất phát là khoảng 1 tin nhắn/giây qua Kafka, đo trên mã nguồn hiện hành; mục tiêu chính là 300 tin nhắn/giây duy trì (gấp khoảng 300 lần), với mức kéo dài 500 tin nhắn/giây.
+    Ước tính trần vật lý của cấu hình nằm ở PostgreSQL trên máy hạ tầng, khoảng 600--1.000 tin nhắn/giây khi xử lý theo lô (mỗi tin cần khoảng chín lệnh ghi), nên mục tiêu chỉ chiếm khoảng 30--50\% trần ước tính; trần này sẽ được hiệu chỉnh bằng phép đo độ trễ \texttt{fsync} của đĩa (\texttt{fio}), \texttt{pgbench} và \texttt{kafka-\hspace{0pt}producer-\hspace{0pt}perf-\hspace{0pt}test} trên máy thật trước khi đo tải.
+    Vì giới hạn bộ nhớ hiện khai báo cho PostgreSQL, Kafka và Redis đã cộng lại khoảng 3,8 GB, máy hạ tầng phải chạy suốt các kịch bản mà không container nào bị dừng do hết bộ nhớ.
+    Phép đo dùng AI ở chế độ \texttt{fake} và nhà cung cấp kênh giả lập nhằm tách năng lực của nền tảng khỏi độ trễ mô hình ngôn ngữ và hạn mức của Meta/Telegram.
+    Năm kịch bản cùng ngưỡng đạt được nêu tại Bảng~\ref{tab:load-targets}; đây là mục tiêu thiết kế, chưa phải kết quả đo.
 \end{enumerate}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.2}
+  \caption{Mục tiêu chịu tải trên máy hạ tầng 2 vCPU / 4 GB và máy ứng dụng 2 vCPU / 16 GB (AI chế độ \texttt{fake}, nhà cung cấp kênh giả lập)}\label{tab:load-targets}
+  \begin{tabularx}{\linewidth}{@{}
+    >{\raggedright\arraybackslash}p{0.8cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Mã & Kịch bản tải & Ngưỡng đạt \\
+    \midrule
+    T1 & Tiếp nhận tin nhắn kênh ngoài duy trì 300 tin/giây trong 30 phút (mức kéo dài 500 tin/giây) &
+    Từ webhook đến khi tin xuất hiện trên Desk: p95 dưới 3 giây; không mất và không trùng tin \\
+    T2 & Đột biến 1.000 tin/giây trong 60 giây (60.000 sự kiện) &
+    Không có phản hồi webhook lỗi 5xx; xử lý hết hàng đợi tồn trong tối đa 5 phút sau đỉnh \\
+    T3 & Gửi tin ra kênh ngoài 100 tin/giây; nhà cung cấp giả lập phản hồi sau 300 ms, trong đó một trang chậm chạm ngưỡng timeout 15 giây &
+    p95 của các doanh nghiệp còn lại vẫn dưới 3 giây (không nghẽn đầu hàng giữa các doanh nghiệp) \\
+    T4 & API nhân viên 500 yêu cầu/giây, gồm 80\% đọc và 20\% ghi &
+    Đọc p95 dưới 300 ms, ghi p95 dưới 500 ms; lỗi 5xx dưới 0,1\% (không tính \texttt{409} do tranh chấp phiên bản) \\
+    T5 & Ngừng Kafka 5 phút trong khi đang chạy T1 &
+    Webhook vẫn phản hồi \texttt{200}; sau khi Kafka phục hồi, toàn bộ tin vào Desk, không mất và không trùng \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Đối chiếu với mã nguồn hiện hành cho thấy mức tải này vượt xa năng lực của các vòng xử lý tuần tự tại thời điểm viết, vì vậy đạt mục tiêu đòi hỏi các thay đổi kiến trúc cụ thể.
+Thứ nhất, bộ ghi Kafka dùng chung (\texttt{packages/\hspace{0pt}shared/\hspace{0pt}kafkatransport}) không đặt \texttt{BatchTimeout}, nên thư viện \texttt{kafka-go} giữ mỗi lần ghi đồng bộ một thông điệp tới ngưỡng mặc định 1 giây: phép đo cục bộ trên \texttt{cp-\hspace{0pt}kafka} cho khoảng 1.013 ms mỗi thông điệp (1 tin/giây), so với 4,2 ms (238 tin/giây) khi đặt \texttt{BatchTimeout} 1 ms. Đây là nguyên nhân của mốc xuất phát khoảng 1 tin/giây ở mọi relay (T1--T3, T5).
+Thứ hai, relay của dịch vụ kết nối và Outbox của dịch vụ nghiệp vụ mỗi giao dịch chỉ thuê một sự kiện (\texttt{LIMIT 1}) rồi phát đồng bộ với \texttt{acks=all}; tiến trình \texttt{cmd/\hspace{0pt}ingress} cũng chỉ áp dụng một thông điệp trong mỗi giao dịch. Hướng giải là thuê và phát theo lô, đồng thời áp dụng nhiều thông điệp trong cùng một giao dịch mà vẫn chỉ commit offset sau khi giao dịch thành công (T1, T2, T5).
+Thứ ba, mỗi webhook đếm số sự kiện tồn đọng (giới hạn ở phần còn trống của ngưỡng 100.000) trước khi nhận, nên chi phí tiếp nhận tăng theo kích thước hàng đợi đúng lúc đột biến; ngưỡng 100.000 cũng chỉ chịu được khoảng 5,5 phút Kafka ngừng ở mức 300 tin/giây. Cần thay phép đếm bằng bộ đếm duy trì riêng và tính lại ngưỡng theo dung lượng lưu trữ (T2, T5).
+Thứ tư, bộ tiêu thụ ý định gửi tin xử lý tuần tự cho toàn hệ thống, nên một trang phản hồi chậm chặn tin của mọi doanh nghiệp phía sau; cần chuyển sang xử lý song song theo partition hoặc theo kết nối, có giới hạn riêng cho từng kết nối (T3).
+Thứ năm, tệp \texttt{compose.\hspace{0pt}prod.\hspace{0pt}yml} hiện triển khai toàn bộ trên một máy; cần tách thành hai máy, phân bổ lại bộ nhớ trong 4 GB của máy hạ tầng (bộ đệm của PostgreSQL, bộ nhớ heap JVM của Kafka, giới hạn Redis) và mở cổng PostgreSQL, Kafka chỉ trên mạng riêng (T1--T5).
+Cuối cùng, kiểm tra quyền vẫn đọc trực tiếp CSDL ở mọi yêu cầu theo nguyên tắc thiết kế, nên mục tiêu T4 được giải bằng tối ưu truy vấn và chỉ mục, không bằng bộ nhớ đệm quyền.
+Worker AI hiện xử lý tuần tự từng lượt chạy và có trần thông lượng do nhà cung cấp mô hình quyết định, nên được loại khỏi bộ mục tiêu này.
 
 \section{Kiến trúc hệ thống}
 Kiến trúc tổng thể của Hexta được tổ chức theo nguyên tắc phân tách ranh giới thẩm quyền và cô lập dữ liệu như minh họa trong Hình~\ref{fig:architecture}.
 Giao diện \texttt{apps/\hspace{0pt}web} (Next.js) chỉ giao tiếp với \texttt{services/\hspace{0pt}api} qua HTTP/SSE; \texttt{services/\hspace{0pt}api} và tiến trình tiêu thụ \texttt{cmd/\hspace{0pt}ingress} nắm giữ toàn bộ quyền xác thực người dùng, kiểm tra tư cách thành viên tenant, điều phối quy trình/hội thoại và phát hành ý định gửi tin.
 Dịch vụ \texttt{services/\hspace{0pt}connector} đóng vai trò tầng giao tiếp I/O thuần túy với Meta Graph API và Telegram Bot API, không được phép truy cập cơ sở dữ liệu nghiệp vụ của API hay tự quyết định chính sách doanh nghiệp.
 Dịch vụ \texttt{services/\hspace{0pt}ai} chạy độc lập trên Python (FastAPI + máy chủ gRPC + worker nền), chỉ nhận ngữ cảnh đã được Go sàng lọc và trả về ứng viên hoặc gợi ý có cấu trúc.
-Ở tầng lưu trữ, PostgreSQL 17 tách thành ba vùng sở hữu với ba tài khoản đăng nhập riêng biệt (\texttt{hexta\_\hspace{0pt}api} sở hữu lược đồ \texttt{public}, \texttt{hexta\_\hspace{0pt}ai} sở hữu lược đồ \texttt{ai\_\hspace{0pt}runtime}, và \texttt{hexta\_\hspace{0pt}connector} sở hữu cơ sở dữ liệu độc lập \texttt{hexta\_\hspace{0pt}connector}), kết hợp Redis cho bộ nhớ đệm tạm thời và Redpanda/Kafka cho truyền thông sự kiện bất đồng bộ.
+Ở tầng lưu trữ, PostgreSQL 17 tách thành ba vùng sở hữu với ba tài khoản đăng nhập riêng biệt (\texttt{hexta\_\hspace{0pt}api} sở hữu lược đồ \texttt{public}, \texttt{hexta\_\hspace{0pt}ai} sở hữu lược đồ \texttt{ai\_\hspace{0pt}runtime}, và \texttt{hexta\_\hspace{0pt}connector} sở hữu cơ sở dữ liệu độc lập \texttt{hexta\_\hspace{0pt}connector}), kết hợp Redis cho bộ nhớ đệm tạm thời và Kafka cho truyền thông sự kiện bất đồng bộ.
 
 \begin{figure}[htbp]
   \centering
@@ -135,7 +177,7 @@ Dịch vụ \texttt{services/\hspace{0pt}ai} chạy độc lập trên Python (F
     }}
   \end{tabular}\\[4pt]
   \fbox{\parbox{\dimexpr0.96\linewidth-2\fboxsep-2\fboxrule\relax}{\centering
-    \textbf{Kafka / Redpanda} (5 topic chuẩn hóa)\\
+    \textbf{Kafka} (5 topic chuẩn hóa)\\
     {\scriptsize \texttt{hexta.ingress.received.v1} $\cdot$ \texttt{hexta.outbound.intent.v1} $\cdot$ \texttt{hexta.outbound.result.v1} $\cdot$ \texttt{hexta.connector.health.v1} $\cdot$ \texttt{hexta.orders.events.v1}}
   }}\\[4pt]
   \begin{tabular}{@{} >{\centering\arraybackslash}p{0.71\linewidth} @{\hspace{0.02\linewidth}} >{\centering\arraybackslash}p{0.23\linewidth} @{}}
@@ -186,7 +228,7 @@ Hiện tại lệnh \texttt{ai-smoke} kiểm chứng toàn bộ hợp đồng gR
   \end{tabularx}
 \end{table}
 
-Trên trục truyền thông bất đồng bộ Kafka/Redpanda, cấu hình triển khai và thư viện dùng chung \texttt{packages/\hspace{0pt}shared} xác lập năm topic chính (Bảng~\ref{tab:kafka-topics}), trong đó bốn topic phục vụ trực tiếp luồng tin nhắn kênh ngoài đã có producer/consumer vận hành và một topic phục vụ sự kiện đơn hàng xuất bản từ \texttt{domain\_\hspace{0pt}events}.
+Trên trục truyền thông bất đồng bộ Kafka, cấu hình triển khai và thư viện dùng chung \texttt{packages/\hspace{0pt}shared} xác lập năm topic chính (Bảng~\ref{tab:kafka-topics}), trong đó bốn topic phục vụ trực tiếp luồng tin nhắn kênh ngoài đã có producer/consumer vận hành và một topic phục vụ sự kiện đơn hàng xuất bản từ \texttt{domain\_\hspace{0pt}events}.
 Các topic mở rộng khác được đề cập trong tài liệu thiết kế hệ thống (như \texttt{hexta.\hspace{0pt}ai.\hspace{0pt}requested.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}ai.\hspace{0pt}results.\hspace{0pt}v1}) vẫn ở trạng thái \texttt{TARGET}.
 
 \begin{table}[htbp]
@@ -194,7 +236,7 @@ Các topic mở rộng khác được đề cập trong tài liệu thiết kế
   \footnotesize
   \setlength{\tabcolsep}{4pt}
   \renewcommand{\arraystretch}{1.18}
-  \caption{Các topic Kafka/Redpanda và cơ chế định tuyến phân vùng}\label{tab:kafka-topics}
+  \caption{Các topic Kafka và cơ chế định tuyến phân vùng}\label{tab:kafka-topics}
   \begin{tabularx}{\linewidth}{@{}
     >{\raggedright\arraybackslash}p{4.5cm}
     >{\raggedright\arraybackslash}p{4.3cm}

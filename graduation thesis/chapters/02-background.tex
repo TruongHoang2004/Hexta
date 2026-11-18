@@ -252,8 +252,7 @@ Máy thực thi AI bền vững (\texttt{DurableAIService} và \texttt{RunStore}
 outbox kết quả AI riêng vẫn thuộc phạm vi thiết kế mục tiêu (\emph{TARGET}).
 
 \subsection{Kiến trúc hướng sự kiện Kafka, mẫu Outbox/Inbox và mã hóa AES-256-GCM AAD}
-Để tách rời tải đột biến từ webhook mạng xã hội khỏi giao dịch nghiệp vụ và cuộc gọi API bên ngoài, hệ thống áp dụng kiến trúc hướng sự kiện với \textbf{Apache Kafka}~\cite{kreps2011kafka,kafkadocs} (vận hành tương thích qua
-\textbf{Redpanda} trong môi trường cục bộ và kiểm thử). Trong phạm vi đã triển khai, kênh tiếp nhận tin nhắn sử dụng chủ đề \texttt{hexta.\hspace{0pt}ingress.\hspace{0pt}received.\hspace{0pt}v1} (phân vùng theo băm SHA-256
+Để tách rời tải đột biến từ webhook mạng xã hội khỏi giao dịch nghiệp vụ và cuộc gọi API bên ngoài, hệ thống áp dụng kiến trúc hướng sự kiện với \textbf{Apache Kafka}~\cite{kreps2011kafka,kafkadocs} (triển khai bằng bản phân phối Confluent ở chế độ KRaft, không cần ZooKeeper). Trong phạm vi đã triển khai, kênh tiếp nhận tin nhắn sử dụng chủ đề \texttt{hexta.\hspace{0pt}ingress.\hspace{0pt}received.\hspace{0pt}v1} (phân vùng theo băm SHA-256
 của khóa hội thoại); đường gửi tin và giám sát kết nối sử dụng các chủ đề \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}intent.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1} và
 \texttt{hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1}; còn sự kiện xác nhận đơn hàng được phát qua \texttt{hexta.\hspace{0pt}orders.\hspace{0pt}events.\hspace{0pt}v1} (các chủ đề mở rộng cho hội thoại, cấu hình và điều phối AI vẫn thuộc thiết kế \emph{TARGET}).
 

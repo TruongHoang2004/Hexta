@@ -83,6 +83,8 @@ Mục tiêu tổng quát của khóa luận là thiết kế, xây dựng và đ
   \item Hệ thống có bảo đảm phân quyền theo vai trò, cô lập dữ liệu giữa các doanh nghiệp, kiểm soát cập nhật cạnh tranh và lưu vết lịch sử thay đổi đầy đủ trong các kịch bản thử nghiệm hay không?
 \end{enumerate}
 
+Bên cạnh ba câu hỏi nghiên cứu, khóa luận đặt một mục tiêu kỹ thuật về khả năng chịu tải: trên hai máy chủ 2 vCPU, gồm một máy 4 GB RAM chạy hạ tầng dữ liệu (PostgreSQL, Kafka, Redis) và một máy 16 GB RAM chạy các dịch vụ ứng dụng, hệ thống phải nâng thông lượng tiếp nhận từ mốc xuất phát khoảng 1 tin nhắn/giây lên 300 tin nhắn/giây duy trì, chịu đột biến 1.000 tin nhắn/giây, gửi 100 tin/giây ra kênh ngoài và phục vụ 500 yêu cầu/giây từ nhân viên mà không mất hoặc trùng tin, kể cả khi Kafka tạm ngừng (chi tiết tại Bảng~\ref{tab:load-targets}).
+
 Về định hướng đánh giá, câu hỏi nghiên cứu thứ hai tập trung đo kiểm trên chế độ soạn nháp có người duyệt để bảo đảm đối chứng rõ ràng; chế độ tự gửi đòi hỏi bộ kiểm chứng an toàn và quy trình đối soát riêng biệt, không suy diễn từ kết quả thử nghiệm soạn nháp. Phạm vi thực nghiệm sử dụng môi trường triển khai cục bộ có thể tái lập cùng các kịch bản kiểm thử có kiểm soát và mô phỏng đối tác; dữ liệu mô phỏng được gắn nhãn tường minh và chưa được coi là giao dịch thực tế. Ranh giới phạm vi của khóa luận được phân định cụ thể trong Bảng~\ref{tab:scope-boundary}.
 
 \begin{table}[htbp]
@@ -117,7 +119,7 @@ Về định hướng đánh giá, câu hỏi nghiên cứu thứ hai tập trun
   \item \textbf{Phân tích bài toán và khảo sát giải pháp:} Hệ thống hóa các vấn đề vận hành từ tiếp thị đầu phễu đến tư vấn, đơn hàng và bàn giao nội bộ; đối chiếu các nền tảng hiện có và xác lập bộ yêu cầu chức năng cùng yêu cầu phi chức năng cho hệ thống.
   \item \textbf{Thiết kế kiến trúc phân tách trách nhiệm và biên mở rộng:} Xây dựng kiến trúc đa thành phần phân tách rõ vai trò giữa lớp giao diện, lớp nghiệp vụ trung tâm nắm quyền xác thực và cấp phép, lớp kết nối kênh giao tiếp ngoài và lớp thực thi AI chỉ trả về ứng viên, đồng thời giữ biên định danh và sự kiện mở cho định hướng hệ sinh thái tương lai.
   \item \textbf{Thiết kế mô hình dữ liệu và cơ chế đảm bảo nhất quán:} Thiết kế lược đồ dữ liệu đa doanh nghiệp, cơ chế kiểm soát cập nhật cạnh tranh theo phiên bản, hàng rào bảo vệ quyền điều khiển hội thoại, cơ chế lưu vết lịch sử và truyền thông sự kiện bền vững nhằm ngăn ngừa sai lệch dữ liệu và gửi lặp.
-  \item \textbf{Triển khai và thực nghiệm đánh giá:} Cài đặt các phân hệ cốt lõi trên môi trường cục bộ có thể tái lập và tiến hành các kịch bản kiểm thử có kiểm soát về cô lập doanh nghiệp, bàn giao quy trình, thực thi AI bền vững và tiếp nhận sự kiện kênh để đánh giá kết quả theo ba câu hỏi nghiên cứu.
+  \item \textbf{Triển khai và thực nghiệm đánh giá:} Cài đặt các phân hệ cốt lõi trên môi trường cục bộ có thể tái lập và tiến hành các kịch bản kiểm thử có kiểm soát về cô lập doanh nghiệp, bàn giao quy trình, thực thi AI bền vững và tiếp nhận sự kiện kênh để đánh giá kết quả theo ba câu hỏi nghiên cứu, đồng thời kiểm thử tải đối chiếu với mục tiêu chịu tải đã đặt ra.
 \end{enumerate}
 
 \section{Cấu trúc khóa luận}
