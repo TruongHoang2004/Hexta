@@ -39,13 +39,7 @@ func (FacebookPlugin) Challenge(q url.Values, token string) (string, error) {
 	return q.Get("hub.challenge"), nil
 }
 func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, error) {
-	var batch struct {
-		Object string `json:"object"`
-		Entry  []struct {
-			ID        string            `json:"id"`
-			Messaging []json.RawMessage `json:"messaging"`
-		} `json:"entry"`
-	}
+	var batch webhookBatch
 	if json.Unmarshal(body, &batch) != nil || batch.Object != "page" || len(batch.Entry) == 0 {
 		return nil, errors.New("invalid batch")
 	}
@@ -61,33 +55,7 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 			if len(result) >= 1000 {
 				return nil, errors.New("batch limit")
 			}
-			var m struct {
-				Sender struct {
-					ID string `json:"id"`
-				} `json:"sender"`
-				Recipient struct {
-					ID string `json:"id"`
-				} `json:"recipient"`
-				Timestamp int64 `json:"timestamp"`
-				Message   *struct {
-					MID   string `json:"mid"`
-					Text  string `json:"text"`
-					Echo  bool   `json:"is_echo"`
-					Reply struct {
-						MID string `json:"mid"`
-					} `json:"reply_to"`
-					Attachments []struct {
-						Type    string `json:"type"`
-						Payload struct {
-							StickerID json.RawMessage `json:"sticker_id"`
-						} `json:"payload"`
-					} `json:"attachments"`
-					StickerID json.RawMessage `json:"sticker_id"`
-				} `json:"message"`
-				Reaction json.RawMessage `json:"reaction"`
-				Read     json.RawMessage `json:"read"`
-				Delivery json.RawMessage `json:"delivery"`
-			}
+			var m messagingEvent
 			item := plugin.Item{AccountID: entry.ID}
 			if json.Unmarshal(raw, &m) != nil {
 				item.Reason = "malformed_item"
