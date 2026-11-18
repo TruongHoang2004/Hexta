@@ -66,7 +66,7 @@ The owner wants an impressive but physically feasible goal on the two existing s
 
 The current `infrastructure/compose.prod.yml` still deploys everything on one host; the split is TARGET.
 
-Broker (owner decision, 2026-11-18): Confluent `confluentinc/cp-kafka:7.6.1` replaces Redpanda in production and the connector test fixture, matching the local stack. Single-node KRaft, topic auto-creation disabled, `log.flush.interval.messages=1` so an acknowledged batch is fsynced before the relay marks it published (a single broker has no replica to recover from). The flush applies per appended batch, so batched producers amortize it.
+Broker (owner decision, 2026-11-18): Confluent `confluentinc/cp-kafka:7.6.1` is the only Kafka broker, in production, the connector test fixture and the local stack. Single-node KRaft, topic auto-creation disabled, `log.flush.interval.messages=1` so an acknowledged batch is fsynced before the relay marks it published (a single broker has no replica to recover from). The flush applies per appended batch, so batched producers amortize it.
 
 Baseline and ceiling (estimates unless stated):
 

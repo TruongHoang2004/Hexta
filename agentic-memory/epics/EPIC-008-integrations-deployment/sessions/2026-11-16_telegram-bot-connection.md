@@ -30,7 +30,7 @@ Design amendments are logged in the design's §7 and await owner acceptance.
 
 ## Verification
 
-Isolated infrastructure: `infrastructure/compose.connector-test.yml` (Postgres 55439, Redpanda 59092). All Docker containers on the host disappeared mid-session (not caused by these commands); the disposable fixture was recreated, `connector_fixture` created and migrated fresh with `make migrate-apply-local svc=connector`. The earlier fixture also applied the new connector migration as an upgrade.
+Isolated infrastructure: `infrastructure/compose.connector-test.yml` (Postgres 55439, Kafka 59092). All Docker containers on the host disappeared mid-session (not caused by these commands); the disposable fixture was recreated, `connector_fixture` created and migrated fresh with `make migrate-apply-local svc=connector`. The earlier fixture also applied the new connector migration as an upgrade.
 
 | Check | Command | Result |
 | --- | --- | --- |

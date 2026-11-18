@@ -30,7 +30,7 @@ See [final design](../../../designs/2026-11-03_connector-service_design.md) and 
 
 ## Verification and evidence
 
-Only new disposable PostgreSQL/Redpanda on localhost:55439/59092 were used. No normal application DB was migrated. Test credentials are intentionally public fixture values. The two task-created containers were removed after verification; no application containers or volumes were touched.
+Only new disposable PostgreSQL/Kafka on localhost:55439/59092 were used. No normal application DB was migrated. Test credentials are intentionally public fixture values. The two task-created containers were removed after verification; no application containers or volumes were touched.
 
 PASS:
 

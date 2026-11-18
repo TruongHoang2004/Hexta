@@ -38,7 +38,7 @@ Deviations from the design. They are folded into the design text, with the log i
 
 ## Verification and evidence
 
-Run on 2026-11-15 against disposable `infrastructure/compose.connector-test.yml` (Postgres :55439, Redpanda :59092) and Atlas-migrated random/fixture databases:
+Run on 2026-11-15 against disposable `infrastructure/compose.connector-test.yml` (Postgres :55439, Kafka :59092) and Atlas-migrated random/fixture databases:
 
 - `go test -race -p 1 ./services/connector/... ./services/api/... ./packages/shared/...` — PASS, including `TestConnectorFacebookToInbox` (existing E2E, updated for the new key file and 200 JSON response).
 - New `TestConnectorFacebookOAuthSendAndDeliveryResults` — PASS: owner OAuth through the real connector binary against a mock Graph server, subscription, signed webhooks, claim, send, outbox → Kafka → connector → Graph → result → inbox. Verified `sent`, `failed/window_24h`, exactly one provider call per intent, connection stays active.
