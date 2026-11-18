@@ -1,0 +1,39 @@
+% !TeX root = ../main.tex
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[node distance=0.55cm]
+    % (a) Đồ thị định tuyến ứng viên - graph.py
+    \node[gterm] (s1) at (3.0,0) {START};
+    \node[gnode,below=of s1] (vi) {validate\_input};
+    \node[gnode,below=of vi] (pc) {prepare\_context};
+    \node[gnode,below=of pc] (ci) {classify\_intent};
+    \node[gnode,minimum width=1.75cm,font=\tiny\ttfamily] (rs) at (0,-5.6) {render\_\\script};
+    \node[gnode,minimum width=1.75cm,font=\tiny\ttfamily] (gc) at (2.0,-5.6) {generate\_\\candidate};
+    \node[gnode,minimum width=1.75cm,font=\tiny\ttfamily] (ac) at (4.0,-5.6) {ask\_\\clarification};
+    \node[gnode,minimum width=1.75cm,font=\tiny\ttfamily] (rh) at (6.0,-5.6) {request\_\\human};
+    \node[gnode] (vo) at (3.0,-7.1) {validate\_output};
+    \node[gterm,below=of vo] (e1) {END};
+    \draw[->] (s1)--(vi); \draw[->] (vi)--(pc); \draw[->] (pc)--(ci);
+    \foreach \n/\l in {rs/script,gc/generate,ac/clarify,rh/human} {
+      \draw[->] (ci.south) -- node[tr,font=\tiny,pos=0.62] {\l} (\n.north);
+      \draw[->] (\n.south) -- (vo.north);
+    }
+    \draw[->] (vo)--(e1);
+    \node[font=\small,align=center] at (3.0,-9.4) {(a) Định tuyến ứng viên phản hồi\\(\texttt{graph.py})};
+    % (b) Đồ thị tư vấn mua sắm - graph_consultant.py
+    \node[gterm] (s2) at (10.6,0) {START};
+    \node[gnode,below=of s2] (gi) {guardrail\_input};
+    \node[gnode,below=1.0cm of gi] (rc) {retrieve\_catalog};
+    \node[gnode,below=of rc] (gn) {generate\_consultation};
+    \node[gnode,below=of gn] (go) {guardrail\_output};
+    \node[gnode,minimum width=2.3cm] (ur) at (13.9,-3.0) {unsafe\_refusal};
+    \node[gterm] (e2) at (10.6,-8.0) {END};
+    \draw[->] (s2)--(gi);
+    \draw[->] (gi) -- node[tr,font=\tiny,left] {an toàn} (rc);
+    \draw[->] (gi.east) -| node[tr,font=\tiny,pos=0.3,above] {không an toàn} (ur.north);
+    \draw[->] (rc)--(gn); \draw[->] (gn)--(go); \draw[->] (go)--(e2);
+    \draw[->] (ur.south) |- (e2.east);
+    \node[font=\small,align=center] at (10.6,-9.4) {(b) Tư vấn mua sắm trên danh mục được cấp\\(\texttt{graph\_consultant.py})};
+  \end{tikzpicture}
+  \caption{Hai đồ thị LangGraph của dịch vụ AI. Mọi nhánh đều kết thúc tại nút kiểm chứng đầu ra trước khi trả kết quả có cấu trúc về \texttt{services/api}}\label{fig:ai-graphs}
+\end{figure}

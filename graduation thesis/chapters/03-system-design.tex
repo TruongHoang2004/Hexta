@@ -18,7 +18,9 @@ Hệ thống tương tác với bốn tác nhân con người và một thành p
     Dịch vụ Python chỉ tiếp nhận ảnh chụp ngữ cảnh hoặc danh mục sản phẩm được lớp Go ủy quyền qua gRPC hoặc HTTP nội bộ, trả về ứng viên định tuyến, nội dung gợi ý hoặc đề xuất giỏ hàng; thành phần này bị cấm ghi trực tiếp vào lược đồ nghiệp vụ \texttt{public} và không có quyền phát lệnh gửi tin ra kênh ngoài.
 \end{itemize}
 
-Phạm vi thẩm quyền và tác động dữ liệu của từng tác nhân được tổng hợp trong Bảng~\ref{tab:actor-permissions}.
+Phạm vi thẩm quyền và tác động dữ liệu của từng tác nhân được tổng hợp trong Bảng~\ref{tab:actor-permissions}. Hình~\ref{fig:use-case} biểu diễn các ca sử dụng tổng quát tương ứng.
+
+\input{figures/use-case}
 
 \begin{table}[htbp]
   \centering
@@ -212,6 +214,7 @@ Các topic mở rộng khác được đề cập trong tài liệu thiết kế
 \section{Thiết kế cơ sở dữ liệu}
 Lược đồ cơ sở dữ liệu vật lý trên PostgreSQL 17 hiện gồm tổng cộng \textbf{39 bảng} được định nghĩa tường minh trong ba tệp lược đồ đích (\texttt{migrations/\hspace{0pt}schema/\hspace{0pt}api.\hspace{0pt}sql}, \texttt{ai.\hspace{0pt}sql}, \texttt{connector.\hspace{0pt}sql}) và tiến hóa qua Atlas (Bảng~\ref{tab:db-groups}).
 Chi tiết cấu trúc từng bảng và lịch sử các tệp migration Atlas được trình bày đầy đủ tại Phụ lục~\ref{app:database}.
+Quan hệ giữa các bảng cốt lõi của lược đồ \texttt{public} được minh họa trong Hình~\ref{fig:erd}.
 Các thực thể thuộc phần mở rộng mục tiêu như \texttt{scripts}, \texttt{script\_\hspace{0pt}versions}, \texttt{reply\_\hspace{0pt}proposals}, \texttt{member\_\hspace{0pt}permissions}, \texttt{tenant\_\hspace{0pt}reply\_\hspace{0pt}settings}, \texttt{exception\_\hspace{0pt}cases} và \texttt{return\_\hspace{0pt}lines} chưa được tạo trong lược đồ 39 bảng hiện hành.
 
 \begin{table}[htbp]
@@ -256,6 +259,8 @@ Thiết kế cơ sở dữ liệu tập trung giải quyết sáu quyết địn
 \end{enumerate}
 
 \section{Thiết kế giải pháp và luồng xử lý cốt lõi}
+\input{figures/erd}
+
 \subsection{Luồng đơn nháp, xác nhận có điều kiện và ghi \texttt{domain\_\hspace{0pt}events}}
 Ở bước tạo hoặc chỉnh sửa đơn nháp, nhân viên hoặc chủ doanh nghiệp có thể lưu dần thông tin chưa đầy đủ; hệ thống vẫn kiểm tra tham chiếu \texttt{customer\_\hspace{0pt}id}, \texttt{employee\_\hspace{0pt}id} (chỉ \texttt{owner} mới được gán cho người khác hoặc xóa gán, còn \texttt{member} chỉ tự gán bản nháp chưa có người phụ trách) và danh sách biến thể đang hoạt động trong cùng tenant, đồng thời lưu đơn giá kèm \texttt{price\_\hspace{0pt}provided = (unit\_\hspace{0pt}price != nil)}.
 Khi gọi xác nhận đơn, toàn bộ bước kiểm tra và chuyển trạng thái diễn ra trong một giao dịch PostgreSQL:
@@ -264,6 +269,9 @@ Khi gọi xác nhận đơn, toàn bộ bước kiểm tra và chuyển trạng 
   \item Kiểm tra tuần tự sáu điều kiện xác nhận: \texttt{employee\_\hspace{0pt}id == actor}; có \texttt{customer\_\hspace{0pt}id} với \texttt{full\_\hspace{0pt}name} khác rỗng; khách hàng có \texttt{phone} hoặc \texttt{email}; \texttt{len(items) > 0}; mọi dòng hàng đều có \texttt{price\_\hspace{0pt}provided = true}, \texttt{quantity > 0} và đơn giá không âm trên biến thể hợp lệ; nếu \texttt{requires\_\hspace{0pt}delivery = true} thì \texttt{delivery\_\hspace{0pt}address} không được rỗng.
   \item Cập nhật \texttt{status = 'confirmed'}, tăng \texttt{version}, ghi bản ghi \texttt{order.\hspace{0pt}confirmed} vào \texttt{audit\_\hspace{0pt}logs} và chèn sự kiện cùng loại (\texttt{state = 'pending'}) vào \texttt{domain\_\hspace{0pt}events} trong cùng giao dịch để \texttt{Outbox\hspace{0pt}Relay} xuất bản lên \texttt{hexta.\hspace{0pt}orders.\hspace{0pt}events.\hspace{0pt}v1}.
 \end{enumerate}
+Trình tự tương tác giữa các thành phần trong luồng này được thể hiện ở Hình~\ref{fig:seq-order-confirm}.
+
+\input{figures/seq-order-confirm}
 
 \subsection{Luồng bàn giao công việc \texttt{direct}/\texttt{acceptance} và xử lý tranh chấp \texttt{accept}/\texttt{assign}}
 Chủ doanh nghiệp khởi tạo \texttt{work\_\hspace{0pt}items} từ đơn đã xác nhận kèm \texttt{Idempotency-\hspace{0pt}Key} (UUID) và mã băm \texttt{create\_\hspace{0pt}hash}; giao dịch khóa đơn nguồn trước khi kiểm tra khóa chống trùng lặp để tuần tự hóa các yêu cầu tạo song song.
@@ -275,6 +283,9 @@ Khi người phụ trách hiện tại thực hiện lệnh \texttt{handoff} (ch
 Khi xảy ra tranh chấp đồng thời giữa nhân viên được đề cử bấm \texttt{accept} và chủ doanh nghiệp bấm \texttt{assign} để điều phối lại, cả hai lệnh đều khóa dòng công việc và đối chiếu \texttt{expected\_\hspace{0pt}version}.
 Nếu \texttt{assign} hoàn tất trước, hệ thống cập nhật \texttt{responsible\_\hspace{0pt}id} mới, đặt \texttt{recipient\_\hspace{0pt}id = NULL}, đưa \texttt{state = 'active'} tại bước hiện tại và tăng \texttt{version}; khi lệnh \texttt{accept} đến sau với \texttt{expected\_\hspace{0pt}version} cũ hoặc thấy trạng thái không còn là \texttt{waiting}, máy chủ trả lỗi \texttt{409 Conflict} hoặc \texttt{403 Forbidden}, bảo đảm không bao giờ nhảy bước hoặc bàn giao nhầm người.
 Lệnh \texttt{complete} chỉ hợp lệ khi \texttt{state = 'active'} tại bước cuối cùng.
+Toàn bộ các chuyển trạng thái hợp lệ của một công việc được tổng hợp trong Hình~\ref{fig:state-work-item}.
+
+\input{figures/state-work-item}
 
 \subsection{Luồng kết nối Facebook OAuth / Telegram Bot và ingress bền vững}
 Ở luồng kết nối Facebook, API tạo chuỗi ngẫu nhiên 256-bit lưu băm SHA-256 trong \texttt{channel\_\hspace{0pt}oauth\_\hspace{0pt}states} (hạn 10 phút) rồi chuyển hướng tới Meta OAuth.
@@ -282,20 +293,28 @@ Tại \texttt{oauth/\hspace{0pt}callback}, API đánh dấu \texttt{consumed\_\h
 Khi \texttt{owner} xác nhận kết nối, API ghi \texttt{messaging\_\hspace{0pt}connections} (cưỡng chế 1 Page = 1 tenant qua \texttt{uq\_\hspace{0pt}messaging\_\hspace{0pt}connections\_\hspace{0pt}active\_\hspace{0pt}page}) rồi gọi \texttt{PUT /\hspace{0pt}internal/\hspace{0pt}connections} để connector giải mã phiên tạm, niêm phong token bằng AES-256-GCM AAD (\texttt{connection:\hspace{0pt}<id>}) vào \texttt{connector.\hspace{0pt}connections} và đăng ký webhook \texttt{subscribed\_\hspace{0pt}apps}.
 Đối với Telegram Bot, sau khi \texttt{owner} gửi \texttt{bot\_\hspace{0pt}token}, connector gọi \texttt{getMe} qua \texttt{/\hspace{0pt}internal/\hspace{0pt}telegram/\hspace{0pt}bots/\hspace{0pt}verify}, API lưu \texttt{messaging\_\hspace{0pt}connections}, rồi connector mã hóa cả \texttt{bot\_\hspace{0pt}token} lẫn \texttt{secret\_\hspace{0pt}token} webhook ngẫu nhiên và gọi \texttt{setWebhook}.
 
-Ở chiều nhận tin (\emph{ingress}), webhook của \texttt{services/\hspace{0pt}connector} xác thực chữ ký HMAC-SHA256 từ Meta hoặc đối chiếu hằng thời gian header \texttt{X-\hspace{0pt}Telegram-\hspace{0pt}Bot-\hspace{0pt}Api-\hspace{0pt}Secret-\hspace{0pt}Token} từ Telegram.
+Ở chiều nhận tin (\emph{ingress}), webhook của \texttt{services/\hspace{0pt}connector} xác thực chữ ký HMAC-SHA256 từ Meta~\cite{meta-webhooks} hoặc đối chiếu hằng thời gian header \texttt{X-\hspace{0pt}Telegram-\hspace{0pt}Bot-\hspace{0pt}Api-\hspace{0pt}Secret-\hspace{0pt}Token} từ Telegram~\cite{telegram-bot-api}.
 Đối với nội dung hợp lệ (văn bản hoặc tệp đa phương tiện chuyển thành \texttt{unsupported\_\hspace{0pt}media}), connector chuẩn hóa và ghi đồng thời bản ghi vào \texttt{connector.\hspace{0pt}receipts} cùng \texttt{connector.\hspace{0pt}events} trong một giao dịch PostgreSQL trước khi trả \texttt{200 OK}; các cập nhật nhóm/kênh Telegram không phải chat 1--1 bị bỏ qua sớm và trả \texttt{200 OK}, còn dữ liệu lỗi cấu trúc trên kết nối đã vô hiệu hóa được đưa vào trạng thái cách ly.
 Tiến trình relay của connector (khóa \texttt{SKIP LOCKED}, lease 30 giây) đẩy sự kiện lên \texttt{hexta.\hspace{0pt}ingress.\hspace{0pt}received.\hspace{0pt}v1}.
 Tại đầu nhận \texttt{services/\hspace{0pt}api/\hspace{0pt}cmd/\hspace{0pt}ingress}, \texttt{Ingress\hspace{0pt}Service} khóa bản ghi \texttt{messaging\_\hspace{0pt}connections} (\texttt{FOR SHARE}), ghi khóa chống trùng \texttt{messaging\_\hspace{0pt}ingress}, khởi tạo hoặc cập nhật \texttt{messaging\_\hspace{0pt}threads} và \texttt{messaging\_\hspace{0pt}turns} (tạo lượt mới nếu chưa có lượt mở; chưa tự gọi AI) và lưu \texttt{messaging\_\hspace{0pt}messages} trong cùng giao dịch trước khi commit offset Kafka; các gói không khớp kết nối tin cậy hoặc sai phong bì dữ liệu được cách ly vào \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine} chỉ bằng mã băm và lý do an toàn.
+Hình~\ref{fig:seq-ingress} tóm tắt trình tự tiếp nhận này.
+
+\input{figures/seq-ingress}
 
 \subsection{Luồng điều phối Desk và gửi tin một lần qua \texttt{outbound\_\hspace{0pt}intents}}
 Các lệnh điều phối Desk (\texttt{claim}, \texttt{assign}, \texttt{handoff}, \texttt{return-\hspace{0pt}to-\hspace{0pt}bot}) đều lấy khóa hàng trên \texttt{messaging\_\hspace{0pt}threads}, kiểm tra phiên bản \texttt{turn.\hspace{0pt}version == expected\_\hspace{0pt}version}, cập nhật trạng thái \texttt{control}/\texttt{assignee\_\hspace{0pt}id}/\texttt{needs\_\hspace{0pt}human}, tăng đồng thời \texttt{control\_\hspace{0pt}generation} và \texttt{version}, và ghi \texttt{audit\_\hspace{0pt}logs} kèm trạng thái trước/sau và mã lý do trong cùng một giao dịch.
+Các chuyển trạng thái Desk hợp lệ được biểu diễn trong Hình~\ref{fig:state-desk}.
+
+\input{figures/state-desk}
 
 Khi nhân viên được phân công ở trạng thái \texttt{STAFF\_\hspace{0pt}ACTIVE} gửi phản hồi thật qua điểm cuối \texttt{POST} tới đường dẫn \texttt{/\hspace{0pt}tenants/\hspace{0pt}\{tenantID\}/\hspace{0pt}turns/\hspace{0pt}\{id\}/\hspace{0pt}messages}, API kiểm tra \texttt{expected\_\hspace{0pt}version}, \texttt{context\_\hspace{0pt}revision}, trạng thái kết nối \texttt{active} và khóa chống trùng \texttt{client\_\hspace{0pt}message\_\hspace{0pt}id}.
 Giao dịch API ghi đồng thời: (1) tin nhắn vào \texttt{messaging\_\hspace{0pt}messages} (\texttt{status = 'channel'}, \texttt{delivery\_\hspace{0pt}status = 'sending'}), (2) ý định gửi vào \texttt{outbound\_\hspace{0pt}intents} (\texttt{status = 'pending'}, TTL 10 phút), (3) bản ghi thử gửi vào \texttt{outbound\_\hspace{0pt}attempts}, và (4) sự kiện \texttt{outbound.\hspace{0pt}intent} vào \texttt{domain\_\hspace{0pt}events}.
 \texttt{Outbox\hspace{0pt}Relay} xuất bản lên \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}intent.\hspace{0pt}v1}.
 Tại \texttt{services/\hspace{0pt}connector}, \texttt{Outbound\hspace{0pt}Service} dùng bảng \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}attempts} khóa theo \texttt{attempt\_\hspace{0pt}id} ở trạng thái \texttt{dispatching}: nếu quá hạn TTL (\texttt{expired}) hoặc phiên bản và trạng thái kết nối không khớp (\texttt{connection\_\hspace{0pt}inactive}), hệ thống từ chối gọi mạng ngay; ngược lại giải mã token bằng AES-256-GCM AAD và gọi API gửi tin duy nhất một lần (timeout 15 giây).
 Trường hợp nhận lại tin Kafka cho một \texttt{attempt\_\hspace{0pt}id} đang dở dang ở \texttt{dispatching}, hệ thống ghi nhận ngay kết quả \texttt{unknown} và tuyệt đối không gửi lại.
-Kết quả lưu kèm outbox \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}events} đẩy về \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1} (và \texttt{hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1} khi lỗi xác thực) để \texttt{Delivery\hspace{0pt}Service} cập nhật về API theo sáu nhánh chuẩn hóa trong Bảng~\ref{tab:outbound-outcomes}.
+Kết quả lưu kèm outbox \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}events} đẩy về \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1} (và \texttt{hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1} khi lỗi xác thực) để \texttt{Delivery\hspace{0pt}Service} cập nhật về API theo sáu nhánh chuẩn hóa trong Bảng~\ref{tab:outbound-outcomes}. Trình tự gửi tin được minh họa trong Hình~\ref{fig:seq-outbound}.
+
+\input{figures/seq-outbound}
 
 \begin{table}[htbp]
   \centering
@@ -325,7 +344,9 @@ Kết quả lưu kèm outbox \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt
 Worker Python thăm dò hàng đợi mỗi 0,2 giây bằng truy vấn \texttt{SELECT ... FOR UPDATE SKIP LOCKED}, nhận một tác vụ chưa chạy hoặc có \texttt{lease\_\hspace{0pt}until} quá hạn, cấp \texttt{lease\_\hspace{0pt}token} UUID và thời hạn thuê 60 giây (\texttt{status = 2}), đồng thời gia hạn định kỳ dưới ngân sách tổng 65 giây.
 Trước khi thực thi mô hình thật có tính phí, worker ghi nhận dấu bảo vệ có ràng buộc lease \texttt{error\_\hspace{0pt}code = 'LLM\_\hspace{0pt}CALL\_\hspace{0pt}STARTED'}.
 Nếu lease hết hạn sau mốc này, lần thu hồi kế tiếp sẽ chuyển tác vụ sang thất bại an toàn \texttt{LLM\_\hspace{0pt}RECOVERY\_\hspace{0pt}UNCERTAIN} nhằm tránh lặp lại chi phí gọi LLM (trong khi tác vụ giả lập \texttt{fake} được phép phục hồi tối đa 3 lần trước mã \texttt{RECOVERY\_\hspace{0pt}ATTEMPTS\_\hspace{0pt}EXHAUSTED}).
-Đồ thị định tuyến ứng viên LangGraph (\texttt{graph.\hspace{0pt}py}) gồm 8 nút định nghĩa (mỗi lượt chạy qua 5 bước tuần tự): \texttt{validate\_\hspace{0pt}input} $\rightarrow$ \texttt{prepare\_\hspace{0pt}context} (lọc script \texttt{active}, ẩn danh email/số điện thoại heuristic, kiểm tra ngân sách token đầu vào) $\rightarrow$ \texttt{classify\_\hspace{0pt}intent} $\rightarrow$ một trong bốn nút nhánh (\texttt{render\_\hspace{0pt}script}, \texttt{generate\_\hspace{0pt}candidate} chỉ chấp nhận nội dung khớp nguyên văn \texttt{facts} đã trích dẫn, \texttt{ask\_\hspace{0pt}clarification}, hoặc \texttt{request\_\hspace{0pt}human}) $\rightarrow$ \texttt{validate\_\hspace{0pt}output} (chặn biến ngoặc nhọn chưa điền hoặc độ tin cậy dưới ngưỡng 0,8 về nhánh \texttt{human}).
+Đồ thị định tuyến ứng viên LangGraph (\texttt{graph.\hspace{0pt}py}) gồm 8 nút định nghĩa (mỗi lượt chạy qua 5 bước tuần tự): \texttt{validate\_\hspace{0pt}input} $\rightarrow$ \texttt{prepare\_\hspace{0pt}context} (lọc script \texttt{active}, ẩn danh email/số điện thoại heuristic, kiểm tra ngân sách token đầu vào) $\rightarrow$ \texttt{classify\_\hspace{0pt}intent} $\rightarrow$ một trong bốn nút nhánh (\texttt{render\_\hspace{0pt}script}, \texttt{generate\_\hspace{0pt}candidate} chỉ chấp nhận nội dung khớp nguyên văn \texttt{facts} đã trích dẫn, \texttt{ask\_\hspace{0pt}clarification}, hoặc \texttt{request\_\hspace{0pt}human}) $\rightarrow$ \texttt{validate\_\hspace{0pt}output} (chặn biến ngoặc nhọn chưa điền hoặc độ tin cậy dưới ngưỡng 0,8 về nhánh \texttt{human}). Cấu trúc hai đồ thị LangGraph được thể hiện trong Hình~\ref{fig:ai-graphs}.
+
+\input{figures/ai-graphs}
 
 Đối với luồng trợ lý tư vấn mua sắm trực tuyến qua điểm cuối \texttt{POST /\hspace{0pt}api/\hspace{0pt}v1/\hspace{0pt}ai/\hspace{0pt}converse}, lớp dịch vụ \texttt{Consultant\hspace{0pt}Service} của Go kiểm tra tư cách thành viên tenant trước khi gọi dịch vụ Python, trích xuất ảnh chụp tối đa 100 sản phẩm đang hoạt động (tối đa 200 biến thể có \texttt{price\_\hspace{0pt}provided = true}) và gửi tới điểm cuối \texttt{POST /\hspace{0pt}internal/\hspace{0pt}v1/\hspace{0pt}consult}.
 Tại Python, đồ thị LangGraph tư vấn (\texttt{graph\_\hspace{0pt}consultant.\hspace{0pt}py}) thực thi qua chuỗi nút kiểm soát: \texttt{guardrail\_\hspace{0pt}input} (rẽ nhánh \texttt{unsafe\_\hspace{0pt}refusal} nếu phát hiện đầu vào độc hại) $\rightarrow$ \texttt{retrieve\_\hspace{0pt}catalog} (trích bộ lọc giá tiếng Việt và truy xuất tối đa 4 sản phẩm liên quan) $\rightarrow$ \texttt{generate\_\hspace{0pt}consultation} (gọi mô hình cấu trúc dựa hoàn toàn trên danh mục được cấp) $\rightarrow$ \texttt{guardrail\_\hspace{0pt}output} (đối soát sản phẩm và bộ lọc cứng trước khi trả JSON).

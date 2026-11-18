@@ -1,0 +1,22 @@
+% !TeX root = ../main.tex
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{apps/web})},3.65/api/{\texttt{SalesService}},7.4/db/{PostgreSQL\\(\texttt{public})},10.6/rel/{\texttt{OutboxRelay}},13.6/kfk/{Kafka /\\Redpanda}} {
+      \node[lifeline head] (\n) at (\x,0) {\t};
+      \draw[lifeline] (\x,-0.5) -- (\x,-10.4);
+    }
+    \seqmsg{0}{3.65}{-1.4}{\texttt{POST .../orders/\{id\}/confirm}\\(\texttt{expected\_version})}
+    \seqmsg{3.65}{7.4}{-2.6}{\texttt{BEGIN}; khóa dòng\\\texttt{SELECT ... FOR UPDATE}}
+    \seqmsg[ret]{7.4}{3.65}{-3.3}{đơn, dòng hàng, khách hàng}
+    \seqself{3.65}{-3.6}{kiểm tra \texttt{status}, \texttt{version}\\và sáu điều kiện xác nhận}
+    \seqmsg{3.65}{7.4}{-5.45}{\texttt{UPDATE orders} (\texttt{confirmed})\\\texttt{INSERT audit\_logs},\\\texttt{domain\_events}; \texttt{COMMIT}}
+    \seqmsg[ret]{3.65}{0}{-6.1}{\texttt{200} | \texttt{409} | \texttt{403} | \texttt{400}}
+    \draw[black!50,densely dotted] (-1.1,-6.5) -- (14.7,-6.5);
+    \node[note,anchor=north west] at (-1.1,-6.6) {Bất đồng bộ, sau khi\\giao dịch đã commit};
+    \seqmsg{10.6}{7.4}{-8.0}{thuê sự kiện \texttt{pending}\\\texttt{FOR UPDATE SKIP LOCKED}}
+    \seqmsg{10.6}{13.6}{-9.0}{\texttt{order.confirmed} $\rightarrow$\\\texttt{hexta.orders.events.v1}}
+    \seqmsg{10.6}{7.4}{-10.0}{\texttt{FinishEvent}: đã phát\\hoặc hẹn thử lại (backoff)}
+  \end{tikzpicture}
+  \caption{Sơ đồ tuần tự xác nhận đơn nháp và phát sự kiện qua Transactional Outbox}\label{fig:seq-order-confirm}
+\end{figure}

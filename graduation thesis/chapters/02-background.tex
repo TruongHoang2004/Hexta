@@ -17,7 +17,7 @@ biến đổi và yêu cầu toàn vẹn:
     ý định gửi ra kênh (\texttt{outbound\_\hspace{0pt}intents}, \texttt{outbound\_\hspace{0pt}attempts}) và bản ghi chạy AI bền vững (\texttt{ai\_\hspace{0pt}runtime.\hspace{0pt}runs}).
 \end{itemize}
 
-Trên nền tảng đa doanh nghiệp (\emph{multi-tenancy}), mỗi doanh nghiệp được biểu diễn bằng một \emph{tenant} độc lập. Một tài khoản định danh (\texttt{identities}) có thể tham gia nhiều doanh
+Trên nền tảng đa doanh nghiệp (\emph{multi-tenancy}), mỗi doanh nghiệp được biểu diễn bằng một \emph{tenant} độc lập~\cite{chong2006multitenant,bezemer2010multitenant}. Một tài khoản định danh (\texttt{identities}) có thể tham gia nhiều doanh
 nghiệp khác nhau thông qua bảng \texttt{tenant\_\hspace{0pt}members}, song vai trò (\texttt{owner} hoặc \texttt{member}) và thẩm quyền thao tác chỉ có hiệu lực trong phạm vi từng \texttt{tenant\_\hspace{0pt}id}. Nguyên
 lý cô lập dữ liệu được thiết kế theo cơ chế phòng vệ nhiều lớp:
 \begin{enumerate}
@@ -105,32 +105,32 @@ giới hiện trạng: cơ chế chiếu Desk, tăng \texttt{control\_\hspace{0p
 
 \subsection{Nhóm hệ thống quản lý bán lẻ -- kho và trợ lý giao dịch}
 Các nền tảng quản lý bán lẻ phổ biến tại Việt Nam như Sapo, KiotViet (cùng trợ lý KiCi) và Knote giải quyết tốt nghiệp vụ chuẩn hóa danh mục hàng hóa, biến thể SKU, tồn kho đa chi nhánh và nhập
-liệu nhanh tại điểm bán. Theo tài liệu tính năng công khai, Sapo AI hỗ trợ tra cứu tồn kho theo phân quyền, điều hướng giao diện và tạo thẻ nháp sản phẩm hoặc khách hàng chờ xác nhận; KiCi hỗ trợ
-hỏi đáp số liệu kinh doanh bằng ngôn ngữ tự nhiên; Knote giúp hộ kinh doanh ghi nhận giao dịch qua giọng nói, văn bản và hình ảnh. Trên thị trường quốc tế, \textbf{Shopify Sidekick} (trợ lý vận
-hành tích hợp trong trang quản trị cửa hàng Shopify) và \textbf{Amazon Rufus} (trợ lý mua sắm đối thoại dựa trên danh mục và đánh giá sản phẩm trên Amazon) minh họa rõ hiệu quả của việc neo trợ
+liệu nhanh tại điểm bán. Theo tài liệu tính năng công khai, Sabi AI của Sapo tra cứu dữ liệu theo quyền tài khoản, điều hướng giao diện và tạo bản nháp sản phẩm chờ xác nhận~\cite{sapo-sabi}; KiCi hỗ trợ
+tra cứu số liệu kinh doanh bằng ngôn ngữ tự nhiên~\cite{kiotviet-kici}; Knote giúp hộ kinh doanh lên đơn bằng giọng nói và ghi nhận chi phí qua ảnh chụp hóa đơn~\cite{knote-vneconomy,knote-appstore}. Trên thị trường quốc tế, \textbf{Shopify Sidekick} (trợ lý vận
+hành tích hợp trong trang quản trị cửa hàng Shopify) và \textbf{Amazon Rufus} (trợ lý mua sắm đối thoại dựa trên danh mục và đánh giá sản phẩm trên Amazon)~\cite{shopify-sidekick,amazon-rufus} minh họa rõ hiệu quả của việc neo trợ
 lý AI vào dữ liệu thương mại có cấu trúc.
 
-Tuy vậy, nhóm giải pháp này có hai giới hạn đáng kể trước bài toán của doanh nghiệp bán hàng qua tư vấn trực tuyến. Thứ nhất, theo tài liệu khảo sát, luồng tạo nhanh của Sapo AI xử lý đơn lẻ từng
-đối tượng và bản nháp chưa xác nhận không được giữ lại nếu thoát khỏi biểu mẫu, còn báo cáo của KiCi bị giới hạn khi chọn chi nhánh và kỳ không phát sinh. Thứ hai, cả nền tảng bán lẻ trong nước
+Tuy vậy, nhóm giải pháp này có hai giới hạn đáng kể trước bài toán của doanh nghiệp bán hàng qua tư vấn trực tuyến. Thứ nhất, bản nháp do trợ lý tạo ra gắn với từng đối tượng tại màn hình quản trị và chờ xác nhận tức thời, chưa phải thực thể đơn hàng
+bền vững qua nhiều lượt tư vấn; báo cáo đặt lịch của KiCi chưa chọn riêng được từng chi nhánh~\cite{kiotviet-kici}. Thứ hai, cả nền tảng bán lẻ trong nước
 lẫn các trợ lý khép kín như Sidekick hay Rufus đều vận hành trong biên giới hệ sinh thái bán hàng gốc, thiếu mô hình nối liền trạng thái kiểm soát hội thoại đa kênh với quy trình bàn giao trách
 nhiệm hậu cần tùy biến nhiều bước có phiên bản bất biến.
 
 \subsection{Nhóm nền tảng gom hội thoại đa kênh và kịch bản tự động}
 Các nền tảng chuyên về hội thoại bán hàng mạng xã hội như Pancake và Botcake có ưu thế lớn trong việc hợp nhất tin nhắn, bình luận từ nhiều kênh vào một hộp thư chung, cung cấp lệnh trả lời
-nhanh, kịch bản bot tự động và trợ lý AI gợi ý trực tiếp tại ô soạn tin cho nhân viên.
+nhanh, kịch bản bot tự động và chatbot AI trả lời câu hỏi thường gặp~\cite{botcake-messenger}.
 
 Tuy nhiên, xét về kiến trúc nghiệp vụ, hướng tiếp cận này vẫn bộc lộ ba khoảng trống:
 \begin{enumerate}
   \item Cơ chế phân công mới dừng ở cấp cuộc hội thoại, chưa biểu diễn chuỗi bước thực thi hậu cần sau đơn hàng với phiên bản bất biến và hai chế độ bàn giao.
-  \item Khảo sát đặc tả API và webhook công khai của Pancake cho thấy nền tảng cung cấp giao diện đọc/gửi tin nhắn trực tiếp nhưng chưa ghi nhận giao diện lập trình mở để hệ thống nghiệp vụ bên
-    ngoài lưu đơn nháp có kiểm chứng điều kiện vào vùng duyệt của nhân viên, đồng thời việc tích hợp bị ràng buộc bởi quyền quản trị trang, số lượng cổng webhook theo gói và hạn mức 5 yêu
-    cầu/giây/trang.
+  \item Khảo sát đặc tả API và webhook công khai của Pancake~\cite{pancake-api} chưa ghi nhận giao diện lập trình mở để hệ thống nghiệp vụ bên
+    ngoài lưu đơn nháp có kiểm chứng điều kiện vào vùng duyệt của nhân viên, đồng thời việc tích hợp cần mã truy cập riêng cho từng trang và chịu hạn mức 5 lệnh
+    gọi/giây/trang.
   \item Thiếu cơ chế hàng rào điều khiển đa chiều (\texttt{control\_\hspace{0pt}generation}) liên thông giữa quyền tiếp quản hội thoại với thẩm quyền AI và dữ liệu giao dịch.
 \end{enumerate}
 
 \subsection{Nhóm nền tảng quản trị tổng thể và quy trình động}
-Các nền tảng quản trị doanh nghiệp tổng thể như MISA AMIS (hệ sinh thái hơn 40 ứng dụng chuyên biệt cùng trợ lý AVA), 1Office (thiết kế quy trình không cần mã nguồn tích hợp tác nhân AI, định vị
-từ quy mô khoảng 20 nhân sự) và Base.vn (quản trị quy trình và kết nối trợ lý AI ngoài thông qua giao thức ngữ cảnh mô hình MCP phân quyền kèm lớp chặn thao tác phá hủy) đạt độ bao phủ nghiệp vụ
+Các nền tảng quản trị doanh nghiệp tổng thể như MISA AMIS (hệ sinh thái hơn 40 ứng dụng cùng trợ lý AVA~\cite{misa-amis,misa-ava}), 1Office (thiết kế không cần mã nguồn tích hợp tác nhân AI~\cite{1office-ai})
+và Base.vn (kết nối trợ lý AI ngoài thông qua giao thức ngữ cảnh mô hình MCP trong phạm vi quyền tài khoản, kèm lớp chặn thao tác phá hủy~\cite{base-mcp}) đạt độ bao phủ nghiệp vụ
 rộng và kiểm soát phân quyền nội bộ chặt chẽ.
 
 Đánh đổi lớn đối với doanh nghiệp thương mại trực tuyến quy mô vừa và nhỏ nằm ở độ phức tạp thiết lập ban đầu. Do phải lựa chọn, cấu hình và liên kết nhiều phân hệ hành chính rời rạc hoặc đáp ứng
@@ -139,20 +139,20 @@ liền đơn hàng.
 
 \subsection{Kiến trúc tác nhân AI thương mại điện tử có kiểm chứng}
 Các hệ thống trợ lý bán hàng xây dựng đơn thuần bằng \emph{chuỗi nhắc lệnh tuyến tính (linear prompt chain)} hoặc truy xuất tăng cường đơn lượt (single-shot RAG) thường gặp ba lỗi nghiêm trọng
-trong miền thương mại điện tử: (1) \textbf{ảo giác (hallucination)} khi tự suy diễn giá bán, khuyến mãi hoặc điều kiện miễn phí vận chuyển lúc dữ liệu thiếu hụt; (2) \textbf{suy giảm độ chính xác
+trong miền thương mại điện tử: (1) \textbf{ảo giác (hallucination)}~\cite{ji2023hallucination} khi tự suy diễn giá bán, khuyến mãi hoặc điều kiện miễn phí vận chuyển lúc dữ liệu thiếu hụt; (2) \textbf{suy giảm độ chính xác
 với bộ lọc số học cứng} (như khoảng ngân sách hoặc điều kiện còn hàng) và đánh mất ngữ cảnh khi khách hàng lặp chu trình tìm kiếm -- so sánh -- đổi mẫu -- lên nháp qua nhiều lượt; và (3)
 \textbf{thiếu ranh giới thẩm quyền} nếu mô hình có thể trực tiếp gọi công cụ ghi đơn hay gửi tin.
 
-Để khắc phục, các kiến trúc tác nhân AI thương mại có kiểm chứng (như định hướng tham chiếu trong thiết kế trợ lý mua sắm của Hexta) kết hợp bốn kỹ thuật cốt lõi:
+Để khắc phục, bên cạnh truy xuất tăng cường~\cite{lewis2020rag}, các kiến trúc tác nhân AI thương mại có kiểm chứng (như định hướng tham chiếu trong thiết kế trợ lý mua sắm của Hexta) kết hợp bốn kỹ thuật cốt lõi:
 \begin{enumerate}
-  \item \textbf{Điều phối đồ thị có trạng thái (Stateful Graph Orchestration):} Dùng máy trạng thái đồ thị như LangGraph để tách biệt các bước kiểm tra an toàn đầu vào, trích xuất bộ lọc, truy
+  \item \textbf{Điều phối đồ thị có trạng thái (Stateful Graph Orchestration):} Dùng máy trạng thái đồ thị như LangGraph~\cite{langgraph} để tách biệt các bước kiểm tra an toàn đầu vào, trích xuất bộ lọc, truy
     xuất danh mục, sinh đề xuất và kiểm chứng đầu ra theo đường rẽ có điều kiện.
   \item \textbf{Ép kiểu đầu ra có cấu trúc (Structured Output):} Ràng buộc mô hình xuất dữ liệu theo lược đồ JSON Schema định sẵn nhằm loại bỏ lỗi định dạng tự do và tách bạch trường suy luận với
     trường dữ liệu.
   \item \textbf{Đối chiếu danh mục thực tế và rào chắn đầu ra (Live Catalog Grounding \& Output Guardrails):} Kiểm chứng lại toàn bộ mã biến thể, đơn giá, tồn kho và chính sách trong câu trả lời
-    hoặc đơn nháp đề xuất dựa trên ảnh chụp dữ liệu doanh nghiệp được cấp phép ngay trước khi trả về, tự động hiệu chỉnh hoặc loại bỏ thông tin không có cơ sở.
+    hoặc đơn nháp đề xuất dựa trên ảnh chụp dữ liệu doanh nghiệp được cấp phép ngay trước khi trả về, tự động hiệu chỉnh hoặc loại bỏ thông tin không có cơ sở~\cite{rebedea2023nemo}.
   \item \textbf{Con người trong vòng lặp (Human-\hspace{0pt}in-\hspace{0pt}the-\hspace{0pt}loop):} Yêu cầu nhân viên duyệt đơn nháp/\hspace{0pt}phản hồi trước tác động chính thức và tự động chuyển giao về hàng đợi nhân viên khi thiếu dữ liệu
-    hoặc phát hiện nhắc lệnh can thiệp.
+    hoặc phát hiện nhắc lệnh can thiệp~\cite{amershi2019guidelines}.
 \end{enumerate}
 
 Tổng hợp đối chiếu đặc tính kỹ thuật giữa các nhóm giải pháp liên quan và kiến trúc của Hexta được trình bày trong Bảng~\ref{tab:related-solutions-tech}.
@@ -174,14 +174,14 @@ Tổng hợp đối chiếu đặc tính kỹ thuật giữa các nhóm giải p
     \midrule
     Bán lẻ -- kho \& trợ lý giao dịch (Sapo, KiCi, Knote, Sidekick, Rufus) &
     Phân quyền theo tài khoản hoặc chi nhánh trong hệ sinh thái bán lẻ khép kín. &
-    Thẻ nháp Sapo AI không lưu nếu thoát biểu mẫu; thiên về nhập liệu tại quầy. &
+    Bản nháp theo từng đối tượng, chờ xác nhận tại màn hình quản trị; thiên về nhập liệu. &
     Đóng khung theo luồng bán lẻ chuẩn; thiếu quy trình bàn giao tùy biến theo hội thoại. &
     Hỏi đáp số liệu, gợi ý theo danh mục gốc; chưa mở trục sự kiện cho ứng dụng ngoài. \\
     Hội thoại đa kênh (Pancake, Botcake) &
     Phân quyền theo trang và hộp thư; phụ thuộc quyền quản trị trang mạng xã hội. &
     Chưa ghi nhận API mở lưu đơn nháp kiểm chứng điều kiện cho hệ thống ngoài. &
     Phân công ở cấp cuộc hội thoại; chưa có phiên bản quy trình và chế độ chờ nhận. &
-    AI gợi ý tại ô soạn và kịch bản bot; thiếu hàng rào \texttt{control\_\hspace{0pt}generation}. \\
+    Chatbot AI và kịch bản bot; thiếu hàng rào \texttt{control\_\hspace{0pt}generation}. \\
     Quản trị tổng thể (MISA AMIS, 1Office, Base.vn) &
     Phân quyền đa phân hệ; Base.vn gắn quyền qua MCP kèm lớp chặn phá hủy. &
     Hỗ trợ biểu mẫu nghiệp vụ nhưng tách rời luồng hội thoại mạng xã hội. &
@@ -218,25 +218,25 @@ vụ kết nối kênh (\texttt{services/\hspace{0pt}connector}) cũng tách bi�
 \texttt{pgxpool} và \texttt{kafka-\hspace{0pt}go} nhằm tối ưu độ trễ tiếp nhận webhook.
 
 \subsection{Quản lý lược đồ tường minh bằng Atlas và kiểm soát đồng thời trên PostgreSQL 17}
-Nền tảng sử dụng \textbf{PostgreSQL 17} làm kho dữ liệu chân lý duy nhất và phân chia quyền sở hữu lược đồ cho ba dịch vụ trên ba vùng dữ liệu với ba tài khoản thực thi riêng biệt:
+Nền tảng sử dụng \textbf{PostgreSQL 17}~\cite{postgres17docs} làm kho dữ liệu chân lý duy nhất và phân chia quyền sở hữu lược đồ cho ba dịch vụ trên ba vùng dữ liệu với ba tài khoản thực thi riêng biệt:
 \texttt{public} (\texttt{hexta\_\hspace{0pt}api}), \texttt{ai\_\hspace{0pt}runtime} (\texttt{hexta\_\hspace{0pt}ai}) và \texttt{connector} (\texttt{hexta\_\hspace{0pt}connector}). Hệ thống loại bỏ hoàn toàn cơ chế tự đồng bộ lược đồ lúc khởi
-động (\texttt{AutoMigrate}); mọi thay đổi DDL được quản lý tường minh bằng \textbf{Atlas CLI} qua tệp cấu hình \texttt{atlas.\hspace{0pt}hcl} với ba thư mục di trú độc lập (\texttt{migrations/\hspace{0pt}api},
+động (\texttt{AutoMigrate}); mọi thay đổi DDL được quản lý tường minh bằng \textbf{Atlas CLI}~\cite{atlasdocs} qua tệp cấu hình \texttt{atlas.\hspace{0pt}hcl} với ba thư mục di trú độc lập (\texttt{migrations/\hspace{0pt}api},
 \texttt{migrations/\hspace{0pt}ai}, \texttt{migrations/\hspace{0pt}connector}) kèm ba bảng lịch sử riêng là \texttt{atlas\_\hspace{0pt}schema\_\hspace{0pt}revisions}, \texttt{atlas\_\hspace{0pt}ai\_\hspace{0pt}revisions} và
 \texttt{atlas\_\hspace{0pt}connector\_\hspace{0pt}revisions}. Trước khi vận hành, tính toàn vẹn của các tệp SQL được đối chiếu chặt chẽ qua băm kiểm chứng \texttt{atlas.\hspace{0pt}sum} bằng lệnh \texttt{atlas migrate validate}.
 
-Trên tầng giao dịch PostgreSQL 17, hệ thống kết hợp đồng bộ ba kỹ thuật kiểm soát đồng thời:
+Trên tầng giao dịch PostgreSQL 17, hệ thống kết hợp đồng bộ ba kỹ thuật kiểm soát đồng thời~\cite{gray1992transaction}:
 \begin{enumerate}
   \item \textbf{Khóa bi quan (Pessimistic Locking):} Sử dụng \texttt{FOR UPDATE} khi khóa dòng đơn hàng, công việc hoặc luồng hội thoại phục vụ chuyển trạng thái; \texttt{FOR SHARE} khi đối chiếu
     thực thể tham chiếu; và \texttt{FOR UPDATE SKIP LOCKED} cho các worker lấy việc song song từ hàng đợi \texttt{ai\_\hspace{0pt}runtime.\hspace{0pt}runs}, \texttt{domain\_\hspace{0pt}events}, \texttt{connector.\hspace{0pt}events} và
     \texttt{connector.\hspace{0pt}outbound\_\hspace{0pt}events} mà không gây nghẽn chéo.
-  \item \textbf{Kiểm soát lạc quan (Optimistic Concurrency Control):} Mọi thực thể có thể biến đổi đều mang trường \texttt{version}; các thao tác sửa đơn, xác nhận đơn, bàn giao công việc hay
+  \item \textbf{Kiểm soát lạc quan (Optimistic Concurrency Control)~\cite{kung1981optimistic,fowler2002peaa}:} Mọi thực thể có thể biến đổi đều mang trường \texttt{version}; các thao tác sửa đơn, xác nhận đơn, bàn giao công việc hay
     điều khiển hội thoại buộc truyền \texttt{expected\_\hspace{0pt}version} và trả lỗi xung đột (\texttt{409 Conflict}) nếu dữ liệu đã thay đổi trước đó.
-  \item \textbf{Chống trùng lặp (Idempotency):} Sử dụng tiêu đề \texttt{Idempotency-\hspace{0pt}Key} (dạng UUID kèm băm \texttt{create\_\hspace{0pt}hash}) khi tạo quy trình và công việc; cặp \texttt{request\_\hspace{0pt}key}
+  \item \textbf{Chống trùng lặp (Idempotency)~\cite{hohpe2003eip}:} Sử dụng tiêu đề \texttt{Idempotency-\hspace{0pt}Key} (dạng UUID kèm băm \texttt{create\_\hspace{0pt}hash}) khi tạo quy trình và công việc; cặp \texttt{request\_\hspace{0pt}key}
     và \texttt{request\_\hspace{0pt}hash} trên tin nhắn mô phỏng; cùng khóa \texttt{client\_\hspace{0pt}message\_\hspace{0pt}id} và \texttt{request\_\hspace{0pt}hash} duy nhất theo từng \texttt{tenant\_\hspace{0pt}id} trên bảng \texttt{outbound\_\hspace{0pt}intents}.
 \end{enumerate}
 
 \subsection{Hợp đồng gRPC/Protobuf và máy thực thi AI bền vững}
-Giao tiếp tác vụ nền giữa Go API và dịch vụ AI bằng Python (\texttt{services/\hspace{0pt}ai}) tuân thủ hợp đồng \textbf{gRPC/\hspace{0pt}Protobuf} tường minh \texttt{hexta.\hspace{0pt}ai.\hspace{0pt}v1.\hspace{0pt}AIService} với ba phương thức đơn nhất
+Giao tiếp tác vụ nền giữa Go API và dịch vụ AI bằng Python (\texttt{services/\hspace{0pt}ai}) tuân thủ hợp đồng \textbf{gRPC/\hspace{0pt}Protobuf}~\cite{grpcdocs} tường minh \texttt{hexta.\hspace{0pt}ai.\hspace{0pt}v1.\hspace{0pt}AIService} với ba phương thức đơn nhất
 (\texttt{StartRun}, \texttt{GetRun}, \texttt{CancelRun}) được xác thực bằng token dịch vụ nội bộ dạng \texttt{Bearer}. Yêu cầu gửi sang AI truyền ảnh chụp ngữ cảnh có giới hạn (\texttt{scripts},
 \texttt{history}, \texttt{facts}, \texttt{constraints}, \texttt{allow\_\hspace{0pt}generation}) kèm hai bộ đếm hàng rào \texttt{context\_\hspace{0pt}revision} và \texttt{control\_\hspace{0pt}generation}. Song song đó, luồng trợ lý
 tư vấn mua sắm tương tác thời gian thực dùng cầu nối HTTP nội bộ (\texttt{/internal/\hspace{0pt}v1/\hspace{0pt}consult}) để trả về cấu trúc đề xuất cho Go phát luồng SSE (\texttt{/api/\hspace{0pt}v1/\hspace{0pt}ai/\hspace{0pt}converse}) sau khi Go đối
@@ -247,29 +247,29 @@ Máy thực thi AI bền vững (\texttt{DurableAIService} và \texttt{RunStore}
 \texttt{lease\_\hspace{0pt}until} 60 giây và tự gia hạn định kỳ trong ngưỡng thực thi tối đa 65 giây (giới hạn tối đa 3 lần thử). Trước khi gọi mô hình trả phí thực tế, hệ thống ghi khóa rào
 \texttt{LLM\_\hspace{0pt}CALL\_\hspace{0pt}STARTED} vào \texttt{error\_\hspace{0pt}code}: nếu worker gặp sự cố giữa chừng, quá trình thu hồi nhận diện cờ này sẽ chuyển trạng thái sang \texttt{LLM\_\hspace{0pt}RECOVERY\_\hspace{0pt}UNCERTAIN} thay vì tự
 động gọi lại mô hình gây tính phí kép. Lớp gọi mô hình dùng bộ điều hợp thống nhất \texttt{LangChainProvider} (\texttt{init\_\hspace{0pt}chat\_\hspace{0pt}model} và \texttt{with\_\hspace{0pt}structured\_\hspace{0pt}output} theo
-\texttt{json\_\hspace{0pt}schema}, tắt tự động thử lại của SDK) hỗ trợ Gemini, OpenAI, Anthropic và bộ giả lập \texttt{fake} tất định trong các đồ thị \textbf{LangGraph} (\texttt{graph.\hspace{0pt}py} cho định tuyến và
+\texttt{json\_\hspace{0pt}schema}, tắt tự động thử lại của SDK) \cite{langchain} hỗ trợ Gemini, OpenAI, Anthropic và bộ giả lập \texttt{fake} tất định trong các đồ thị \textbf{LangGraph} (\texttt{graph.\hspace{0pt}py} cho định tuyến và
 \texttt{graph\_\hspace{0pt}consultant.\hspace{0pt}py} năm nút cho tư vấn mua sắm tích hợp \texttt{InputGuardrail} / \texttt{OutputGuardrail}). Tuy nhiên, các điểm kiểm tra bền vững ở mức từng nút LangGraph và bảng
 outbox kết quả AI riêng vẫn thuộc phạm vi thiết kế mục tiêu (\emph{TARGET}).
 
 \subsection{Kiến trúc hướng sự kiện Kafka, mẫu Outbox/Inbox và mã hóa AES-256-GCM AAD}
-Để tách rời tải đột biến từ webhook mạng xã hội khỏi giao dịch nghiệp vụ và cuộc gọi API bên ngoài, hệ thống áp dụng kiến trúc hướng sự kiện với \textbf{Apache Kafka} (vận hành tương thích qua
+Để tách rời tải đột biến từ webhook mạng xã hội khỏi giao dịch nghiệp vụ và cuộc gọi API bên ngoài, hệ thống áp dụng kiến trúc hướng sự kiện với \textbf{Apache Kafka}~\cite{kreps2011kafka,kafkadocs} (vận hành tương thích qua
 \textbf{Redpanda} trong môi trường cục bộ và kiểm thử). Trong phạm vi đã triển khai, kênh tiếp nhận tin nhắn sử dụng chủ đề \texttt{hexta.\hspace{0pt}ingress.\hspace{0pt}received.\hspace{0pt}v1} (phân vùng theo băm SHA-256
 của khóa hội thoại); đường gửi tin và giám sát kết nối sử dụng các chủ đề \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}intent.\hspace{0pt}v1}, \texttt{hexta.\hspace{0pt}outbound.\hspace{0pt}result.\hspace{0pt}v1} và
 \texttt{hexta.\hspace{0pt}connector.\hspace{0pt}health.\hspace{0pt}v1}; còn sự kiện xác nhận đơn hàng được phát qua \texttt{hexta.\hspace{0pt}orders.\hspace{0pt}events.\hspace{0pt}v1} (các chủ đề mở rộng cho hội thoại, cấu hình và điều phối AI vẫn thuộc thiết kế \emph{TARGET}).
 
 Một quyết định thiết kế then chốt là \textbf{đặt biên bền vững webhook tại PostgreSQL thay vì tin vào xác nhận ACK trực tiếp của Kafka}:
 \begin{itemize}
-  \item \textbf{Mẫu Transactional Outbox tại điểm tiếp nhận và phát lệnh:} Nếu dịch vụ kết nối trả HTTP \texttt{200 OK} cho webhook chỉ sau khi Kafka ACK (hoặc phụ thuộc vào sự sẵn sàng của
+  \item \textbf{Mẫu Transactional Outbox tại điểm tiếp nhận và phát lệnh~\cite{richardson2018microservices,richardson-outbox}:} Nếu dịch vụ kết nối trả HTTP \texttt{200 OK} cho webhook chỉ sau khi Kafka ACK (hoặc phụ thuộc vào sự sẵn sàng của
     broker để nhận webhook), sự cố gián đoạn Kafka sẽ làm rơi sự kiện hoặc khiến nền tảng nguồn thử lại ồ ạt. Thay vào đó, \texttt{services/\hspace{0pt}connector} xác thực chữ ký/bí mật, chuẩn hóa gói tin và
     ghi đồng thời biên nhận thô (\texttt{connector.\hspace{0pt}receipts}) cùng sự kiện chờ phát (\texttt{connector.\hspace{0pt}events}) trong \textbf{một giao dịch PostgreSQL duy nhất} trước khi phản hồi \texttt{200
     OK}. Bộ chuyển tiếp nền dùng \texttt{FOR UPDATE SKIP LOCKED}, hàng rào \texttt{fence} và \texttt{acks=all} để đẩy sự kiện sang Kafka. Tương tự, \texttt{services/\hspace{0pt}api} ghi sự kiện xác nhận đơn
     và ý định gửi vào \texttt{domain\_\hspace{0pt}events} nguyên tử cùng giao dịch nghiệp vụ.
   \item \textbf{Mẫu Consumer Inbox ở đầu tiêu thụ:} Tiến trình \texttt{cmd/\hspace{0pt}ingress} tiêu thụ sự kiện từ Kafka và lưu khóa khử trùng lặp (\texttt{messaging\_\hspace{0pt}ingress}, hướng tới tổng quát hóa bằng
     bảng \texttt{consumer\_\hspace{0pt}inbox}) trong cùng giao dịch cập nhật tin nhắn hoặc trạng thái gửi rồi mới xác nhận \texttt{offset} Kafka; gói tin sai cấu trúc được cô lập vào
-    \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine}. Cách tiếp cận này dung nạp được cơ chế \emph{giao ít nhất một lần} mà vẫn bảo toàn tính nhất quán khi phát sinh tái cân bằng hoặc chạy lại.
+    \texttt{messaging\_\hspace{0pt}ingress\_\hspace{0pt}quarantine}. Cách tiếp cận này dung nạp được cơ chế \emph{giao ít nhất một lần}~\cite{kleppmann2017ddia} mà vẫn bảo toàn tính nhất quán khi phát sinh tái cân bằng hoặc chạy lại.
 \end{itemize}
 
 Cuối cùng, toàn bộ thông tin xác thực kênh (Facebook Page Access Token, Telegram Bot Token, bí mật webhook \texttt{webhook\_\hspace{0pt}secret} và phiên OAuth tạm thời trong
-\texttt{connector.\hspace{0pt}oauth\_\hspace{0pt}sessions}) được lưu cô lập tại \texttt{services/\hspace{0pt}connector} và mã hóa xác thực bằng thuật toán \textbf{AES-256-GCM} qua thành phần \texttt{secret.\hspace{0pt}Sealer}. Mỗi bản mã được
+\texttt{connector.\hspace{0pt}oauth\_\hspace{0pt}sessions}) được lưu cô lập tại \texttt{services/\hspace{0pt}connector} và mã hóa xác thực bằng thuật toán \textbf{AES-256-GCM}~\cite{nist80038d} qua thành phần \texttt{secret.\hspace{0pt}Sealer}. Mỗi bản mã được
 gắn kèm dữ liệu xác thực bổ sung (\textbf{AAD} -- \emph{Additional Authenticated Data}) ràng buộc theo ngữ cảnh định danh như \texttt{connection:\hspace{0pt}\{id\}}, \texttt{webhook\_\hspace{0pt}secret:\hspace{0pt}\{id\}} hoặc
 \texttt{oauth\_\hspace{0pt}session:\hspace{0pt}\{id\}} cùng phiên bản khóa \texttt{key\_\hspace{0pt}version}. Nhờ vậy, mọi nỗ lực tráo đổi bản mã giữa các bản ghi kết nối khác nhau đều bị phát hiện và bác bỏ ngay lúc giải mã.

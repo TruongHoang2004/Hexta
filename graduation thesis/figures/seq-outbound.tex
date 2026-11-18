@@ -1,0 +1,21 @@
+% !TeX root = ../main.tex
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \foreach \x/\n/\t in {0/web/{Nhân viên\\(\texttt{STAFF\_ACTIVE})},3.65/api/{\texttt{services/api}\\+ CSDL \texttt{public}},7.0/kfk/{Kafka /\\Redpanda},10.3/con/{\texttt{services/}\\\texttt{connector}},13.6/prv/{Meta Send API\\/ Telegram}} {
+      \node[lifeline head] (\n) at (\x,0) {\t};
+      \draw[lifeline] (\x,-0.5) -- (\x,-10.9);
+    }
+    \seqmsg{0}{3.65}{-1.4}{\texttt{POST .../turns/\{id\}/messages}\\(\texttt{client\_message\_id})}
+    \seqself{3.65}{-1.7}{kiểm tra quyền, \texttt{version},\\\texttt{context\_revision}; một giao dịch\\ghi tin nhắn, intent, attempt,\\\texttt{domain\_events}}
+    \seqmsg[ret]{3.65}{0}{-3.3}{tin nhắn \texttt{sending}}
+    \seqmsg{3.65}{7.0}{-4.4}{\texttt{OutboxRelay}:\\\texttt{hexta.outbound.intent.v1}}
+    \seqmsg{7.0}{10.3}{-5.4}{ý định gửi\\(TTL 10 phút)}
+    \seqself{10.3}{-5.7}{\texttt{BeginAttempt}:\\\texttt{dispatching}\\theo \texttt{attempt\_id}}
+    \seqmsg{10.3}{13.6}{-7.6}{gửi đúng một lần\\(timeout 15 s)}
+    \seqmsg[ret]{13.6}{10.3}{-8.5}{thành công / lỗi /\\không phản hồi}
+    \seqmsg{10.3}{7.0}{-9.5}{\texttt{hexta.outbound.result.v1}\\(\texttt{sent}|\texttt{failed}|\texttt{unknown})}
+    \seqmsg{7.0}{3.65}{-10.5}{\texttt{cmd/ingress} cập nhật\\\texttt{delivery\_status}}
+  \end{tikzpicture}
+  \caption{Sơ đồ tuần tự gửi phản hồi kênh ngoài một lần qua \texttt{outbound\_intents}; lỗi mạng hoặc nhận lại thông điệp khi đang \texttt{dispatching} được ghi \texttt{unknown} thay vì gửi lại}\label{fig:seq-outbound}
+\end{figure}
