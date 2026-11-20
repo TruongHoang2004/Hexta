@@ -26,3 +26,12 @@ ai:
   timeout: 30
   max_tokens: 512
   temperature: 0
+kafka:
+  brokers: kafka:9092
+connector:
+  url: http://connector:8091
+  management_token: ${CONNECTOR_MANAGEMENT_TOKEN}
+facebook:
+  app_id: facebook-disabled
+  graph_version: v21.0
+  dialog_url: ''
