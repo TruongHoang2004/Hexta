@@ -25,6 +25,50 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  # Confluent cp-kafka in single-node KRaft mode, the same image as production. Containers use kafka:9092;
+  # host tools use 127.0.0.1:59092.
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    environment:
+      CLUSTER_ID: lQ4cDm8vT1nYx5zR2aB7eF
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,HOST://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://127.0.0.1:59092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:59092:29092"
+    volumes:
+      - demo_kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+  # Producers never auto-create topics; this job creates them idempotently (same list as production).
+  kafka-topics:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        for t in hexta.ingress.received.v1 hexta.outbound.intent.v1 hexta.outbound.result.v1
+        hexta.connector.health.v1 hexta.orders.events.v1;
+        do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
+        --partitions 3 --replication-factor 1 || exit 1; done
   db-init:
     image: postgres:17.7-alpine3.23
     depends_on:
@@ -72,9 +116,65 @@ services:
       AI_DATABASE_URL: postgres://hexta_ai:local-ai-only@postgres:5432/hexta_demo?sslmode=disable
       API_DEV_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_atlas_dev_api?sslmode=disable&search_path=public
       AI_DEV_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_atlas_dev_ai?sslmode=disable
+      CONNECTOR_DATABASE_URL: postgres://hexta_connector:local-connector-only@postgres:5432/hexta_connector?sslmode=disable
+      CONNECTOR_DEV_URL: postgres://hexta_demo:local-demo-only@postgres:5432/hexta_atlas_dev_connector?sslmode=disable
     volumes:
       - ../atlas.hcl:/workspace/atlas.hcl:ro
       - ../migrations:/workspace/migrations
+  migrate-connector:
+    build:
+      context: ..
+      dockerfile: Dockerfile.migrate
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      MIGRATE_TARGET: connector
+      CONNECTOR_DATABASE_URL: postgres://hexta_connector:local-connector-only@postgres:5432/hexta_connector?sslmode=disable
+    volumes:
+      - ../atlas.hcl:/workspace/atlas.hcl:ro
+      - ../migrations:/workspace/migrations:ro
+  connector:
+    build:
+      context: ..
+      dockerfile: services/connector/Dockerfile
+    depends_on:
+      migrate-connector:
+        condition: service_completed_successfully
+      kafka-topics:
+        condition: service_completed_successfully
+    environment:
+      CONNECTOR_DATABASE_URL: postgres://hexta_connector:local-connector-only@postgres:5432/hexta_connector?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      CONNECTOR_LISTEN_ADDR: 0.0.0.0:8091
+      CONNECTOR_MANAGEMENT_TOKEN_FILE: /run/secrets/connector_management_token
+      CONNECTOR_CREDENTIAL_KEY_FILE: /run/secrets/connector_credential_key
+      # Placeholder app: webhooks/OAuth stay inert until real Meta credentials are configured.
+      META_APP_ID: facebook-disabled
+      META_APP_SECRET_FILE: /run/secrets/meta_app_secret
+      META_VERIFY_TOKEN_FILE: /run/secrets/meta_verify_token
+    secrets:
+      - connector_management_token
+      - connector_credential_key
+      - meta_app_secret
+      - meta_verify_token
+    ports:
+      - "127.0.0.1:58091:8091"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+  # Kafka consumer: ingress events, outbound results and connector health.
+  ingress:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    command: ["./ingress"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_DATABASE_URL: postgresql://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public
+      KAFKA_BROKERS: kafka:9092
   api:
     build:
       context: ..
@@ -84,9 +184,12 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      kafka-topics:
+        condition: service_completed_successfully
     environment:
       JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
       JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
+      CONNECTOR_MANAGEMENT_TOKEN: ${LOCAL_CONNECTOR_MANAGEMENT_TOKEN:?Set LOCAL_CONNECTOR_MANAGEMENT_TOKEN}
     volumes:
       - ./local/api.yaml:/app/config/config.yaml:ro
     ports:
@@ -177,5 +280,16 @@ services:
     depends_on:
       test-migrate-ai:
         condition: service_completed_successfully
+# Connector secrets are generated by scripts/local.sh from the git-ignored infrastructure/.env.local.
+secrets:
+  connector_management_token:
+    file: ./.env.local.secrets/connector_management_token
+  connector_credential_key:
+    file: ./.env.local.secrets/connector_credential_key
+  meta_app_secret:
+    file: ./.env.local.secrets/meta_app_secret
+  meta_verify_token:
+    file: ./.env.local.secrets/meta_verify_token
 volumes:
   demo_postgres:
+  demo_kafka:

@@ -1,6 +1,34 @@
 # Main Makefile for Hexta Platform
 
-.PHONY: debug infra-up infra-down local-up local-down clean
+.PHONY: debug infra-up infra-down local-up local-down clean up down restart ps logs reset
+
+# ==============================
+# Full local stack in Docker (scripts/local.sh + infrastructure/compose.demo.yml)
+# web, api, ingress, ai, connector, postgres, redis, kafka + init/migration jobs
+# ==============================
+
+# Build and start everything, waiting until all services are healthy
+up:
+	@./scripts/local.sh up --build -d --wait
+	@echo "Web: http://localhost:3000  API: http://localhost:8080/api/v1/health  AI: http://localhost:58000/health/ready"
+
+# Stop everything, keeping database and Kafka volumes
+down:
+	@./scripts/local.sh down
+
+restart: down up
+
+ps:
+	@./scripts/local.sh ps -a
+
+# Follow logs (optional: make logs s="api connector")
+logs:
+	@./scripts/local.sh logs -f --tail 100 $(s)
+
+# DESTRUCTIVE: stop and delete all local data volumes (accounts, tenants, AI runs, Kafka topics)
+reset:
+	@printf "Delete all local Hexta data volumes? [y/N] " && read ans && [ "$$ans" = y ]
+	@./scripts/local.sh --profile test --profile tools down -v
 
 # Run all services (Backend + Infra + Logging) in Docker
 local-up:

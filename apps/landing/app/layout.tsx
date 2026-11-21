@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     template: "%s | Hexta",
   },
   description:
-    "Hexta giúp chủ doanh nghiệp nhỏ và đội ngũ quản lý liền mạch từ tiếp nhận tư vấn khách hàng, chuẩn bị đơn hàng đến bàn giao công việc và theo dõi tiến độ.",
+    "Hexta kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc trên cùng một nền tảng. Mỗi bước đều có người phụ trách rõ ràng; AI hỗ trợ soạn tin và lập đơn nháp, nhân viên duyệt trước khi gửi.",
   keywords: [
     "hexta",
     "quản lý đơn hàng",
@@ -50,13 +50,13 @@ export const metadata: Metadata = {
     siteName: "Hexta Platform",
     title: "Hexta | Từ tư vấn đến hoàn tất đơn hàng. Luôn rõ việc, rõ người phụ trách.",
     description:
-      "Nền tảng kết nối tư vấn, đơn hàng và quy trình bàn giao công việc dành cho doanh nghiệp nhỏ. AI hỗ trợ trong phạm vi kiểm soát.",
+      "Nền tảng kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc dành cho doanh nghiệp nhỏ. AI đề xuất, nhân viên duyệt.",
     images: [
       {
         url: "/brand/hexta-dark.png",
         width: 1200,
         height: 630,
-        alt: "Hexta - Quản trị vận hành đơn hàng và công việc",
+        alt: "Hexta - Từ tư vấn đến hoàn tất đơn hàng",
       },
     ],
   },
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Hexta | Từ tư vấn đến hoàn tất đơn hàng. Luôn rõ việc, rõ người phụ trách.",
     description:
-      "Nền tảng kết nối tư vấn, đơn hàng và quy trình bàn giao công việc dành cho doanh nghiệp nhỏ.",
+      "Nền tảng kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc dành cho doanh nghiệp nhỏ.",
     images: ["/brand/hexta-dark.png"],
   },
   icons: {

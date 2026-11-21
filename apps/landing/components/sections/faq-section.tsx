@@ -7,32 +7,32 @@ export const FAQS = [
   {
     question: "Hexta hiện đang ở giai đoạn phát triển nào?",
     answer:
-      "Hexta hiện đang trong giai đoạn phát triển, thử nghiệm nội bộ và mô phỏng các quy trình nghiệp vụ cốt lõi. Chúng tôi đang kiểm thử thực tế các kịch bản tiếp nhận hội thoại, đề xuất phản hồi và bàn giao công việc tuần tự trước khi mở rộng phiên bản công khai.",
+      "Hexta đang trong giai đoạn phát triển và thử nghiệm. Chúng tôi đang kiểm chứng các quy trình cốt lõi (tiếp nhận hội thoại, đề xuất phản hồi và bàn giao công việc) trước khi phát hành rộng rãi.",
   },
   {
     question: "Hexta khác gì so với các phần mềm chat đa kênh hoặc CRM thông thường?",
     answer:
-      "Phần lớn phần mềm hiện tại dừng lại ở việc gộp tin nhắn hoặc lưu trữ danh sách đơn hàng. Hexta giải quyết nút thắt tiếp theo: kết nối trực tiếp hội thoại với khâu tạo đơn nháp, và chuyển đơn thành chuỗi công việc có người đứng tên phụ trách cụ thể. Không còn tình trạng đơn chốt xong bị bỏ quên giữa các bộ phận.",
+      "Phần lớn công cụ hiện nay dừng ở việc gộp tin nhắn hoặc lưu danh sách đơn hàng. Hexta đi tiếp một bước: tạo đơn nháp ngay từ hội thoại và chuyển đơn thành chuỗi công việc, mỗi bước có một người phụ trách. Nhờ vậy, đơn đã xác nhận không bị bỏ sót giữa các bộ phận.",
   },
   {
-    question: "AI của Hexta có tự ý gửi tin nhắn sai hoặc tự ý chốt đơn của khách không?",
+    question: "AI của Hexta có tự gửi tin sai hoặc tự xác nhận đơn không?",
     answer:
-      "Tuyệt đối không. Hexta xây dựng AI theo nguyên tắc có con người kiểm duyệt (Human-in-the-loop). AI chỉ hỗ trợ soạn câu trả lời đề xuất và bóc tách thông tin lập đơn nháp. Nhân viên tư vấn là người kiểm tra và bấm gửi cuối cùng. Khi nhân viên đã tiếp nhận hội thoại, cơ chế tự động gửi của hệ thống sẽ dừng lại hoàn toàn.",
+      "Không. AI chỉ soạn câu trả lời đề xuất và trích xuất thông tin để lập đơn nháp; nhân viên kiểm tra và bấm gửi. Khi nhân viên đã nhận hội thoại, hệ thống ngừng hoàn toàn việc tự động gửi tin.",
   },
   {
-    question: "Hexta kết nối với Facebook, Zalo hay Pancake như thế nào?",
+    question: "Hexta kết nối với những kênh nhắn tin nào?",
     answer:
-      "Trong giai đoạn MVP, Pancake được nghiên cứu như phương án cầu nối kỹ thuật để lấy hội thoại từ các kênh mạng xã hội về một giao diện tập trung. Đây là hướng tiếp cận phục vụ thử nghiệm, Hexta chưa tuyên bố tính năng tích hợp thực tế đã vận hành đầy đủ trên quy mô lớn.",
+      "Hexta đang thử nghiệm kết nối với các kênh nhắn tin phổ biến để đưa hội thoại về một giao diện chung. Danh sách kênh hỗ trợ sẽ được công bố khi sản phẩm phát hành chính thức.",
   },
   {
-    question: "Hexta có bao gồm quản lý kho đầy đủ, kế toán thuế hay tính lương không?",
+    question: "Hexta có quản lý kho, kế toán hay tính lương không?",
     answer:
-      "Không. Hexta tập trung tối đa vào việc giải quyết bài toán: 'Từ tư vấn đến hoàn tất đơn hàng, luôn rõ việc và rõ người phụ trách'. Chúng tôi chủ động không đưa vào các tính năng như kế toán chuyên sâu, chấm công, tính lương hay thanh toán phức tạp để giữ sản phẩm gọn nhẹ và dễ tiếp cận cho doanh nghiệp nhỏ.",
+      "Không. Hexta tập trung vào một bài toán: từ tư vấn đến hoàn tất đơn hàng, luôn rõ việc và rõ người phụ trách. Kế toán chuyên sâu, chấm công, tính lương hay thanh toán phức tạp nằm ngoài phạm vi, để sản phẩm gọn nhẹ và dễ dùng với doanh nghiệp nhỏ.",
   },
   {
-    question: "Làm thế nào để tôi có thể trao đổi hoặc tìm hiểu thêm về Hexta?",
+    question: "Làm thế nào để liên hệ với Hexta?",
     answer:
-      "Bạn có thể cuộn lên xem phần Trải nghiệm minh họa quy trình trên trang này, hoặc liên hệ trực tiếp với đội ngũ phát triển qua email contact@hexta.org để trao đổi về nhu cầu vận hành thực tế của doanh nghiệp bạn.",
+      "Quý doanh nghiệp có thể xem phần Quy trình mẫu trên trang này hoặc gửi email tới contact@hexta.org để trao đổi về nhu cầu vận hành thực tế.",
   },
 ];
 
@@ -56,15 +56,15 @@ export function FaqSection() {
         <div className="text-center space-y-4 mb-14">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Giải Đáp Thắc Mắc</span>
+            <span>Hỏi đáp</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
-            Câu Hỏi Thường Gặp
+            Câu hỏi thường gặp
           </h2>
 
           <p className="text-base sm:text-lg text-muted">
-            Minh bạch về phạm vi sản phẩm, giới hạn công nghệ và định hướng phát triển của Hexta.
+            Thông tin về phạm vi sản phẩm, giới hạn của AI và định hướng phát triển của Hexta.
           </p>
         </div>
 

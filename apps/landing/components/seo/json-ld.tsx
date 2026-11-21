@@ -11,23 +11,23 @@ export function JsonLd({ faqs }: { faqs?: FaqItem[] }) {
     url: "https://hexta.org",
     logo: "https://hexta.org/brand/hexta-light.png",
     description:
-      "Nền tảng quản lý vận hành bán hàng từ tư vấn, xác nhận đơn đến phân công công việc dành cho doanh nghiệp vừa và nhỏ.",
+      "Nền tảng kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc dành cho doanh nghiệp nhỏ.",
   };
 
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Hexta - Quản trị từ tư vấn đến hoàn tất đơn hàng",
+    name: "Hexta - Từ tư vấn đến hoàn tất đơn hàng",
     url: "https://hexta.org",
   };
 
   const softwareSchema = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Hexta Operations Platform (Đang phát triển & thử nghiệm)",
+    name: "Hexta",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web Browser",
-    softwareVersion: "Giai đoạn thử nghiệm MVP",
+    softwareVersion: "Thử nghiệm",
   };
 
   const faqSchema =

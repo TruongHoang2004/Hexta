@@ -13,3 +13,16 @@ SELECT 'CREATE DATABASE hexta_atlas_dev_api' WHERE NOT EXISTS (SELECT FROM pg_da
 \gexec
 SELECT 'CREATE DATABASE hexta_atlas_dev_ai' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='hexta_atlas_dev_ai')
 \gexec
+
+-- Connector owns a separate database that the API login cannot reach (mirrors production isolation).
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='hexta_connector') THEN
+        CREATE ROLE hexta_connector LOGIN PASSWORD 'local-connector-only';
+    END IF;
+END $$;
+SELECT 'CREATE DATABASE hexta_connector OWNER hexta_connector' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='hexta_connector')
+\gexec
+REVOKE CONNECT ON DATABASE hexta_connector FROM PUBLIC;
+GRANT CONNECT ON DATABASE hexta_connector TO hexta_connector;
+SELECT 'CREATE DATABASE hexta_atlas_dev_connector' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='hexta_atlas_dev_connector')
+\gexec

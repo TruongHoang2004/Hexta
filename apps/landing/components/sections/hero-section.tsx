@@ -21,12 +21,6 @@ export function HeroSection() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Headline, Copy & CTAs */}
           <div className="lg:col-span-7 space-y-6 text-left">
-            {/* Status indicator */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-surface text-xs font-medium text-muted shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>Giai đoạn phát triển &amp; thử nghiệm mô phỏng</span>
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-extrabold tracking-tight text-foreground leading-[1.18]">
               Từ tư vấn đến hoàn tất đơn hàng. <br />
@@ -37,8 +31,8 @@ export function HeroSection() {
 
             {/* Subhead */}
             <p className="text-base sm:text-lg text-muted leading-relaxed max-w-2xl">
-              Hexta kết nối liền mạch giữa khâu tư vấn khách hàng, tạo đơn và phân công xử lý sau bán.
-              Mỗi bước đều có người đứng tên nhận việc, AI hỗ trợ soạn tin và lập đơn nháp trong phạm vi kiểm soát an toàn.
+              Hexta kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc trên cùng một nền tảng.
+              Mỗi bước đều có người phụ trách rõ ràng; AI hỗ trợ soạn tin và lập đơn nháp, nhân viên duyệt trước khi gửi.
             </p>
 
             {/* CTAs */}
@@ -48,7 +42,7 @@ export function HeroSection() {
                 onClick={scrollTo("demo")}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary-hover rounded-xl shadow-xs transition-all cursor-pointer"
               >
-                <span>Xem trải nghiệm minh họa</span>
+                <span>Xem quy trình mẫu</span>
                 <ArrowDown className="w-4 h-4" />
               </a>
 
@@ -57,7 +51,7 @@ export function HeroSection() {
                 onClick={scrollTo("values")}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3.5 text-sm font-medium text-foreground bg-surface border border-border hover:bg-surface-hover rounded-xl transition-all cursor-pointer"
               >
-                <span>Tìm hiểu cách Hexta giải quyết</span>
+                <span>Hexta giải quyết vấn đề gì?</span>
               </a>
             </div>
 
@@ -65,15 +59,15 @@ export function HeroSection() {
             <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-muted border-t border-border/70">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span>Rõ trách nhiệm từng khâu</span>
+                <span>Rõ người phụ trách từng bước</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span>AI có con người duyệt duyệt</span>
+                <span>AI đề xuất, nhân viên duyệt</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                <span>Không phân tán qua nhiều app</span>
+                <span>Tập trung trên một nền tảng</span>
               </div>
             </div>
           </div>
@@ -86,11 +80,11 @@ export function HeroSection() {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <span className="text-xs font-semibold text-foreground">
-                    Luồng xử lý đơn hàng #HX-1048
+                    Đơn hàng #HX-1048
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-muted bg-muted/10 px-2 py-0.5 rounded">
-                  Minh họa quy trình
+                  Ví dụ minh họa
                 </span>
               </div>
 
@@ -102,11 +96,11 @@ export function HeroSection() {
                     <span>1. Hội thoại tư vấn</span>
                   </div>
                   <span className="text-[11px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded">
-                    Sale phụ trách: Mai Trần
+                    Nhân viên tư vấn: Mai Trần
                   </span>
                 </div>
                 <p className="text-xs text-muted italic line-clamp-1 bg-surface p-2 rounded border border-border/40">
-                  &ldquo;Shop còn set áo linen trắng size M không, mình cần giao gấp mai nhé?&rdquo;
+                  &ldquo;Shop còn set áo linen trắng size M không, mai mình cần gấp nhé?&rdquo;
                 </p>
               </div>
 
@@ -118,12 +112,12 @@ export function HeroSection() {
                     <span>2. Xác nhận đơn hàng</span>
                   </div>
                   <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 px-2 py-0.5 rounded">
-                    Đã kiểm tra thông tin
+                    Đã xác nhận thông tin
                   </span>
                 </div>
                 <div className="text-xs text-muted flex items-center justify-between bg-surface p-2 rounded border border-border/40">
                   <span>01x Set Linen Trắng (M) • COD 480.000đ</span>
-                  <span className="font-semibold text-foreground">Đã chốt</span>
+                  <span className="font-semibold text-foreground">Đơn chính thức</span>
                 </div>
               </div>
 
@@ -136,7 +130,7 @@ export function HeroSection() {
                   </div>
                   <span className="text-[11px] font-medium text-primary bg-primary/15 px-2 py-0.5 rounded flex items-center gap-1">
                     <UserCheck className="w-3 h-3" />
-                    Người nhận: Tuấn Kho
+                    Người nhận: Lê Tuấn (Kho)
                   </span>
                 </div>
                 <div className="text-xs text-muted bg-surface p-2 rounded border border-border/40 space-y-1">
@@ -145,14 +139,14 @@ export function HeroSection() {
                     <span className="text-primary">Đang thực hiện</span>
                   </div>
                   <p className="text-[11px] text-muted">
-                    Tuấn Kho đã bấm nhận bàn giao từ Mai Trần • Có lịch sử ghi nhận
+                    Lê Tuấn đã nhận bàn giao từ Mai Trần • Đã lưu lịch sử
                   </p>
                 </div>
               </div>
 
               {/* Mockup note */}
               <div className="text-[11px] text-center text-muted-light pt-1">
-                Minh họa chuỗi phân công nhiệm vụ tuần tự trong Hexta
+                Ví dụ một đơn hàng được bàn giao qua từng bước trong Hexta
               </div>
             </div>
           </div>
