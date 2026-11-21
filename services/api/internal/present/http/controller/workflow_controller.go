@@ -125,6 +125,7 @@ func (ctrl *WorkflowController) publish(c *gin.Context) {
 // @Param tenantID path string true "Tenant ID"
 // @Param page query int false "Page"
 // @Param size query int false "Page size (1-100)"
+// @Param view query string false "all (default), mine or awaiting_me"
 // @Success 200 {object} response.Response[dto.WorkItemsResponse]
 // @Router /api/v1/tenants/{tenantID}/work-items [get]
 func (ctrl *WorkflowController) ListWork(c *gin.Context) {
@@ -133,7 +134,7 @@ func (ctrl *WorkflowController) ListWork(c *gin.Context) {
 	}
 	tenant, actor := salesScope(c)
 	page, size := salesPage(c)
-	rows, total, err := ctrl.workflows.Items(c.Request.Context(), tenant, actor, page, size)
+	rows, total, err := ctrl.workflows.Items(c.Request.Context(), tenant, actor, c.Query("view"), page, size)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return

@@ -3425,6 +3425,10 @@ paths:
         in: query
         name: size
         type: integer
+      - description: all (default), mine or awaiting_me
+        in: query
+        name: view
+        type: string
       produces:
       - application/json
       responses:

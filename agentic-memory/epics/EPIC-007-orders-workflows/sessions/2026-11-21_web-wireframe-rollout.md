@@ -63,3 +63,13 @@ Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/re
 - OPEN: a "dropped from the catalog" notice needs the API to report which AI items were removed (currently removed silently); storefront and checkout pages remain English.
 
 Verification: `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — phase 5 (work and workflows) and API addition 2b
+
+Branch `feat/web-work` (stacked on `feat/web-orders`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/work-items?view=all|mine|awaiting_me`. `mine` = unfinished items the caller is responsible for (including while waiting for a recipient); `awaiting_me` = waiting items nominating the caller. Unknown views return 400. Unlike the plan's draft, `all` is not restricted to owners: members could already list all work and no requirement removes that. `TestWorkflowAcceptanceAndPinnedVersions` extended; Swagger regenerated.
+- IMPLEMENTED (web): Work screen with My work / Waiting for me / All tabs (default My work), step progress track, handoff dialog explaining direct versus acceptance, Accept/Complete actions, owner "cancel pending handoff" (assign back to the current responsible, which the API already treats as cancelling the nomination) and reassignment, localized history and 409 reload banner; work creation moved into a collapsible owner panel. Workflows screen: step builder with direct/acceptance toggle, step counter n/30, running-work version note, explanation of handoff types; localized.
+- OPEN: workflow version history needs the API to return older versions (definitions currently preload only the current version), so no history list is shown.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.

@@ -64,6 +64,29 @@ func TestWorkflowAcceptanceAndPinnedVersions(t *testing.T) {
 	if row.State != "waiting" || *row.ResponsibleID != f.sale || row.CurrentStep != 0 || *row.RecipientID != f.peer {
 		t.Fatal("pending handoff lost current responsibility")
 	}
+	ids := func(actor, view string) map[string]bool {
+		t.Helper()
+		rows, _, err := f.workflow.Items(ctx, f.tenant, actor, view, 1, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		for _, item := range rows {
+			seen[item.ID] = true
+		}
+		return seen
+	}
+	if !ids(f.sale, "mine")[row.ID] || ids(f.peer, "mine")[row.ID] {
+		t.Fatal("mine view must follow current responsibility while waiting")
+	}
+	if !ids(f.peer, "awaiting_me")[row.ID] || ids(f.sale, "awaiting_me")[row.ID] {
+		t.Fatal("awaiting_me view must follow the pending recipient")
+	}
+	if !ids(f.sale, "all")[row.ID] {
+		t.Fatal("all view omitted work")
+	}
+	_, _, err = f.workflow.Items(ctx, f.tenant, f.sale, "everything", 1, 20)
+	requireSalesStatus(t, err, 400)
 	_, err = f.workflow.Command(ctx, f.tenant, f.owner, row.ID, "accept", types.WorkCommand{ExpectedVersion: 2})
 	requireSalesStatus(t, err, 403)
 	_, err = f.workflow.Command(ctx, f.tenant, f.sale, row.ID, "handoff", types.WorkCommand{ExpectedVersion: 2, RecipientID: f.owner})
@@ -101,6 +124,9 @@ func TestWorkflowAcceptanceAndPinnedVersions(t *testing.T) {
 	}
 	if stored.State != "completed" || len(stored.Events) != 5 {
 		t.Fatalf("completion/history not persisted: %+v", stored)
+	}
+	if ids(f.sale, "mine")[row.ID] {
+		t.Fatal("completed work stayed in the mine view")
 	}
 	if stored.Events[2].Action != "accept" || *stored.Events[2].FromResponsibleID != f.sale || *stored.Events[2].ResponsibleID != f.peer {
 		t.Fatal("history missing acceptance transfer")
@@ -180,7 +206,7 @@ func TestWorkflowCreationReplayAndBoundaries(t *testing.T) {
 	requireSalesStatus(t, err, 404)
 	_, err = f.workflow.Item(ctx, f.other, f.owner, row.ID)
 	requireSalesStatus(t, err, 404)
-	_, _, err = f.workflow.Items(ctx, f.other, f.sale, 1, 20)
+	_, _, err = f.workflow.Items(ctx, f.other, f.sale, "", 1, 20)
 	requireSalesStatus(t, err, 403)
 	_, err = f.workflow.Create(ctx, f.tenant, f.owner, "", input)
 	requireSalesStatus(t, err, 400)
