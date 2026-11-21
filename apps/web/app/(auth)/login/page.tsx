@@ -6,8 +6,11 @@ import { apiUrl, sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Input, Label, toast } from "@hexta/ui";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { SDKApiError } from "@hexta/sdk";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +19,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const t = useT();
+  const errorText = useErrorText();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +32,9 @@ export default function LoginPage() {
       sessionStorage.removeItem("hexta.workspace");
       router.push(sessionStorage.getItem("hexta.invitation") ? "/invitations" : "/tenants");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Sign in failed. Please check your credentials.");
+      toast.error(
+        err instanceof SDKApiError && err.status === 401 ? t("authPages.invalidCredentials") : errorText(err),
+      );
     } finally {
       setLoading(false);
     }
@@ -39,15 +46,6 @@ export default function LoginPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
 
-      {/* Header */}
-      <div className="absolute top-6 left-6 z-20">
-        <Button variant="ghost" asChild className="text-muted hover:text-foreground">
-          <Link href="/">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to home
-          </Link>
-        </Button>
-      </div>
 
       <div className="flex-1 flex items-center justify-center p-6 z-10">
         <div className="w-full max-w-[400px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -55,15 +53,15 @@ export default function LoginPage() {
             <div className="flex justify-center mb-6">
               <BrandLogo className="w-44" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Sign in to Hexta</h1>
-            <p className="text-muted">Enter your email and password to access your workspace</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("authPages.loginTitle")}</h1>
+            <p className="text-muted">{t("authPages.loginSubtitle")}</p>
           </div>
 
           <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("authPages.email")}</Label>
                   <Input
                     id="email"
                     name="email"
@@ -79,12 +77,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <Link href="#" className="text-sm font-medium text-primary hover:underline underline-offset-4">
-                      Forgot password?
-                    </Link>
-                  </div>
+                  <Label htmlFor="password">{t("authPages.password")}</Label>
                   <Input
                     id="password"
                     name="password"
@@ -104,10 +97,10 @@ export default function LoginPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Signing in...
+                    {t("authPages.signingIn")}
                   </>
                 ) : (
-                  "Sign in"
+                  t("authPages.signIn")
                 )}
               </Button>
             </form>
@@ -118,7 +111,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-surface/50 px-2 text-muted">Or continue with</span>
+                  <span className="bg-surface/50 px-2 text-muted">{t("authPages.orContinue")}</span>
                 </div>
               </div>
 
@@ -151,16 +144,16 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Sign in with Google
+                  {t("authPages.google")}
                 </Button>
               </div>
             </div>
           </div>
 
           <p className="text-center text-sm text-muted">
-            Don&apos;t have an account?{" "}
+            {t("authPages.noAccount")}{" "}
             <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
-              Sign up now
+              {t("authPages.signUpNow")}
             </Link>
           </p>
         </div>
