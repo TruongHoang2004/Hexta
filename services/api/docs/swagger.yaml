@@ -2730,6 +2730,14 @@ paths:
         in: query
         name: size
         type: integer
+      - description: draft or confirmed
+        in: query
+        name: status
+        type: string
+      - description: me or unassigned
+        in: query
+        name: assignee
+        type: string
       produces:
       - application/json
       responses:

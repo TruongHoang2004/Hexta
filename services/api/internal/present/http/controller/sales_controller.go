@@ -115,12 +115,15 @@ func (ctrl *SalesController) ListProducts(c *gin.Context) {
 // @Param tenantID path string true "Tenant ID"
 // @Param page query int false "Page (default 1)"
 // @Param size query int false "Page size (1-100)"
+// @Param status query string false "draft or confirmed"
+// @Param assignee query string false "me or unassigned"
 // @Success 200 {object} response.Response[dto.SalesOrdersResponse]
 // @Router /api/v1/tenants/{tenantID}/orders [get]
 func (ctrl *SalesController) ListOrders(c *gin.Context) {
 	tenant, actor := salesScope(c)
 	page, size := salesPage(c)
-	rows, total, err := ctrl.sales.Orders(c.Request.Context(), tenant, actor, page, size)
+	filter := types.OrderListFilter{Status: c.Query("status"), Assignee: c.Query("assignee")}
+	rows, total, err := ctrl.sales.Orders(c.Request.Context(), tenant, actor, filter, page, size)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return

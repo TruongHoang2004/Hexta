@@ -135,6 +135,65 @@ func TestSalesIncompleteDraftAndConfirmation(t *testing.T) {
 		t.Fatalf("expected one confirmation audit, got %d", count)
 	}
 }
+func TestSalesOrderListFilters(t *testing.T) {
+	f := salesTestFixture(t)
+	ctx := context.Background()
+	open, err := f.service.SaveDraft(ctx, f.tenant, f.owner, "", types.DraftInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := f.completeInput(t)
+	input.EmployeeID = &f.sale
+	mine, err := f.service.SaveDraft(ctx, f.tenant, f.sale, "", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Confirm(ctx, f.tenant, f.sale, mine.ID, mine.Version); err != nil {
+		t.Fatal(err)
+	}
+	list := func(actor string, filter types.OrderListFilter) []model.Order {
+		t.Helper()
+		rows, total, err := f.service.Orders(ctx, f.tenant, actor, filter, 1, 20)
+		if err != nil || int(total) != len(rows) {
+			t.Fatal("order list failed", err)
+		}
+		return rows
+	}
+	has := func(rows []model.Order, id string) bool {
+		for _, row := range rows {
+			if row.ID == id {
+				return true
+			}
+		}
+		return false
+	}
+	for _, row := range list(f.sale, types.OrderListFilter{Assignee: "me"}) {
+		if row.EmployeeID == nil || *row.EmployeeID != f.sale {
+			t.Fatal("assignee=me returned another employee's order")
+		}
+	}
+	if !has(list(f.sale, types.OrderListFilter{Assignee: "me", Status: "confirmed"}), mine.ID) {
+		t.Fatal("confirmed own order missing")
+	}
+	if len(list(f.peer, types.OrderListFilter{Assignee: "me"})) != 0 {
+		t.Fatal("assignee=me leaked orders to another member")
+	}
+	for _, row := range list(f.sale, types.OrderListFilter{Assignee: "unassigned"}) {
+		if row.EmployeeID != nil {
+			t.Fatal("assignee=unassigned returned an assigned order")
+		}
+	}
+	drafts := list(f.sale, types.OrderListFilter{Status: "draft"})
+	if has(drafts, mine.ID) || !has(drafts, open.ID) {
+		t.Fatal("status=draft filter failed")
+	}
+	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, types.OrderListFilter{Status: "paid"}, 1, 20)
+	requireSalesStatus(t, err, 400)
+	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, types.OrderListFilter{Assignee: "everyone"}, 1, 20)
+	requireSalesStatus(t, err, 400)
+	_, _, err = f.service.Orders(ctx, f.other, f.sale, types.OrderListFilter{Assignee: "me"}, 1, 20)
+	requireSalesStatus(t, err, 403)
+}
 func TestSalesTenantAndAssignmentBoundaries(t *testing.T) {
 	f := salesTestFixture(t)
 	ctx := context.Background()

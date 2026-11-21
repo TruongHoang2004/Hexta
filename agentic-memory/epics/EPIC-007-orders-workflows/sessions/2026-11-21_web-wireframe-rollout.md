@@ -45,3 +45,13 @@ Branch `feat/web-desk` (stacked on `feat/web-shell-i18n`).
 - OPEN: system lines for claim/handoff events need an events feed the API does not expose; the draft-order button opens Orders without linking the conversation (no backend link); assignee names still show IDs until addition 2a.
 
 Verification: `sh scripts/check-gofmt.sh`, `go vet ./services/api/...`, `go test -race ./services/api/...` pass; DB scenarios (including the extended `TestMessagingPaginationAndFilters` bot assertions) SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `make swagger` regenerated (description-only diff). `pnpm --filter web lint` and `build` pass (after clearing stale `.next/dev/types`). Browser acceptance NOT_RUN.
+
+## Follow-up — phase 4 (orders) and API addition 2e
+
+Branch `feat/web-orders` (stacked on `feat/web-desk`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/orders?status=draft|confirmed&assignee=me|unassigned`. Filters are applied in the tenant-scoped repository query (so totals and pagination stay correct); unknown values return 400; tenant membership is still checked first. `types.OrderListFilter` added; Swagger regenerated. New DB test `TestSalesOrderListFilters` covers own/peer `me`, unassigned, status, invalid values and a foreign tenant (403).
+- IMPLEMENTED (web): order list with All / Drafts / Confirmed / Unassigned / Mine filters, status chips, localized empty states and "order value" wording; editor with a live confirmation checklist (saved, assigned sale, customer name, contact, items, prices, delivery address) computed from the current form, Confirm disabled with the reason, a separate "Claim order" for unassigned drafts, and a conflict banner that reloads the latest version on HTTP 409. The server gate remains authoritative. Pager localized.
+- OPEN: multi-variant product editing needs an API change (product requests carry a single variant); not done.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/presentation packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN. Remaining phase-4 screens (customers/products copy, consultant quick replies) not yet reworked.

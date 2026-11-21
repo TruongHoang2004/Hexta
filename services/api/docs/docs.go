@@ -1836,6 +1836,18 @@ const docTemplate = `{
                         "description": "Page size (1-100)",
                         "name": "size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "draft or confirmed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "me or unassigned",
+                        "name": "assignee",
+                        "in": "query"
                     }
                 ],
                 "responses": {

@@ -202,13 +202,23 @@ func (s *SalesService) ArchiveProduct(ctx context.Context, tenant, actor, id str
 		return r.Audit(ctx, tenant, actor, "product.archived", "product", id, row)
 	})
 }
-func (s *SalesService) Orders(ctx context.Context, tenant, actor string, page, size int) ([]model.Order, int64, *apperrors.Error) {
+func (s *SalesService) Orders(ctx context.Context, tenant, actor string, filter types.OrderListFilter, page, size int) ([]model.Order, int64, *apperrors.Error) {
+	switch filter.Status {
+	case "", string(model.OrderStatusDraft), string(model.OrderStatusConfirmed):
+	default:
+		return nil, 0, apperrors.ErrBadRequest(ctx).SetDetail("invalid order status filter")
+	}
+	switch filter.Assignee {
+	case "", "me", "unassigned":
+	default:
+		return nil, 0, apperrors.ErrBadRequest(ctx).SetDetail("invalid order assignee filter")
+	}
 	var rows []model.Order
 	var total int64
 	err := s.authorized(ctx, tenant, actor, func(r repository.ISalesRepository, _ bool) *apperrors.Error {
 		limit, offset := pageBounds(page, size)
 		var err *apperrors.Error
-		rows, total, err = r.Orders(ctx, tenant, limit, offset)
+		rows, total, err = r.Orders(ctx, tenant, actor, filter, limit, offset)
 		return err
 	})
 	return rows, total, err
