@@ -55,3 +55,11 @@ Branch `feat/web-orders` (stacked on `feat/web-desk`).
 - OPEN: multi-variant product editing needs an API change (product requests carry a single variant); not done.
 
 Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/presentation packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN. Remaining phase-4 screens (customers/products copy, consultant quick replies) not yet reworked.
+
+## Follow-up — phase 4 remainder (catalog, consultant widget)
+
+- Customers/products screen localized with empty states; products show a distinct "price not set" chip versus "0 · free"; the variant name falls back to the localized default when left blank.
+- Consultant widget localized and errors use the shared support-code text. Quick replies were already rendered as buttons.
+- OPEN: a "dropped from the catalog" notice needs the API to report which AI items were removed (currently removed silently); storefront and checkout pages remain English.
+
+Verification: `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.

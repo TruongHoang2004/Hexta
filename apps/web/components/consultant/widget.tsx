@@ -14,6 +14,8 @@ import {
   type ConsultProduct,
 } from "@/lib/services/consultant";
 import { buttonClass, secondaryClass } from "@/components/sales/primitives";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 
 const money = (value: string) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
@@ -27,6 +29,8 @@ type Turn = ChatMessage & {
 };
 export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
   const router = useRouter();
+  const t = useT();
+  const errorText = useErrorText();
   const [open, setOpen] = useState(false),
     [input, setInput] = useState(""),
     [turns, setTurns] = useState<Turn[]>([]),
@@ -102,9 +106,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
       );
     } catch (err) {
       if (!controller.signal.aborted)
-        setError(
-          err instanceof Error ? err.message : "Consultation unavailable",
-        );
+        setError(errorText(err));
     } finally {
       if (pending.current === controller) {
         pending.current = null;
@@ -117,7 +119,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
       sessionStorage.setItem(checkoutKey(tenantID), JSON.stringify(draft));
       router.push(`/tenants/${tenantID}/checkout`);
     } catch {
-      setError("Unable to open checkout. Please allow session storage.");
+      setError(t("consultant.checkoutUnavailable"));
     }
   }
   return (
@@ -125,30 +127,30 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
       <Button
         ref={toggle}
         className="fixed bottom-5 right-5 z-40 rounded-full shadow-lg"
-        aria-label="Open shopping consultant"
+        aria-label={t("consultant.open")}
         aria-expanded={open}
         aria-controls="ai-consultant"
         onClick={() => (open ? close() : setOpen(true))}
       >
         <MessageCircle className="mr-2 h-5 w-5" />
-        Shopping assistant
+        {t("consultant.launcher")}
       </Button>
       {open && (
         <section
           id="ai-consultant"
           role="dialog"
-          aria-label="Shopping consultant"
+          aria-label={t("consultant.title")}
           onKeyDown={(e) => {
             if (e.key === "Escape") close();
           }}
           className="fixed bottom-20 right-3 z-50 flex max-h-[75dvh] w-[calc(100%-1.5rem)] flex-col rounded-xl border border-border bg-background text-foreground shadow-xl sm:right-5 sm:w-96"
         >
           <header className="flex items-center justify-between border-b border-border p-4">
-            <h2 className="font-semibold">Shopping consultant</h2>
+            <h2 className="font-semibold">{t("consultant.title")}</h2>
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Close consultant"
+              aria-label={t("consultant.close")}
               onClick={close}
             >
               <X className="h-4 w-4" />
@@ -162,8 +164,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
           >
             {!turns.length && (
               <p className="text-sm text-muted">
-                Tell me what you are looking for. I can suggest products and
-                prepare an order for review.
+                {t("consultant.intro")}
               </p>
             )}
             {turns.map((turn, i) => (
@@ -172,7 +173,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                 className={`space-y-3 rounded-lg p-3 text-sm ${turn.role === "user" ? "bg-primary/10" : "bg-surface"}`}
               >
                 <p className="text-xs font-semibold">
-                  {turn.role === "user" ? "You" : "Assistant"}
+                  {turn.role === "user" ? t("consultant.you") : t("consultant.assistant")}
                 </p>
                 <div className="space-y-2 break-words [&_ul]:list-inside [&_ul]:list-disc [&_strong]:font-bold">
                   <ReactMarkdown
@@ -187,13 +188,13 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                 </div>
                 {turn.needsHuman && (
                   <p role="status">
-                    Please contact the store team for further help.
+                    {t("consultant.needsHuman")}
                   </p>
                 )}
                 {!!turn.products?.length && (
                   <div
                     className="flex snap-x gap-3 overflow-x-auto pb-2"
-                    aria-label="Recommended products"
+                    aria-label={t("consultant.recommended")}
                   >
                     {turn.products.map((p) => (
                       <div
@@ -212,7 +213,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                         ) : (
                           <div
                             className="flex h-24 items-center justify-center rounded bg-background"
-                            aria-label="Product image unavailable"
+                            aria-label={t("consultant.noImage")}
                           >
                             <Package className="h-10 w-10 text-muted" />
                           </div>
@@ -227,7 +228,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                             )
                           }
                         >
-                          View details
+                          {t("consultant.details")}
                         </button>
                         <button
                           className={buttonClass}
@@ -247,7 +248,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                             })
                           }
                         >
-                          Buy
+                          {t("consultant.buy")}
                         </button>
                       </div>
                     ))}
@@ -255,7 +256,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                 )}
                 {turn.draft && (
                   <div className="space-y-2 rounded-lg border border-primary p-3">
-                    <h3 className="font-semibold">Order draft</h3>
+                    <h3 className="font-semibold">{t("consultant.draftTitle")}</h3>
                     {turn.draft.items.map((item, index) => (
                       <p key={index}>
                         {item.quantity} × {item.product_name} ·{" "}
@@ -263,16 +264,16 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                       </p>
                     ))}
                     <p className="font-semibold">
-                      Total: {money(turn.draft.total_amount)}
+                      {t("consultant.total", { amount: money(turn.draft.total_amount) })}
                     </p>
                     <p className="text-xs text-muted">
-                      Review current prices and confirm at checkout.
+                      {t("consultant.draftNote")}
                     </p>
                     <button
                       className={buttonClass}
                       onClick={() => checkout(turn.draft!)}
                     >
-                      Confirm order
+                      {t("consultant.confirm")}
                     </button>
                   </div>
                 )}
@@ -292,11 +293,11 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                 )}
               </article>
             ))}
-            {busy && <p role="status">Preparing advice…</p>}
+            {busy && <p role="status">{t("consultant.preparing")}</p>}
             <div ref={end} />
           </div>
           {error && (
-            <p role="alert" className="px-4 text-sm text-red-600">
+            <p role="alert" className="px-4 text-sm text-error">
               {error}
             </p>
           )}
@@ -309,14 +310,14 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
           >
             <Input
               ref={field}
-              aria-label="Your message"
+              aria-label={t("consultant.message")}
               maxLength={4000}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a product…"
+              placeholder={t("consultant.placeholder")}
             />
             <Button disabled={busy || !input.trim()} type="submit">
-              Send
+              {t("consultant.send")}
             </Button>
             {busy && (
               <Button
@@ -324,7 +325,7 @@ export function AIConsultantWidget({ tenantID }: { tenantID: string }) {
                 type="button"
                 onClick={() => pending.current?.abort()}
               >
-                Stop
+                {t("consultant.stop")}
               </Button>
             )}
           </form>
