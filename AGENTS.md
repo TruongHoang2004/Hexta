@@ -5,9 +5,9 @@ Canonical repository-wide instructions. Use English for repository artifacts and
 ## Select context before acting
 
 - Inspect the current request, branch and working tree; preserve unrelated work. Describe the plan before non-trivial changes.
-- Read [the rule router](rules/README.md), then only the domain instructions and behavior modules matching intended files and affected consumers. Read applicable ancestor/local `AGENTS.md` files before editing, including for sibling directories and tasks started at the repository root. Re-evaluate when scope expands; do not assume changing shell directory refreshes client instructions.
+- Read applicable ancestor/local `AGENTS.md` files before editing, including for sibling directories and tasks started at the repository root; the domain `AGENTS.md` is the entry for single-domain work. Read [the rule router](rules/README.md) when the task spans domains, touches root-level or unowned paths, changes contracts, or a domain file sends you there (e.g. Go API module selection); then load only matching modules. Re-evaluate when scope expands; do not assume changing shell directory refreshes client instructions.
 - Deduplicate already-read files. Links are lookup options, not permission to recursively load catalogs, entire directories or all skills. Domain guidance specializes global requirements; unresolved contradictions must be surfaced, not silently resolved by copying another rule.
-- For meaningful project work, use [the epic index](agentic-memory/epics/README.md) to select relevant epics and latest relevant sessions. For architecture/contracts, use [the system-design index](agentic-memory/designs/2026-10-18_system-design_design.md) and only relevant modules. Recheck code and current external state before trusting dated evidence.
+- Load memory only when it changes the work: when continuing an epic, use [the epic index](agentic-memory/epics/README.md) to pick that epic and its latest relevant session; when changing architecture/contracts, use [the system-design index](agentic-memory/designs/2026-10-18_system-design_design.md) and only relevant modules. Routine local fixes start from code. Recheck code and current external state before trusting dated evidence.
 
 ## Engineering boundaries
 

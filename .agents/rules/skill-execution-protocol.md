@@ -14,7 +14,7 @@ description: "Apply the shared execution protocol when invoking a Hexta reposito
 - Component discovery returns a reuse decision, not a mandatory design document.
 - Feature/cross-service skills return the scoped implementation, consumer impact and validation evidence; one primary epic session records meaningful work.
 - `dev-plan` and `dev-design` persist distinct plans/designs only when useful and writes are allowed.
-- `code-review` returns findings; compatibility `dev-review`/`basic-code-review` use that procedure. Review alone does not approve or merge a PR.
+- `code-review` returns findings. Review alone does not approve or merge a PR.
 - `dev-changelog` updates the consolidated CHANGELOG, not a second mandatory per-task changelog.
 - `docs-cleanup` deletes only high-confidence instruction/doc candidates with evidence and leaves `agentic-memory/` pruning to `memory-consolidator`.
 - Issue lifecycle, PR automation and memory consolidation remain separate operational workflows. A closed issue is not proof that knowledge can be deleted; a risk label is not merge authorization.

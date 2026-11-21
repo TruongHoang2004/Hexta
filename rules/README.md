@@ -1,6 +1,6 @@
 # Rule router
 
-This is the single rule-selection index for humans, agents and the future hook. Read this file first; open only the modules selected below. A link is a lookup option, not an instruction to load its target or all siblings. AGENTS.md remains the canonical agent entry point.
+This is the single rule-selection index for humans, agents and the future hook. Read it when [AGENTS](../AGENTS.md) selects it (cross-domain work, root-level or unowned paths, contract changes, or a domain referral); single-domain work starts from that domain's AGENTS. Open only the modules selected below. A link is a lookup option, not an instruction to load its target or all siblings. AGENTS.md remains the canonical agent entry point.
 
 ## Selection protocol
 

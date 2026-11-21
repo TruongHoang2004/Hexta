@@ -1,0 +1,24 @@
+# Search-only exclusions for ripgrep-based tools (agents' Grep/Glob, editors).
+# Files stay tracked and can still be opened explicitly; they are just kept out
+# of broad search results because they are generated, vendored or historical.
+
+# Lockfiles and checksums
+pnpm-lock.yaml
+**/uv.lock
+**/go.sum
+go.work.sum
+**/atlas.sum
+
+# Generated code (edit the owning source and rerun its generator instead)
+services/api/docs/
+packages/shared/gen/
+services/ai/generated/
+services/api/internal/infrastructure/ai/rpc/
+
+# Binary/static assets
+**/public/brand/
+
+# Agent worktrees and historical memory ledgers
+.claude/worktrees/
+agentic-memory/CHANGELOG.md
+agentic-memory/ARCHIVE_INDEX.md

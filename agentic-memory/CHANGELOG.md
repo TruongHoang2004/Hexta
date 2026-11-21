@@ -1,5 +1,12 @@
 # Consolidated Project Changelog
 
+## 2026-11-21 — Agent context reduction (in review)
+
+- Thesis moved to sibling repo `hexta-thesis` (history preserved); design/brand/slides/UI-UX skills moved to `hexta-design-skills`; review aliases removed. Skill catalog 27 → 18.
+- `.ignore` keeps lockfiles, generated code and memory ledgers out of search; SDK `dist/`, stray `node_modules` and stale per-app lockfiles untracked/removed; SDK builds on install via `prepare`.
+- AGENTS.md loads the router and memory only when the task needs them; epic index trimmed to its table with status prose in `epics/STATUS.md`.
+- Details: [session](epics/EPIC-001-system-design/sessions/2026-11-21_token-diet.md).
+
 ## 2026-11-18 — Load capacity targets (in review)
 
 - Owner-set TARGET load goals T1–T5 on two hosts (infrastructure 2 vCPU / 4 GB, applications 2 vCPU / 16 GB): 300 msg/s sustained ingress (stretch 500), 1,000 msg/s burst, 100 outbound sends/s without cross-tenant blocking, 500 staff req/s, and a 5 min Kafka outage without loss or duplicates. Baseline ~1 msg/s measured locally: the shared kafka-go writer leaves `BatchTimeout` at its 1 s default.
