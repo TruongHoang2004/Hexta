@@ -7,12 +7,12 @@ import { ThemeToggle } from "@hexta/ui";
 import { Menu, X, ChevronRight, ArrowDown } from "lucide-react";
 
 const NAV_LINKS = [
-  { name: "Vấn Đề", href: "/#problems" },
-  { name: "Giải Pháp", href: "/#values" },
-  { name: "Minh Họa Quy Trình", href: "/#demo" },
-  { name: "AI Có Kiểm Soát", href: "/#controlled-ai" },
-  { name: "Theo Vai Trò", href: "/#roles" },
-  { name: "FAQ", href: "/#faq" },
+  { name: "Vấn đề", href: "/#problems" },
+  { name: "Giải pháp", href: "/#values" },
+  { name: "Quy trình mẫu", href: "/#demo" },
+  { name: "AI có kiểm soát", href: "/#controlled-ai" },
+  { name: "Theo vai trò", href: "/#roles" },
+  { name: "Hỏi đáp", href: "/#faq" },
 ];
 
 export function Navbar() {
@@ -67,7 +67,7 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* Right actions: ThemeToggle + CTA Khám phá */}
+          {/* Right actions: ThemeToggle + CTA Quy trình mẫu */}
           <div className="hidden sm:flex items-center gap-3">
             <ThemeToggle />
 
@@ -76,7 +76,7 @@ export function Navbar() {
               onClick={scrollToDemo}
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary-hover rounded-lg transition-all shadow-xs cursor-pointer"
             >
-              <span>Khám phá Hexta</span>
+              <span>Xem quy trình mẫu</span>
               <ArrowDown className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -125,7 +125,7 @@ export function Navbar() {
               onClick={scrollToDemo}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary-foreground bg-primary rounded-lg shadow-xs"
             >
-              <span>Khám phá mô phỏng quy trình</span>
+              <span>Xem quy trình mẫu</span>
               <ArrowDown className="w-4 h-4" />
             </a>
           </div>

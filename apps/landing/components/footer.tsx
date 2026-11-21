@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { BrandLogo } from "./brand-logo";
-import { ShieldAlert } from "lucide-react";
 import { GithubIcon } from "./icons/social-icons";
 
 export function Footer() {
@@ -14,14 +13,8 @@ export function Footer() {
           <div className="lg:col-span-2 space-y-4">
             <BrandLogo className="w-32 md:w-36" />
             <p className="text-xs sm:text-sm text-muted leading-relaxed max-w-sm">
-              Hexta là giải pháp kết nối vận hành bán hàng dành cho doanh nghiệp vừa và nhỏ: từ tư vấn khách hàng, tạo đơn đến phân công công việc tuần tự.
+              Hexta là nền tảng kết nối tư vấn khách hàng, tạo đơn và bàn giao công việc dành cho doanh nghiệp nhỏ.
             </p>
-
-            {/* Development Stage Indicator */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-medium text-amber-700 dark:text-amber-400">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Giai đoạn thử nghiệm &amp; mô phỏng quy trình</span>
-            </div>
 
             {/* Source code / repo link */}
             <div className="pt-2">
@@ -41,32 +34,32 @@ export function Footer() {
           {/* Navigation Links */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-light mb-4">
-              Nội Dung Chính
+              Nội dung chính
             </h3>
             <ul className="space-y-2.5 text-xs sm:text-sm">
               <li>
                 <Link href="/#problems" className="text-muted hover:text-foreground transition-colors">
-                  Vấn Đề Vận Hành
+                  Vấn đề
                 </Link>
               </li>
               <li>
                 <Link href="/#values" className="text-muted hover:text-foreground transition-colors">
-                  Giá Trị Cốt Lõi
+                  Giải pháp
                 </Link>
               </li>
               <li>
                 <Link href="/#demo" className="text-muted hover:text-foreground transition-colors font-medium text-primary">
-                  Minh Họa 5 Bước
+                  Quy trình mẫu
                 </Link>
               </li>
               <li>
                 <Link href="/#controlled-ai" className="text-muted hover:text-foreground transition-colors">
-                  AI Có Kiểm Soát
+                  AI có kiểm soát
                 </Link>
               </li>
               <li>
                 <Link href="/#roles" className="text-muted hover:text-foreground transition-colors">
-                  Lợi Ích Theo Vai Trò
+                  Theo vai trò
                 </Link>
               </li>
             </ul>
@@ -75,12 +68,12 @@ export function Footer() {
           {/* Resources & Information */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-light mb-4">
-              Thông Tin Dự Án
+              Thông tin
             </h3>
             <ul className="space-y-2.5 text-xs sm:text-sm">
               <li>
                 <Link href="/#faq" className="text-muted hover:text-foreground transition-colors">
-                  Câu Hỏi Thường Gặp (FAQ)
+                  Hỏi đáp
                 </Link>
               </li>
               <li>
@@ -88,18 +81,8 @@ export function Footer() {
                   href="mailto:contact@hexta.org"
                   className="text-muted hover:text-foreground transition-colors"
                 >
-                  Liên Hệ Góp Ý &amp; Trao Đổi
+                  Liên hệ
                 </a>
-              </li>
-              <li>
-                <span className="text-muted/60 cursor-default">
-                  Tài Liệu Kỹ Thuật (Nội bộ)
-                </span>
-              </li>
-              <li>
-                <span className="text-muted/60 cursor-default">
-                  Bản Thử Nghiệm MVP
-                </span>
               </li>
             </ul>
           </div>
@@ -107,27 +90,27 @@ export function Footer() {
           {/* Legal & Policies */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-light mb-4">
-              Chính Sách &amp; Pháp Lý
+              Chính sách và pháp lý
             </h3>
             <ul className="space-y-2.5 text-xs sm:text-sm">
               <li>
                 <Link href="/privacy" className="text-muted hover:text-foreground transition-colors">
-                  Chính Sách Bảo Mật (Dự thảo)
+                  Chính sách bảo mật (Dự thảo)
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="text-muted hover:text-foreground transition-colors">
-                  Điều Khoản Dịch Vụ (Dự thảo)
+                  Điều khoản dịch vụ (Dự thảo)
                 </Link>
               </li>
               <li>
                 <Link href="/cookies" className="text-muted hover:text-foreground transition-colors">
-                  Chính Sách Cookie
+                  Chính sách cookie
                 </Link>
               </li>
               <li>
                 <Link href="/security" className="text-muted hover:text-foreground transition-colors">
-                  Nguyên Tắc An Toàn Dữ Liệu
+                  Nguyên tắc an toàn dữ liệu
                 </Link>
               </li>
             </ul>
@@ -136,16 +119,16 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted">
-          <p>© {currentYear} Hexta (hexta.org). Dự án đang trong giai đoạn phát triển và thử nghiệm.</p>
+          <p>© {currentYear} Hexta (hexta.org).</p>
           <div className="flex items-center gap-6">
             <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Bảo Mật
+              Bảo mật
             </Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">
-              Điều Khoản
+              Điều khoản
             </Link>
             <Link href="/security" className="hover:text-foreground transition-colors">
-              An Toàn Dữ Liệu
+              An toàn dữ liệu
             </Link>
             <Link href="/sitemap.xml" className="hover:text-foreground transition-colors">
               Sitemap

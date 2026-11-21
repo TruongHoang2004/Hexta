@@ -4,35 +4,35 @@ export function RolesValueSection() {
   const roles = [
     {
       icon: Briefcase,
-      role: "Dành Cho Chủ Doanh Nghiệp",
-      subtitle: "Kiểm soát toàn cảnh, không đứt đoạn",
+      role: "Chủ doanh nghiệp",
+      subtitle: "Nắm toàn bộ tiến độ, không bị đứt đoạn",
       benefits: [
-        "Nhìn thấy ngay đơn hàng đang ở bước nào và ai đang giữ việc",
-        "Loại bỏ văn hóa đùn đẩy trách nhiệm khi xảy ra sự cố giao chậm",
-        "Dữ liệu đơn hàng và khách hàng được ghi nhận tập trung, không phân mảnh",
-        "Dễ dàng bàn giao hoặc tái phân công công việc khi có nhân sự vắng mặt",
+        "Biết ngay đơn hàng đang ở bước nào và ai đang phụ trách",
+        "Xác định rõ người chịu trách nhiệm khi giao hàng chậm hoặc có sự cố",
+        "Dữ liệu khách hàng và đơn hàng được lưu tập trung",
+        "Dễ dàng giao lại công việc khi có nhân sự vắng mặt",
       ],
     },
     {
       icon: MessageSquare,
-      role: "Dành Cho Nhân Viên Tư Vấn (Sale)",
-      subtitle: "Phản hồi nhanh hơn, chốt đơn nhẹ nhàng hơn",
+      role: "Nhân viên tư vấn",
+      subtitle: "Phản hồi nhanh hơn, lên đơn dễ dàng hơn",
       benefits: [
-        "Có sẵn câu trả lời gợi ý sát ngữ cảnh, giảm tải gõ lặp lại",
-        "Lập đơn hàng nháp ngay trong khung chat, không cần copy paste qua Excel",
-        "Đứng tên nhận hội thoại rõ ràng, không lo tranh chấp khách hàng",
-        "Chủ động chuyển giao đơn đã chốt sang bộ phận vận hành có xác nhận",
+        "Có sẵn câu trả lời gợi ý theo ngữ cảnh, giảm thao tác gõ lặp lại",
+        "Lập đơn nháp ngay trong khung chat, không cần sao chép sang Excel",
+        "Nhận hội thoại rõ ràng, tránh trùng lặp khi chăm sóc khách",
+        "Bàn giao đơn đã xác nhận cho bộ phận vận hành, có xác nhận từ người nhận",
       ],
     },
     {
       icon: Package,
-      role: "Dành Cho Nhân Viên Vận Hành / Kho",
-      subtitle: "Rõ việc cần làm, bàn giao có bằng chứng",
+      role: "Nhân viên vận hành / kho",
+      subtitle: "Rõ việc cần làm, bàn giao có ghi nhận",
       benefits: [
-        "Nhận việc qua danh sách phân công rõ ràng, không còn 'giao việc miệng'",
-        "Bấm xác nhận nhận việc để chính thức bắt đầu, bảo vệ trách nhiệm cá nhân",
-        "Nắm đầy đủ ghi chú đơn hàng của khách từ khâu tư vấn ban đầu",
-        "Bàn giao sang khâu tiếp theo theo thứ tự tuần tự chuẩn xác",
+        "Nhận việc qua danh sách phân công, không còn giao việc bằng lời",
+        "Xác nhận nhận việc trước khi bắt đầu, phân định rõ trách nhiệm",
+        "Xem đầy đủ ghi chú của khách từ khâu tư vấn",
+        "Bàn giao sang bước tiếp theo đúng thứ tự",
       ],
     },
   ];
@@ -42,16 +42,16 @@ export function RolesValueSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-            <span>Giá Trị Cho Từng Vị Trí</span>
+            <span>Giá trị theo vai trò</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
-            Khi Mọi Người Đều Rõ Trách Nhiệm, <br className="hidden sm:inline" />
-            <span className="text-primary">Vận Hành Tự Nhiên Trở Nên Nhẹ Nhàng</span>
+            Khi trách nhiệm rõ ràng, <br className="hidden sm:inline" />
+            <span className="text-primary">vận hành trở nên nhẹ nhàng hơn</span>
           </h2>
 
           <p className="text-base sm:text-lg text-muted">
-            Hexta mang lại lợi ích thiết thực cho từng thành viên trong chuỗi vận hành bán hàng của doanh nghiệp.
+            Hexta mang lại lợi ích cụ thể cho từng vị trí trong quy trình bán hàng.
           </p>
         </div>
 

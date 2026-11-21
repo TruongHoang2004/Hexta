@@ -1,27 +1,27 @@
-import { Check, ShieldCheck, UserCheck, MessageSquare, ArrowRight } from "lucide-react";
+import { Check, ShieldCheck, UserCheck, MessageSquare } from "lucide-react";
 
 export function ValuesSection() {
   const pillars = [
     {
       step: "01",
       icon: MessageSquare,
-      title: "Hội thoại gắn liền với hồ sơ khách hàng",
+      title: "Hội thoại gắn với hồ sơ khách hàng",
       description:
-        "Tập trung tin nhắn tư vấn từ các kênh vào một nơi. Nhân viên tiếp nhận là người trực tiếp chịu trách nhiệm trả lời; hệ thống ghi nhận đầy đủ lịch sử tư vấn.",
+        "Tin nhắn từ các kênh được tập trung về một nơi. Nhân viên nhận hội thoại là người chịu trách nhiệm trả lời; toàn bộ lịch sử tư vấn được lưu lại.",
     },
     {
       step: "02",
       icon: ShieldCheck,
-      title: "Tạo đơn nháp ngay trong ngữ cảnh hội thoại",
+      title: "Tạo đơn nháp ngay từ hội thoại",
       description:
-        "Thay vì nhập liệu thủ công rời rạc, thông tin sản phẩm và địa chỉ được trích xuất để lập đơn nháp chờ kiểm tra. Người bán xác nhận trước khi đơn trở thành đơn chính thức.",
+        "Thông tin sản phẩm và địa chỉ được trích xuất từ hội thoại thành đơn nháp. Nhân viên kiểm tra và xác nhận trước khi đơn trở thành đơn chính thức.",
     },
     {
       step: "03",
       icon: UserCheck,
-      title: "Công việc tuần tự, rõ người đứng tên",
+      title: "Bàn giao từng bước, rõ người phụ trách",
       description:
-        "Khi đơn hàng được xác nhận, công việc được chuyển sang các bước tiếp theo (chuẩn bị hàng, đóng gói, bàn giao). Người phụ trách mới phải bấm nhận việc để chuyển quyền.",
+        "Sau khi đơn được xác nhận, công việc lần lượt chuyển qua chuẩn bị hàng, đóng gói và bàn giao vận chuyển. Trách nhiệm chỉ được chuyển giao khi người nhận xác nhận nhận việc.",
     },
   ];
 
@@ -30,14 +30,14 @@ export function ValuesSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-            <span>Giá Trị Cốt Lõi</span>
+            <span>Giải pháp</span>
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
-            Một dòng chảy liền mạch từ khi khách hỏi <br className="hidden sm:inline" />
-            <span className="text-primary">đến lúc đơn hàng được giao xong</span>
+            Một quy trình liền mạch, <br className="hidden sm:inline" />
+            <span className="text-primary">từ lúc khách hỏi đến khi đơn hàng được bàn giao</span>
           </h2>
           <p className="text-base sm:text-lg text-muted">
-            Hexta không cố gắng trở thành một phần mềm phức tạp với hàng trăm biểu mẫu. Chúng tôi tập trung vào việc giúp mọi người trong đội ngũ luôn biết mình cần làm gì tiếp theo.
+            Hexta không phải phần mềm phức tạp với hàng trăm biểu mẫu. Chúng tôi tập trung giúp mỗi thành viên biết rõ mình cần làm gì tiếp theo.
           </p>
         </div>
 
@@ -65,11 +65,6 @@ export function ValuesSection() {
                     {item.description}
                   </p>
                 </div>
-
-                <div className="pt-4 border-t border-border/60 flex items-center gap-2 text-xs font-semibold text-primary">
-                  <span>Quy trình minh bạch</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
               </div>
             );
           })}
@@ -82,10 +77,10 @@ export function ValuesSection() {
           </div>
           <div className="space-y-1.5">
             <h3 className="text-lg font-bold text-foreground">
-              Nguyên tắc vận hành cốt lõi:
+              Nguyên tắc vận hành
             </h3>
             <p className="text-sm text-muted leading-relaxed">
-              Mỗi công việc tại một thời điểm chỉ có <strong className="text-foreground">duy nhất một người chịu trách nhiệm</strong>. Khi bàn giao sang khâu tiếp theo, người mới phải xác nhận nhận việc — không còn tình trạng việc bị bỏ quên giữa chừng.
+              Tại mỗi thời điểm, mỗi công việc chỉ có <strong className="text-foreground">một người chịu trách nhiệm</strong>. Khi bàn giao, người nhận phải xác nhận, nhờ đó không công việc nào bị bỏ sót giữa chừng.
             </p>
           </div>
         </div>

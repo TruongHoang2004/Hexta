@@ -4,27 +4,27 @@ export function ProblemsSection() {
   const problems = [
     {
       icon: MessageSquareOff,
-      title: "Tin nhắn phân tán, dễ sót khách",
+      title: "Tin nhắn phân tán, dễ bỏ sót khách",
       description:
-        "Tư vấn trên nhiều kênh, khách nhắn hỏi dồn dập vào giờ cao điểm hoặc ngoài giờ làm việc. Tin nhắn trôi nhanh, nhân viên trả lời chậm khiến khách hàng chuyển sang đối thủ.",
+        "Khách hỏi trên nhiều kênh, dồn dập vào giờ cao điểm hoặc ngoài giờ làm việc. Phản hồi chậm khiến khách chuyển sang nơi khác.",
     },
     {
       icon: FileQuestion,
-      title: "Chốt đơn trên chat, ghi chép thủ công",
+      title: "Thông tin đơn hàng ghi chép thủ công",
       description:
-        "Nhân viên phải sao chép địa chỉ, số điện thoại và sản phẩm từ ô chat ra sổ tay hoặc file Excel. Sai sót thông tin xảy ra thường xuyên và mất nhiều thời gian kiểm tra lại.",
+        "Nhân viên phải sao chép địa chỉ, số điện thoại và sản phẩm từ khung chat sang sổ tay hoặc Excel. Việc này dễ sai sót và tốn thời gian kiểm tra lại.",
     },
     {
       icon: AlertCircle,
-      title: "Đơn chốt xong không rõ ai làm tiếp",
+      title: "Đơn đã xác nhận nhưng không rõ ai xử lý tiếp",
       description:
-        "Sale tạo đơn xong nhắn vào nhóm chung nhưng không ai nhận cụ thể. Khi khách hỏi tiến độ hoặc giao trễ, các bộ phận đùn đẩy trách nhiệm vì thiếu người đứng tên phụ trách.",
+        "Đơn được báo vào nhóm chung nhưng không ai nhận cụ thể. Khi khách hỏi tiến độ hoặc giao hàng trễ, không xác định được người chịu trách nhiệm.",
     },
     {
       icon: RefreshCw,
-      title: "Dùng nhiều phần mềm rời rạc",
+      title: "Nhiều phần mềm rời rạc",
       description:
-        "Một công cụ để chat, một phần mềm để lên đơn, một ứng dụng quản lý việc. Dữ liệu đứt gãy, chủ doanh nghiệp muốn biết một đơn hàng đang ở đâu phải đi hỏi từng nhân sự.",
+        "Một công cụ để nhắn tin, một phần mềm để lên đơn, một ứng dụng để giao việc. Muốn biết một đơn hàng đang ở đâu, chủ doanh nghiệp phải hỏi từng người.",
     },
   ];
 
@@ -33,14 +33,14 @@ export function ProblemsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold">
-            <span>Thực Trạng Phổ Biến</span>
+            <span>Thực trạng phổ biến</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
             Khi quy trình bán hàng bị đứt đoạn, <br className="hidden sm:inline" />
-            <span className="text-amber-600 dark:text-amber-400">doanh nghiệp chịu thiệt hại gì?</span>
+            <span className="text-amber-600 dark:text-amber-400">doanh nghiệp mất gì?</span>
           </h2>
           <p className="text-base sm:text-lg text-muted">
-            Doanh nghiệp nhỏ thường không thiếu khách hàng, mà thiếu một cách vận hành có đầu mối và quy trình liền mạch.
+            Doanh nghiệp nhỏ thường không thiếu khách hàng, mà thiếu một quy trình liền mạch và người chịu trách nhiệm rõ ràng.
           </p>
         </div>
 
