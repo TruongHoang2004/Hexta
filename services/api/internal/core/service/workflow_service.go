@@ -158,13 +158,21 @@ func (s *WorkflowService) Publish(ctx context.Context, tenant, actor, id, key st
 	})
 	return row, err
 }
-func (s *WorkflowService) Items(ctx context.Context, tenant, actor string, page, size int) ([]repository.WorkItem, int64, *apperrors.Error) {
+func (s *WorkflowService) Items(ctx context.Context, tenant, actor, view string, page, size int) ([]repository.WorkItem, int64, *apperrors.Error) {
+	switch view {
+	case "", "all", "mine", "awaiting_me":
+	default:
+		return nil, 0, apperrors.ErrBadRequest(ctx).SetDetail("invalid work view")
+	}
+	if view == "all" {
+		view = ""
+	}
 	var rows []repository.WorkItem
 	var total int64
 	err := s.authorized(ctx, tenant, actor, func(r *repository.WorkflowRepository, _ bool) *apperrors.Error {
 		limit, offset := pageBounds(page, size)
 		var err *apperrors.Error
-		rows, total, err = r.WorkItems(ctx, tenant, limit, offset)
+		rows, total, err = r.WorkItems(ctx, tenant, actor, view, limit, offset)
 		return err
 	})
 	return rows, total, err

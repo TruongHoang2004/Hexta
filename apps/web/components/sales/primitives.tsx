@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { useT } from "@/lib/i18n/provider";
 export const inputClass =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60";
 export const buttonClass =
@@ -58,10 +59,11 @@ export function Pager({
   onChange: (page: number) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-sm">
       <span>
-        {total} records · Page {page} of {Math.max(1, Math.ceil(total / 20))}
+        {t("common.pager", { total, page, pages: Math.max(1, Math.ceil(total / 20)) })}
       </span>
       <div className="flex gap-2">
         <button
@@ -70,7 +72,7 @@ export function Pager({
           disabled={disabled || page <= 1}
           onClick={() => onChange(page - 1)}
         >
-          Previous
+          {t("common.previous")}
         </button>
         <button
           type="button"
@@ -78,7 +80,7 @@ export function Pager({
           disabled={disabled || page * 20 >= total}
           onClick={() => onChange(page + 1)}
         >
-          Next
+          {t("common.next")}
         </button>
       </div>
     </div>

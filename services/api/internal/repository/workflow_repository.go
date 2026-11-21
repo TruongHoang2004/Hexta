@@ -83,10 +83,19 @@ func (r *WorkflowRepository) WorkflowVersion(ctx context.Context, tenant, id str
 	}
 	return &row, nil
 }
-func (r *WorkflowRepository) WorkItems(ctx context.Context, tenant string, limit, offset int) ([]WorkItem, int64, *apperrors.Error) {
+
+// WorkItems lists tenant work. view "mine" keeps unfinished items the actor is responsible for;
+// "awaiting_me" keeps items waiting for the actor to accept a handoff; "" lists everything.
+func (r *WorkflowRepository) WorkItems(ctx context.Context, tenant, actor, view string, limit, offset int) ([]WorkItem, int64, *apperrors.Error) {
 	rows := []WorkItem{}
 	var total int64
 	q := r.db.WithContext(ctx).Model(&WorkItem{}).Where("tenant_id = ?", tenant)
+	switch view {
+	case "mine":
+		q = q.Where("responsible_id = ? AND state <> ?", actor, "completed")
+	case "awaiting_me":
+		q = q.Where("recipient_id = ? AND state = ?", actor, "waiting")
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, salesDBError(ctx, err)
 	}

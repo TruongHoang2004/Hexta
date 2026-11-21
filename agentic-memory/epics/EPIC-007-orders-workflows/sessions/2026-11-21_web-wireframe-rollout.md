@@ -45,3 +45,31 @@ Branch `feat/web-desk` (stacked on `feat/web-shell-i18n`).
 - OPEN: system lines for claim/handoff events need an events feed the API does not expose; the draft-order button opens Orders without linking the conversation (no backend link); assignee names still show IDs until addition 2a.
 
 Verification: `sh scripts/check-gofmt.sh`, `go vet ./services/api/...`, `go test -race ./services/api/...` pass; DB scenarios (including the extended `TestMessagingPaginationAndFilters` bot assertions) SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `make swagger` regenerated (description-only diff). `pnpm --filter web lint` and `build` pass (after clearing stale `.next/dev/types`). Browser acceptance NOT_RUN.
+
+## Follow-up — phase 4 (orders) and API addition 2e
+
+Branch `feat/web-orders` (stacked on `feat/web-desk`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/orders?status=draft|confirmed&assignee=me|unassigned`. Filters are applied in the tenant-scoped repository query (so totals and pagination stay correct); unknown values return 400; tenant membership is still checked first. `types.OrderListFilter` added; Swagger regenerated. New DB test `TestSalesOrderListFilters` covers own/peer `me`, unassigned, status, invalid values and a foreign tenant (403).
+- IMPLEMENTED (web): order list with All / Drafts / Confirmed / Unassigned / Mine filters, status chips, localized empty states and "order value" wording; editor with a live confirmation checklist (saved, assigned sale, customer name, contact, items, prices, delivery address) computed from the current form, Confirm disabled with the reason, a separate "Claim order" for unassigned drafts, and a conflict banner that reloads the latest version on HTTP 409. The server gate remains authoritative. Pager localized.
+- OPEN: multi-variant product editing needs an API change (product requests carry a single variant); not done.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/presentation packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN. Remaining phase-4 screens (customers/products copy, consultant quick replies) not yet reworked.
+
+## Follow-up — phase 4 remainder (catalog, consultant widget)
+
+- Customers/products screen localized with empty states; products show a distinct "price not set" chip versus "0 · free"; the variant name falls back to the localized default when left blank.
+- Consultant widget localized and errors use the shared support-code text. Quick replies were already rendered as buttons.
+- OPEN: a "dropped from the catalog" notice needs the API to report which AI items were removed (currently removed silently); storefront and checkout pages remain English.
+
+Verification: `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — phase 5 (work and workflows) and API addition 2b
+
+Branch `feat/web-work` (stacked on `feat/web-orders`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/work-items?view=all|mine|awaiting_me`. `mine` = unfinished items the caller is responsible for (including while waiting for a recipient); `awaiting_me` = waiting items nominating the caller. Unknown views return 400. Unlike the plan's draft, `all` is not restricted to owners: members could already list all work and no requirement removes that. `TestWorkflowAcceptanceAndPinnedVersions` extended; Swagger regenerated.
+- IMPLEMENTED (web): Work screen with My work / Waiting for me / All tabs (default My work), step progress track, handoff dialog explaining direct versus acceptance, Accept/Complete actions, owner "cancel pending handoff" (assign back to the current responsible, which the API already treats as cancelling the nomination) and reassignment, localized history and 409 reload banner; work creation moved into a collapsible owner panel. Workflows screen: step builder with direct/acceptance toggle, step counter n/30, running-work version note, explanation of handoff types; localized.
+- OPEN: workflow version history needs the API to return older versions (definitions currently preload only the current version), so no history list is shown.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.

@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 )
 
@@ -90,7 +91,7 @@ func TestOnboardingInvitationActivationAndRecipient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, 1, 20)
+	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, types.OrderListFilter{}, 1, 20)
 	requireSalesStatus(t, err, 403)
 	accepted, _, err := s.UseInvitation(ctx, f.sale, token, "accept")
 	if err != nil {
@@ -99,7 +100,7 @@ func TestOnboardingInvitationActivationAndRecipient(t *testing.T) {
 	if accepted.Status != "accepted" {
 		t.Fatal("not accepted")
 	}
-	if _, _, err := f.service.Orders(ctx, f.tenant, f.sale, 1, 20); err != nil {
+	if _, _, err := f.service.Orders(ctx, f.tenant, f.sale, types.OrderListFilter{}, 1, 20); err != nil {
 		t.Fatal("accepted member cannot access tenant", err)
 	}
 	if _, _, err := s.UseInvitation(ctx, f.sale, token, "accept"); err != nil {
@@ -115,7 +116,7 @@ func TestOnboardingInvitationActivationAndRecipient(t *testing.T) {
 	if _, _, err := s.UseInvitation(ctx, f.sale, token, "accept"); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, 1, 20)
+	_, _, err = f.service.Orders(ctx, f.tenant, f.sale, types.OrderListFilter{}, 1, 20)
 	requireSalesStatus(t, err, 403)
 }
 func TestOnboardingRevokedExpiredAndReissuedInvitations(t *testing.T) {

@@ -67,7 +67,23 @@ export interface DraftInput {
   items: { variant_id: string; quantity: number; unit_price: string | null }[];
 }
 export type CustomerInput = Omit<Customer, "id">;
+export interface OrderListFilter {
+  status?: "draft" | "confirmed";
+  assignee?: "me" | "unassigned";
+}
 export const sales = {
+  async orders(
+    tenant: string,
+    page: number,
+    filter: OrderListFilter,
+    signal?: AbortSignal,
+  ): Promise<Page<Order>> {
+    const res = await sdk.client.get<{ data: Page<Order> }>(
+      `/api/v1/tenants/${tenant}/orders`,
+      { params: { page, size: 20, ...filter }, signal },
+    );
+    return res.data.data;
+  },
   async list<T>(
     resource: "customers" | "products" | "orders",
     tenant: string,

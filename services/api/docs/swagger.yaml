@@ -2730,6 +2730,14 @@ paths:
         in: query
         name: size
         type: integer
+      - description: draft or confirmed
+        in: query
+        name: status
+        type: string
+      - description: me or unassigned
+        in: query
+        name: assignee
+        type: string
       produces:
       - application/json
       responses:
@@ -3417,6 +3425,10 @@ paths:
         in: query
         name: size
         type: integer
+      - description: all (default), mine or awaiting_me
+        in: query
+        name: view
+        type: string
       produces:
       - application/json
       responses:
