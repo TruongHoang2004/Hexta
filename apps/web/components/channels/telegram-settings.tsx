@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useWorkspace } from "@/components/sales/workspace";
-import { useAuthStore } from "@/store/useAuthStore";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 import {
   telegram,
   type ConnectionStatus,
@@ -15,24 +15,17 @@ import {
   Field,
   inputClass,
   Notice,
+  StatusChip,
   secondaryClass,
 } from "@/components/sales/primitives";
+import { statusTone } from "@/components/channels/facebook-settings";
 import { ExpiredConnectionBanner } from "@/components/channels/expired-banner";
 
-const statusLabel: Record<ConnectionStatus, [string, string]> = {
-  active: ["Active", "border-green-300 bg-green-50 text-green-800"],
-  paused: ["Paused", "border-amber-300 bg-amber-50 text-amber-900"],
-  auth_expired: ["Token rejected", "border-red-300 bg-red-50 text-red-800"],
-  disconnected: ["Disconnected", "border-border text-muted"],
-};
-
-const confirmText: Record<Exclude<TelegramAction, "rotate_token">, string> = {
-  pause:
-    "Pause this bot? Telegram stops delivering messages, messages sent while paused are not received, and unsent replies are cancelled until you resume.",
-  resume: "Resume this bot?",
-  disconnect:
-    "Disconnect this bot? Its stored Bot Token is deleted and the webhook is removed. Conversation history is kept.",
-};
+const confirmKey = {
+  pause: "channels.telegram.confirmPause",
+  resume: "channels.telegram.confirmResume",
+  disconnect: "channels.telegram.confirmDisconnect",
+} as const satisfies Record<Exclude<TelegramAction, "rotate_token">, string>;
 
 // Mirrors the API check: numeric bot ID, colon, secret from @BotFather.
 const tokenPattern = /^[0-9]{1,20}:[A-Za-z0-9_-]{30,80}$/;
@@ -68,9 +61,11 @@ function TokenInput({
 }
 
 export function TelegramChannelSettings() {
-  const { tenant } = useWorkspace();
-  const { user } = useAuthStore();
-  const owner = !!tenant && tenant.owner_id === user?.id;
+  const { tenant, isOwner: owner } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
+  const statusText = (status: ConnectionStatus) =>
+    status === "auth_expired" ? t("channels.telegram.tokenRejected") : t(`channels.status.${status}`);
   const [rows, setRows] = useState<TelegramConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -98,7 +93,7 @@ export function TelegramChannelSettings() {
     }
     void load();
     return () => controller.abort();
-  }, [tenantID, revision]);
+  }, [tenantID, revision, errorText]);
   function botName(row: TelegramConnection) {
     return row.account_username
       ? `@${row.account_username}`
@@ -114,7 +109,7 @@ export function TelegramChannelSettings() {
     setSuccess("");
     try {
       const created = await telegram.connect(tenantID, submitted);
-      setSuccess(`${botName(created)} is connected.`);
+      setSuccess(t("channels.telegram.connected", { name: botName(created) }));
     } catch (err) {
       // A failed connector sync is saved on the row; connecting the same token again retries it.
       setError(errorText(err));
@@ -139,7 +134,7 @@ export function TelegramChannelSettings() {
         submitted,
       );
       setRotating("");
-      setSuccess(`Token rotated for ${botName(updated)}.`);
+      setSuccess(t("channels.telegram.rotated", { name: botName(updated) }));
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -151,14 +146,14 @@ export function TelegramChannelSettings() {
     row: TelegramConnection,
     action: Exclude<TelegramAction, "rotate_token">,
   ) {
-    if (!tenantID || busy || !window.confirm(confirmText[action])) return;
+    if (!tenantID || busy || !window.confirm(t(confirmKey[action]))) return;
     setBusy(row.id);
     setError("");
     setSuccess("");
     try {
       const updated = await telegram.update(tenantID, row.id, action);
       setSuccess(
-        `${botName(updated)} is now ${statusLabel[updated.status][0].toLowerCase()}.`,
+        t("channels.nowStatus", { name: botName(updated), status: statusText(updated.status) }),
       );
     } catch (err) {
       // A failed connector sync is saved on the row; repeating the action retries it.
@@ -176,7 +171,7 @@ export function TelegramChannelSettings() {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="telegram-bots" className="font-semibold">
-          Telegram bots
+          {t("channels.telegram.title")}
         </h2>
         <button
           className={secondaryClass}
@@ -186,12 +181,11 @@ export function TelegramChannelSettings() {
             setRevision((v) => v + 1);
           }}
         >
-          Refresh
+          {t("channels.refresh")}
         </button>
       </div>
       <p className="text-sm text-muted">
-        Customers message your bot in a 1-1 Telegram chat. Group and channel
-        messages are ignored. Each bot can belong to one workspace.
+        {t("channels.telegram.intro")}
       </p>
       <ExpiredConnectionBanner
         tenant={tenant.id}
@@ -201,7 +195,7 @@ export function TelegramChannelSettings() {
       <Notice error={error} success={success} />
       {owner ? (
         <form onSubmit={connect} className="space-y-2">
-          <Field title="Bot Token">
+          <Field title={t("channels.telegram.token")}>
             <TokenInput
               id="telegram-token"
               value={token}
@@ -210,53 +204,46 @@ export function TelegramChannelSettings() {
             />
           </Field>
           <p id="telegram-token-help" className="text-xs text-muted">
-            Create a bot with @BotFather and paste its token. The token is
-            stored encrypted and is never shown again.
+            {t("channels.telegram.tokenHelp")}
           </p>
           <button
             className={buttonClass}
             disabled={!!busy || !tokenPattern.test(token)}
           >
-            {busy === "connect" ? "Connecting…" : "Connect Telegram bot"}
+            {busy === "connect" ? t("channels.telegram.connecting") : t("channels.telegram.connect")}
           </button>
         </form>
       ) : (
         <p className="text-sm text-muted">
-          Only the workspace owner can connect, pause, rotate or disconnect
-          bots.
+          {t("channels.telegram.ownerOnly")}
         </p>
       )}
       {loading ? (
-        <p role="status">Loading bots…</p>
+        <p role="status">{t("channels.telegram.loading")}</p>
       ) : !rows.length ? (
-        <p className="text-sm text-muted">No bots connected yet.</p>
+        <p className="text-sm text-muted">{t("channels.telegram.empty")}</p>
       ) : (
         <ul className="divide-y divide-border">
           {rows.map((row) => {
-            const [label, tone] = statusLabel[row.status];
             return (
               <li key={row.id} className="space-y-2 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium">
-                      {row.account_name || "Telegram bot"}
+                      {row.account_name || t("channels.telegram.fallbackName")}
                     </p>
                     <p className="break-all font-mono text-xs text-muted">
                       {row.account_username ? `@${row.account_username} · ` : ""}
-                      ID {row.account_id}
+                      {t("channels.telegram.id", { id: row.account_id })}
                     </p>
                     {row.last_error_message && (
-                      <p className="mt-1 text-xs text-red-700">
+                      <p className="mt-1 text-xs text-error">
                         {row.last_error_message}
                       </p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
-                    >
-                      {label}
-                    </span>
+                    <StatusChip tone={statusTone[row.status]}>{statusText(row.status)}</StatusChip>
                     {owner && (
                       <>
                         <button
@@ -272,7 +259,7 @@ export function TelegramChannelSettings() {
                             setRotating(rotating === row.id ? "" : row.id);
                           }}
                         >
-                          Rotate token
+                          {t("channels.telegram.rotate")}
                         </button>
                         {(row.status === "active" ||
                           row.status === "auth_expired") && (
@@ -281,7 +268,7 @@ export function TelegramChannelSettings() {
                             disabled={!!busy}
                             onClick={() => void act(row, "pause")}
                           >
-                            Pause
+                            {t("channels.pause")}
                           </button>
                         )}
                         {row.status === "paused" && (
@@ -290,15 +277,15 @@ export function TelegramChannelSettings() {
                             disabled={!!busy}
                             onClick={() => void act(row, "resume")}
                           >
-                            Resume
+                            {t("channels.resume")}
                           </button>
                         )}
                         <button
-                          className={`${secondaryClass} text-red-700`}
+                          className={`${secondaryClass} text-error`}
                           disabled={!!busy}
                           onClick={() => void act(row, "disconnect")}
                         >
-                          {busy === row.id ? "Saving…" : "Disconnect"}
+                          {busy === row.id ? t("channels.saving") : t("channels.disconnect")}
                         </button>
                       </>
                     )}
@@ -309,7 +296,7 @@ export function TelegramChannelSettings() {
                     onSubmit={(e) => void rotate(e, row)}
                     className="space-y-2 rounded-lg border border-border p-3"
                   >
-                    <Field title={`New Bot Token for ${botName(row)}`}>
+                    <Field title={t("channels.telegram.newToken", { name: botName(row) })}>
                       <TokenInput
                         id={`rotate-${row.id}`}
                         value={rotateToken}
@@ -318,16 +305,14 @@ export function TelegramChannelSettings() {
                       />
                     </Field>
                     <p id={`rotate-${row.id}-help`} className="text-xs text-muted">
-                      Use a token for this same bot (for example after
-                      /revoke in @BotFather). Rotating re-activates the bot. A
-                      different bot must be connected separately.
+                      {t("channels.telegram.rotateHelp")}
                     </p>
                     <div className="flex gap-2">
                       <button
                         className={buttonClass}
                         disabled={!!busy || !tokenPattern.test(rotateToken)}
                       >
-                        {busy === row.id ? "Rotating…" : "Save new token"}
+                        {busy === row.id ? t("channels.telegram.rotating") : t("channels.telegram.saveToken")}
                       </button>
                       <button
                         type="button"
@@ -338,7 +323,7 @@ export function TelegramChannelSettings() {
                           setRotating("");
                         }}
                       >
-                        Cancel
+                        {t("channels.cancel")}
                       </button>
                     </div>
                   </form>

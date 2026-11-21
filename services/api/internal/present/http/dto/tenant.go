@@ -34,6 +34,7 @@ type TenantMemberResponse struct {
 	ID        int64     `json:"id"`
 	TenantID  string    `json:"tenant_id"`
 	UserID    string    `json:"user_id"`
+	Email     string    `json:"email,omitempty"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }

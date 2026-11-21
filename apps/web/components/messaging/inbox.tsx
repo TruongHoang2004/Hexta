@@ -36,6 +36,7 @@ import {
   type ChipTone,
 } from "@/components/sales/primitives";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useMemberName } from "@/lib/members";
 
 const inputStyle =
   "w-full rounded-lg border border-border bg-background p-2 text-sm";
@@ -287,6 +288,7 @@ function ThreadDetail({
 }) {
   const t = useT();
   const errorText = useErrorText();
+  const memberName = useMemberName(members);
   const { user } = useAuthStore();
   const [detail, setDetail] = useState<MessagingDetail | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -362,12 +364,13 @@ function ThreadDetail({
         ? t("desk.readOnly.expiredTelegram")
         : t("desk.readOnly.expiredFacebook");
   const canReply = !locked && assigned && turn?.control === "sales";
+  const assigneeName = turn?.assignee_id ? memberName(turn.assignee_id) : "";
   const readOnlyReason = locked
     ? lockReason
     : canReply || !turn
       ? ""
       : turn.assignee_id && !assigned
-        ? t("desk.readOnly.otherStaff")
+        ? t("desk.readOnly.otherStaff", { name: assigneeName })
         : turn.handling_state === "BOT_ACTIVE"
           ? t("desk.readOnly.bot")
           : t("desk.readOnly.waiting");
@@ -659,7 +662,7 @@ function ThreadDetail({
                 <option value="">{t("desk.actions.assignQueue")}</option>
                 {members.map((member) => (
                   <option key={member.user_id} value={member.user_id}>
-                    {member.user_id === user?.id ? t("desk.actions.you") : member.user_id}
+                    {memberName(member.user_id)}
                   </option>
                 ))}
               </select>
@@ -719,6 +722,7 @@ export function Inbox() {
   const [selected, setSelected] = useState("");
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [refresh, setRefresh] = useState(0);
+  const memberName = useMemberName(members);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -765,7 +769,7 @@ export function Inbox() {
   }, [tenantID, filter, cursor, refresh, errorText]);
   useEffect(() => {
     let ignore = false;
-    if (tenantID && isOwner) {
+    if (tenantID) {
       void sdk.identity
         .getUsers(tenantID)
         .then((result) => {
@@ -778,7 +782,7 @@ export function Inbox() {
     return () => {
       ignore = true;
     };
-  }, [tenantID, isOwner, errorText]);
+  }, [tenantID, errorText]);
   if (!tenant) return null;
   const filters: { value: DeskFilter; label: string }[] = [
     { value: "bot", label: t("desk.filters.bot") },
@@ -856,9 +860,7 @@ export function Inbox() {
                       </span>
                       <span className="text-xs text-muted">
                         {row.turn?.assignee_id
-                          ? row.turn.assignee_id === user?.id
-                            ? t("desk.assignedYou")
-                            : t("desk.assignedOther")
+                          ? memberName(row.turn.assignee_id)
                           : t("desk.unassigned")}
                         {row.turn && ` · ${new Date(row.turn.last_activity_at).toLocaleString()}`}
                       </span>

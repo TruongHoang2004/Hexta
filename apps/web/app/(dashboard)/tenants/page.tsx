@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWorkspace } from "@/components/sales/workspace";
 import { onboarding, type Application } from "@/lib/services/onboarding";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
+import { useAuthStore } from "@/store/useAuthStore";
+import { StatusChip } from "@/components/sales/primitives";
 import { Button, toast } from "@hexta/ui";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -24,6 +27,9 @@ import {
 
 export default function TenantsPage() {
   const { tenants, reload } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
+  const userID = useAuthStore((state) => state.user?.id);
   const [requests, setRequests] = useState<Application[]>([]);
   const [operator, setOperator] = useState(false);
 
@@ -57,14 +63,14 @@ export default function TenantsPage() {
     return () => {
       ignore = true;
     };
-  }, [revision]);
+  }, [revision, errorText]);
 
   async function refresh() {
     setRefreshing(true);
     try {
       await reload();
       setRevision((v) => v + 1);
-      toast.success("Workspaces and permissions updated.");
+      toast.success(t("workspaces.refreshed"));
     } catch (err) {
       toast.error(errorText(err));
     } finally {
@@ -76,12 +82,12 @@ export default function TenantsPage() {
     <div className="space-y-8 pb-12">
       {/* Top Header via Unified PageHeader */}
       <PageHeader
-        title="Organizations & Workspaces"
-        description="Manage your active business workspaces or register a new brand organization."
+        title={t("workspaces.title")}
+        description={t("workspaces.description")}
         badge={
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-              <Sparkles className="w-3 h-3" /> Business Hub
+              <Sparkles className="w-3 h-3" /> {t("workspaces.hub")}
             </span>
             {operator && (
               <Link
@@ -89,7 +95,7 @@ export default function TenantsPage() {
                 className="inline-flex items-center gap-1 rounded-full bg-surface border border-border px-2.5 py-0.5 text-xs font-medium text-muted hover:text-foreground transition-colors"
               >
                 <ShieldCheck className="w-3 h-3 text-primary" />
-                Hexta Review Portal →
+                {t("workspaces.reviewPortal")}
               </Link>
             )}
           </div>
@@ -106,13 +112,13 @@ export default function TenantsPage() {
               <RefreshCw
                 className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`}
               />
-              <span>Refresh access</span>
+              <span>{t("workspaces.refresh")}</span>
             </Button>
 
             <Button size="sm" asChild className="h-9 gap-1.5 shadow-sm">
               <Link href="/tenants/register">
                 <Plus className="w-4 h-4" />
-                <span>Register Tenant</span>
+                <span>{t("workspaces.register")}</span>
               </Link>
             </Button>
           </div>
@@ -124,14 +130,14 @@ export default function TenantsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 id="workspaces-heading" className="text-base font-semibold text-foreground">
-              Your Workspaces
+              {t("workspaces.yours")}
             </h2>
             <p className="text-xs text-muted">
-              Select an active workspace to access orders, customers, and operations.
+              {t("workspaces.yoursHelp")}
             </p>
           </div>
           <span className="text-xs font-medium text-muted bg-surface border border-border px-2.5 py-0.5 rounded-full">
-            {tenants.length} {tenants.length === 1 ? "organization" : "organizations"}
+            {t("workspaces.count", { count: tenants.length })}
           </span>
         </div>
 
@@ -141,7 +147,7 @@ export default function TenantsPage() {
               row.status === "active" ? (
                 <Link
                   key={row.id}
-                  href={`/tenants/${row.id}/orders`}
+                  href={`/tenants/${row.id}/inbox`}
                   className="group relative flex flex-col justify-between rounded-2xl border border-border bg-surface/70 p-5 shadow-xs transition-all duration-200 hover:border-primary/50 hover:bg-surface hover:shadow-md"
                 >
                   <div>
@@ -149,10 +155,7 @@ export default function TenantsPage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
                         <Building2 className="w-5 h-5" />
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
-                        <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                        Active
-                      </span>
+                      <StatusChip tone="success">{t("workspaces.active")}</StatusChip>
                     </div>
 
                     <h3 className="mt-4 text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
@@ -161,10 +164,15 @@ export default function TenantsPage() {
                     <p className="mt-0.5 font-mono text-xs text-muted truncate">
                       {row.slug}
                     </p>
+                    <p className="mt-2">
+                      <StatusChip tone={row.owner_id === userID ? "solid" : "neutral"}>
+                        {row.owner_id === userID ? t("roles.owner") : t("roles.member")}
+                      </StatusChip>
+                    </p>
                   </div>
 
                   <div className="mt-5 flex items-center justify-between border-t border-border/50 pt-2.5 text-xs font-medium text-primary">
-                    <span>Enter workspace</span>
+                    <span>{t("workspaces.enter")}</span>
                     <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
                   </div>
                 </Link>
@@ -177,13 +185,11 @@ export default function TenantsPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/10 text-muted">
                       <Building2 className="w-5 h-5" />
                     </div>
-                    <span className="rounded-full bg-muted/10 px-2 py-0.5 text-[11px] font-medium text-muted">
-                      {row.status}
-                    </span>
+                    <StatusChip>{row.status}</StatusChip>
                   </div>
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-muted truncate">{row.name}</h3>
-                    <p className="mt-0.5 text-xs text-muted truncate">Access unavailable</p>
+                    <p className="mt-0.5 text-xs text-muted truncate">{t("workspaces.unavailable")}</p>
                   </div>
                 </div>
               ),
@@ -198,10 +204,10 @@ export default function TenantsPage() {
                 <Plus className="w-4.5 h-4.5" />
               </div>
               <h3 className="mt-2.5 text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-                Register New Tenant
+                {t("workspaces.addTitle")}
               </h3>
               <p className="mt-0.5 text-[11px] text-muted">
-                Add another brand workspace
+                {t("workspaces.addBody")}
               </p>
             </Link>
           </div>
@@ -211,16 +217,16 @@ export default function TenantsPage() {
               <Store className="w-7 h-7" />
             </div>
             <h3 className="mt-4 text-base font-bold text-foreground">
-              No active tenant workspace yet
+              {t("workspaces.emptyTitle")}
             </h3>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-muted leading-relaxed">
-              Create an organization to start managing products, customer chats, and automated order fulfillment.
+              {t("workspaces.emptyBody")}
             </p>
             <div className="mt-5">
               <Button asChild className="h-9 px-5 gap-2 shadow-sm font-medium text-xs">
                 <Link href="/tenants/register">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Register Your First Workspace</span>
+                  <span>{t("workspaces.emptyAction")}</span>
                   <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
                 </Link>
               </Button>
@@ -235,10 +241,10 @@ export default function TenantsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 id="requests-heading" className="text-base font-semibold text-foreground">
-                Registration Requests
+                {t("workspaces.requests")}
               </h2>
               <p className="text-xs text-muted">
-                Status of business organizations submitted for Hexta platform verification.
+                {t("workspaces.requestsHelp")}
               </p>
             </div>
           </div>
@@ -246,7 +252,7 @@ export default function TenantsPage() {
           {loading ? (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface/50 p-6 text-xs text-muted">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span>Loading requests…</span>
+              <span>{t("workspaces.loadingRequests")}</span>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -273,44 +279,44 @@ export default function TenantsPage() {
                       </div>
 
                       {isPending && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                          <Clock className="w-3 h-3" />
-                          Pending Review
-                        </span>
+                        <StatusChip tone="warning">
+                          <Clock className="mr-1 h-3 w-3" aria-hidden="true" />
+                          {t("workspaces.pending")}
+                        </StatusChip>
                       )}
 
                       {isApproved && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Approved
-                        </span>
+                        <StatusChip tone="success">
+                          <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                          {t("workspaces.approved")}
+                        </StatusChip>
                       )}
 
                       {isRejected && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-error/15 px-2 py-0.5 text-[11px] font-semibold text-error">
-                          <XCircle className="w-3 h-3" />
-                          Declined
-                        </span>
+                        <StatusChip tone="danger">
+                          <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+                          {t("workspaces.rejected")}
+                        </StatusChip>
                       )}
                     </div>
 
                     {isPending && (
                       <p className="mt-2.5 text-xs text-muted leading-relaxed">
-                        Your application is currently queued for review. Access will be automatically unlocked once approved.
+                        {t("workspaces.pendingHelp")}
                       </p>
                     )}
 
                     {isApproved && (
                       <div className="mt-2.5 flex items-center justify-between border-t border-success/20 pt-2">
-                        <span className="text-xs text-success font-medium">Ready to access</span>
+                        <span className="text-xs font-medium">{t("workspaces.ready")}</span>
                         <Button
                           variant="ghost"
                           size="sm"
                           asChild
-                          className="h-7 text-xs text-success hover:bg-success/10 px-2"
+                          className="h-7 px-2 text-xs"
                         >
-                          <Link href={row.tenant_id ? `/tenants/${row.tenant_id}/orders` : "/tenants"}>
-                            Enter Tenant →
+                          <Link href={row.tenant_id ? `/tenants/${row.tenant_id}/inbox` : "/tenants"}>
+                            {t("workspaces.enter")} →
                           </Link>
                         </Button>
                       </div>
@@ -319,19 +325,19 @@ export default function TenantsPage() {
                     {isRejected && (
                       <div className="mt-2.5 space-y-2 border-t border-error/20 pt-2">
                         {row.review_reason && (
-                          <p className="text-xs text-error font-medium">
-                            Reason: {row.review_reason}
+                          <p className="text-xs font-medium">
+                            {t("workspaces.reason", { reason: row.review_reason })}
                           </p>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
                           asChild
-                          className="h-7 text-xs text-error hover:bg-error/10 px-2 gap-1"
+                          className="h-7 gap-1 px-2 text-xs"
                         >
                           <Link href="/tenants/register">
                             <RotateCcw className="w-3 h-3" />
-                            <span>Reapply with edits</span>
+                            <span>{t("workspaces.reapply")}</span>
                           </Link>
                         </Button>
                       </div>

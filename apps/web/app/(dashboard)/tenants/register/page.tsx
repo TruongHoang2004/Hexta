@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { onboarding } from "@/lib/services/onboarding";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 import { Button, Input, Label, toast } from "@hexta/ui";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -36,6 +37,8 @@ function toSlug(value: string): string {
 
 export default function RegisterTenantPage() {
   const router = useRouter();
+  const t = useT();
+  const errorText = useErrorText();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugCustomized, setSlugCustomized] = useState(false);
@@ -65,23 +68,19 @@ export default function RegisterTenantPage() {
     const trimmedSlug = slug.trim();
 
     if (trimmedName.length < 2) {
-      toast.error("Business name must be at least 2 characters.");
+      toast.error(t("registerWorkspace.nameTooShort"));
       return;
     }
 
     if (!trimmedSlug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(trimmedSlug)) {
-      toast.error(
-        "Slug must be lowercase alphanumeric with optional hyphens (e.g. 'my-shop').",
-      );
+      toast.error(t("registerWorkspace.slugInvalid"));
       return;
     }
 
     setBusy(true);
     try {
       await onboarding.apply(trimmedName, trimmedSlug);
-      toast.success(
-        "Application submitted! Hexta operators will review and approve access soon.",
-      );
+      toast.success(t("registerWorkspace.submitted"));
       router.push("/tenants");
     } catch (err) {
       toast.error(errorText(err));
@@ -89,6 +88,7 @@ export default function RegisterTenantPage() {
     }
   }
 
+  const [privacyBefore, privacyAfter] = t("registerWorkspace.privacy").split("{link}");
   const isValidSlug = slug.length >= 2 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug);
 
   return (
@@ -96,12 +96,12 @@ export default function RegisterTenantPage() {
       {/* Unified Compact PageHeader with integrated Breadcrumb/Back link */}
       <PageHeader
         backHref="/tenants"
-        backLabel="Workspaces"
-        title="Register a Business Tenant"
-        description="Create an isolated organization workspace to manage products, orders, customers, and AI copilot agents."
+        backLabel={t("registerWorkspace.back")}
+        title={t("registerWorkspace.title")}
+        description={t("registerWorkspace.description")}
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            <Sparkles className="w-3 h-3" /> Setup
+            <Sparkles className="w-3 h-3" /> {t("registerWorkspace.badge")}
           </span>
         }
       />
@@ -111,10 +111,10 @@ export default function RegisterTenantPage() {
         <div className="lg:col-span-5 space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              What&apos;s included in your workspace
+              {t("registerWorkspace.includedTitle")}
             </h2>
             <p className="mt-0.5 text-xs text-muted leading-relaxed">
-              Every Hexta tenant comes preconfigured with enterprise-grade capabilities.
+              {t("registerWorkspace.includedBody")}
             </p>
           </div>
 
@@ -125,10 +125,10 @@ export default function RegisterTenantPage() {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-foreground">
-                  Omni-channel Inbox
+                  {t("registerWorkspace.inboxTitle")}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
-                  Consolidate conversations from social media, chat widgets, and direct messages in one live inbox.
+                  {t("registerWorkspace.inboxBody")}
                 </p>
               </div>
             </div>
@@ -139,10 +139,10 @@ export default function RegisterTenantPage() {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-foreground">
-                  AI Sales Copilot
+                  {t("registerWorkspace.aiTitle")}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
-                  Deliver instant product recommendations, order inquiries, and autonomous conversational checkout.
+                  {t("registerWorkspace.aiBody")}
                 </p>
               </div>
             </div>
@@ -153,10 +153,10 @@ export default function RegisterTenantPage() {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-foreground">
-                  Configurable Workflows
+                  {t("registerWorkspace.workflowTitle")}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
-                  Define automated fulfillment pipelines, human escalation rules, and inventory alerts.
+                  {t("registerWorkspace.workflowBody")}
                 </p>
               </div>
             </div>
@@ -165,8 +165,8 @@ export default function RegisterTenantPage() {
           <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/5 p-3.5 text-xs text-muted">
             <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div className="leading-relaxed text-[11px]">
-              <span className="font-semibold text-foreground">Transparent Review: </span>
-              Registration requests are reviewed by Hexta platform operators to maintain workspace isolation and reliability. Your user account automatically receives Owner privileges upon approval.
+              <span className="font-semibold text-foreground">{t("registerWorkspace.reviewTitle")}</span>
+              {t("registerWorkspace.reviewBody")}
             </div>
           </div>
         </div>
@@ -183,10 +183,10 @@ export default function RegisterTenantPage() {
               </div>
               <div>
                 <h2 className="text-base font-bold text-foreground">
-                  Organization Information
+                  {t("registerWorkspace.formTitle")}
                 </h2>
                 <p className="text-xs text-muted">
-                  Provide your business name and choose a unique workspace URL.
+                  {t("registerWorkspace.formBody")}
                 </p>
               </div>
             </div>
@@ -199,7 +199,7 @@ export default function RegisterTenantPage() {
                   className="text-xs font-semibold text-foreground flex items-center justify-between"
                 >
                   <span>
-                    Business or Brand Name <span className="text-error">*</span>
+                    {t("registerWorkspace.name")} <span className="text-error">*</span>
                   </span>
                   <span className="text-[11px] font-normal text-muted">
                     {name.length}/100
@@ -210,7 +210,7 @@ export default function RegisterTenantPage() {
                   required
                   minLength={2}
                   maxLength={100}
-                  placeholder="e.g. Acme Fashion, Minh Long Ceramics"
+                  placeholder={t("registerWorkspace.namePlaceholder")}
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   disabled={busy}
@@ -218,7 +218,7 @@ export default function RegisterTenantPage() {
                   autoFocus
                 />
                 <p className="text-[11px] text-muted">
-                  The primary public name of your store or corporate organization.
+                  {t("registerWorkspace.nameHelp")}
                 </p>
               </div>
 
@@ -229,7 +229,7 @@ export default function RegisterTenantPage() {
                     htmlFor="tenant-slug"
                     className="text-xs font-semibold text-foreground"
                   >
-                    Workspace Slug <span className="text-error">*</span>
+                    {t("registerWorkspace.slug")} <span className="text-error">*</span>
                   </Label>
                   {slugCustomized && (
                     <button
@@ -238,7 +238,7 @@ export default function RegisterTenantPage() {
                       className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />
-                      Reset to auto-generated
+                      {t("registerWorkspace.slugReset")}
                     </button>
                   )}
                 </div>
@@ -250,7 +250,7 @@ export default function RegisterTenantPage() {
                     minLength={2}
                     maxLength={100}
                     pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                    placeholder="e.g. acme-fashion"
+                    placeholder={t("registerWorkspace.slugPlaceholder")}
                     value={slug}
                     onChange={(e) => handleSlugChange(e.target.value)}
                     disabled={busy}
@@ -267,14 +267,11 @@ export default function RegisterTenantPage() {
                 <div className="flex items-center gap-2 rounded-xl border border-border/80 bg-background/70 px-3 py-2 text-xs text-muted font-mono">
                   <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="truncate">
-                    https://app.hexta.vn/tenants/
-                    <span className="font-semibold text-foreground">
-                      {slug || "your-slug"}
-                    </span>
+                    {t("registerWorkspace.slugPreview", { slug: slug || t("registerWorkspace.slugFallback") })}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted">
-                  Used in browser bookmarks, URLs, and API endpoints. Lowercase letters, numbers, and hyphens only.
+                  {t("registerWorkspace.slugHelp")}
                 </p>
               </div>
 
@@ -287,7 +284,7 @@ export default function RegisterTenantPage() {
                   asChild
                   className="h-10 w-full sm:w-auto px-4 text-xs"
                 >
-                  <Link href="/tenants">Cancel</Link>
+                  <Link href="/tenants">{t("registerWorkspace.cancel")}</Link>
                 </Button>
 
                 <Button
@@ -298,12 +295,12 @@ export default function RegisterTenantPage() {
                   {busy ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Submitting Request…</span>
+                      <span>{t("registerWorkspace.submitting")}</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Submit for Approval</span>
+                      <span>{t("registerWorkspace.submit")}</span>
                       <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
                     </>
                   )}
@@ -311,11 +308,11 @@ export default function RegisterTenantPage() {
               </div>
 
               <p className="text-center text-[11px] text-muted">
-                Workspace data is strictly protected and isolated under our{" "}
+                {privacyBefore}
                 <Link href="/privacy" className="text-primary hover:underline underline-offset-2">
-                  Privacy Policy
+                  {t("registerWorkspace.privacyLink")}
                 </Link>
-                .
+                {privacyAfter}
               </p>
             </form>
           </div>

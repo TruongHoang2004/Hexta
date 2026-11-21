@@ -3,23 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 import {
   channels,
   type OAuthPages,
-  type SelectablePage,
 } from "@/lib/services/channels";
 import { buttonClass, Notice } from "@/components/sales/primitives";
-
-const availabilityText: Record<SelectablePage["availability"], string> = {
-  available: "Available",
-  already_connected_this_tenant: "Connected here — select to reconnect",
-  owned_by_other_tenant: "Connected to another workspace",
-};
 
 export function FacebookCallback() {
   const params = useSearchParams();
   const router = useRouter();
+  const t = useT();
+  const errorText = useErrorText();
   const started = useRef("");
   const [result, setResult] = useState<OAuthPages | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -45,7 +41,7 @@ export function FacebookCallback() {
         );
       })
       .catch((err) => setError(errorText(err)));
-  }, [params, state]);
+  }, [params, state, errorText]);
   async function connect(event: React.FormEvent) {
     event.preventDefault();
     if (!result || busy || !selected.length) return;
@@ -61,17 +57,17 @@ export function FacebookCallback() {
   }
   if (!state) {
     return (
-      <Notice error="This page is opened by Facebook after you start a connection from Channel settings." />
+      <Notice error={t("oauth.notStarted")} />
     );
   }
   return (
     <div className="space-y-5">
-      <h1 className="text-3xl font-semibold">Choose Facebook Pages</h1>
+      <h1 className="text-2xl font-semibold">{t("oauth.title")}</h1>
       <Notice error={error} />
-      {!result && !error && <p role="status">Checking Facebook authorization…</p>}
+      {!result && !error && <p role="status">{t("oauth.checking")}</p>}
       {error && (
         <Link href="/tenants" className="text-sm text-primary underline">
-          Back to workspaces
+          {t("oauth.back")}
         </Link>
       )}
       {result && (
@@ -80,18 +76,15 @@ export function FacebookCallback() {
           className="space-y-4 rounded-xl border border-border bg-surface p-5"
         >
           <p className="text-sm text-muted">
-            Select the Pages this workspace should receive and answer messages
-            for. This selection expires at{" "}
-            {new Date(result.expires_at).toLocaleTimeString()}.
+            {t("oauth.intro", { time: new Date(result.expires_at).toLocaleTimeString() })}
           </p>
           {!result.pages.length ? (
             <p className="text-sm">
-              Facebook returned no Pages you manage. Check the Pages granted in
-              the Facebook dialog and try again.
+              {t("oauth.noPages")}
             </p>
           ) : (
             <fieldset className="space-y-2">
-              <legend className="sr-only">Facebook Pages</legend>
+              <legend className="sr-only">{t("oauth.pagesLegend")}</legend>
               {result.pages.map((page) => {
                 const taken = page.availability === "owned_by_other_tenant";
                 return (
@@ -115,7 +108,7 @@ export function FacebookCallback() {
                     <span>
                       <span className="block font-medium">{page.page_name}</span>
                       <span className="block text-xs text-muted">
-                        {availabilityText[page.availability]}
+                        {t(`oauth.availability.${page.availability}`)}
                       </span>
                     </span>
                   </label>
@@ -125,13 +118,13 @@ export function FacebookCallback() {
           )}
           <div className="flex flex-wrap gap-2">
             <button className={buttonClass} disabled={busy || !selected.length}>
-              {busy ? "Connecting…" : `Connect ${selected.length || ""} Page${selected.length === 1 ? "" : "s"}`}
+              {busy ? t("oauth.connecting") : t("oauth.connect", { count: selected.length })}
             </button>
             <Link
               href={`/tenants/${result.tenant_id}/settings/channels`}
               className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface"
             >
-              Cancel
+              {t("oauth.cancel")}
             </Link>
           </div>
         </form>

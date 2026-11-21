@@ -6,8 +6,10 @@ import { apiUrl, sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Input, Label, toast } from "@hexta/ui";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -17,19 +19,21 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const t = useT();
+  const errorText = useErrorText();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     if (password !== confirmPassword) {
-      toast.error("Password confirmation does not match.");
+      toast.error(t("authPages.passwordMismatch"));
       setLoading(false);
       return;
     }
     
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters.");
+      toast.error(t("authPages.passwordShort"));
       setLoading(false);
       return;
     }
@@ -40,7 +44,7 @@ export default function RegisterPage() {
       sessionStorage.removeItem("hexta.workspace");
       router.push(sessionStorage.getItem("hexta.invitation") ? "/invitations" : "/tenants");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Registration failed. Please try again.");
+      toast.error(errorText(err));
     } finally {
       setLoading(false);
     }
@@ -52,15 +56,6 @@ export default function RegisterPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
 
-      {/* Header */}
-      <div className="absolute top-6 left-6 z-20">
-        <Button variant="ghost" asChild className="text-muted hover:text-foreground">
-          <Link href="/">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to home
-          </Link>
-        </Button>
-      </div>
 
       <div className="flex-1 flex items-center justify-center p-6 z-10">
         <div className="w-full max-w-[400px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -68,15 +63,15 @@ export default function RegisterPage() {
             <div className="flex justify-center mb-6">
               <BrandLogo className="w-44" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Create an account</h1>
-            <p className="text-muted">Create an account to get started with Hexta</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("authPages.registerTitle")}</h1>
+            <p className="text-muted">{t("authPages.registerSubtitle")}</p>
           </div>
 
           <div className="bg-surface/50 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl">
             <form onSubmit={handleRegister} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("authPages.email")}</Label>
                   <Input
                     id="email"
                     name="email"
@@ -92,7 +87,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("authPages.password")}</Label>
                   <Input
                     id="password"
                     name="password"
@@ -108,7 +103,7 @@ export default function RegisterPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">{t("authPages.confirmPassword")}</Label>
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -128,10 +123,10 @@ export default function RegisterPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Creating account...
+                    {t("authPages.creating")}
                   </>
                 ) : (
-                  "Create account"
+                  t("authPages.create")
                 )}
               </Button>
             </form>
@@ -142,7 +137,7 @@ export default function RegisterPage() {
                   <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="bg-surface/50 px-2 text-muted">Or continue with</span>
+                  <span className="bg-surface/50 px-2 text-muted">{t("authPages.orContinue")}</span>
                 </div>
               </div>
 
@@ -175,24 +170,24 @@ export default function RegisterPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Sign up with Google
+                  {t("authPages.googleSignUp")}
                 </Button>
               </div>
 
               <p className="mt-5 text-center text-xs text-muted leading-relaxed">
-                By creating an account, you agree to our{" "}
+                {t("authPages.agree").split("{link}")[0]}
                 <Link href="/privacy" className="text-primary hover:underline underline-offset-4">
-                  Privacy Policy
+                  {t("authPages.privacy")}
                 </Link>
-                .
+                {t("authPages.agree").split("{link}")[1]}
               </p>
             </div>
           </div>
 
           <p className="text-center text-sm text-muted">
-            Already have an account?{" "}
+            {t("authPages.haveAccount")}{" "}
             <Link href="/login" className="font-medium text-primary hover:underline underline-offset-4">
-              Sign in now
+              {t("authPages.signInNow")}
             </Link>
           </p>
         </div>

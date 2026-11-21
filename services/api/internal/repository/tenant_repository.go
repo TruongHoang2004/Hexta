@@ -19,6 +19,8 @@ type ITenantRepository interface {
 	GetUserTenants(ctx context.Context, userID string) ([]*model.Tenant, *errors.Error)
 	GetTenantMember(ctx context.Context, tenantID, userID string) (*model.TenantMember, *errors.Error)
 	ListTenantMembers(ctx context.Context, tenantID string) ([]*model.TenantMember, *errors.Error)
+	// TenantMemberEmails maps each current member's user ID to the email of their sign-in identity.
+	TenantMemberEmails(ctx context.Context, tenantID string) (map[string]string, *errors.Error)
 	AddTenantMember(ctx context.Context, member *model.TenantMember) (*model.TenantMember, *errors.Error)
 }
 
@@ -120,6 +122,30 @@ func (r *TenantRepository) ListTenantMembers(ctx context.Context, tenantID strin
 		return nil, r.returnError(ctx, err)
 	}
 	return members, nil
+}
+
+func (r *TenantRepository) TenantMemberEmails(ctx context.Context, tenantID string) (map[string]string, *errors.Error) {
+	rows := []struct {
+		UserID     string
+		Identifier string
+	}{}
+	// Local and Google identities both store the account email as the identifier; prefer the local one.
+	err := r.db.WithContext(ctx).Table("identities AS i").
+		Select("i.user_id, i.identifier").
+		Joins("JOIN tenant_members AS m ON m.user_id = i.user_id AND m.tenant_id = ?", tenantID).
+		Where("i.provider IN ?", []model.Provider{model.ProviderLocal, model.ProviderGoogle}).
+		Order("CASE WHEN i.provider = 'local' THEN 0 ELSE 1 END, i.created_at").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, r.returnError(ctx, err)
+	}
+	emails := make(map[string]string, len(rows))
+	for _, row := range rows {
+		if _, seen := emails[row.UserID]; !seen {
+			emails[row.UserID] = row.Identifier
+		}
+	}
+	return emails, nil
 }
 
 func (r *TenantRepository) AddTenantMember(ctx context.Context, member *model.TenantMember) (*model.TenantMember, *errors.Error) {

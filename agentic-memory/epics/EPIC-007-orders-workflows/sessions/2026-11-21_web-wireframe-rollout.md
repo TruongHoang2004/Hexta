@@ -73,3 +73,26 @@ Branch `feat/web-work` (stacked on `feat/web-orders`).
 - OPEN: workflow version history needs the API to return older versions (definitions currently preload only the current version), so no history list is shown.
 
 Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — phase 3 (workspace and access) and API addition 2a
+
+Branch `feat/web-workspace` (stacked on `feat/web-work`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/users` adds optional `email` per member, read from the member's local or Google identity (local preferred) and scoped by a join on the tenant's members. Only current members can list (unchanged 403 otherwise). New repository method `TenantMemberEmails` (DB wrapper passthrough), service unit test and repository DB assertion (including an outsider identity that must not appear). Swagger regenerated. SDK `TenantMember.email?` added; SDK lint/test/build pass.
+- DECISION TO CONFIRM (owner): every current member can now see teammates' account emails (needed to name assignees in Desk, Orders and Work). Previously only user IDs were visible.
+- NOT DONE by design: planned addition 2d (`my_role` on `GET /tenants`) — the picker derives owner/member from `owner_id` and the signed-in user, so no API change was needed.
+- IMPLEMENTED (web): shared `useMemberName` (You / email / short ID / former member) used in Desk (list, read-only reason with the handler's name, assignment), Orders and Work; members now load for all roles in Desk. Workspace picker localized with a role chip, accessible status chips and Inbox as the entry route. Invitation page shows distinct wrong-account (403) and no-longer-valid (404/409) states with a switch-account action. Operator review page has Pending / Approved / Rejected tabs with counts and a reject dialog that requires a reason. Members page shows emails, role chips, invitation status chips, a copy button for the one-time link; all localized.
+- Remaining English screens: register (S-03), channels (S-18), plan (S-20), storefront/checkout, login/register.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller pass (DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`); `pnpm --filter @hexta/sdk lint|test|build` pass; `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — remaining localization
+
+Branch `feat/web-i18n-rest` (stacked on `feat/web-workspace`).
+
+- Localized (vi/en): channel settings (Facebook, Telegram, OAuth page picker), settings intro/plan pages, workspace registration, storefront and checkout (checkout precondition errors are now typed and localized), login, register, auth callback, page metadata and the page-header back label.
+- Content corrections while translating: workspace registration no longer claims "autonomous checkout", "inventory alerts" or a fake `app.hexta.vn/tenants/<slug>` URL (routes use tenant IDs); the slug is shown as a workspace code. Login drops the non-functional "Forgot password?" link.
+- `/` in the web app now redirects to `/login` (the proxy forwards signed-in users to `/tenants`); the previous placeholder marketing page with unverifiable claims was removed because the landing app owns marketing. Auth pages no longer show a "Back to home" link that would loop.
+- No hardcoded English UI text remains outside the Vietnamese legal pages (scan of `app/` and `components/`).
+
+Verification: `pnpm --filter web lint` and `build` pass; `node --test` for the two existing web unit test files passes (7 tests); `next start` smoke check: `/` → 307 `/login`, `/login` renders Vietnamese title/heading by default and English with `hexta.locale=en`. Signed-in browser acceptance NOT_RUN.
