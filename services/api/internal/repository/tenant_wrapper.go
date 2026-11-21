@@ -75,6 +75,10 @@ func (w *TenantCacheWrapper) ListTenantMembers(ctx context.Context, tenantID str
 	return w.dbRepo.ListTenantMembers(ctx, tenantID)
 }
 
+func (w *TenantCacheWrapper) TenantMemberEmails(ctx context.Context, tenantID string) (map[string]string, *errors.Error) {
+	return w.dbRepo.TenantMemberEmails(ctx, tenantID)
+}
+
 func (w *TenantCacheWrapper) AddTenantMember(ctx context.Context, member *model.TenantMember) (*model.TenantMember, *errors.Error) {
 	return w.dbRepo.AddTenantMember(ctx, member)
 }

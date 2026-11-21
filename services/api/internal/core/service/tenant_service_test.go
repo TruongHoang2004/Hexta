@@ -96,6 +96,14 @@ func (m *mockTenantRepo) ListTenantMembers(ctx context.Context, tenantID string)
 	return m.memberList[tenantID], nil
 }
 
+func (m *mockTenantRepo) TenantMemberEmails(ctx context.Context, tenantID string) (map[string]string, *errors.Error) {
+	emails := map[string]string{}
+	for _, member := range m.memberList[tenantID] {
+		emails[member.UserID] = member.UserID + "@example.test"
+	}
+	return emails, nil
+}
+
 func (m *mockTenantRepo) AddTenantMember(ctx context.Context, member *model.TenantMember) (*model.TenantMember, *errors.Error) {
 	member.ID = int64(len(m.members) + 1)
 	key := member.TenantID + ":" + member.UserID
@@ -223,5 +231,25 @@ func TestTenantService_AuthorizeMember(t *testing.T) {
 	repo.tenants["t1"] = &model.Tenant{ID: "t1", Status: model.TenantStatusSuspended}
 	if _, err := svc.AuthorizeMember(ctx, "member", "t1"); err == nil || err.GetHttpStatus() != 403 {
 		t.Fatalf("expected suspended workspace to be forbidden, got %v", err)
+	}
+}
+
+func TestTenantService_ListMembersIncludesEmailsForMembersOnly(t *testing.T) {
+	repo := newMockTenantRepo()
+	svc := NewTenantService(repo)
+	ctx := context.Background()
+	tenant, _ := svc.CreateTenant(ctx, "owner-user", "Mail Org", "mail-org", model.PlanPro)
+	if _, err := svc.InviteMember(ctx, "owner-user", tenant.ID, "sale-user", model.RoleMember); err != nil {
+		t.Fatal(err)
+	}
+	members, emails, err := svc.ListMembers(ctx, "sale-user", tenant.ID)
+	if err != nil || len(members) != 2 {
+		t.Fatalf("member list failed: %v", err)
+	}
+	if emails["owner-user"] != "owner-user@example.test" || emails["sale-user"] != "sale-user@example.test" {
+		t.Fatalf("member emails missing: %+v", emails)
+	}
+	if _, _, err := svc.ListMembers(ctx, "stranger-user", tenant.ID); err == nil || err.GetHttpStatus() != 403 {
+		t.Fatal("non-member must not list members or emails")
 	}
 }

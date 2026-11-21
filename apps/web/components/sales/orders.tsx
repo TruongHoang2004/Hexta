@@ -31,6 +31,7 @@ import {
 import { isConflict, useErrorText } from "@/lib/errors";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { Translate } from "@/lib/i18n/translate";
+import { useMemberName } from "@/lib/members";
 
 interface Line {
   key: string;
@@ -88,6 +89,7 @@ function OrderEditor({
   const t = useT();
   const errorText = useErrorText();
   const money = useMoney();
+  const memberName = useMemberName(members);
   const [customer, setCustomer] = useState(order?.customer_id || "");
   const [employee, setEmployee] = useState(order?.employee_id || "");
   const [delivery, setDelivery] = useState(order?.requires_delivery || false);
@@ -294,7 +296,7 @@ function OrderEditor({
                   )}
                   {members.map((row) => (
                     <option key={row.id} value={row.user_id} disabled={!owner && row.user_id !== user?.id}>
-                      {row.user_id === user?.id ? t("orders.editor.you") : row.user_id}
+                      {memberName(row.user_id)}
                     </option>
                   ))}
                 </select>

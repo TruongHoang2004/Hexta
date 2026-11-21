@@ -986,6 +986,8 @@ definitions:
     properties:
       created_at:
         type: string
+      email:
+        type: string
       id:
         type: integer
       role:

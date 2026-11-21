@@ -187,7 +187,7 @@ func (ctrl *TenantController) ListMembers(c *gin.Context) {
 		return
 	}
 
-	members, err := ctrl.tenantService.ListMembers(c.Request.Context(), userID, tenantID)
+	members, emails, err := ctrl.tenantService.ListMembers(c.Request.Context(), userID, tenantID)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return
@@ -199,6 +199,7 @@ func (ctrl *TenantController) ListMembers(c *gin.Context) {
 			ID:        m.ID,
 			TenantID:  m.TenantID,
 			UserID:    m.UserID,
+			Email:     emails[m.UserID],
 			Role:      m.Role,
 			CreatedAt: m.CreatedAt,
 		})

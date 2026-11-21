@@ -84,4 +84,19 @@ func TestTenantRepository_CRUD(t *testing.T) {
 	if len(members) == 0 {
 		t.Fatalf("expected at least 1 member, got %d", len(members))
 	}
+
+	// 7. Member emails come from the sign-in identity and stay scoped to the tenant's members.
+	if err := tx.Create(&model.AuthIdentities{UserID: testOwnerID, Provider: model.ProviderLocal, Identifier: "owner@example.test"}).Error; err != nil {
+		t.Fatalf("failed to seed identity: %v", err)
+	}
+	if err := tx.Create(&model.AuthIdentities{UserID: "outsider-" + created.ID, Provider: model.ProviderLocal, Identifier: "outsider-" + created.ID + "@example.test"}).Error; err != nil {
+		t.Fatalf("failed to seed outsider identity: %v", err)
+	}
+	emails, err := repo.TenantMemberEmails(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("failed to list member emails: %v", err)
+	}
+	if emails[testOwnerID] != "owner@example.test" || len(emails) != 1 {
+		t.Fatalf("unexpected member emails: %+v", emails)
+	}
 }

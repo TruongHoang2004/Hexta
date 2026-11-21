@@ -30,6 +30,7 @@ import {
 import { isConflict, useErrorText } from "@/lib/errors";
 import { useT } from "@/lib/i18n/provider";
 import type { Translate } from "@/lib/i18n/translate";
+import { useMemberName } from "@/lib/members";
 
 type Command = "handoff" | "accept" | "assign" | "complete";
 type CommandFields = { recipient_id?: string; responsible_id?: string | null };
@@ -39,12 +40,6 @@ const stateTone: Record<WorkItem["state"], ChipTone> = {
   completed: "success",
 };
 const eventActions = ["create", "handoff", "accept", "assign", "complete"] as const;
-
-function usePerson() {
-  const { user } = useAuthStore();
-  const t = useT();
-  return (id: string | null) => (!id ? t("work.unassigned") : id === user?.id ? t("work.you") : id);
-}
 
 /** Compact step progress: done steps, current step highlighted, later steps muted. */
 function StepTrack({ item, t }: { item: WorkItem; t: Translate }) {
@@ -84,7 +79,7 @@ function WorkCreator({
   ) => Promise<void>;
 }) {
   const t = useT();
-  const person = usePerson();
+  const person = useMemberName(members);
   const [order, setOrder] = useState("");
   const [definition, setDefinition] = useState("");
   const [responsible, setResponsible] = useState("");
@@ -162,7 +157,7 @@ function WorkDetail({
   const { isOwner } = useWorkspace();
   const { user } = useAuthStore();
   const t = useT();
-  const person = usePerson();
+  const person = useMemberName(members);
   const [recipient, setRecipient] = useState("");
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [responsible, setResponsible] = useState(item.responsible_id || "");
@@ -315,16 +310,15 @@ function WorkDetail({
 
 export function WorkItems() {
   const { tenant, isOwner } = useWorkspace();
-  const { user } = useAuthStore();
   const t = useT();
   const errorText = useErrorText();
-  const person = usePerson();
   const [view, setView] = useState<WorkView>("mine");
   const [rows, setRows] = useState<WorkItem[]>([]);
   const [selected, setSelected] = useState<WorkItem | null>(null);
   const [definitions, setDefinitions] = useState<WorkflowDefinition[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [members, setMembers] = useState<TenantMember[]>([]);
+  const person = useMemberName(members);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -530,7 +524,7 @@ export function WorkItems() {
                     <span className="block break-all text-xs">
                       {t("work.responsible")}: {person(row.responsible_id)}
                       {row.recipient_id && row.state === "waiting"
-                        ? ` · ${t("work.waitingShort", { name: row.recipient_id === user?.id ? t("work.you") : row.recipient_id })}`
+                        ? ` · ${t("work.waitingShort", { name: person(row.recipient_id) })}`
                         : ""}
                     </span>
                   </button>
