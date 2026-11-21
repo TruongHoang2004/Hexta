@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useWorkspace } from "@/components/sales/workspace";
-import { useAuthStore } from "@/store/useAuthStore";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 import {
   channels,
   type ConnectionAction,
@@ -13,29 +13,28 @@ import {
 import {
   buttonClass,
   Notice,
+  StatusChip,
   secondaryClass,
+  type ChipTone,
 } from "@/components/sales/primitives";
 import { ExpiredConnectionBanner } from "@/components/channels/expired-banner";
 
-const statusLabel: Record<ConnectionStatus, [string, string]> = {
-  active: ["Active", "border-green-300 bg-green-50 text-green-800"],
-  paused: ["Paused", "border-amber-300 bg-amber-50 text-amber-900"],
-  auth_expired: ["Reconnect required", "border-red-300 bg-red-50 text-red-800"],
-  disconnected: ["Disconnected", "border-border text-muted"],
+export const statusTone: Record<ConnectionStatus, ChipTone> = {
+  active: "success",
+  paused: "warning",
+  auth_expired: "danger",
+  disconnected: "neutral",
 };
-
-const confirmText: Record<ConnectionAction, string> = {
-  pause:
-    "Pause this Page? New messages are not received and unsent replies are cancelled until you resume.",
-  resume: "Resume this Page?",
-  disconnect:
-    "Disconnect this Page? Its stored authorization is deleted and webhooks are unsubscribed. Conversation history is kept.",
-};
+const confirmKey = {
+  pause: "channels.facebook.confirmPause",
+  resume: "channels.facebook.confirmResume",
+  disconnect: "channels.facebook.confirmDisconnect",
+} as const satisfies Record<ConnectionAction, string>;
 
 export function FacebookChannelSettings() {
-  const { tenant } = useWorkspace();
-  const { user } = useAuthStore();
-  const owner = !!tenant && tenant.owner_id === user?.id;
+  const { tenant, isOwner: owner } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
   const [rows, setRows] = useState<FacebookConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -59,7 +58,7 @@ export function FacebookChannelSettings() {
     }
     void load();
     return () => controller.abort();
-  }, [tenantID, revision]);
+  }, [tenantID, revision, errorText]);
   async function connect() {
     if (!tenantID || busy) return;
     setBusy("connect");
@@ -73,14 +72,17 @@ export function FacebookChannelSettings() {
     }
   }
   async function act(row: FacebookConnection, action: ConnectionAction) {
-    if (!tenantID || busy || !window.confirm(confirmText[action])) return;
+    if (!tenantID || busy || !window.confirm(t(confirmKey[action]))) return;
     setBusy(row.id);
     setError("");
     setSuccess("");
     try {
       const updated = await channels.update(tenantID, row.id, action);
       setSuccess(
-        `${updated.account_name || updated.account_id} is now ${statusLabel[updated.status][0].toLowerCase()}.`,
+        t("channels.nowStatus", {
+          name: updated.account_name || updated.account_id,
+          status: t(`channels.status.${updated.status}`),
+        }),
       );
     } catch (err) {
       // A failed connector sync is saved on the row; repeating the action retries it.
@@ -106,7 +108,7 @@ export function FacebookChannelSettings() {
             disabled={!!busy}
             onClick={() => void connect()}
           >
-            {busy === "connect" ? "Opening Facebook…" : "Connect Facebook Page"}
+            {busy === "connect" ? t("channels.facebook.opening") : t("channels.facebook.connect")}
           </button>
         )}
         <button
@@ -117,12 +119,12 @@ export function FacebookChannelSettings() {
             setRevision((v) => v + 1);
           }}
         >
-          Refresh
+          {t("channels.refresh")}
         </button>
       </div>
       {!owner && (
         <p className="text-sm text-muted">
-          Only the workspace owner can connect, pause or disconnect Pages.
+          {t("channels.facebook.ownerOnly")}
         </p>
       )}
       <section
@@ -130,18 +132,17 @@ export function FacebookChannelSettings() {
         aria-labelledby="facebook-pages"
       >
         <h2 id="facebook-pages" className="font-semibold">
-          Facebook Pages
+          {t("channels.facebook.title")}
         </h2>
         {loading ? (
           <p role="status" className="mt-3">
-            Loading connections…
+            {t("channels.facebook.loading")}
           </p>
         ) : !rows.length ? (
-          <p className="mt-3 text-sm text-muted">No Pages connected yet.</p>
+          <p className="mt-3 text-sm text-muted">{t("channels.facebook.empty")}</p>
         ) : (
           <ul className="mt-2 divide-y divide-border">
             {rows.map((row) => {
-              const [label, tone] = statusLabel[row.status];
               return (
                 <li
                   key={row.id}
@@ -149,23 +150,19 @@ export function FacebookChannelSettings() {
                 >
                   <div className="min-w-0">
                     <p className="font-medium">
-                      {row.account_name || "Facebook Page"}
+                      {row.account_name || t("channels.facebook.fallbackName")}
                     </p>
                     <p className="break-all font-mono text-xs text-muted">
                       {row.account_id}
                     </p>
                     {row.last_error_message && (
-                      <p className="mt-1 text-xs text-red-700">
+                      <p className="mt-1 text-xs text-error">
                         {row.last_error_message}
                       </p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
-                    >
-                      {label}
-                    </span>
+                    <StatusChip tone={statusTone[row.status]}>{t(`channels.status.${row.status}`)}</StatusChip>
                     {owner && (
                       <>
                         {row.status === "auth_expired" && (
@@ -174,7 +171,7 @@ export function FacebookChannelSettings() {
                             disabled={!!busy}
                             onClick={() => void connect()}
                           >
-                            Reconnect
+                            {t("channels.facebook.reconnect")}
                           </button>
                         )}
                         {(row.status === "active" ||
@@ -184,7 +181,7 @@ export function FacebookChannelSettings() {
                             disabled={!!busy}
                             onClick={() => void act(row, "pause")}
                           >
-                            Pause
+                            {t("channels.pause")}
                           </button>
                         )}
                         {row.status === "paused" && (
@@ -193,15 +190,15 @@ export function FacebookChannelSettings() {
                             disabled={!!busy}
                             onClick={() => void act(row, "resume")}
                           >
-                            Resume
+                            {t("channels.resume")}
                           </button>
                         )}
                         <button
-                          className={`${secondaryClass} text-red-700`}
+                          className={`${secondaryClass} text-error`}
                           disabled={!!busy}
                           onClick={() => void act(row, "disconnect")}
                         >
-                          {busy === row.id ? "Saving…" : "Disconnect"}
+                          {busy === row.id ? t("channels.saving") : t("channels.disconnect")}
                         </button>
                       </>
                     )}

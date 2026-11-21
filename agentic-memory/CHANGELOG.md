@@ -1,9 +1,11 @@
 # Consolidated Project Changelog
 
-## 2026-11-21 — Web wireframe rollout, phase 1 (in progress)
+## 2026-11-21 — Web wireframe rollout, MVP 1–4 (in review)
 
-- `apps/web` gains dependency-free vi/en i18n (Vietnamese default, cookie `hexta.locale`), localized error text with the API `trace_id` support code, shared app-local primitives and a grouped, role-aware workspace sidebar with settings tabs.
-- PRD split into `docs/specs/prd/` (index + six MVP slices) on a separate docs branch.
+- `apps/web` is bilingual (vi default, en) through dependency-free typed dictionaries; errors show the API `trace_id` as a support code; a grouped, role-aware sidebar and shared primitives back every screen.
+- Screens rebuilt to the PRD 2.1 wireframes: Desk (bot/waiting/mine/all, handoff dialog, delivery-unknown state), Orders (filters, confirmation checklist, 409 reload), Work and Workflows (my work / waiting for me tabs, handoff dialog), workspace picker, invitation, operator review and members; remaining screens localized; `/` redirects to sign-in.
+- API additions (backward compatible): conversation `filter=bot`, order `status`/`assignee` filters, work-item `view`, member `email` on `GET /tenants/:id/users` (teammate emails visible to members — owner to confirm).
+- PRD split into `docs/specs/prd/` (index + six MVP slices).
 - Details: [session](epics/EPIC-007-orders-workflows/sessions/2026-11-21_web-wireframe-rollout.md).
 
 ## 2026-11-21 — Agent context reduction (in review)

@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster, ThemeProvider } from "@hexta/ui";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { getLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n/translate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,10 +17,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Hexta — Sales workspace",
-  description: "Manage customers, products and orders in your business workspace.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return {
+    title: translate(locale, "meta.title"),
+    description: translate(locale, "meta.description"),
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
