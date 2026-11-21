@@ -1,5 +1,11 @@
 # Consolidated Project Changelog
 
+## 2026-11-21 — Web wireframe rollout, phase 1 (in progress)
+
+- `apps/web` gains dependency-free vi/en i18n (Vietnamese default, cookie `hexta.locale`), localized error text with the API `trace_id` support code, shared app-local primitives and a grouped, role-aware workspace sidebar with settings tabs.
+- PRD split into `docs/specs/prd/` (index + six MVP slices) on a separate docs branch.
+- Details: [session](epics/EPIC-007-orders-workflows/sessions/2026-11-21_web-wireframe-rollout.md).
+
 ## 2026-11-21 — Agent context reduction (in review)
 
 - Thesis moved to sibling repo `hexta-thesis` (history preserved); design/brand/slides/UI-UX skills moved to `hexta-design-skills`; review aliases removed. Skill catalog 27 → 18.
