@@ -49,3 +49,9 @@ __pycache__/
 
 
 infrastructure/.env.local*
+
+# Build output
+packages/*/dist/
+
+# Agent worktrees
+.claude/worktrees/

@@ -59,7 +59,7 @@ This skill automates end-to-end task execution from GitHub Issues top-down based
 
 ---
 
-### Step 5: Verify Changes & Code Review (`dev-review`)
+### Step 5: Verify Changes & Code Review (`code-review`)
 1. Run automated build and test commands:
    - For backend: `go test ./...` or `go build ./...`
    - For frontend: `npm run lint` / `npm run build` if applicable.

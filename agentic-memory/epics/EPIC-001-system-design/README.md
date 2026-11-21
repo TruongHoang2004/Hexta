@@ -39,6 +39,7 @@ Owner-approved [2026-11-03 instruction migration](sessions/2026-11-03_ai-instruc
 
 ## Evidence to load only when relevant
 
+- [2026-11-21 token diet](sessions/2026-11-21_token-diet.md): thesis/design skills moved to sibling repos, conditional router/memory loading, search ignores; in review.
 - [2026-10-28 memory pruning](sessions/2026-10-28_memory-pruning.md): latest session and cleanup/traceability boundaries.
 - [SaaS/thesis discovery](sessions/2026-10-27_saas-app-platform.md): owner corrections and scheduling source.
 - [Compliance implementation](sessions/2026-10-20_rule-compliance-fixes.md) and [publication](sessions/2026-10-21_compliance-pr.md): exact prior test/contract evidence; #58 merge now verified.
