@@ -2888,6 +2888,12 @@ const docTemplate = `{
                         "description": "Page size (1-100)",
                         "name": "size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "all (default), mine or awaiting_me",
+                        "name": "view",
+                        "in": "query"
                     }
                 ],
                 "responses": {
