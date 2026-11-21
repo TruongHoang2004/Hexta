@@ -6,7 +6,8 @@ import { Button, ThemeToggle } from "@hexta/ui";
 import { useAuthStore } from "@/store/useAuthStore";
 import { sdk } from "@/lib/sdk";
 import { useRouter } from "next/navigation";
-import { User, LogOut, LayoutDashboard } from "lucide-react";
+import { User, LogOut, LayoutDashboard, Languages } from "lucide-react";
+import { useLocale, useSetLocale, useT } from "@/lib/i18n/provider";
 
 
 const emptySubscribe = () => () => {};
@@ -25,6 +26,7 @@ export function AuthNav() {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const t = useT();
 
   useEffect(() => {
     initialize();
@@ -39,7 +41,7 @@ export function AuthNav() {
       sessionStorage.removeItem("hexta.workspace");
       router.push("/");
     } catch {
-      setLogoutError("Could not sign out. Please try again.");
+      setLogoutError(t("auth.signOutFailed"));
     } finally {
       setSigningOut(false);
     }
@@ -57,25 +59,26 @@ export function AuthNav() {
 
   if (isAuthenticated) {
     return (
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <LocaleSwitch />
         <ThemeToggle />
         <div className="flex items-center gap-2 text-sm text-foreground bg-muted/10 px-3 py-1.5 rounded-full border border-border">
           <User className="w-4 h-4 text-primary" />
           <span className="font-medium truncate max-w-[150px]">
-            {user?.email || "User"}
+            {user?.email || t("auth.account")}
           </span>
         </div>
         
         <Button asChild variant="ghost" size="sm" className="hover:text-primary transition-colors text-muted hidden sm:flex">
           <Link href="/tenants">
             <LayoutDashboard className="w-4 h-4 mr-2" />
-            My tenants
+            {t("auth.myWorkspaces")}
           </Link>
         </Button>
 
         <Button onClick={handleLogout} disabled={signingOut} variant="outline" size="sm" className="rounded-full shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all">
           <LogOut className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">{signingOut ? "Signing out…" : "Sign out"}</span>
+          <span className="hidden sm:inline">{signingOut ? t("auth.signingOut") : t("auth.signOut")}</span>
         </Button>
         {logoutError && <p role="alert" className="max-w-48 text-sm text-destructive">{logoutError}</p>}
       </div>
@@ -83,15 +86,37 @@ export function AuthNav() {
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-3">
+      <LocaleSwitch />
       <ThemeToggle />
       <Button asChild variant="ghost" className="hover:text-primary transition-colors text-muted">
-        <Link href="/login">Sign in</Link>
+        <Link href="/login">{t("auth.signIn")}</Link>
       </Button>
       <Button asChild className="rounded-full shadow-lg shadow-primary/25 transition-all">
-        <Link href="/register">Get started</Link>
+        <Link href="/register">{t("auth.getStarted")}</Link>
       </Button>
     </div>
   );
 }
 
+
+/** Toggles the UI language between Vietnamese and English. */
+export function LocaleSwitch() {
+  const locale = useLocale();
+  const setLocale = useSetLocale();
+  const t = useT();
+  const next = locale === "vi" ? "en" : "vi";
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => setLocale(next)}
+      aria-label={t("locale.switchTo", { language: t(`locale.${next}`) })}
+      className="text-muted hover:text-primary"
+    >
+      <Languages className="h-4 w-4" aria-hidden="true" />
+      <span className="ml-1 uppercase">{locale}</span>
+    </Button>
+  );
+}
