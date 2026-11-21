@@ -41,6 +41,7 @@ Implement tenant-isolated threads/turns/messages, assignment, script grants, pro
 
 ## Evidence and verification boundary
 
+- [2026-11-21 web wireframe rollout](../EPIC-007-orders-workflows/sessions/2026-11-21_web-wireframe-rollout.md) (primary in EPIC-007), local branch `feat/web-desk`, in-progress: Desk UI rebuilt to the wireframe and `filter=bot` added to the conversation list. DB tests and browser acceptance not run.
 Local simulator inbox implementation started on 2026-11-02; [session](sessions/2026-11-02_messaging-inbox.md) records scope and bounded verification. Direct Facebook transport is tracked in EPIC-008; live acceptance remains separate.
 
 Status records the last verified local/PR snapshot, not live GitHub state. Recheck merge/CI before promoting to done.

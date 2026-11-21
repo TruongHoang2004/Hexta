@@ -50,7 +50,7 @@ func messagingQuery(ctx context.Context, q types.MessagingQuery) *apperrors.Erro
 		}
 	}
 	switch q.Filter {
-	case "", "all", "mine", "unassigned", "needs_human":
+	case "", "all", "mine", "unassigned", "needs_human", "bot":
 		return nil
 	}
 	return apperrors.ErrBadRequest(ctx).SetDetail("invalid conversation filter")

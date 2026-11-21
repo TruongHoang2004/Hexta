@@ -79,6 +79,9 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 		q = q.Where("t.assignee_id = ?", actor)
 	case "needs_human":
 		q = q.Where("(t.needs_human = TRUE OR (t.control = ? AND t.assignee_id IS NULL))", "sales")
+	case "bot":
+		// Mirrors MessagingTurn.HandlingState() == BOT_ACTIVE.
+		q = q.Where("t.control = ? AND t.assignee_id IS NULL AND t.needs_human = FALSE", "system")
 	}
 	if input.Cursor != "" {
 		q = q.Where("th.id < ?", input.Cursor)

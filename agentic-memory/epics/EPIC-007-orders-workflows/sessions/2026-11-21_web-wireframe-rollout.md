@@ -34,3 +34,14 @@ Branch `feat/web-shell-i18n` from `origin/main` `0f0c192`. PRD split committed s
 ## Remaining work and handoff
 
 Phase 1 screens are only partially translated (shell, nav, auth controls). Next per plan: phase 6 (Desk), phase 4 (order checklist + 409), API additions 2b/2c, then phase 5 and the rest. Migrate each screen from `errorText` to `useErrorText` as it is reworked. Not pushed; no PR yet.
+
+## Follow-up — phase 6 (Desk) and API addition 2c
+
+Branch `feat/web-desk` (stacked on `feat/web-shell-i18n`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/conversations?filter=bot` returns open turns whose projection is `BOT_ACTIVE` (`control = system`, unassigned, not `needs_human`). DTO `oneof`, service validation, repository query, controller Swagger text and regenerated `services/api/docs` updated. "Waiting for staff" keeps using the existing `needs_human` filter.
+- IMPLEMENTED (web): `components/messaging/inbox.tsx` rebuilt to the wireframe layout — conversation list with Bot / Waiting / Mine / All filters and state chips, thread with header actions (claim, hand over via dialog with the five reason codes, return to bot), localized delivery states including a distinct "delivery unknown" chip (no automatic resend), read-only reason above the composer, customer side panel with draft-order/consultant links and owner assignment. Send idempotency (`request_key`, `client_message_id`, uncertain retry) and `expected_version` handling are unchanged. Expired-connection banner localized.
+- Removed the static design mock: route `tenants/[tenantId]/inbox/preview` and `components/inbox/*` (sample data only, no other consumers).
+- OPEN: system lines for claim/handoff events need an events feed the API does not expose; the draft-order button opens Orders without linking the conversation (no backend link); assignee names still show IDs until addition 2a.
+
+Verification: `sh scripts/check-gofmt.sh`, `go vet ./services/api/...`, `go test -race ./services/api/...` pass; DB scenarios (including the extended `TestMessagingPaginationAndFilters` bot assertions) SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `make swagger` regenerated (description-only diff). `pnpm --filter web lint` and `build` pass (after clearing stale `.next/dev/types`). Browser acceptance NOT_RUN.

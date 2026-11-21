@@ -224,7 +224,11 @@ func TestMessagingPaginationAndFilters(t *testing.T) {
 	if len(seen) != 5 {
 		t.Fatal("pagination omitted conversations")
 	}
-	_, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: 1})
+	bot, err := s.Conversations(ctx, f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "bot"})
+	if err != nil || len(bot.Items) != 0 {
+		t.Fatal("bot filter included staff-queued work", err)
+	}
+	claimed, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,6 +239,13 @@ func TestMessagingPaginationAndFilters(t *testing.T) {
 	unassigned, err := s.Conversations(ctx, f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "unassigned"})
 	if err != nil || len(unassigned.Items) != 4 {
 		t.Fatal("unassigned filter failed", err)
+	}
+	if _, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: claimed.Version}); err != nil {
+		t.Fatal(err)
+	}
+	bot, err = s.Conversations(ctx, f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "bot"})
+	if err != nil || len(bot.Items) != 1 || bot.Items[0].Thread.ID != message.ThreadID || bot.Items[0].Turn.HandlingState() != "BOT_ACTIVE" {
+		t.Fatal("bot filter failed", err)
 	}
 	for range 3 {
 		_, err := s.Inbound(ctx, f.tenant, f.sale, types.MessagingInbound{ExternalKey: "customer-1", DisplayName: "Customer", Body: "More", RequestKey: uuid.NewString()})

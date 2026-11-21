@@ -5,6 +5,7 @@ import {
   platformLabel,
   type ChannelConnection,
 } from "@/lib/services/channels";
+import { useT } from "@/lib/i18n/provider";
 
 // Shown in Inbox and Settings when any Page or bot needs an owner to reconnect or rotate its token. Sales see the
 // status; owners get the action.
@@ -17,6 +18,7 @@ export function ExpiredConnectionBanner({
   connections: ChannelConnection[];
   owner: boolean;
 }) {
+  const t = useT();
   const expired = connections.filter((c) => c.status === "auth_expired");
   if (!expired.length) return null;
   const names = expired
@@ -28,21 +30,20 @@ export function ExpiredConnectionBanner({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+      className="rounded-xl border border-error bg-error/10 p-3 text-sm"
     >
-      <p className="font-medium">Channel authorization expired for {names}.</p>
+      <p className="font-medium">{t("desk.expired.title", { names })}</p>
       <p className="mt-1">
-        Replies through these channels cannot be sent until a Facebook Page is
-        reconnected or a Telegram bot token is rotated.{" "}
+        {t("desk.expired.body")}{" "}
         {owner ? (
           <Link
             href={`/tenants/${tenant}/settings/channels`}
             className="font-medium underline"
           >
-            Fix in Channel settings
+            {t("desk.expired.fix")}
           </Link>
         ) : (
-          "Ask the workspace owner to fix it."
+          t("desk.expired.askOwner")
         )}
       </p>
     </div>

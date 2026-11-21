@@ -2416,7 +2416,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: all, mine, unassigned or needs_human
+      - description: all, mine, unassigned, needs_human or bot
         in: query
         name: filter
         type: string

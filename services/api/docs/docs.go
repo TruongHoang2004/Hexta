@@ -1355,7 +1355,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "all, mine, unassigned or needs_human",
+                        "description": "all, mine, unassigned, needs_human or bot",
                         "name": "filter",
                         "in": "query"
                     }
