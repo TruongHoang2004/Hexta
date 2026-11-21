@@ -50,7 +50,7 @@ export interface MessagingPage {
   items: Conversation[];
   next_cursor: string;
 }
-export type InboxFilter = "all" | "unassigned" | "mine" | "needs_human";
+export type InboxFilter = "all" | "unassigned" | "mine" | "needs_human" | "bot";
 export interface InboundInput {
   external_key: string;
   display_name: string;

@@ -24,6 +24,13 @@ type DraftItemInput struct {
 	UnitPrice *decimal.Decimal
 }
 
+// OrderListFilter narrows the order list. Empty fields mean no filter.
+// Status is "draft" or "confirmed"; Assignee is "me" (the caller) or "unassigned".
+type OrderListFilter struct {
+	Status   string
+	Assignee string
+}
+
 type DraftInput struct {
 	Version          int64
 	CustomerID       *string

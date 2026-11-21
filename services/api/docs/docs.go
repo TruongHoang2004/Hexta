@@ -1355,7 +1355,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "all, mine, unassigned or needs_human",
+                        "description": "all, mine, unassigned, needs_human or bot",
                         "name": "filter",
                         "in": "query"
                     }
@@ -1835,6 +1835,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Page size (1-100)",
                         "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "draft or confirmed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "me or unassigned",
+                        "name": "assignee",
                         "in": "query"
                     }
                 ],
@@ -2875,6 +2887,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Page size (1-100)",
                         "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "all (default), mine or awaiting_me",
+                        "name": "view",
                         "in": "query"
                     }
                 ],
@@ -4807,6 +4825,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
+                    "type": "string"
+                },
+                "email": {
                     "type": "string"
                 },
                 "id": {

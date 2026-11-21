@@ -2,13 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "@/components/sales/workspace";
-import { sales, errorText, type Product } from "@/lib/services/sales";
+import { sales, type Product } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
 import { checkoutKey } from "@/lib/services/consultant";
 import { AIConsultantWidget } from "./widget";
 import { buttonClass, Notice } from "@/components/sales/primitives";
 export function Storefront() {
   const { tenant } = useWorkspace();
   const router = useRouter();
+  const t = useT();
+  const errorText = useErrorText();
   const [products, setProducts] = useState<Product[]>([]),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true);
@@ -25,16 +29,16 @@ export function Storefront() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [tenant]);
+  }, [tenant, errorText]);
   if (!tenant) return null;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-semibold">{tenant.name} · Storefront</h1>
+      <h1 className="text-2xl font-semibold">{t("storefront.title", { name: tenant.name })}</h1>
       <Notice error={error} />
       {loading ? (
-        <p role="status">Loading products…</p>
+        <p role="status">{t("storefront.loading")}</p>
       ) : !products.length ? (
-        <p>No products available.</p>
+        <p>{t("storefront.empty")}</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => (
@@ -44,7 +48,7 @@ export function Storefront() {
               className="space-y-3 rounded-xl border border-border bg-surface p-4"
             >
               <div className="flex h-32 items-center justify-center rounded bg-background text-muted">
-                Image unavailable
+                {t("storefront.noImage")}
               </div>
               <h2 className="font-semibold">{p.name}</h2>
               <p>{p.description}</p>
@@ -53,8 +57,10 @@ export function Storefront() {
                 .map((v) => (
                   <div className="space-y-2" key={v.id}>
                     <p>
-                      {v.variant_name} ·{" "}
-                      {Number(v.price).toLocaleString("vi-VN")} VND
+                      {t("storefront.price", {
+                        variant: v.variant_name,
+                        price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(v.price)),
+                      })}
                     </p>
                     <button
                       className={buttonClass}
@@ -78,11 +84,11 @@ export function Storefront() {
                           );
                           router.push(`/tenants/${tenant.id}/checkout`);
                         } catch {
-                          setError("Unable to open checkout.");
+                          setError(t("storefront.checkoutUnavailable"));
                         }
                       }}
                     >
-                      Buy
+                      {t("storefront.buy")}
                     </button>
                   </div>
                 ))}

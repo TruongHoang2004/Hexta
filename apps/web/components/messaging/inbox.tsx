@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { SDKApiError, type TenantMember } from "@hexta/sdk";
 import { useWorkspace } from "@/components/sales/workspace";
 import { sdk } from "@/lib/sdk";
-import { errorText } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
+import type { Translate } from "@/lib/i18n/translate";
 import {
   messaging,
   type ChannelSendInput,
@@ -13,27 +16,79 @@ import {
   type InboundInput,
   type MessagingDetail,
   type MessagingMessage,
+  type MessagingTurn,
   type SendInput,
 } from "@/lib/services/messaging";
 import {
-  deliveryReasonText,
   listAllConnections,
   platformLabel,
   type ChannelConnection,
   type ChannelPlatform,
 } from "@/lib/services/channels";
 import { ExpiredConnectionBanner } from "@/components/channels/expired-banner";
+import {
+  ConfirmDialog,
+  EmptyState,
+  SegmentedFilter,
+  StatusChip,
+  buttonClass,
+  secondaryClass,
+  type ChipTone,
+} from "@/components/sales/primitives";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useMemberName } from "@/lib/members";
 
-const button =
-  "rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50 hover:bg-background";
-const mediaLabel: Record<string, string> = {
-  image: "an image",
-  video: "a video",
-  audio: "a voice message",
-  file: "a file",
-  sticker: "a sticker",
-};
+const inputStyle =
+  "w-full rounded-lg border border-border bg-background p-2 text-sm";
+const handoffReasons = [
+  "customer_requested_staff",
+  "insufficient_information",
+  "ai_error",
+  "business_review",
+  "staff_handoff",
+] as const;
+type HandoffReason = (typeof handoffReasons)[number];
+const deliveryReasons = [
+  "window_24h",
+  "auth_expired",
+  "rate_limit",
+  "invalid_recipient",
+  "bot_blocked",
+  "chat_not_found",
+  "transport",
+  "expired",
+  "connection_inactive",
+  "connection_paused",
+  "connection_disconnected",
+] as const;
+type DeliveryReason = (typeof deliveryReasons)[number];
+const mediaKinds = ["image", "video", "audio", "file", "sticker"] as const;
+type MediaKind = (typeof mediaKinds)[number];
+
+function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
+  return (values as readonly string[]).includes(value);
+}
+
+/** Label and tone for a turn's handling state, from the viewer's perspective. */
+function turnState(
+  t: Translate,
+  turn: MessagingTurn | null | undefined,
+  userID: string | undefined,
+): { label: string; tone: ChipTone } {
+  switch (turn?.handling_state) {
+    case "BOT_ACTIVE":
+      return { label: t("desk.states.BOT_ACTIVE"), tone: "neutral" };
+    case "WAITING_STAFF":
+      return { label: t("desk.states.WAITING_STAFF"), tone: "warning" };
+    case "STAFF_ACTIVE":
+      return turn.assignee_id && turn.assignee_id === userID
+        ? { label: t("desk.states.STAFF_ACTIVE_ME"), tone: "solid" }
+        : { label: t("desk.states.STAFF_ACTIVE"), tone: "neutral" };
+    default:
+      return { label: t("desk.states.UNKNOWN"), tone: "warning" };
+  }
+}
+
 function MessageContent({
   message,
   platform,
@@ -41,21 +96,26 @@ function MessageContent({
   message: MessagingMessage;
   platform: ChannelPlatform | null;
 }) {
+  const t = useT();
   if (message.content_type === "unsupported_media") {
     const kinds = message.placeholder_meta?.media_kinds ?? [];
+    const names = kinds.length
+      ? kinds
+          .map((k) => (isOneOf<MediaKind>(mediaKinds, k) ? t(`desk.media.${k}`) : t("desk.media.attachment")))
+          .join(", ")
+      : t("desk.media.attachment");
     return (
       <p className="mt-1 rounded-lg border border-dashed border-border p-2 text-sm text-muted">
-        Customer sent{" "}
-        {kinds.length
-          ? kinds.map((k) => mediaLabel[k] ?? "an attachment").join(", ")
-          : "an attachment"}
-. Media is not shown in Hexta — open the conversation in{" "}
-        {platform ? platformLabel[platform] : "the channel"} to view it.
+        {t("desk.media.placeholder", {
+          kinds: names,
+          channel: platform ? platformLabel[platform] : t("desk.media.theChannel"),
+        })}
       </p>
     );
   }
   return <p className="mt-1 whitespace-pre-wrap break-words">{message.body}</p>;
 }
+
 function DeliveryStatus({
   message,
   platform,
@@ -63,34 +123,48 @@ function DeliveryStatus({
   message: MessagingMessage;
   platform: ChannelPlatform | null;
 }) {
+  const t = useT();
   if (message.status === "simulated" || !platform)
-    return <p className="mt-1 text-xs text-muted">Simulation only</p>;
-  const name = platformLabel[platform];
+    return <p className="mt-1 text-xs text-muted">{t("desk.delivery.simulated")}</p>;
+  const channel = platformLabel[platform];
   if (message.status === "received")
-    return <p className="mt-1 text-xs text-muted">Received from {name}</p>;
+    return <p className="mt-1 text-xs text-muted">{t("desk.delivery.received", { channel })}</p>;
   switch (message.delivery_status) {
     case "sent":
-      return <p className="mt-1 text-xs text-green-700">Sent to {name}</p>;
-    case "failed":
       return (
-        <p role="note" className="mt-1 text-xs text-red-700">
-          {deliveryReasonText(message.delivery_error_reason, platform)}
+        <p className="mt-1 text-xs">
+          <StatusChip tone="success">{t("desk.delivery.sent", { channel })}</StatusChip>
         </p>
       );
+    case "failed": {
+      const reason = message.delivery_error_reason;
+      return (
+        <p role="note" className="mt-1 text-xs text-error">
+          {isOneOf<DeliveryReason>(deliveryReasons, reason)
+            ? t(`desk.delivery.reasons.${reason}`, { channel })
+            : t("desk.delivery.failed", { channel })}
+        </p>
+      );
+    }
     case "unknown":
       return (
-        <p role="note" className="mt-1 text-xs text-amber-800">
-          Delivery unknown: {name} may have received it. Check the{" "}
-          {platform === "telegram" ? "Telegram chat" : "Page inbox"} before
-          sending again.
-        </p>
+        <div role="note" className="mt-1 space-y-1 text-xs">
+          <StatusChip tone="warning">{t("desk.delivery.unknownChip")}</StatusChip>
+          <p>
+            {t("desk.delivery.unknown", {
+              channel,
+              place:
+                platform === "telegram"
+                  ? t("desk.delivery.placeTelegram")
+                  : t("desk.delivery.placeFacebook"),
+            })}
+          </p>
+        </div>
       );
     default:
-      return <p className="mt-1 text-xs text-muted">Sending… Refresh to update.</p>;
+      return <p className="mt-1 text-xs text-muted">{t("desk.delivery.sending")}</p>;
   }
 }
-const inputStyle =
-  "w-full rounded-lg border border-border bg-background p-2 text-sm";
 
 function Simulator({
   tenant,
@@ -99,6 +173,8 @@ function Simulator({
   tenant: string;
   onSaved: (thread: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [external, setExternal] = useState("");
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
@@ -138,16 +214,11 @@ function Simulator({
   }
   return (
     <details className="rounded-xl border border-border bg-surface p-4">
-      <summary className="cursor-pointer font-medium">
-        Simulate a customer message
-      </summary>
-      <p className="my-3 text-sm text-muted">
-        Use the same customer reference to continue a conversation. This creates
-        test messages only.
-      </p>
-      <form onSubmit={submit} className="grid gap-3">
+      <summary className="cursor-pointer font-medium">{t("desk.simulator.title")}</summary>
+      <p className="my-3 text-sm text-muted">{t("desk.simulator.help")}</p>
+      <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm">
-          Customer reference
+          {t("desk.simulator.reference")}
           <input
             required
             maxLength={120}
@@ -158,7 +229,7 @@ function Simulator({
           />
         </label>
         <label className="text-sm">
-          Customer name
+          {t("desk.simulator.name")}
           <input
             required
             maxLength={120}
@@ -168,8 +239,8 @@ function Simulator({
             className={inputStyle}
           />
         </label>
-        <label className="text-sm">
-          Customer message
+        <label className="text-sm md:col-span-2">
+          {t("desk.simulator.message")}
           <textarea
             required
             maxLength={4000}
@@ -180,16 +251,18 @@ function Simulator({
           />
         </label>
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-error md:col-span-2">
             {error}
           </p>
         )}
-        <button
-          className={button}
-          disabled={busy || !body.trim() || !external.trim() || !name.trim()}
-        >
-          {busy ? "Saving…" : "Add simulated message"}
-        </button>
+        <div className="md:col-span-2">
+          <button
+            className={secondaryClass}
+            disabled={busy || !body.trim() || !external.trim() || !name.trim()}
+          >
+            {busy ? t("desk.simulator.saving") : t("desk.simulator.submit")}
+          </button>
+        </div>
       </form>
     </details>
   );
@@ -213,6 +286,9 @@ function ThreadDetail({
   // null while unknown; the API still rejects sends on inactive connections.
   connections: ChannelConnection[] | null;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
+  const memberName = useMemberName(members);
   const { user } = useAuthStore();
   const [detail, setDetail] = useState<MessagingDetail | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -221,7 +297,8 @@ function ThreadDetail({
   const [error, setError] = useState("");
   const [body, setBody] = useState("");
   const [assignee, setAssignee] = useState("");
-  const [reason, setReason] = useState("staff_handoff");
+  const [reason, setReason] = useState<HandoffReason>("staff_handoff");
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const pending = useRef<SendInput | null>(null);
   const pendingChannel = useRef<ChannelSendInput | null>(null);
   const [uncertain, setUncertain] = useState(false);
@@ -249,7 +326,7 @@ function ThreadDetail({
     }
     void load();
     return () => controller.abort();
-  }, [tenant, thread, refresh, externalRefresh]);
+  }, [tenant, thread, refresh, externalRefresh, errorText]);
   const turn = detail?.conversation.turn;
   const assigned = !!user?.id && turn?.assignee_id === user.id;
   async function command(action: "claim" | "assign" | "handoff" | "return-to-bot") {
@@ -258,6 +335,7 @@ function ThreadDetail({
     setError("");
     try {
       await messaging.command(tenant, turn, action, assignee || null, reason);
+      setHandoffOpen(false);
       setRefresh((v) => v + 1);
       changed();
     } catch (err) {
@@ -279,10 +357,23 @@ function ThreadDetail({
     connections !== null &&
     connection?.status !== "active";
   const lockReason = !connection
-    ? `This ${channelName} connection was disconnected; the conversation is read-only.`
+    ? t("desk.readOnly.disconnected", { channel: channelName })
     : connection.status === "paused"
-      ? `This ${channelName} connection is paused; replies are read-only until the owner resumes it.`
-      : `This ${channelName} connection needs the owner to ${platform === "telegram" ? "rotate the bot token" : "reconnect the Page"}; replies are read-only.`;
+      ? t("desk.readOnly.paused", { channel: channelName })
+      : platform === "telegram"
+        ? t("desk.readOnly.expiredTelegram")
+        : t("desk.readOnly.expiredFacebook");
+  const canReply = !locked && assigned && turn?.control === "sales";
+  const assigneeName = turn?.assignee_id ? memberName(turn.assignee_id) : "";
+  const readOnlyReason = locked
+    ? lockReason
+    : canReply || !turn
+      ? ""
+      : turn.assignee_id && !assigned
+        ? t("desk.readOnly.otherStaff", { name: assigneeName })
+        : turn.handling_state === "BOT_ACTIVE"
+          ? t("desk.readOnly.bot")
+          : t("desk.readOnly.waiting");
   async function send(event: React.FormEvent) {
     event.preventDefault();
     if (!turn || busy || !body.trim() || locked) return;
@@ -372,223 +463,266 @@ function ThreadDetail({
       setBusy(false);
     }
   }
+  const state = turnState(t, turn, user?.id);
+  const sourceLabel = source ? t(`desk.sources.${source}`) : "";
+  const canHandoff =
+    turn?.lifecycle === "open" &&
+    turn.handling_state !== "WAITING_STAFF" &&
+    (assigned || owner || turn.handling_state === "BOT_ACTIVE");
+  const canReturn = turn?.lifecycle === "open" && (assigned || owner) && turn.control === "sales";
+  const canClaim = turn?.lifecycle === "open" && (!turn.assignee_id || assigned);
   return (
-    <section
-      className="min-w-0 space-y-4 rounded-xl border border-border bg-surface p-4"
-      aria-label="Conversation detail"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold">
-          {detail?.conversation.thread.display_name ?? "Conversation"}
-        </h2>
-        <button
-          disabled={busy || loading}
-          className={button}
-          onClick={() => setRefresh((v) => v + 1)}
-        >
-          Refresh messages
-        </button>
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error} Your unsent reply is retained. Refresh and review if the
-          conversation changed.
-        </p>
-      )}
-      {uncertain && (
-        <p role="status" className="text-sm text-amber-800">
-          The previous save outcome is unknown. Retry the same reply to recover
-          its saved result before editing or changing assignment.
-        </p>
-      )}
-      {loading ? (
-        <p role="status">Loading messages…</p>
-      ) : (
-        detail && (
-          <>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded bg-background px-2 py-1">
-                {turn?.assignee_id
-                  ? assigned
-                    ? "Assigned to you"
-                    : `Assigned: ${turn.assignee_id}`
-                  : "Unassigned"}
-              </span>
-              <span>
-                {turn?.handling_state === "BOT_ACTIVE"
-                  ? "Bot control · AI not connected"
-                  : turn?.handling_state === "STAFF_ACTIVE"
-                    ? "Staff handling"
-                    : turn?.handling_state === "WAITING_STAFF"
-                      ? "Waiting for staff"
-                      : "Refresh to check handling state"}
-              </span>
-              {turn?.needs_human && <span>Needs human</span>}
-              {turn?.lifecycle === "open" &&
-                (!turn.assignee_id || assigned) && (
+    <>
+      <section
+        className="flex min-w-0 flex-[999_1_420px] flex-col rounded-xl border border-border bg-surface"
+        aria-label={t("desk.detailLabel")}
+      >
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold">
+              {detail?.conversation.thread.display_name ?? t("desk.conversation")}
+            </h2>
+            {turn && (
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                <StatusChip tone={state.tone}>{state.label}</StatusChip>
+                {turn.needs_human && <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>}
+                <span>{sourceLabel}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canClaim && (
+              <button
+                type="button"
+                disabled={busy || uncertain}
+                className={buttonClass}
+                onClick={() => void command("claim")}
+              >
+                {assigned ? t("desk.actions.takeControl") : t("desk.actions.claim")}
+              </button>
+            )}
+            {canHandoff && (
+              <button
+                type="button"
+                className={secondaryClass}
+                disabled={busy || uncertain}
+                onClick={() => setHandoffOpen(true)}
+              >
+                {t("desk.actions.handoff")}
+              </button>
+            )}
+            {canReturn && (
+              <button
+                type="button"
+                className={secondaryClass}
+                disabled={busy || uncertain}
+                onClick={() => void command("return-to-bot")}
+              >
+                {t("desk.actions.returnToBot")}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={busy || loading}
+              className={secondaryClass}
+              onClick={() => setRefresh((v) => v + 1)}
+            >
+              {t("desk.refresh")}
+            </button>
+          </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-3 bg-background/60 p-4">
+          {error && (
+            <p role="alert" className="text-sm text-error">
+              {error} {t("desk.composer.errorSuffix")}
+            </p>
+          )}
+          {uncertain && (
+            <p role="status" className="rounded-lg border border-warning bg-warning/15 p-2 text-sm">
+              {t("desk.composer.uncertain")}
+            </p>
+          )}
+          {loading ? (
+            <p role="status">{t("desk.loadingMessages")}</p>
+          ) : (
+            detail && (
+              <>
+                {detail.next_cursor && (
                   <button
-                    disabled={busy || uncertain}
-                    className={button}
-                    onClick={() => void command("claim")}
+                    type="button"
+                    className={`${secondaryClass} self-center`}
+                    disabled={busy}
+                    onClick={() => void older()}
                   >
-                    {assigned ? "Take control" : "Claim conversation"}
+                    {t("desk.loadOlder")}
                   </button>
                 )}
-            </div>
-            {turn?.lifecycle === "open" && (assigned || owner || turn.handling_state === "BOT_ACTIVE") && (
-              <div className="flex flex-wrap items-end gap-2">
-                {turn.handling_state !== "WAITING_STAFF" && (
-                  <>
-                    <label className="text-sm">
-                      Handoff reason
-                      <select className={inputStyle} disabled={busy || uncertain} value={reason} onChange={(e) => setReason(e.target.value)}>
-                        <option value="staff_handoff">Staff handoff</option>
-                        <option value="customer_requested_staff">Customer requested staff</option>
-                        <option value="insufficient_information">More information needed</option>
-                        <option value="ai_error">AI unavailable</option>
-                        <option value="business_review">Business review needed</option>
-                      </select>
-                    </label>
-                    <button className={button} disabled={busy || uncertain} onClick={() => void command("handoff")}>Move to staff queue</button>
-                  </>
-                )}
-                {(assigned || owner) && turn.control === "sales" && (
-                  <button className={button} disabled={busy || uncertain} onClick={() => void command("return-to-bot")}>Return to bot</button>
-                )}
-              </div>
-            )}
-            {owner && turn && (
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="text-sm">
-                  Assign to
-                  <select
-                    className={inputStyle}
-                    disabled={busy}
-                    value={assignee}
-                    onChange={(e) => setAssignee(e.target.value)}
-                  >
-                    <option value="">Unassigned queue</option>
-                    {members.map((member) => (
-                      <option key={member.user_id} value={member.user_id}>
-                        {member.user_id === user?.id ? "You" : member.user_id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  className={button}
-                  disabled={busy || uncertain}
-                  onClick={() => void command("assign")}
+                <ol
+                  className="max-h-[520px] space-y-3 overflow-y-auto"
+                  aria-label={t("desk.history")}
                 >
-                  Update assignment
-                </button>
-              </div>
-            )}
-            {detail.next_cursor && (
-              <button
-                className={button}
-                disabled={busy}
-                onClick={() => void older()}
-              >
-                Load older messages
-              </button>
-            )}
-            <ol
-              className="max-h-[480px] space-y-3 overflow-y-auto"
-              aria-label="Message history"
-            >
-              {[...detail.messages].reverse().map((message) => (
-                <li
-                  key={message.id}
-                  className={`max-w-[95%] rounded-xl border border-border p-3 ${message.direction === "outbound" ? "ml-auto bg-background" : "mr-auto"}`}
-                >
-                  <p className="text-xs text-muted">
-                    {message.status === "received"
-                      ? `Customer · ${detail.conversation.thread.display_name}`
-                      : message.status === "channel"
-                        ? `Sale · ${channelName} reply`
-                        : message.direction === "inbound"
-                          ? "Customer · simulated input"
-                          : "Sale · simulated reply"}{" "}
-                    · {new Date(message.created_at).toLocaleString()}
-                  </p>
-                  <MessageContent message={message} platform={platform} />
-                  <DeliveryStatus message={message} platform={platform} />
-                </li>
-              ))}
-            </ol>
-            {locked && (
-              <p
-                role="status"
-                className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950"
-              >
-                {lockReason}
+                  {[...detail.messages].reverse().map((message) => (
+                    <li
+                      key={message.id}
+                      className={`max-w-[85%] rounded-xl border border-border p-3 ${message.direction === "outbound" ? "ml-auto bg-primary/5" : "mr-auto bg-surface"}`}
+                    >
+                      <p className="text-xs text-muted">
+                        {message.status === "received"
+                          ? `${t("desk.sender.customer")} · ${detail.conversation.thread.display_name}`
+                          : message.status === "channel"
+                            ? t("desk.sender.sale", { channel: channelName })
+                            : message.direction === "inbound"
+                              ? t("desk.sender.customerSimulated")
+                              : t("desk.sender.saleSimulated")}{" "}
+                        · {new Date(message.created_at).toLocaleString()}
+                      </p>
+                      <MessageContent message={message} platform={platform} />
+                      <DeliveryStatus message={message} platform={platform} />
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )
+          )}
+        </div>
+        {detail && (
+          <form onSubmit={send} className="space-y-2 border-t border-border p-4">
+            {readOnlyReason && (
+              <p role="status" className="rounded-lg border border-border bg-background p-2 text-sm">
+                {readOnlyReason}
               </p>
             )}
-            <form onSubmit={send} className="space-y-2">
-              <label className="text-sm">
-                Reply
-                <textarea
-                  aria-label="Reply"
-                  className={inputStyle}
-                  rows={3}
-                  maxLength={platform ? 2000 : 4000}
-                  value={body}
-                  disabled={
-                    busy ||
-                    uncertain ||
-                    locked ||
-                    !assigned ||
-                    turn?.control !== "sales"
-                  }
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder={
-                    locked
-                      ? "Replies are unavailable for this connection"
-                      : !assigned
-                        ? "Claim this conversation to reply"
-                        : platform
-                          ? `Write a reply to send on ${channelName}…`
-                          : "Write a simulated reply…"
-                  }
-                />
-              </label>
-              <button
-                className={button}
-                disabled={
-                  busy ||
-                  locked ||
-                  !assigned ||
-                  turn?.control !== "sales" ||
-                  !body.trim()
+            <label className="block text-sm">
+              <span className="sr-only">{t("desk.composer.label")}</span>
+              <textarea
+                className={inputStyle}
+                rows={3}
+                maxLength={platform ? 2000 : 4000}
+                value={body}
+                disabled={busy || uncertain || !canReply}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={
+                  !canReply
+                    ? t("desk.composer.placeholderLocked")
+                    : platform
+                      ? t("desk.composer.placeholderChannel", { channel: channelName })
+                      : t("desk.composer.placeholderSimulated")
                 }
-              >
+              />
+            </label>
+            <div className="flex justify-end">
+              <button className={buttonClass} disabled={busy || !canReply || !body.trim()}>
                 {uncertain
                   ? platform
-                    ? "Retry previous send"
-                    : "Retry previous save"
+                    ? t("desk.composer.retrySend")
+                    : t("desk.composer.retrySave")
                   : platform
-                    ? `Send on ${channelName}`
-                    : "Save simulated reply"}
+                    ? t("desk.composer.send", { channel: channelName })
+                    : t("desk.composer.saveSimulated")}
               </button>
-            </form>
-          </>
-        )
-      )}
-    </section>
+            </div>
+          </form>
+        )}
+      </section>
+      <aside
+        aria-label={t("desk.customer.title")}
+        className="flex min-w-0 flex-[1_1_240px] flex-col gap-3 self-start rounded-xl border border-border bg-surface p-4"
+      >
+        <h2 className="font-semibold">{t("desk.customer.title")}</h2>
+        {detail && (
+          <dl className="space-y-1 text-sm">
+            <dt className="sr-only">{t("desk.conversation")}</dt>
+            <dd className="font-medium">{detail.conversation.thread.display_name}</dd>
+            <dt className="text-muted">{t("desk.customer.reference")}</dt>
+            <dd className="break-words">{detail.conversation.thread.external_key}</dd>
+            <dd>
+              <StatusChip>{sourceLabel}</StatusChip>
+            </dd>
+          </dl>
+        )}
+        <Link href={`/tenants/${tenant}/orders`} className={`${buttonClass} text-center`} aria-describedby="draft-hint">
+          {t("desk.customer.createDraft")}
+        </Link>
+        <p id="draft-hint" className="text-xs text-muted">
+          {t("desk.customer.draftHint")}
+        </p>
+        <Link href={`/tenants/${tenant}/storefront`} className={`${secondaryClass} text-center`}>
+          {t("desk.customer.askConsultant")}
+        </Link>
+        {owner && turn && (
+          <div className="space-y-2 border-t border-border pt-3">
+            <label className="block text-sm">
+              {t("desk.actions.assignTo")}
+              <select
+                className={inputStyle}
+                disabled={busy}
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+              >
+                <option value="">{t("desk.actions.assignQueue")}</option>
+                {members.map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {memberName(member.user_id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className={secondaryClass}
+              disabled={busy || uncertain}
+              onClick={() => void command("assign")}
+            >
+              {t("desk.actions.assign")}
+            </button>
+          </div>
+        )}
+      </aside>
+      <ConfirmDialog
+        open={handoffOpen}
+        title={t("desk.handoffDialog.title")}
+        confirmLabel={t("desk.handoffDialog.confirm")}
+        cancelLabel={t("common.cancel")}
+        busy={busy}
+        onCancel={() => setHandoffOpen(false)}
+        onConfirm={() => void command("handoff")}
+      >
+        <p>{t("desk.handoffDialog.body")}</p>
+        <fieldset className="space-y-1">
+          <legend className="mb-1 font-medium">{t("desk.handoffDialog.reasonLegend")}</legend>
+          {handoffReasons.map((code) => (
+            <label key={code} className="flex min-h-9 items-center gap-2">
+              <input
+                type="radio"
+                name="handoff-reason"
+                value={code}
+                checked={reason === code}
+                onChange={() => setReason(code)}
+              />
+              {t(`desk.reasons.${code}`)}
+            </label>
+          ))}
+        </fieldset>
+      </ConfirmDialog>
+    </>
   );
 }
 
+type DeskFilter = Extract<InboxFilter, "bot" | "needs_human" | "mine" | "all">;
+
 export function Inbox() {
-  const { tenant } = useWorkspace();
+  const { tenant, isOwner } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
   const { user } = useAuthStore();
-  const [filter, setFilter] = useState<InboxFilter>("all");
+  const [filter, setFilter] = useState<DeskFilter>("all");
   const [cursor, setCursor] = useState("");
   const [next, setNext] = useState("");
   const [rows, setRows] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState("");
   const [members, setMembers] = useState<TenantMember[]>([]);
   const [refresh, setRefresh] = useState(0);
+  const memberName = useMemberName(members);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -632,10 +766,10 @@ export function Inbox() {
     }
     void load();
     return () => controller.abort();
-  }, [tenantID, filter, cursor, refresh]);
+  }, [tenantID, filter, cursor, refresh, errorText]);
   useEffect(() => {
     let ignore = false;
-    if (tenantID && tenant?.owner_id === user?.id) {
+    if (tenantID) {
       void sdk.identity
         .getUsers(tenantID)
         .then((result) => {
@@ -648,32 +782,136 @@ export function Inbox() {
     return () => {
       ignore = true;
     };
-  }, [tenantID, tenant?.owner_id, user?.id]);
+  }, [tenantID, errorText]);
   if (!tenant) return null;
+  const filters: { value: DeskFilter; label: string }[] = [
+    { value: "bot", label: t("desk.filters.bot") },
+    { value: "needs_human", label: t("desk.filters.needs_human") },
+    { value: "mine", label: t("desk.filters.mine") },
+    { value: "all", label: t("desk.filters.all") },
+  ];
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-semibold">Inbox</h1>
-        <p className="mt-2 text-sm text-muted">
-          Manage customer conversations, claim responsibility and keep reply
-          history.
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">{t("desk.title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
+        </div>
+        <button
+          type="button"
+          className={secondaryClass}
+          disabled={loading}
+          onClick={() => setRefresh((v) => v + 1)}
+        >
+          {t("desk.refresh")}
+        </button>
       </div>
-      <p
-        role="note"
-        className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
-      >
-        Facebook, Telegram and simulator conversations appear here. Assigned
-        sales can reply to Facebook and Telegram customers; media is shown as
-        a placeholder.
-        AI replies and automatic turn expiry are not enabled. Use Refresh to
-        check new activity and delivery status.
+      <p role="note" className="rounded-lg border border-border bg-surface p-3 text-sm text-muted">
+        {t("desk.notice")}
       </p>
       <ExpiredConnectionBanner
         tenant={tenant.id}
         connections={connections ?? []}
-        owner={tenant.owner_id === user?.id}
+        owner={isOwner}
       />
+      <div className="flex flex-wrap items-start gap-4">
+        <section
+          className="flex min-w-0 flex-[1_1_280px] flex-col gap-3 rounded-xl border border-border bg-surface p-3 lg:max-w-[340px]"
+          aria-label={t("desk.listLabel")}
+        >
+          <SegmentedFilter
+            label={t("desk.filterLabel")}
+            options={filters}
+            value={filter}
+            onChange={(value) => {
+              setFilter(value);
+              setCursor("");
+            }}
+          />
+          {error && (
+            <p role="alert" className="text-sm text-error">
+              {error}
+            </p>
+          )}
+          {loading ? (
+            <p role="status">{t("desk.loadingList")}</p>
+          ) : rows.length ? (
+            <ul className="-mx-3 divide-y divide-border">
+              {rows.map((row) => {
+                const state = turnState(t, row.turn, user?.id);
+                const active = selected === row.thread.id;
+                return (
+                  <li key={row.thread.id}>
+                    <button
+                      type="button"
+                      aria-current={active ? "true" : undefined}
+                      className={`flex w-full flex-col gap-1 px-3 py-3 text-left hover:bg-background ${active ? "bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]" : ""}`}
+                      onClick={() => setSelected(row.thread.id)}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate font-medium">{row.thread.display_name}</span>
+                        <span className="text-xs text-muted">{t(`desk.sources.${row.source}`)}</span>
+                      </span>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <StatusChip tone={state.tone}>{state.label}</StatusChip>
+                        {row.turn?.needs_human && row.turn.handling_state !== "WAITING_STAFF" && (
+                          <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {row.turn?.assignee_id
+                          ? memberName(row.turn.assignee_id)
+                          : t("desk.unassigned")}
+                        {row.turn && ` · ${new Date(row.turn.last_activity_at).toLocaleString()}`}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title={t("desk.emptyTitle")}
+              description={t("desk.emptyBody")}
+              action={
+                isOwner ? (
+                  <Link href={`/tenants/${tenant.id}/settings/channels`} className={secondaryClass}>
+                    {t("desk.connectChannels")}
+                  </Link>
+                ) : undefined
+              }
+            />
+          )}
+          <div className="flex gap-2">
+            {cursor && (
+              <button type="button" className={secondaryClass} onClick={() => setCursor("")}>
+                {t("desk.firstPage")}
+              </button>
+            )}
+            {next && (
+              <button type="button" className={secondaryClass} onClick={() => setCursor(next)}>
+                {t("desk.nextPage")}
+              </button>
+            )}
+          </div>
+        </section>
+        {selected ? (
+          <ThreadDetail
+            key={`${tenant.id}:${selected}`}
+            tenant={tenant.id}
+            thread={selected}
+            owner={isOwner}
+            members={members}
+            changed={() => setRefresh((v) => v + 1)}
+            externalRefresh={detailRefresh}
+            connections={connections}
+          />
+        ) : (
+          <div className="flex-[999_1_420px] rounded-xl border border-dashed border-border p-8 text-center text-muted">
+            {t("desk.selectPrompt")}
+          </div>
+        )}
+      </div>
       <Simulator
         tenant={tenant.id}
         onSaved={(thread) => {
@@ -684,106 +922,6 @@ export function Inbox() {
           setDetailRefresh((v) => v + 1);
         }}
       />
-      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <section
-          className="space-y-3 rounded-xl border border-border bg-surface p-3"
-          aria-label="Conversation list"
-        >
-          <label className="text-sm">
-            Show
-            <select
-              value={filter}
-              className={inputStyle}
-              onChange={(e) => {
-                setFilter(e.target.value as InboxFilter);
-                setCursor("");
-              }}
-            >
-              <option value="all">All conversations</option>
-              <option value="unassigned">Unassigned queue</option>
-              <option value="mine">Assigned to me</option>
-              <option value="needs_human">Waiting for staff</option>
-            </select>
-          </label>
-          <button
-            className={button}
-            disabled={loading}
-            onClick={() => setRefresh((v) => v + 1)}
-          >
-            Refresh inbox
-          </button>
-          {error && (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          {loading ? (
-            <p role="status">Loading conversations…</p>
-          ) : (
-            <>
-              <ul className="space-y-2">
-                {rows.map((row) => (
-                  <li key={row.thread.id}>
-                    <button
-                      className={`w-full rounded-lg border p-3 text-left ${selected === row.thread.id ? "border-primary" : "border-border"}`}
-                      onClick={() => setSelected(row.thread.id)}
-                    >
-                      <span className="block font-medium">
-                        {row.thread.display_name}
-                      </span>
-                      <span className="block text-xs text-muted">
-                        {row.turn?.handling_state === "BOT_ACTIVE" ? "Bot control" : row.turn?.handling_state === "STAFF_ACTIVE" ? "Staff handling" : row.turn?.handling_state === "WAITING_STAFF" ? "Waiting for staff" : "Handling state unavailable"}
-                      </span>
-                      <span className="block break-words text-xs text-muted">
-                        {row.thread.external_key} ·{" "}
-                        {row.turn?.assignee_id
-                          ? row.turn.assignee_id === user?.id
-                            ? "Yours"
-                            : "Assigned"
-                          : "Unassigned"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {!rows.length && (
-                <p className="text-sm text-muted">
-                  No conversations in this view. Add a simulated customer
-                  message to start.
-                </p>
-              )}
-              <div className="flex gap-2">
-                {cursor && (
-                  <button className={button} onClick={() => setCursor("")}>
-                    First page
-                  </button>
-                )}
-                {next && (
-                  <button className={button} onClick={() => setCursor(next)}>
-                    Next page
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-        {selected ? (
-          <ThreadDetail
-            key={`${tenant.id}:${selected}`}
-            tenant={tenant.id}
-            thread={selected}
-            owner={tenant.owner_id === user?.id}
-            members={members}
-            changed={() => setRefresh((v) => v + 1)}
-            externalRefresh={detailRefresh}
-            connections={connections}
-          />
-        ) : (
-          <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted">
-            Select a conversation to see its messages.
-          </div>
-        )}
-      </div>
     </div>
   );
 }

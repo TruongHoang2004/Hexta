@@ -1,22 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
 import { useWorkspace } from "./workspace";
 import {
   buttonClass,
   secondaryClass,
   inputClass,
+  EmptyState,
   Field,
   Notice,
   Pager,
+  SegmentedFilter,
+  StatusChip,
 } from "./primitives";
-import { errorText } from "@/lib/services/sales";
 import {
   workflows,
   type WorkflowDefinition,
   type WorkflowStepInput,
 } from "@/lib/services/workflows";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
+
+type Mode = WorkflowStepInput["handoff_mode"];
 
 function WorkflowEditor({
   definition,
@@ -26,23 +31,24 @@ function WorkflowEditor({
   onSaved: (row: WorkflowDefinition) => void;
 }) {
   const { tenant } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
   const [name, setName] = useState(definition?.name || "");
   const [steps, setSteps] = useState<WorkflowStepInput[]>(
-    definition?.versions[0]?.steps.map(({ name, handoff_mode }) => ({
-      name,
-      handoff_mode,
-    })) || [{ name: "", handoff_mode: "acceptance" }],
+    definition?.versions[0]?.steps.map(({ name, handoff_mode }) => ({ name, handoff_mode })) || [
+      { name: "", handoff_mode: "acceptance" },
+    ],
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const retry = useRef({ payload: "", key: "" });
   function move(index: number, direction: number) {
     const next = [...steps];
-    [next[index], next[index + direction]] = [
-      next[index + direction],
-      next[index],
-    ];
+    [next[index], next[index + direction]] = [next[index + direction], next[index]];
     setSteps(next);
+  }
+  function update(index: number, patch: Partial<WorkflowStepInput>) {
+    setSteps(steps.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
   async function publish(event: React.FormEvent) {
     event.preventDefault();
@@ -51,150 +57,127 @@ function WorkflowEditor({
     setError("");
     const input = { name, expected_version: definition?.version || 0, steps };
     const payload = JSON.stringify(input);
-    if (retry.current.payload !== payload)
-      retry.current = { payload, key: crypto.randomUUID() };
+    if (retry.current.payload !== payload) retry.current = { payload, key: crypto.randomUUID() };
     try {
-      onSaved(
-        await workflows.publish(
-          tenant.id,
-          definition?.id || null,
-          input,
-          retry.current.key,
-        ),
-      );
+      onSaved(await workflows.publish(tenant.id, definition?.id || null, input, retry.current.key));
     } catch (err) {
       setError(errorText(err));
     } finally {
       setBusy(false);
     }
   }
+  const modes: { value: Mode; label: string }[] = [
+    { value: "direct", label: t("workflows.editor.modes.direct") },
+    { value: "acceptance", label: t("workflows.editor.modes.acceptance") },
+  ];
   return (
-    <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
+    <section className="space-y-4 rounded-xl border border-border bg-surface p-5">
       <h2 className="text-lg font-semibold">
         {definition
-          ? `Edit workflow · version ${definition.version}`
-          : "New workflow"}
+          ? t("workflows.editor.editTitle", { version: definition.version })
+          : t("workflows.editor.newTitle")}
       </h2>
-      <p className="text-sm text-muted">
-        Publish ordered steps for your business. Existing work keeps its
-        original steps.
-      </p>
+      <p className="rounded-lg bg-background p-3 text-sm">{t("workflows.editor.body")}</p>
       <Notice error={error} />
       <form onSubmit={publish} className="space-y-4">
         <fieldset disabled={busy} className="space-y-4">
-          <Field title="Workflow name">
-            <input
-              className={inputClass}
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+          <Field title={t("workflows.editor.name")}>
+            <input className={inputClass} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          {steps.map((step, index) => (
-            <div
-              key={index}
-              className="rounded-lg border border-border p-3 space-y-3"
-            >
-              <Field title={`Step ${index + 1}`}>
-                <input
-                  className={inputClass}
-                  required
-                  maxLength={120}
-                  value={step.name}
-                  onChange={(e) =>
-                    setSteps(
-                      steps.map((row, i) =>
-                        i === index ? { ...row, name: e.target.value } : row,
-                      ),
-                    )
-                  }
-                />
-              </Field>
-              <Field title="Handoff to the next step">
-                <select
-                  className={inputClass}
+          <ol className="space-y-3">
+            {steps.map((step, index) => (
+              <li key={index} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-background p-3">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-surface font-semibold"
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-[1_1_200px]">
+                  <Field title={t("workflows.editor.step", { index: index + 1 })}>
+                    <input
+                      className={inputClass}
+                      required
+                      maxLength={120}
+                      value={step.name}
+                      onChange={(e) => update(index, { name: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                <SegmentedFilter
+                  label={t("workflows.editor.mode", { index: index + 1 })}
+                  options={modes}
                   value={step.handoff_mode}
-                  onChange={(e) =>
-                    setSteps(
-                      steps.map((row, i) =>
-                        i === index
-                          ? {
-                              ...row,
-                              handoff_mode: e.target
-                                .value as WorkflowStepInput["handoff_mode"],
-                            }
-                          : row,
-                      ),
-                    )
-                  }
-                >
-                  <option value="acceptance">Recipient must accept</option>
-                  <option value="direct">Transfer directly</option>
-                </select>
-              </Field>
-              {index === steps.length - 1 && (
-                <p className="text-xs text-muted">
-                  The last step is completed directly; this policy applies if
-                  another step is added later.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={secondaryClass}
-                  disabled={index === 0}
-                  onClick={() => move(index, -1)}
-                >
-                  Move up
-                </button>
-                <button
-                  type="button"
-                  className={secondaryClass}
-                  disabled={index === steps.length - 1}
-                  onClick={() => move(index, 1)}
-                >
-                  Move down
-                </button>
-                <button
-                  type="button"
-                  className={secondaryClass}
-                  disabled={steps.length === 1}
-                  onClick={() => setSteps(steps.filter((_, i) => i !== index))}
-                >
-                  Remove step
-                </button>
-              </div>
-            </div>
-          ))}
-          <div className="flex flex-wrap gap-2">
+                  onChange={(value) => update(index, { handoff_mode: value })}
+                />
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    className={secondaryClass}
+                    aria-label={t("workflows.editor.moveUpLabel", { index: index + 1 })}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    {t("workflows.editor.moveUp")}
+                  </button>
+                  <button
+                    type="button"
+                    className={secondaryClass}
+                    aria-label={t("workflows.editor.moveDownLabel", { index: index + 1 })}
+                    disabled={index === steps.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    {t("workflows.editor.moveDown")}
+                  </button>
+                  <button
+                    type="button"
+                    className={secondaryClass}
+                    aria-label={t("workflows.editor.remove", { index: index + 1 })}
+                    disabled={steps.length === 1}
+                    onClick={() => setSteps(steps.filter((_, i) => i !== index))}
+                  >
+                    ×
+                  </button>
+                </div>
+                {index === steps.length - 1 && (
+                  <p className="w-full text-xs text-muted">{t("workflows.editor.lastStepNote")}</p>
+                )}
+              </li>
+            ))}
+          </ol>
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <button
               type="button"
               className={secondaryClass}
               disabled={steps.length >= 30}
-              onClick={() =>
-                setSteps([...steps, { name: "", handoff_mode: "acceptance" }])
-              }
+              onClick={() => setSteps([...steps, { name: "", handoff_mode: "acceptance" }])}
             >
-              Add step
+              {t("workflows.editor.add")}
             </button>
-            <button className={buttonClass} type="submit">
-              {busy
-                ? "Publishing…"
-                : definition
-                  ? "Publish new version"
-                  : "Publish workflow"}
-            </button>
+            <span className="text-sm text-muted">{t("workflows.editor.count", { count: steps.length })}</span>
           </div>
+          <button className={buttonClass} type="submit">
+            {busy
+              ? t("workflows.editor.publishing")
+              : definition
+                ? t("workflows.editor.publishNew", { version: definition.version + 1 })
+                : t("workflows.editor.publish")}
+          </button>
         </fieldset>
       </form>
+      <div className="space-y-1 border-t border-border pt-4 text-sm">
+        <h3 className="font-semibold">{t("workflows.editor.explainTitle")}</h3>
+        <p>{t("workflows.editor.explainDirect")}</p>
+        <p>{t("workflows.editor.explainAcceptance")}</p>
+      </div>
     </section>
   );
 }
 
 export function Workflows() {
-  const { tenant } = useWorkspace();
-  const { user } = useAuthStore();
+  const { tenant, isOwner: owner } = useWorkspace();
+  const t = useT();
+  const errorText = useErrorText();
   const [rows, setRows] = useState<WorkflowDefinition[]>([]);
   const [selected, setSelected] = useState<WorkflowDefinition | null>(null);
   const [page, setPage] = useState(1);
@@ -210,11 +193,7 @@ export function Workflows() {
       setLoading(true);
       setError("");
       try {
-        const data = await workflows.definitions(
-          tenant!.id,
-          page,
-          abort.signal,
-        );
+        const data = await workflows.definitions(tenant!.id, page, abort.signal);
         if (!abort.signal.aborted) {
           setRows(data.items);
           setTotal(data.total);
@@ -227,111 +206,96 @@ export function Workflows() {
     }
     void load();
     return () => abort.abort();
-  }, [tenant, page, revision]);
-  const owner = tenant?.owner_id === user?.id;
+  }, [tenant, page, revision, errorText]);
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold">Workflows</h1>
-          <p className="mt-2 text-sm text-muted">
-            Choose the steps your business needs.
-          </p>
+          <h1 className="text-2xl font-semibold">{t("workflows.title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("workflows.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
             className={secondaryClass}
             onClick={() => {
               setSelected(null);
               setRevision(revision + 1);
             }}
           >
-            Refresh
+            {t("workflows.refresh")}
           </button>
           {owner && (
             <button
+              type="button"
               className={buttonClass}
               onClick={() => {
                 setSelected(null);
                 setSuccess("");
               }}
             >
-              New workflow
+              {t("workflows.new")}
             </button>
           )}
         </div>
       </div>
       <Notice error={error} success={success} />
-      {!owner && (
-        <p className="text-sm text-muted">
-          The tenant owner manages workflow definitions.
-        </p>
-      )}
-      <div className="grid items-start gap-5 xl:grid-cols-2">
-        <section className="rounded-xl border border-border bg-surface p-5 space-y-4">
-          <h2 className="font-semibold">Published workflows</h2>
+      {!owner && <p className="text-sm text-muted">{t("workflows.ownerOnly")}</p>}
+      <div className="flex flex-wrap items-start gap-5">
+        <section className="min-w-0 flex-[1_1_320px] space-y-4 rounded-xl border border-border bg-surface p-5">
+          <h2 className="font-semibold">{t("workflows.list")}</h2>
           {loading ? (
-            <p role="status">Loading workflows…</p>
+            <p role="status">{t("workflows.loading")}</p>
           ) : !rows.length ? (
-            <p className="text-sm text-muted">
-              No workflows yet. The owner can publish the first one.
-            </p>
+            <EmptyState title={t("workflows.emptyTitle")} description={t("workflows.emptyBody")} />
           ) : (
             rows.map((row) => (
-              <div
+              <article
                 key={row.id}
-                className="border-b border-border py-3 space-y-2"
+                className={`space-y-2 rounded-lg border p-3 ${selected?.id === row.id ? "border-foreground" : "border-border"}`}
               >
-                <div className="flex justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-medium">
-                    {row.name} · v{row.version}
+                    {row.name} <StatusChip>{t("workflows.versionLabel", { number: row.version })}</StatusChip>
                   </h3>
                   {owner && (
                     <button
+                      type="button"
                       className={secondaryClass}
                       onClick={() => {
                         setSelected(row);
                         setSuccess("");
                       }}
                     >
-                      Edit
+                      {t("workflows.edit")}
                     </button>
                   )}
                 </div>
                 <ol className="list-decimal pl-5 text-sm text-muted">
                   {row.versions[0]?.steps.map((step, i, all) => (
                     <li key={step.id}>
-                      {step.name}
-                      {i < all.length - 1
-                        ? ` · ${step.handoff_mode === "acceptance" ? "recipient accepts" : "direct handoff"}`
-                        : " · final step"}
+                      {step.name} ·{" "}
+                      {i < all.length - 1 ? t(`workflows.modeShort.${step.handoff_mode}`) : t("workflows.finalStep")}
                     </li>
                   ))}
                 </ol>
-              </div>
+              </article>
             ))
           )}
-          <Pager
-            page={page}
-            total={total}
-            onChange={setPage}
-            disabled={loading}
-          />
+          <Pager page={page} total={total} onChange={setPage} disabled={loading} />
         </section>
         {owner && (
-          <WorkflowEditor
-            key={
-              selected
-                ? `${selected.id}:${selected.version}`
-                : `new:${revision}`
-            }
-            definition={selected}
-            onSaved={(row) => {
-              setSelected(row);
-              setRevision((v) => v + 1);
-              setSuccess(`Published ${row.name}, version ${row.version}.`);
-            }}
-          />
+          <div className="min-w-0 flex-[999_1_480px]">
+            <WorkflowEditor
+              key={selected ? `${selected.id}:${selected.version}` : `new:${revision}`}
+              definition={selected}
+              onSaved={(row) => {
+                setSelected(row);
+                setRevision((v) => v + 1);
+                setSuccess(t("workflows.published", { name: row.name, version: row.version }));
+              }}
+            />
+          </div>
         )}
       </div>
     </div>

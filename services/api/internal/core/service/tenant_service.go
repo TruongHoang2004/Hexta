@@ -15,7 +15,7 @@ type ITenantService interface {
 	GetTenant(ctx context.Context, userID, tenantID string) (*model.Tenant, *errors.Error)
 	AuthorizeMember(ctx context.Context, userID, tenantID string) (*model.Tenant, *errors.Error)
 	GetUserTenants(ctx context.Context, userID string) ([]*model.Tenant, *errors.Error)
-	ListMembers(ctx context.Context, userID, tenantID string) ([]*model.TenantMember, *errors.Error)
+	ListMembers(ctx context.Context, userID, tenantID string) ([]*model.TenantMember, map[string]string, *errors.Error)
 	InviteMember(ctx context.Context, currentUserID, tenantID, targetUserID, role string) (*model.TenantMember, *errors.Error)
 	UpdateTenant(ctx context.Context, currentUserID, tenantID string, name *string, plan *string, status *string) (*model.Tenant, *errors.Error)
 }
@@ -110,16 +110,24 @@ func (s *TenantService) GetUserTenants(ctx context.Context, userID string) ([]*m
 	return s.tenantRepo.GetUserTenants(ctx, userID)
 }
 
-func (s *TenantService) ListMembers(ctx context.Context, userID, tenantID string) ([]*model.TenantMember, *errors.Error) {
+// ListMembers returns current members and their account emails; only current members may list them.
+func (s *TenantService) ListMembers(ctx context.Context, userID, tenantID string) ([]*model.TenantMember, map[string]string, *errors.Error) {
 	member, err := s.tenantRepo.GetTenantMember(ctx, tenantID, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if member == nil {
-		return nil, errors.ErrForbidden(ctx).SetDetail("user does not belong to this workspace")
+		return nil, nil, errors.ErrForbidden(ctx).SetDetail("user does not belong to this workspace")
 	}
-
-	return s.tenantRepo.ListTenantMembers(ctx, tenantID)
+	members, err := s.tenantRepo.ListTenantMembers(ctx, tenantID)
+	if err != nil {
+		return nil, nil, err
+	}
+	emails, err := s.tenantRepo.TenantMemberEmails(ctx, tenantID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return members, emails, nil
 }
 
 func (s *TenantService) InviteMember(ctx context.Context, currentUserID, tenantID, targetUserID, role string) (*model.TenantMember, *errors.Error) {

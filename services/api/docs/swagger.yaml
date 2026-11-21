@@ -986,6 +986,8 @@ definitions:
     properties:
       created_at:
         type: string
+      email:
+        type: string
       id:
         type: integer
       role:
@@ -2416,7 +2418,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: all, mine, unassigned or needs_human
+      - description: all, mine, unassigned, needs_human or bot
         in: query
         name: filter
         type: string
@@ -2730,6 +2732,14 @@ paths:
         in: query
         name: size
         type: integer
+      - description: draft or confirmed
+        in: query
+        name: status
+        type: string
+      - description: me or unassigned
+        in: query
+        name: assignee
+        type: string
       produces:
       - application/json
       responses:
@@ -3417,6 +3427,10 @@ paths:
         in: query
         name: size
         type: integer
+      - description: all (default), mine or awaiting_me
+        in: query
+        name: view
+        type: string
       produces:
       - application/json
       responses:

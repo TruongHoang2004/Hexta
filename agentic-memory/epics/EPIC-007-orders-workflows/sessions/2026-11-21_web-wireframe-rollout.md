@@ -34,3 +34,65 @@ Branch `feat/web-shell-i18n` from `origin/main` `0f0c192`. PRD split committed s
 ## Remaining work and handoff
 
 Phase 1 screens are only partially translated (shell, nav, auth controls). Next per plan: phase 6 (Desk), phase 4 (order checklist + 409), API additions 2b/2c, then phase 5 and the rest. Migrate each screen from `errorText` to `useErrorText` as it is reworked. Not pushed; no PR yet.
+
+## Follow-up — phase 6 (Desk) and API addition 2c
+
+Branch `feat/web-desk` (stacked on `feat/web-shell-i18n`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/conversations?filter=bot` returns open turns whose projection is `BOT_ACTIVE` (`control = system`, unassigned, not `needs_human`). DTO `oneof`, service validation, repository query, controller Swagger text and regenerated `services/api/docs` updated. "Waiting for staff" keeps using the existing `needs_human` filter.
+- IMPLEMENTED (web): `components/messaging/inbox.tsx` rebuilt to the wireframe layout — conversation list with Bot / Waiting / Mine / All filters and state chips, thread with header actions (claim, hand over via dialog with the five reason codes, return to bot), localized delivery states including a distinct "delivery unknown" chip (no automatic resend), read-only reason above the composer, customer side panel with draft-order/consultant links and owner assignment. Send idempotency (`request_key`, `client_message_id`, uncertain retry) and `expected_version` handling are unchanged. Expired-connection banner localized.
+- Removed the static design mock: route `tenants/[tenantId]/inbox/preview` and `components/inbox/*` (sample data only, no other consumers).
+- OPEN: system lines for claim/handoff events need an events feed the API does not expose; the draft-order button opens Orders without linking the conversation (no backend link); assignee names still show IDs until addition 2a.
+
+Verification: `sh scripts/check-gofmt.sh`, `go vet ./services/api/...`, `go test -race ./services/api/...` pass; DB scenarios (including the extended `TestMessagingPaginationAndFilters` bot assertions) SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `make swagger` regenerated (description-only diff). `pnpm --filter web lint` and `build` pass (after clearing stale `.next/dev/types`). Browser acceptance NOT_RUN.
+
+## Follow-up — phase 4 (orders) and API addition 2e
+
+Branch `feat/web-orders` (stacked on `feat/web-desk`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/orders?status=draft|confirmed&assignee=me|unassigned`. Filters are applied in the tenant-scoped repository query (so totals and pagination stay correct); unknown values return 400; tenant membership is still checked first. `types.OrderListFilter` added; Swagger regenerated. New DB test `TestSalesOrderListFilters` covers own/peer `me`, unassigned, status, invalid values and a foreign tenant (403).
+- IMPLEMENTED (web): order list with All / Drafts / Confirmed / Unassigned / Mine filters, status chips, localized empty states and "order value" wording; editor with a live confirmation checklist (saved, assigned sale, customer name, contact, items, prices, delivery address) computed from the current form, Confirm disabled with the reason, a separate "Claim order" for unassigned drafts, and a conflict banner that reloads the latest version on HTTP 409. The server gate remains authoritative. Pager localized.
+- OPEN: multi-variant product editing needs an API change (product requests carry a single variant); not done.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/presentation packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN. Remaining phase-4 screens (customers/products copy, consultant quick replies) not yet reworked.
+
+## Follow-up — phase 4 remainder (catalog, consultant widget)
+
+- Customers/products screen localized with empty states; products show a distinct "price not set" chip versus "0 · free"; the variant name falls back to the localized default when left blank.
+- Consultant widget localized and errors use the shared support-code text. Quick replies were already rendered as buttons.
+- OPEN: a "dropped from the catalog" notice needs the API to report which AI items were removed (currently removed silently); storefront and checkout pages remain English.
+
+Verification: `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — phase 5 (work and workflows) and API addition 2b
+
+Branch `feat/web-work` (stacked on `feat/web-orders`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/work-items?view=all|mine|awaiting_me`. `mine` = unfinished items the caller is responsible for (including while waiting for a recipient); `awaiting_me` = waiting items nominating the caller. Unknown views return 400. Unlike the plan's draft, `all` is not restricted to owners: members could already list all work and no requirement removes that. `TestWorkflowAcceptanceAndPinnedVersions` extended; Swagger regenerated.
+- IMPLEMENTED (web): Work screen with My work / Waiting for me / All tabs (default My work), step progress track, handoff dialog explaining direct versus acceptance, Accept/Complete actions, owner "cancel pending handoff" (assign back to the current responsible, which the API already treats as cancelling the nomination) and reassignment, localized history and 409 reload banner; work creation moved into a collapsible owner panel. Workflows screen: step builder with direct/acceptance toggle, step counter n/30, running-work version note, explanation of handoff types; localized.
+- OPEN: workflow version history needs the API to return older versions (definitions currently preload only the current version), so no history list is shown.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller packages pass; DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`. `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — phase 3 (workspace and access) and API addition 2a
+
+Branch `feat/web-workspace` (stacked on `feat/web-work`).
+
+- IMPLEMENTED (API, backward compatible): `GET /tenants/:id/users` adds optional `email` per member, read from the member's local or Google identity (local preferred) and scoped by a join on the tenant's members. Only current members can list (unchanged 403 otherwise). New repository method `TenantMemberEmails` (DB wrapper passthrough), service unit test and repository DB assertion (including an outsider identity that must not appear). Swagger regenerated. SDK `TenantMember.email?` added; SDK lint/test/build pass.
+- DECISION TO CONFIRM (owner): every current member can now see teammates' account emails (needed to name assignees in Desk, Orders and Work). Previously only user IDs were visible.
+- NOT DONE by design: planned addition 2d (`my_role` on `GET /tenants`) — the picker derives owner/member from `owner_id` and the signed-in user, so no API change was needed.
+- IMPLEMENTED (web): shared `useMemberName` (You / email / short ID / former member) used in Desk (list, read-only reason with the handler's name, assignment), Orders and Work; members now load for all roles in Desk. Workspace picker localized with a role chip, accessible status chips and Inbox as the entry route. Invitation page shows distinct wrong-account (403) and no-longer-valid (404/409) states with a switch-account action. Operator review page has Pending / Approved / Rejected tabs with counts and a reject dialog that requires a reason. Members page shows emails, role chips, invitation status chips, a copy button for the one-time link; all localized.
+- Remaining English screens: register (S-03), channels (S-18), plan (S-20), storefront/checkout, login/register.
+
+Verification: gofmt, `go vet ./services/api/...`, `go test -race` for service/repository/controller pass (DB scenarios SKIPPED/NOT_RUN without `API_TEST_DATABASE_URL`); `pnpm --filter @hexta/sdk lint|test|build` pass; `pnpm --filter web lint` and `build` pass. Browser acceptance NOT_RUN.
+
+## Follow-up — remaining localization
+
+Branch `feat/web-i18n-rest` (stacked on `feat/web-workspace`).
+
+- Localized (vi/en): channel settings (Facebook, Telegram, OAuth page picker), settings intro/plan pages, workspace registration, storefront and checkout (checkout precondition errors are now typed and localized), login, register, auth callback, page metadata and the page-header back label.
+- Content corrections while translating: workspace registration no longer claims "autonomous checkout", "inventory alerts" or a fake `app.hexta.vn/tenants/<slug>` URL (routes use tenant IDs); the slug is shown as a workspace code. Login drops the non-functional "Forgot password?" link.
+- `/` in the web app now redirects to `/login` (the proxy forwards signed-in users to `/tenants`); the previous placeholder marketing page with unverifiable claims was removed because the landing app owns marketing. Auth pages no longer show a "Back to home" link that would loop.
+- No hardcoded English UI text remains outside the Vietnamese legal pages (scan of `app/` and `components/`).
+
+Verification: `pnpm --filter web lint` and `build` pass; `node --test` for the two existing web unit test files passes (7 tests); `next start` smoke check: `/` → 307 `/login`, `/login` renders Vietnamese title/heading by default and English with `hexta.locale=en`. Signed-in browser acceptance NOT_RUN.

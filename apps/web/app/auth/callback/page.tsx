@@ -7,6 +7,7 @@ import { DefaultBrowserStorage } from "@hexta/sdk";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Loader2 } from "lucide-react";
 import { toast } from "@hexta/ui";
+import { useT } from "@/lib/i18n/provider";
 
 const storage = new DefaultBrowserStorage();
 
@@ -14,6 +15,7 @@ function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const t = useT();
 
   useEffect(() => {
     // Read from search params (fallback/legacy) or from secure cookie/storage
@@ -25,20 +27,20 @@ function AuthCallbackContent() {
       // Update auth store
       setAuth();
 
-      toast.success("Login successful!");
+      toast.success(t("authPages.callbackSuccess"));
       sessionStorage.removeItem("hexta.workspace");
       router.push(sessionStorage.getItem("hexta.invitation") ? "/invitations" : "/tenants");
     } else {
-      toast.error("Authentication failed: token not found.");
+      toast.error(t("authPages.callbackFailed"));
       router.push("/login");
     }
-  }, [router, searchParams, setAuth]);
+  }, [router, searchParams, setAuth, t]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
       <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-      <h2 className="text-xl font-medium tracking-tight">Completing authentication...</h2>
-      <p className="text-muted text-sm mt-2">Please wait a moment</p>
+      <h2 className="text-xl font-medium tracking-tight">{t("authPages.callbackTitle")}</h2>
+      <p className="text-muted text-sm mt-2">{t("authPages.callbackWait")}</p>
     </div>
   );
 }
@@ -48,8 +50,7 @@ export default function AuthCallbackPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-          <h2 className="text-xl font-medium tracking-tight">Loading...</h2>
+          <Loader2 aria-hidden="true" className="w-10 h-10 animate-spin text-primary mb-4" />
         </div>
       }
     >

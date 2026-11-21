@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useWorkspace } from "@/components/sales/workspace";
 import {
   sales,
-  errorText,
   type Product,
   type Order,
   type Customer,
@@ -16,10 +15,24 @@ import {
 } from "@/lib/services/consultant-checkout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { buttonClass, Notice, inputClass } from "@/components/sales/primitives";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
+
+/** A checkout precondition failure with a localized message. */
+class CheckoutError extends Error {
+  constructor(public readonly key: MessageKey) {
+    super(key);
+  }
+}
+const vnd = (value: string | number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(value));
 
 export function ConsultantCheckout() {
   const { tenant } = useWorkspace();
   const user = useAuthStore((state) => state.user);
+  const t = useT();
+  const baseErrorText = useErrorText();
   const [customers, setCustomers] = useState<Customer[]>([]),
     [customer, setCustomer] = useState("");
   const [draft, setDraft] = useState<ConsultDraft | null>(null),
@@ -46,7 +59,7 @@ export function ConsultantCheckout() {
           !raw.items.length ||
           raw.items.length > 50
         )
-          throw new Error("No valid order draft. Please return to the store.");
+          throw new CheckoutError("checkout.noDraft");
         const [products, customerRows] = await Promise.all([
           sales.all<Product>("products", tenant!.id, controller.signal),
           sales.all<Customer>("customers", tenant!.id, controller.signal),
@@ -65,7 +78,7 @@ export function ConsultantCheckout() {
             item.quantity < 1 ||
             item.quantity > 100
           )
-            throw new Error("Invalid draft item");
+            throw new CheckoutError("checkout.invalidItem");
           const resolved = resolveCheckoutVariant(
             products,
             item.product_id,
@@ -74,9 +87,7 @@ export function ConsultantCheckout() {
           const product = resolved?.product;
           const variant = resolved?.variant;
           if (!variant?.price_provided)
-            throw new Error(
-              "A product is no longer available. Please return to the store.",
-            );
+            throw new CheckoutError("checkout.unavailable");
           items.push({
             product_id: product!.id,
             variant_id: variant.id,
@@ -91,14 +102,15 @@ export function ConsultantCheckout() {
         if (!controller.signal.aborted)
           setDraft({ draft_id: "review", items, total_amount: "" });
       } catch (err) {
-        if (!controller.signal.aborted) setError(errorText(err));
+        if (!controller.signal.aborted)
+          setError(err instanceof CheckoutError ? t(err.key) : baseErrorText(err));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     }
     void load();
     return () => controller.abort();
-  }, [tenant]);
+  }, [tenant, t, baseErrorText]);
   async function confirm() {
     if (
       !tenant ||
@@ -123,7 +135,7 @@ export function ConsultantCheckout() {
           employee_id: user.id,
           requires_delivery: false,
           delivery_address: "",
-          notes: "Shopping consultant checkout",
+          notes: t("checkout.notes"),
           items: draft.items.map((item) => ({
             variant_id: item.variant_id!,
             quantity: item.quantity,
@@ -145,11 +157,9 @@ export function ConsultantCheckout() {
     } catch (err) {
       if (creating) {
         setUncertain(true);
-        setError(
-          "Unable to verify draft creation. Check Orders before trying again.",
-        );
+        setError(t("checkout.uncertain"));
       } else {
-        setError(errorText(err));
+        setError(baseErrorText(err));
       }
     } finally {
       lock.current = false;
@@ -159,35 +169,32 @@ export function ConsultantCheckout() {
   if (!tenant) return null;
   return (
     <div className="max-w-xl space-y-4">
-      <h1 className="text-2xl font-semibold">Checkout</h1>
+      <h1 className="text-2xl font-semibold">{t("checkout.title")}</h1>
       <Notice error={error} />
       {loading ? (
-        <p role="status">Checking current products and prices…</p>
+        <p role="status">{t("checkout.checking")}</p>
       ) : confirmed ? (
-        <p role="status">Order {order?.order_number} confirmed.</p>
+        <p role="status">{t("checkout.confirmedOrder", { number: order?.order_number ?? "" })}</p>
       ) : (
         draft && (
           <>
             <p>
-              Review these items. Prices were refreshed from the catalog. The
-              server calculates totals and checks order eligibility when you
-              confirm.
+              {t("checkout.review")}
             </p>
             {draft.items.map((item, index) => (
               <p key={index}>
-                {item.quantity} × {item.product_name} ·{" "}
-                {Number(item.unit_price).toLocaleString("vi-VN")} VND each
+                {t("checkout.line", { quantity: item.quantity, name: item.product_name, price: vnd(item.unit_price) })}
               </p>
             ))}
             <label className="block">
-              Customer
+              {t("checkout.customer")}
               <select
                 className={inputClass}
                 disabled={busy || !!order}
                 value={customer}
                 onChange={(e) => setCustomer(e.target.value)}
               >
-                <option value="">Select a customer</option>
+                <option value="">{t("checkout.selectCustomer")}</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.full_name} · {c.phone || c.email}
@@ -197,14 +204,12 @@ export function ConsultantCheckout() {
             </label>
             {!customers.length && (
               <p>
-                Add a customer with contact details in Customers before
-                confirming.
+                {t("checkout.noCustomers")}
               </p>
             )}
             {order && (
               <p>
-                Server total:{" "}
-                {Number(order.total_amount).toLocaleString("vi-VN")} VND
+                {t("checkout.serverTotal", { amount: vnd(order.total_amount) })}
               </p>
             )}
             <button
@@ -213,10 +218,10 @@ export function ConsultantCheckout() {
               onClick={() => void confirm()}
             >
               {busy
-                ? "Processing…"
+                ? t("checkout.processing")
                 : order
-                  ? "Confirm purchase"
-                  : "Review server total"}
+                  ? t("checkout.confirm")
+                  : t("checkout.reviewTotal")}
             </button>
           </>
         )
@@ -225,14 +230,14 @@ export function ConsultantCheckout() {
         className="block text-primary underline"
         href={`/tenants/${tenant.id}/storefront`}
       >
-        Back to store
+        {t("checkout.back")}
       </Link>
       {(order || uncertain) && (
         <Link
           className="block text-primary underline"
           href={`/tenants/${tenant.id}/orders`}
         >
-          View saved order
+          {t("checkout.viewOrder")}
         </Link>
       )}
     </div>

@@ -6,16 +6,20 @@ import {
   buttonClass,
   secondaryClass,
   inputClass,
+  EmptyState,
   Field,
   Notice,
   Pager,
+  StatusChip,
 } from "./primitives";
 import {
   sales,
-  errorText,
   type Customer,
   type Product,
 } from "@/lib/services/sales";
+import { useErrorText } from "@/lib/errors";
+import { useT } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 const blank = {
   full_name: "",
@@ -26,7 +30,7 @@ const blank = {
   description: "",
   category: "",
   sku: "",
-  variant_name: "Standard",
+  variant_name: "",
   price: "",
 };
 export function Catalog({ kind }: { kind: "customers" | "products" }) {
@@ -42,6 +46,9 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const customer = kind === "customers";
+  const t = useT();
+  const errorText = useErrorText();
+  const k = (key: string) => t(`catalog.${kind}.${key}` as MessageKey);
   useEffect(() => {
     if (!tenant) return;
     const abort = new AbortController();
@@ -66,7 +73,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
     }
     void load();
     return () => abort.abort();
-  }, [tenant, kind, page, revision]);
+  }, [tenant, kind, page, revision, errorText]);
   function edit(row: Customer | Product) {
     setEditing(row.id);
     setError("");
@@ -86,7 +93,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
         description: row.description || "",
         category: row.category || "",
         sku: row.variants[0]?.sku || "",
-        variant_name: row.variants[0]?.variant_name || "Standard",
+        variant_name: row.variants[0]?.variant_name || "",
         price: row.variants[0]?.price_provided
           ? String(row.variants[0].price)
           : "",
@@ -112,14 +119,14 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
           description: form.description,
           category: form.category,
           sku: form.sku,
-          variant_name: form.variant_name,
+          variant_name: form.variant_name.trim() || t("catalog.products.defaultVariant"),
           price: form.price.trim() === "" ? null : form.price,
         });
       setForm(blank);
       setEditing(null);
       setPage(1);
       setRevision((value) => value + 1);
-      setSuccess(`${customer ? "Customer" : "Product"} saved.`);
+      setSuccess(k("saved"));
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -130,9 +137,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
     if (
       !tenant ||
       busy ||
-      !window.confirm(
-        "Archive this record? Existing order history will be retained.",
-      )
+      !window.confirm(t("catalog.archiveConfirm"))
     )
       return;
     setBusy(true);
@@ -146,7 +151,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
       }
       setPage(1);
       setRevision((value) => value + 1);
-      setSuccess("Record archived. Order history is retained.");
+      setSuccess(t("catalog.archived"));
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -177,24 +182,16 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-          {tenant?.name}
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold capitalize">{kind}</h1>
-        <p className="mt-2 text-sm text-muted">
-          {customer
-            ? "Keep customer contact details ready for your next order."
-            : "Manage the products and prices your team uses when creating orders."}
-        </p>
+        <h1 className="text-2xl font-semibold">{k("title")}</h1>
+        <p className="mt-1 text-sm text-muted">{k("subtitle")}</p>
       </div>
       <Notice error={error} success={success} />
       <div className="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
         <section className="space-y-4 rounded-xl border border-border bg-surface p-5">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
-              {customer ? "Customer directory" : "Active products"}
-            </h2>
+            <h2 className="font-semibold">{k("list")}</h2>
             <button
+              type="button"
               className={secondaryClass}
               onClick={() => {
                 setError("");
@@ -202,18 +199,15 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
               }}
               disabled={busy || loading}
             >
-              Refresh
+              {t("catalog.refresh")}
             </button>
           </div>
           {loading ? (
             <p role="status" className="py-10 text-sm text-muted">
-              Loading records…
+              {t("catalog.loading")}
             </p>
           ) : !rows.length ? (
-            <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted">
-              No {kind} yet. Add your first {customer ? "customer" : "product"}{" "}
-              using the form.
-            </p>
+            <EmptyState title={k("emptyTitle")} description={k("emptyBody")} />
           ) : (
             <ul className="divide-y divide-border">
               {rows.map((row) => (
@@ -228,7 +222,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
                     {"full_name" in row ? (
                       <p className="mt-1 break-all text-sm text-muted">
                         {[row.phone, row.email].filter(Boolean).join(" · ") ||
-                          "Contact not added"}
+                          t("catalog.customers.noContact")}
                       </p>
                     ) : (
                       <>
@@ -237,27 +231,33 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
                           {row.variants[0]?.variant_name}
                         </p>
                         <p className="mt-1 text-sm">
-                          {row.variants[0]?.price_provided
-                            ? `${row.variants[0].price} per unit`
-                            : "Price not entered"}
+                          {!row.variants[0]?.price_provided ? (
+                            <StatusChip tone="danger">{t("catalog.products.priceNotSet")}</StatusChip>
+                          ) : Number(row.variants[0].price) === 0 ? (
+                            t("catalog.products.free")
+                          ) : (
+                            t("catalog.products.perUnit", { price: String(row.variants[0].price) })
+                          )}
                         </p>
                       </>
                     )}
                   </div>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       className={secondaryClass}
                       disabled={busy}
                       onClick={() => edit(row)}
                     >
-                      Edit
+                      {t("catalog.edit")}
                     </button>
                     <button
+                      type="button"
                       className={secondaryClass}
                       disabled={busy}
                       onClick={() => void archive(row)}
                     >
-                      Archive
+                      {t("catalog.archive")}
                     </button>
                   </div>
                 </li>
@@ -277,7 +277,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
         >
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">
-              {editing ? "Edit" : "Add"} {customer ? "customer" : "product"}
+              {editing ? k("editTitle") : k("add")}
             </h2>
             {editing && (
               <button
@@ -290,32 +290,28 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
                   setError("");
                 }}
               >
-                Cancel
+                {t("catalog.cancel")}
               </button>
             )}
           </div>
           <fieldset disabled={busy} className="space-y-4">
             {customer ? (
               <>
-                {field("full_name", "Full name", true, "text", 255)}
-                {field("phone", "Phone", false, "tel", 32)}
-                {field("email", "Email", false, "email", 255)}
-                {field("address", "Address", false, "text", 5000)}
-                <p className="text-xs text-muted">
-                  Phone or email is required when confirming an order.
-                </p>
+                {field("full_name", t("catalog.customers.fullName"), true, "text", 255)}
+                {field("phone", t("catalog.customers.phone"), false, "tel", 32)}
+                {field("email", t("catalog.customers.email"), false, "email", 255)}
+                {field("address", t("catalog.customers.address"), false, "text", 5000)}
+                <p className="text-xs text-muted">{t("catalog.customers.contactHint")}</p>
               </>
             ) : (
               <>
-                {field("name", "Product name", true, "text", 255)}
-                {field("sku", "SKU", true, "text", 64)}
-                {field("variant_name", "Variant / unit", true, "text", 128)}
-                {field("price", "Unit price (optional)", false, "number")}
-                <p className="text-xs text-muted">
-                  Leave blank if unknown. Enter 0 only when the product is free.
-                </p>
-                {field("category", "Category", false, "text", 100)}
-                <Field title="Description">
+                {field("name", t("catalog.products.name"), true, "text", 255)}
+                {field("sku", t("catalog.products.sku"), true, "text", 64)}
+                {field("variant_name", t("catalog.products.variant"), false, "text", 128)}
+                {field("price", t("catalog.products.price"), false, "number")}
+                <p className="text-xs text-muted">{t("catalog.products.priceHint")}</p>
+                {field("category", t("catalog.products.category"), false, "text", 100)}
+                <Field title={t("catalog.products.description")}>
                   <textarea
                     className={inputClass}
                     rows={3}
@@ -329,7 +325,7 @@ export function Catalog({ kind }: { kind: "customers" | "products" }) {
               </>
             )}
             <button type="submit" className={`${buttonClass} w-full`}>
-              {busy ? "Saving…" : `Save ${customer ? "customer" : "product"}`}
+              {busy ? t("catalog.saving") : k("save")}
             </button>
           </fieldset>
         </form>

@@ -16,6 +16,8 @@ export interface TenantMember {
   id: number;
   tenant_id: string;
   user_id: string;
+  /** Account email of the member's sign-in identity; absent when the API cannot resolve one. */
+  email?: string;
   role: string;
   created_at?: string;
 }

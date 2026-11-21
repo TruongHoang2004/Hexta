@@ -7,6 +7,7 @@ import (
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -27,7 +28,7 @@ type ISalesRepository interface {
 	SaveProduct(context.Context, *model.Product, bool) *apperrors.Error
 	Variants(context.Context, string, []string) (map[string]model.ProductVariant, *apperrors.Error)
 	Order(context.Context, string, string) (*model.Order, *apperrors.Error)
-	Orders(context.Context, string, int, int) ([]model.Order, int64, *apperrors.Error)
+	Orders(context.Context, string, string, types.OrderListFilter, int, int) ([]model.Order, int64, *apperrors.Error)
 	SaveOrder(context.Context, *model.Order, int64, bool) *apperrors.Error
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
 	SaveOutboxEvent(context.Context, *model.DomainEvent) *apperrors.Error
@@ -191,10 +192,19 @@ func (r *SalesRepository) Order(ctx context.Context, tenant, id string) (*model.
 	}
 	return &row, nil
 }
-func (r *SalesRepository) Orders(ctx context.Context, tenant string, limit, offset int) ([]model.Order, int64, *apperrors.Error) {
+func (r *SalesRepository) Orders(ctx context.Context, tenant, actor string, filter types.OrderListFilter, limit, offset int) ([]model.Order, int64, *apperrors.Error) {
 	rows := []model.Order{}
 	var total int64
 	q := r.db.WithContext(ctx).Model(&model.Order{}).Where("tenant_id = ?", tenant)
+	if filter.Status != "" {
+		q = q.Where("status = ?", filter.Status)
+	}
+	switch filter.Assignee {
+	case "me":
+		q = q.Where("employee_id = ?", actor)
+	case "unassigned":
+		q = q.Where("employee_id IS NULL")
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, salesDBError(ctx, err)
 	}

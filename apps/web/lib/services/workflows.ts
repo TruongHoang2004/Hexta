@@ -53,6 +53,7 @@ export interface WorkInput {
   workflow_version_id: string;
   responsible_id: string;
 }
+export type WorkView = "all" | "mine" | "awaiting_me";
 const base = (tenant: string) => `/api/v1/tenants/${tenant}`;
 export const workflows = {
   async definitions(
@@ -95,10 +96,11 @@ export const workflows = {
     tenant: string,
     page = 1,
     signal?: AbortSignal,
+    view: WorkView = "all",
   ): Promise<Page<WorkItem>> {
     const res = await sdk.client.get<{ data: Page<WorkItem> }>(
       `${base(tenant)}/work-items`,
-      { params: { page, size: 20 }, signal },
+      { params: { page, size: 20, view }, signal },
     );
     return res.data.data;
   },

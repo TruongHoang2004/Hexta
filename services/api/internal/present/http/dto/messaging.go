@@ -4,7 +4,7 @@ import "time"
 
 type MessagingQuery struct {
 	Cursor string `form:"cursor" validate:"omitempty,uuid"`
-	Filter string `form:"filter" validate:"omitempty,oneof=all mine unassigned needs_human"`
+	Filter string `form:"filter" validate:"omitempty,oneof=all mine unassigned needs_human bot"`
 	Limit  int    `form:"limit" validate:"min=1,max=100"`
 }
 type MessagingInboundRequest struct {

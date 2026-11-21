@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@hexta/ui";
+import { useT } from "@/lib/i18n/provider";
 
 export interface PageHeaderProps {
   /** Optional target URL to navigate back to */
@@ -30,6 +31,7 @@ export function PageHeader({
   actions,
   className = "",
 }: PageHeaderProps) {
+  const t = useT();
   return (
     <div className={`space-y-3 border-b border-border/60 pb-6 ${className}`}>
       {/* Compact Breadcrumb Bar (Zero vertical bloat) */}
@@ -59,7 +61,7 @@ export function PageHeader({
               asChild
               className="h-9 w-9 shrink-0 rounded-xl border-border/80 text-muted hover:text-foreground shadow-2xs mt-0.5"
             >
-              <Link href={backHref} aria-label="Go back">
+              <Link href={backHref} aria-label={t("common.goBack")}>
                 <ArrowLeft className="w-4 h-4" />
               </Link>
             </Button>
