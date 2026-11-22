@@ -1,22 +1,19 @@
 # Kafka event backbone
 
-## Event contracts: one event, one file, one topic — 2026-11-22 (owner decision, IMPLEMENTED in branch `refactor/event-contracts`)
+## Event contracts in code — 2026-11-22 (owner decision, IMPLEMENTED in PR #93)
 
-Owner decisions: every event type has its own topic (no topic mixes event types); contracts live in `packages/shared/events`, one Go file per event in its domain package; messages are text-only for now, so there is a single message event. Pre-production, so v1 topics and payloads were replaced without a compatibility window.
+Owner decisions: keep the existing topics and their wire formats; each topic carries exactly one event type; the work is naming and organizing the schemas in code. Contracts live in `packages/shared/events`, one Go file (plus test) per event in its domain package; `events/catalog` lists each event with its topic. Messages are text-only for now, so there is a single message event. A first revision of PR #93 renamed every topic; the owner rejected that and it was reverted.
 
-- Naming: topic `hexta.<domain>.<event-kebab>.v<N>`; a breaking change creates `v<N+1>`. Payloads are flat JSON embedding `events.Meta` (`event_id`, optional `correlation_id`, `tenant_id`, `occurred_at`); no envelope, `event_type` or `schema_version` field, because the topic identifies the event and version.
-- `packages/shared/events/catalog` lists every topic with a decoder; the API outbox relay routes rows by it (outbox `event_type` = topic, payload = complete event, partition key = the event's `Key()`), and a test keeps the Compose topic provisioning equal to the catalog.
+| Topic (unchanged) | Event (file) | Wire | Producer → consumer | Key |
+| --- | --- | --- | --- | --- |
+| `hexta.ingress.received.v1` | `messaging.MessageReceived` (`messaging/message_received.go`) | flat + `Meta` | connector → API ingress | hash(tenant, connection, conversation) |
+| `hexta.messaging.conversations.v1` | `messaging.ConversationChanged` | `events.Envelope` (`messaging.conversation.changed`) | API outbox → conversation read model | thread (aggregate) |
+| `hexta.outbound.intent.v1` | `delivery.SendRequested` | flat + `Meta` | API outbox → connector | connection:recipient |
+| `hexta.outbound.result.v1` | `delivery.SendCompleted` | flat + `Meta` | connector outbox → API delivery | intent |
+| `hexta.connector.health.v1` | `connection.HealthChanged` | flat + `Meta` | connector outbox → API channels | connection |
+| `hexta.orders.events.v1` | `order.OrderConfirmed` | `events.Envelope` (`order.confirmed`) | API outbox → (none yet) | order (aggregate) |
 
-| Topic | Event (file) | Producer → consumer | Key |
-| --- | --- | --- | --- |
-| `hexta.messaging.message-received.v1` | `messaging.MessageReceived` (`messaging/message_received.go`) | connector → API ingress | hash(tenant, connection, conversation) |
-| `hexta.messaging.conversation-changed.v1` | `messaging.ConversationChanged` | API outbox → API conversation read model | thread |
-| `hexta.delivery.send-requested.v1` | `delivery.SendRequested` | API outbox → connector | connection:recipient |
-| `hexta.delivery.send-completed.v1` | `delivery.SendCompleted` | connector outbox → API delivery | intent |
-| `hexta.connection.health-changed.v1` | `connection.HealthChanged` | connector outbox → API channels | connection |
-| `hexta.order.order-confirmed.v1` | `order.OrderConfirmed` | API outbox → (none yet) | order |
-
-`MessageReceived` replaces `ingress.Event`: text, or no text plus `unsupported_media_kinds` for the media placeholder; `direction=outbound` marks provider echoes. Every message carries its own `connection_id`, so a tenant may hold any number of Pages/bots. Topic names and the envelope described further below for the 2026-11-03 slices are superseded by this section; planned topics in "Use cases" remain proposals and must follow this naming when implemented.
+The API outbox relay resolves a row's event type through the catalog and publishes to that event's topic (enveloped or raw) through one multi-topic writer. Payload changes on the four flat topics: `events.Meta` (`event_id`, `correlation_id`, `tenant_id`, `occurred_at`) replaces `schema_version`/`issued_at`/`received_timestamp`; `MessageReceived` drops `event_type`/`attachments` for text plus optional `unsupported_media_kinds` (`direction=outbound` marks echoes). The envelope topics keep their exact main wire format.
 
 ## Connector direction update — 2026-11-03
 

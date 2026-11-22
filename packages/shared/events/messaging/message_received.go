@@ -10,7 +10,7 @@ import (
 )
 
 // MessageReceivedTopic carries MessageReceived. Producer: connector. Consumer: API ingress (inbox).
-const MessageReceivedTopic = "hexta.messaging.message-received.v1"
+const MessageReceivedTopic = "hexta.ingress.received.v1"
 
 // Directions. Outbound marks a provider echo of a message the account itself sent; it never opens a turn.
 const (

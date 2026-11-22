@@ -8,7 +8,7 @@ import (
 )
 
 // HealthChangedTopic carries HealthChanged. Producer: connector (outbox). Consumer: API channel status.
-const HealthChangedTopic = "hexta.connection.health-changed.v1"
+const HealthChangedTopic = "hexta.connector.health.v1"
 
 // StatusAuthExpired is currently the only reported health status: the provider rejected the stored credential.
 const StatusAuthExpired = "auth_expired"

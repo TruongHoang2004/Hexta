@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"os"
 	"testing"
 	"time"
@@ -37,10 +38,6 @@ func TestOutboxRelayPublishesCommittedEventToKafka(t *testing.T) {
 	}
 
 	event := orderEvent(t, uuid.NewString())
-	var want order.OrderConfirmed
-	if err = json.Unmarshal([]byte(event.Payload), &want); err != nil {
-		t.Fatal(err)
-	}
 	if err = db.Create(event).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +51,7 @@ func TestOutboxRelayPublishesCommittedEventToKafka(t *testing.T) {
 		t.Fatal("relay", claimed, failure)
 	}
 
-	// The topic is shared across runs: read until this run's event, which must be the raw shared payload keyed by order.
+	// The topic is shared across runs: read until this run's envelope, keyed by the order aggregate.
 	reader := kafka.NewReader(kafka.ReaderConfig{Brokers: []string{broker}, Topic: topic, MaxBytes: 1 << 20})
 	defer reader.Close()
 	for {
@@ -62,13 +59,13 @@ func TestOutboxRelayPublishesCommittedEventToKafka(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var got order.OrderConfirmed
-		// The payload round-trips through PostgreSQL, so match by event ID rather than byte equality.
-		if json.Unmarshal(message.Value, &got) != nil || got.EventID != want.EventID {
+		var envelope events.Envelope
+		if json.Unmarshal(message.Value, &envelope) != nil || envelope.EventID != event.ID {
 			continue
 		}
-		if string(message.Key) != "order" || got.Validate() != nil {
-			t.Fatalf("unexpected message key=%s event=%+v", message.Key, got)
+		var got order.OrderConfirmed
+		if string(message.Key) != "order" || envelope.SchemaVersion != 1 || envelope.EventType != model.DomainEventOrderConfirmed || json.Unmarshal(envelope.Data, &got) != nil || got.Validate() != nil {
+			t.Fatalf("unexpected message key=%s envelope=%+v", message.Key, envelope)
 		}
 		break
 	}

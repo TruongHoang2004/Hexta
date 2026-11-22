@@ -10,7 +10,10 @@ import (
 )
 
 // SendRequestedTopic carries SendRequested. Producer: API messaging command side (outbox). Consumer: connector.
-const SendRequestedTopic = "hexta.delivery.send-requested.v1"
+const SendRequestedTopic = "hexta.outbound.intent.v1"
+
+// SendRequestedEventType names SendRequested rows in the API outbox.
+const SendRequestedEventType = "outbound.intent"
 
 const MaxTextRunes = 2000
 

@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
-	"github.com/google/uuid"
 	"testing"
 	"time"
 
@@ -59,7 +57,7 @@ func (relayPublisher) PublishTo(context.Context, string, string, []byte) error {
 
 // orderEvent is a publishable outbox row carrying a valid shared order.confirmed payload.
 func orderEvent(t *testing.T, id string) *model.DomainEvent {
-	payload, err := json.Marshal(order.OrderConfirmed{Meta: events.Meta{EventID: uuid.NewString(), TenantID: "tenant", OccurredAt: time.Now()}, OrderID: "order", OrderNumber: "SO-1", Version: 2, TotalAmount: "10.00", ConfirmedBy: "owner"})
+	payload, err := json.Marshal(order.OrderConfirmed{OrderID: "order", OrderNumber: "SO-1", Version: 2, TotalAmount: "10.00", ConfirmedBy: "owner"})
 	if err != nil {
 		t.Fatal(err)
 	}

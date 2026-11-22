@@ -120,9 +120,8 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        for t in hexta.messaging.message-received.v1 hexta.messaging.conversation-changed.v1
-        hexta.delivery.send-requested.v1 hexta.delivery.send-completed.v1
-        hexta.connection.health-changed.v1 hexta.order.order-confirmed.v1;
+        for t in hexta.ingress.received.v1 hexta.outbound.intent.v1 hexta.outbound.result.v1
+        hexta.connector.health.v1 hexta.orders.events.v1 hexta.messaging.conversations.v1;
         do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
         --partitions 3 --replication-factor 1 || exit 1; done
     logging: *logging

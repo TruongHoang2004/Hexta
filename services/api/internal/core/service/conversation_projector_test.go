@@ -24,10 +24,14 @@ func conversationEvents(t *testing.T, db *gorm.DB, tenant string) []model.Domain
 	return events
 }
 
-// envelope returns the value the relay publishes for an outbox row: the raw shared event payload.
+// envelope wraps an outbox row exactly like the relay does before publishing.
 func envelope(t *testing.T, e model.DomainEvent) []byte {
 	t.Helper()
-	return []byte(e.Payload)
+	value, err := json.Marshal(events.Envelope{SchemaVersion: 1, EventID: e.ID, EventType: e.EventType, TenantID: e.TenantID, AggregateID: e.AggregateID, OccurredAt: time.Now().UTC(), Data: json.RawMessage(e.Payload)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
 }
 
 func TestConversationEventsAreEmittedOncePerThreadAndTransaction(t *testing.T) {
@@ -105,22 +109,23 @@ func TestConversationProjectionMatchesAuthoritativeState(t *testing.T) {
 func TestConversationProjectorDecode(t *testing.T) {
 	p := NewConversationProjector(nil)
 	tenant, thread, turn := uuid.NewString(), uuid.NewString(), uuid.NewString()
-	encode := func(tenant, thread string, version int64) []byte {
-		v, _ := json.Marshal(messaging.ConversationChanged{Meta: events.Meta{EventID: uuid.NewString(), TenantID: tenant, OccurredAt: time.Now()}, ThreadID: thread, TurnID: turn, TurnVersion: version, Lifecycle: "open", Control: "sales"})
+	data, _ := json.Marshal(messaging.ConversationChanged{ThreadID: thread, TurnID: turn, TurnVersion: 1, Lifecycle: "open", Control: "sales"})
+	wrap := func(kind string, version int, aggregate string) []byte {
+		v, _ := json.Marshal(events.Envelope{SchemaVersion: version, EventID: uuid.NewString(), EventType: kind, TenantID: tenant, AggregateID: aggregate, Data: data})
 		return v
 	}
 	for name, c := range map[string]struct {
-		value []byte
-		ok    bool
+		value    []byte
+		ok, skip bool
 	}{
-		"valid":          {encode(tenant, thread, 1), true},
-		"bad tenant":     {encode("tenant", thread, 1), false},
-		"bad thread":     {encode(tenant, "thread", 1), false},
-		"no turn number": {encode(tenant, thread, 0), false},
-		"not json":       {[]byte("nope"), false},
+		"valid":          {wrap(model.DomainEventConversationChanged, 1, thread), true, false},
+		"unknown type":   {wrap("order.confirmed", 1, thread), true, true},
+		"newer schema":   {wrap(model.DomainEventConversationChanged, 2, thread), true, true},
+		"aggregate skew": {wrap(model.DomainEventConversationChanged, 1, uuid.NewString()), false, false},
+		"not json":       {[]byte("nope"), false, false},
 	} {
-		gotTenant, change, ok := p.Decode(c.value)
-		if ok != c.ok || (ok && (change == nil || gotTenant != tenant)) {
+		_, change, ok := p.Decode(c.value)
+		if ok != c.ok || (ok && (change == nil) != c.skip) {
 			t.Errorf("%s: ok=%v change=%v", name, ok, change)
 		}
 	}

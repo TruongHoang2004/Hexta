@@ -12,7 +12,7 @@ import (
 // catalog topics.
 func TestComposeProvisionsExactlyTheCatalogTopics(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..", "infrastructure")
-	provisioned := regexp.MustCompile(`hexta\.[a-z]+\.[a-z-]+\.v[0-9]+`)
+	provisioned := regexp.MustCompile(`hexta\.[a-z]+\.[a-z]+\.v[0-9]+`)
 	want := Topics()
 	slices.Sort(want)
 	for _, name := range []string{"compose.demo.yml", "compose.prod.yml"} {

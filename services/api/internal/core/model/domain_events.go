@@ -8,11 +8,11 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 )
 
-// Outbox event types are the destination topics: each row carries the complete shared event payload published as is.
+// Outbox event types name shared events (packages/shared/events); the relay resolves each one's single topic.
 const (
-	DomainEventOrderConfirmed      = order.OrderConfirmedTopic
-	DomainEventOutboundIntent      = delivery.SendRequestedTopic
-	DomainEventConversationChanged = messaging.ConversationChangedTopic
+	DomainEventOrderConfirmed      = order.OrderConfirmedEventType
+	DomainEventOutboundIntent      = delivery.SendRequestedEventType
+	DomainEventConversationChanged = messaging.ConversationChangedEventType
 
 	DomainEventStatePending   = "pending"
 	DomainEventStateLeased    = "leased"

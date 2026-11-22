@@ -1,4 +1,5 @@
-// Package catalog lists every event topic so producers, relays and infrastructure provisioning share one source.
+// Package catalog lists every event with its single topic, so producers, the outbox relay and infrastructure
+// provisioning share one source.
 package catalog
 
 import (
@@ -16,10 +17,13 @@ type Event interface {
 	Validate() error
 }
 
-// Entry describes one topic and decodes its payload.
+// Entry describes one event. EventType is set for events written to the API outbox; Enveloped events are published
+// inside events.Envelope, the others as their raw payload.
 type Entry struct {
-	Topic  string
-	Decode func([]byte) (Event, error)
+	Topic     string
+	EventType string
+	Enveloped bool
+	Decode    func([]byte) (Event, error)
 }
 
 func decoder[T Event]() func([]byte) (Event, error) {
@@ -32,20 +36,31 @@ func decoder[T Event]() func([]byte) (Event, error) {
 	}
 }
 
-// Entries is the complete topic list. Adding an event adds one file in its domain package and one line here.
+// Entries is the complete event list, one topic per event. Adding an event adds one file in its domain package and
+// one line here.
 var Entries = []Entry{
-	{messaging.MessageReceivedTopic, decoder[messaging.MessageReceived]()},
-	{messaging.ConversationChangedTopic, decoder[messaging.ConversationChanged]()},
-	{delivery.SendRequestedTopic, decoder[delivery.SendRequested]()},
-	{delivery.SendCompletedTopic, decoder[delivery.SendCompleted]()},
-	{connection.HealthChangedTopic, decoder[connection.HealthChanged]()},
-	{order.OrderConfirmedTopic, decoder[order.OrderConfirmed]()},
+	{Topic: messaging.MessageReceivedTopic, Decode: decoder[messaging.MessageReceived]()},
+	{Topic: messaging.ConversationChangedTopic, EventType: messaging.ConversationChangedEventType, Enveloped: true, Decode: decoder[messaging.ConversationChanged]()},
+	{Topic: delivery.SendRequestedTopic, EventType: delivery.SendRequestedEventType, Decode: decoder[delivery.SendRequested]()},
+	{Topic: delivery.SendCompletedTopic, Decode: decoder[delivery.SendCompleted]()},
+	{Topic: connection.HealthChangedTopic, Decode: decoder[connection.HealthChanged]()},
+	{Topic: order.OrderConfirmedTopic, EventType: order.OrderConfirmedEventType, Enveloped: true, Decode: decoder[order.OrderConfirmed]()},
 }
 
 // Lookup returns the entry for a topic.
 func Lookup(topic string) (Entry, bool) {
 	for _, e := range Entries {
 		if e.Topic == topic {
+			return e, true
+		}
+	}
+	return Entry{}, false
+}
+
+// ByEventType returns the entry for an API outbox event type.
+func ByEventType(eventType string) (Entry, bool) {
+	for _, e := range Entries {
+		if e.EventType != "" && e.EventType == eventType {
 			return e, true
 		}
 	}

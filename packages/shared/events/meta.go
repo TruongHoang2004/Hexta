@@ -1,7 +1,6 @@
-// Package events owns Hexta's asynchronous contracts. Each event lives in one file of its domain package and is
-// published on exactly one Kafka topic named hexta.<domain>.<event>.v<N>; a breaking schema change creates a new
-// topic version instead of mixing shapes on one topic. Payloads are flat JSON: the topic identifies the event, so
-// there is no envelope or event_type field.
+// Package events owns Hexta's asynchronous contracts. Each event lives in one file of its domain package and owns
+// exactly one Kafka topic; no topic carries two event types. Most payloads are flat JSON embedding Meta; the order
+// and conversation topics keep their versioned Envelope.
 package events
 
 import (

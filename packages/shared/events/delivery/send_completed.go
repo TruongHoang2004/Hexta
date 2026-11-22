@@ -7,7 +7,7 @@ import (
 )
 
 // SendCompletedTopic carries SendCompleted. Producer: connector (outbox). Consumer: API delivery status.
-const SendCompletedTopic = "hexta.delivery.send-completed.v1"
+const SendCompletedTopic = "hexta.outbound.result.v1"
 
 // Delivery outcomes. Unknown means the provider may have accepted the message; it is never resent automatically.
 const (

@@ -6,11 +6,11 @@ completed: false
 date: 2026-11-22
 ---
 
-# Per-event contracts and topics
+# Event contracts in code
 
 ## Scope
 
-Owner request: the chat pipeline must accept any number of connections of any type per tenant, with normalized events. Owner decisions (2026-11-22): one Kafka topic per event type; contracts in `packages/shared`, one file per event; messages are text-only, so one message event; pre-production, so no v1 compatibility. Related: EPIC-004 (messaging), EPIC-008 (connector). The connection-management API/UI unification (one `connections` resource) is a separate, planned follow-up.
+Owner request: the chat pipeline must accept any number of connections of any type per tenant, with normalized events. Owner decisions (2026-11-22): contracts in `packages/shared`, one file per event, clear schema names; each topic carries one event type; messages are text-only, so one message event. Owner correction the same day: keep the existing topic names and the order/conversation envelopes — only the code-level schema organization was requested. Related: EPIC-004 (messaging), EPIC-008 (connector). The connection-management API/UI unification (one `connections` resource) is a separate, planned follow-up.
 
 ## Starting evidence
 
@@ -18,21 +18,18 @@ Worktree `.claude/worktrees/event-contracts`, branch `refactor/event-contracts` 
 
 ## Outcome and decisions
 
-- New `packages/shared/events`: `meta.go` (`Meta`, `Hash`, UUID check), `platform.go`, `messaging/{message_received,conversation_changed}.go`, `delivery/{send_requested,send_completed}.go`, `connection/health_changed.go`, `order/order_confirmed.go`, `catalog/` (topic list + decoders). Each event has `Topic`, `Validate`, `Key` and its own test. Topics and keys: see [06-kafka-events](../../../designs/system/06-kafka-events.md#event-contracts-one-event-one-file-one-topic--2026-11-22-owner-decision-implemented-in-branch-refactorevent-contracts).
-- `MessageReceived` keeps text or, with no text, `unsupported_media_kinds` so the existing inbox media placeholder keeps working; `direction=outbound` marks echoes. `event_type`/`attachments` removed. `Validate` now enforces content rules previously checked only in the API.
-- API outbox: `domain_events.event_type` is the destination topic; the relay looks it up in the catalog, validates the payload, keys by `Key()` and publishes the raw event through one `kafkatransport.MultiTopicPublisher`. Unknown topics or invalid payloads are never published (row retried). Producers set `Meta.EventID` = outbox row ID.
-- Removed `packages/shared/ingress`, `packages/shared/outbound`, API `types/domain_events.go`, the default-topic `kafkatransport.NewPublisher/NewReader`.
-- Connector schema: `outbound_events.topic` check uses the new names; Atlas migration `20261122070740_event_topic_names` renames pending rows first. Pending API outbox rows with pre-release event types are not migrated (dev data only; they stay unpublished).
-- Compose demo/prod provision the six new topics; a catalog test fails if Compose and catalog diverge. Docs: `packages/shared/AGENTS.md`, connector README, system design 06.
+- First revision (commit `e96d592`) renamed all topics to `hexta.<domain>.<event>.v1` and flattened the envelope topics; the owner rejected the renames. Follow-up commit restores the six main topic names, the `events.Envelope` wire format on `hexta.orders.events.v1`/`hexta.messaging.conversations.v1`, Compose provisioning and the connector topic check (the added migration was removed).
+- Kept: `packages/shared/events` with `meta.go`, `envelope.go`, `platform.go`, `messaging/{message_received,conversation_changed}.go`, `delivery/{send_requested,send_completed}.go`, `connection/health_changed.go`, `order/order_confirmed.go`, `catalog/` (event → single topic, outbox event type, enveloped flag). Each event has `Topic`, `Validate`, `Key` and its own test; a test keeps Compose provisioning equal to the catalog.
+- `MessageReceived` replaces `ingress.Event` (text, or no text plus `unsupported_media_kinds`; `direction=outbound` marks echoes). The three outbound/health events embed `events.Meta`. The API outbox relay routes by catalog through one multi-topic writer; enveloped events keep aggregate keys.
+- Removed `packages/shared/ingress`, `packages/shared/outbound`, API `types/domain_events.go`, default-topic `kafkatransport` constructors.
 
 ## Verification and evidence
 
 - `go vet` clean for shared, api, connector and test modules; gofmt clean; `git diff --check` PASS.
-- Isolated fixture (`compose.connector-test.yml`, project `hexta-event-contracts-fixture`, ports 55539/59192, removed after the run; the running demo stack was not touched): connector DB migrated fresh with Atlas; `go test -race -count=1 -p 1 -v ./services/connector/... ./services/api/... ./packages/shared/...` → exit 0, 176 PASS, 1 SKIP (`TestLiveTelegramWebhookAcceptance`, needs live token). Includes connector → Kafka → API end-to-end for Facebook and Telegram, outbound send/result and the outbox → Kafka relay.
-- `atlas migrate validate --env connector` PASS; desired schema and history in sync.
-- Compose files: `docker compose config --no-interpolate -q` PASS for demo/prod; interpolated config and a live stack run NOT_RUN.
-- NOT_RUN: `test/e2e` (needs a running API on :9090), upgrade migration on a database holding old-topic rows, live Meta/Telegram.
+- Isolated fixture (`compose.connector-test.yml`, project `hexta-event-contracts-fixture`, ports 55539/59192, removed after each run; the running demo stack was not touched), after the owner correction: `go test -race -count=1 -p 1 -v ./services/connector/... ./services/api/... ./packages/shared/...` → 176 PASS, 1 SKIP (live Telegram), 1 FAIL caused by a test-setup edit (missing outbox insert) — fixed, then the outbox/projector/sales subset reran PASS including `TestOutboxRelayPublishesCommittedEventToKafka`. Includes connector → Kafka → API end-to-end for Facebook and Telegram.
+- `atlas migrate validate --env connector` PASS; infrastructure and migrations identical to main.
+- NOT_RUN: `test/e2e` (needs a running API on :9090), live Meta/Telegram.
 
 ## Remaining work and handoff
 
-Review and merge. After merge, recreate local Kafka topics (`make` demo stack re-runs provisioning) and apply the connector migration. Next: Phase 1 — unify connection management (`/connections` list/update, single Channels list, "add connection → choose type").
+Review and merge. No topic, schema or migration change is needed on deployed stacks; producers and consumers of the four flat topics must be deployed together because their payloads changed. Next: unified connection management (EPIC-008 session 2026-11-22_unified-connections).

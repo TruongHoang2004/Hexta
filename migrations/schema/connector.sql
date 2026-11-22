@@ -76,7 +76,7 @@ CREATE TABLE "connector"."outbound_attempts" (
 -- Result/health outbox published to Kafka after the durable outcome commits.
 CREATE TABLE "connector"."outbound_events" (
  id uuid PRIMARY KEY,
- topic text NOT NULL CHECK(topic IN ('hexta.delivery.send-completed.v1','hexta.connection.health-changed.v1')),
+ topic text NOT NULL CHECK(topic IN ('hexta.outbound.result.v1','hexta.connector.health.v1')),
  event_key text NOT NULL,
  payload bytea NOT NULL,
  state text NOT NULL CHECK(state IN ('pending','leased','published','quarantine')),

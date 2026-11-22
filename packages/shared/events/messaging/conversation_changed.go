@@ -3,18 +3,18 @@ package messaging
 import (
 	"errors"
 	"time"
-
-	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 )
 
-// ConversationChangedTopic carries ConversationChanged. Producer: API messaging command side (outbox).
-// Consumer: API conversation read model.
-const ConversationChangedTopic = "hexta.messaging.conversation-changed.v1"
+// ConversationChangedTopic carries ConversationChanged inside events.Envelope. Producer: API messaging command side
+// (outbox). Consumer: API conversation read model.
+const ConversationChangedTopic = "hexta.messaging.conversations.v1"
+
+// ConversationChangedEventType is the envelope event_type and the API outbox row type.
+const ConversationChangedEventType = "messaging.conversation.changed"
 
 // ConversationChanged is the full thread and its open turn after a committed change, so consumers can upsert
 // idempotently. It carries no message bodies or customer contact data.
 type ConversationChanged struct {
-	events.Meta
 	ThreadID          string    `json:"thread_id"`
 	ExternalKey       string    `json:"external_key"`
 	DisplayName       string    `json:"display_name"`
@@ -37,9 +37,6 @@ type ConversationChanged struct {
 func (e ConversationChanged) Key() string { return e.ThreadID }
 
 func (e ConversationChanged) Validate() error {
-	if err := e.Meta.Validate(); err != nil {
-		return err
-	}
 	if e.ThreadID == "" || e.TurnID == "" {
 		return errors.New("invalid conversation change")
 	}

@@ -3,9 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
-	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -37,12 +35,11 @@ func (r *MessagingRepository) flushConversationEvents(ctx context.Context) *appe
 		if turn == nil {
 			continue
 		}
-		id := uuid.NewString()
-		payload, marshalErr := json.Marshal(ConversationChangedOf(events.Meta{EventID: id, TenantID: key.tenant, OccurredAt: time.Now().UTC()}, *thread, *turn))
+		payload, marshalErr := json.Marshal(ConversationChangedOf(*thread, *turn))
 		if marshalErr != nil {
 			return apperrors.ErrSystemError(ctx, "conversation event encoding failed")
 		}
-		event := model.DomainEvent{ID: id, TenantID: key.tenant, EventType: model.DomainEventConversationChanged, AggregateID: key.thread, Payload: string(payload), State: model.DomainEventStatePending}
+		event := model.DomainEvent{ID: uuid.NewString(), TenantID: key.tenant, EventType: model.DomainEventConversationChanged, AggregateID: key.thread, Payload: string(payload), State: model.DomainEventStatePending}
 		if err := r.db.WithContext(ctx).Create(&event).Error; err != nil {
 			return salesDBError(ctx, err)
 		}
@@ -52,9 +49,8 @@ func (r *MessagingRepository) flushConversationEvents(ctx context.Context) *appe
 }
 
 // ConversationChangedOf snapshots a thread and its open turn as the event payload.
-func ConversationChangedOf(meta events.Meta, thread types.MessagingThread, turn types.MessagingTurn) messaging.ConversationChanged {
+func ConversationChangedOf(thread types.MessagingThread, turn types.MessagingTurn) messaging.ConversationChanged {
 	return messaging.ConversationChanged{
-		Meta:     meta,
 		ThreadID: thread.ID, ExternalKey: thread.ExternalKey, DisplayName: thread.DisplayName,
 		ConnectionID: thread.ConnectionID, RecipientID: thread.RecipientID,
 		ThreadCreatedAt: thread.CreatedAt, ThreadUpdatedAt: thread.UpdatedAt,
