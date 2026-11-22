@@ -198,7 +198,7 @@ func TestConnectorFacebookOAuthSendAndDeliveryResults(t *testing.T) {
 	defer intents.Writer.Close()
 	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), &fakeKafka{}).WithIntentPublisher(intents)
 
-	inbox := service.NewMessagingService(repository.NewMessagingRepository(db))
+	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	for _, psid := range []string{"psid-ok", "psid-window"} {
 		body, _ := json.Marshal(map[string]any{"object": "page", "entry": []any{map[string]any{"id": page, "messaging": []any{map[string]any{"sender": map[string]string{"id": psid}, "recipient": map[string]string{"id": page}, "timestamp": time.Now().UnixMilli(), "message": map[string]string{"mid": uuid.NewString(), "text": "Hello shop"}}}}}})
 		mac := hmac.New(sha256.New, []byte(secret))

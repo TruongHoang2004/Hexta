@@ -25,6 +25,14 @@ type OutboxRelay struct {
 	publisher IEventPublisher
 	// intents publishes outbound.intent rows to the connector topic; nil leaves them pending with backoff.
 	intents IEventPublisher
+	// conversations publishes conversation.changed snapshots to the read-model topic; nil leaves them pending.
+	conversations IEventPublisher
+}
+
+// WithConversationPublisher routes messaging.conversation.changed rows to the conversation read-model topic.
+func (r *OutboxRelay) WithConversationPublisher(p IEventPublisher) *OutboxRelay {
+	r.conversations = p
+	return r
 }
 
 // WithIntentPublisher routes outbound delivery intents to their own topic as the raw shared contract payload.
@@ -46,6 +54,9 @@ func (r *OutboxRelay) RelayOne(ctx context.Context) (bool, *apperrors.Error) {
 	}
 	publisher, key := r.publisher, event.AggregateID
 	value, encodeErr := json.Marshal(types.DomainEventEnvelope{SchemaVersion: 1, EventID: event.ID, EventType: event.EventType, TenantID: event.TenantID, AggregateID: event.AggregateID, OccurredAt: event.CreatedAt.UTC(), Data: json.RawMessage(event.Payload)})
+	if event.EventType == model.DomainEventConversationChanged {
+		publisher = r.conversations
+	}
 	if event.EventType == model.DomainEventOutboundIntent {
 		var intent outbound.IntentEvent
 		encodeErr = json.Unmarshal([]byte(event.Payload), &intent)

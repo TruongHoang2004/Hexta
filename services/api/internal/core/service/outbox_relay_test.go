@@ -117,3 +117,21 @@ func TestOutboxRelayRoutesIntentsAsRawContractToIntentTopic(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, map[string]bool{intent.ID: false}, store.finished)
 }
+
+func TestOutboxRelayRoutesConversationChangesToTheReadModelTopic(t *testing.T) {
+	change := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000003", TenantID: "tenant", EventType: model.DomainEventConversationChanged, AggregateID: "thread-1", Payload: `{"thread_id":"thread-1"}`, Fence: 1}
+	orders, conversations := &fakePublisher{}, &fakePublisher{}
+	store := &fakeOutboxStore{events: []*model.DomainEvent{change}}
+	claimed, err := NewOutboxRelay(store, orders).WithConversationPublisher(conversations).RelayOne(context.Background())
+	require.True(t, claimed)
+	require.Nil(t, err)
+	require.Empty(t, orders.keys, "conversation snapshots must never reach the order topic")
+	require.Equal(t, []string{"thread-1"}, conversations.keys, "snapshots are keyed by thread so one thread stays ordered")
+
+	// Without a conversation publisher the row is released for retry instead of leaking to the order topic.
+	store = &fakeOutboxStore{events: []*model.DomainEvent{change}}
+	claimed, err = NewOutboxRelay(store, orders).RelayOne(context.Background())
+	require.True(t, claimed)
+	require.NotNil(t, err)
+	require.Empty(t, orders.keys)
+}

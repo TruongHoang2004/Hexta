@@ -17,7 +17,6 @@ type MessagingStore interface {
 	Within(context.Context, func(MessagingStore) *apperrors.Error) *apperrors.Error
 	Scope(context.Context, string, string) (types.MessagingScope, *apperrors.Error)
 	MemberExists(context.Context, string, string) (bool, *apperrors.Error)
-	Conversations(context.Context, string, string, types.MessagingQuery) (types.MessagingPage, *apperrors.Error)
 	Thread(context.Context, string, string, bool) (*types.MessagingThread, *apperrors.Error)
 	UpsertThread(context.Context, types.MessagingThread) (*types.MessagingThread, *apperrors.Error)
 	CurrentTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
@@ -26,21 +25,34 @@ type MessagingStore interface {
 	SaveThread(context.Context, types.MessagingThread) *apperrors.Error
 	MessageByKey(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
 	InsertMessage(context.Context, types.MessagingMessage) *apperrors.Error
-	Messages(context.Context, string, string, types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error)
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
 	BindThreadChannel(context.Context, string, string, string, string) *apperrors.Error
 	SendConnection(context.Context, string, string) (*types.ChannelConnection, *apperrors.Error)
 	InsertOutbound(context.Context, types.OutboundIntent, types.OutboundAttempt, *model.DomainEvent) *apperrors.Error
 }
-type MessagingRepository struct{ *SalesRepository }
+type MessagingRepository struct {
+	*SalesRepository
+	// dirty collects threads changed in this transaction; nil outside transactions, where nothing is tracked.
+	dirty map[conversationKey]struct{}
+}
 
 func NewMessagingRepository(db *gorm.DB) *MessagingRepository {
-	return &MessagingRepository{NewSalesRepository(db)}
+	return &MessagingRepository{SalesRepository: NewSalesRepository(db)}
+}
+
+// newTxMessagingRepository tracks changed threads so the transaction can emit conversation events before commit.
+func newTxMessagingRepository(tx *gorm.DB) *MessagingRepository {
+	repo := NewMessagingRepository(tx)
+	repo.dirty = map[conversationKey]struct{}{}
+	return repo
 }
 func (r *MessagingRepository) Within(ctx context.Context, fn func(MessagingStore) *apperrors.Error) *apperrors.Error {
 	var failure *apperrors.Error
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		failure = fn(NewMessagingRepository(tx))
+		repo := newTxMessagingRepository(tx)
+		if failure = fn(repo); failure == nil {
+			failure = repo.flushConversationEvents(ctx)
+		}
 		if failure != nil {
 			return failure
 		}
@@ -54,66 +66,9 @@ func (r *MessagingRepository) Within(ctx context.Context, fn func(MessagingStore
 	}
 	return nil
 }
-func (r *MessagingRepository) Scope(ctx context.Context, tenant, actor string) (types.MessagingScope, *apperrors.Error) {
-	workspace, err := r.Tenant(ctx, tenant)
-	if err != nil {
-		return types.MessagingScope{}, err
-	}
-	member, err := r.Member(ctx, tenant, actor)
-	if err != nil {
-		return types.MessagingScope{}, err
-	}
-	return types.MessagingScope{Active: workspace.Status == model.TenantStatusActive, Member: member != nil, Owner: workspace.OwnerID == actor}, nil
-}
 func (r *MessagingRepository) MemberExists(ctx context.Context, tenant, actor string) (bool, *apperrors.Error) {
 	member, err := r.Member(ctx, tenant, actor)
 	return member != nil, err
-}
-func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor string, input types.MessagingQuery) (types.MessagingPage, *apperrors.Error) {
-	rows := []messagingmodel.Thread{}
-	q := r.db.WithContext(ctx).Table("messaging_threads AS th").Select("th.*").Joins("JOIN messaging_turns AS t ON t.tenant_id = th.tenant_id AND t.thread_id = th.id AND t.lifecycle = 'open'").Where("th.tenant_id = ?", tenant)
-	switch input.Filter {
-	case "unassigned":
-		q = q.Where("t.assignee_id IS NULL")
-	case "mine":
-		q = q.Where("t.assignee_id = ?", actor)
-	case "needs_human":
-		q = q.Where("(t.needs_human = TRUE OR (t.control = ? AND t.assignee_id IS NULL))", "sales")
-	case "bot":
-		// Mirrors MessagingTurn.HandlingState() == BOT_ACTIVE.
-		q = q.Where("t.control = ? AND t.assignee_id IS NULL AND t.needs_human = FALSE", "system")
-	}
-	if input.Cursor != "" {
-		q = q.Where("th.id < ?", input.Cursor)
-	}
-	if err := q.Order("th.id DESC").Limit(input.Limit + 1).Scan(&rows).Error; err != nil {
-		return types.MessagingPage{}, salesDBError(ctx, err)
-	}
-	result := types.MessagingPage{Items: []types.MessagingConversation{}}
-	if len(rows) > input.Limit {
-		rows = rows[:input.Limit]
-		result.NextCursor = rows[len(rows)-1].ID
-	}
-	if len(rows) == 0 {
-		return result, nil
-	}
-	ids := make([]string, len(rows))
-	for i, row := range rows {
-		ids[i] = row.ID
-	}
-	turns := []messagingmodel.Turn{}
-	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND thread_id IN ? AND lifecycle = 'open'", tenant, ids).Find(&turns).Error; err != nil {
-		return result, salesDBError(ctx, err)
-	}
-	byThread := map[string]types.MessagingTurn{}
-	for _, row := range turns {
-		byThread[row.ThreadID] = persistencemap.Turn(row)
-	}
-	for _, row := range rows {
-		turn := byThread[row.ID]
-		result.Items = append(result.Items, types.MessagingConversation{Thread: persistencemap.Thread(row), Turn: &turn})
-	}
-	return result, nil
 }
 func (r *MessagingRepository) Thread(ctx context.Context, tenant, id string, lock bool) (*types.MessagingThread, *apperrors.Error) {
 	var row messagingmodel.Thread
@@ -137,6 +92,7 @@ func (r *MessagingRepository) UpsertThread(ctx context.Context, value types.Mess
 		return nil, salesDBError(ctx, err)
 	}
 	value = persistencemap.Thread(row)
+	r.markConversation(value.TenantID, value.ID)
 	return &value, nil
 }
 func (r *MessagingRepository) CurrentTurn(ctx context.Context, tenant, thread string) (*types.MessagingTurn, *apperrors.Error) {
@@ -160,6 +116,7 @@ func (r *MessagingRepository) Turn(ctx context.Context, tenant, id string) (*typ
 	return &value, nil
 }
 func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.MessagingTurn, create bool) *apperrors.Error {
+	r.markConversation(value.TenantID, value.ThreadID)
 	row := persistencemap.TurnRow(value)
 	if create {
 		if err := r.db.WithContext(ctx).Create(&row).Error; err != nil {
@@ -177,6 +134,7 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 	return nil
 }
 func (r *MessagingRepository) SaveThread(ctx context.Context, value types.MessagingThread) *apperrors.Error {
+	r.markConversation(value.TenantID, value.ID)
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.Thread{}).Where("tenant_id = ? AND id = ?", value.TenantID, value.ID).Update("updated_at", value.UpdatedAt).Error; err != nil {
 		return salesDBError(ctx, err)
 	}
@@ -201,29 +159,10 @@ func (r *MessagingRepository) InsertMessage(ctx context.Context, value types.Mes
 	}
 	return nil
 }
-func (r *MessagingRepository) Messages(ctx context.Context, tenant, thread string, input types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error) {
-	rows := []messagingmodel.Message{}
-	q := r.db.WithContext(ctx).Where("tenant_id = ? AND thread_id = ?", tenant, thread)
-	if input.Cursor != "" {
-		q = q.Where("id < ?", input.Cursor)
-	}
-	if err := q.Order("id DESC").Limit(input.Limit + 1).Find(&rows).Error; err != nil {
-		return nil, "", salesDBError(ctx, err)
-	}
-	next := ""
-	if len(rows) > input.Limit {
-		rows = rows[:input.Limit]
-		next = rows[len(rows)-1].ID
-	}
-	result := make([]types.MessagingMessage, len(rows))
-	for i, row := range rows {
-		result[i] = persistencemap.Message(row)
-	}
-	return result, next, nil
-}
 
 // BindThreadChannel records the provider recipient once; an existing binding is never reassigned.
 func (r *MessagingRepository) BindThreadChannel(ctx context.Context, tenant, thread, connection, recipient string) *apperrors.Error {
+	r.markConversation(tenant, thread)
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.Thread{}).Where("tenant_id = ? AND id = ? AND connection_id IS NULL", tenant, thread).
 		Updates(map[string]any{"connection_id": connection, "recipient_id": recipient}).Error; err != nil {
 		return salesDBError(ctx, err)
@@ -252,4 +191,16 @@ func (r *MessagingRepository) InsertOutbound(ctx context.Context, intent types.O
 		}
 	}
 	return nil
+}
+
+func (r *MessagingRepository) Scope(ctx context.Context, tenant, actor string) (types.MessagingScope, *apperrors.Error) {
+	workspace, err := r.Tenant(ctx, tenant)
+	if err != nil {
+		return types.MessagingScope{}, err
+	}
+	member, err := r.Member(ctx, tenant, actor)
+	if err != nil {
+		return types.MessagingScope{}, err
+	}
+	return types.MessagingScope{Active: workspace.Status == model.TenantStatusActive, Member: member != nil, Owner: workspace.OwnerID == actor}, nil
 }

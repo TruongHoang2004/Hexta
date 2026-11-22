@@ -489,6 +489,30 @@ CREATE TABLE "messaging_turns" (
 );
 CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_id", "thread_id") WHERE "lifecycle" = 'open';
 CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
+-- Conversation read model (CQRS). Projected from messaging.conversation.changed events; never written by commands.
+-- Only conversations with an open turn appear. Rebuildable from messaging_threads and messaging_turns.
+CREATE TABLE "messaging_conversation_views" (
+ "tenant_id" character varying(36) NOT NULL REFERENCES "tenants" ("id"),
+ "thread_id" uuid NOT NULL,
+ "external_key" character varying(120) NOT NULL,
+ "display_name" character varying(120) NOT NULL,
+ "thread_created_at" timestamptz NOT NULL,
+ "thread_updated_at" timestamptz NOT NULL,
+ "connection_id" uuid NULL,
+ "recipient_id" text NULL,
+ "turn_id" uuid NOT NULL,
+ "lifecycle" character varying(16) NOT NULL CHECK ("lifecycle" IN ('open', 'closed')),
+ "control" character varying(16) NOT NULL CHECK ("control" IN ('system', 'sales')),
+ "assignee_id" character varying(255) NULL,
+ "needs_human" boolean NOT NULL DEFAULT false,
+ "context_revision" bigint NOT NULL,
+ "control_generation" bigint NOT NULL,
+ "turn_version" bigint NOT NULL,
+ "last_activity_at" timestamptz NOT NULL,
+ PRIMARY KEY ("tenant_id", "thread_id")
+);
+CREATE INDEX "idx_messaging_conversation_views_list" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC);
+CREATE INDEX "idx_messaging_conversation_views_assignee" ON "messaging_conversation_views" ("tenant_id", "assignee_id", "thread_id" DESC);
 CREATE TABLE "messaging_messages" (
  "id" uuid NOT NULL PRIMARY KEY,
  "tenant_id" character varying(36) NOT NULL,

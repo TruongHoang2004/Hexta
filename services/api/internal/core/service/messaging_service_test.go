@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func messagingFixture(t *testing.T) (salesFixture, *MessagingService, *types.MessagingMessage, *types.MessagingTurn) {
+func messagingFixture(t *testing.T) (salesFixture, *messagingFacade, *types.MessagingMessage, *types.MessagingTurn) {
 	t.Helper()
 	f := salesTestFixture(t)
 	s := NewMessagingService(repository.NewMessagingRepository(f.db))

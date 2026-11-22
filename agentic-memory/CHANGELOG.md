@@ -1,5 +1,12 @@
 # Consolidated Project Changelog
 
+## 2026-11-22 — Messaging read/write split (CQRS, in review)
+
+- Conversation reads and writes are separate in the API: query/command services, controllers and stores; writes run in the new `messaging-command` process and the public API forwards to it (`messaging.command_url`).
+- `GET /conversations` now reads the `messaging_conversation_views` read model, projected from `messaging.conversation.changed` events (outbox → `hexta.messaging.conversations.v1` → projector in the `ingress` process). The list is eventually consistent; message history and turn versions still read authoritative tables.
+- New migrations create and backfill the view; compose demo/prod gain the `messaging-command` service and the new Kafka topic. No HTTP contract change.
+- Details and evidence: [session](epics/EPIC-004-messaging/sessions/2026-11-22_messaging-cqrs-split.md).
+
 ## 2026-11-21 — Web wireframe rollout, MVP 1–4 (in review)
 
 - `apps/web` is bilingual (vi default, en) through dependency-free typed dictionaries; errors show the API `trace_id` as a support code; a grouped, role-aware sidebar and shared primitives back every screen.

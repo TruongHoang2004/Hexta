@@ -163,7 +163,7 @@ func TestLiveTelegramWebhookAcceptance(t *testing.T) {
 	if err := db.Where("tenant_id = ? AND connection_id = ?", tenant, conn.ID).First(&thread).Error; err != nil || !strings.HasPrefix(thread.ExternalKey, "telegram:") {
 		t.Fatal("telegram thread", err)
 	}
-	inbox := service.NewMessagingService(repository.NewMessagingRepository(db))
+	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	turn, appErr := repository.NewMessagingRepository(db).CurrentTurn(ctx, tenant, thread.ID)
 	if appErr != nil {
 		t.Fatal(appErr)

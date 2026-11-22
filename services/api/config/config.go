@@ -56,6 +56,13 @@ type Config struct {
 		URL             string `yaml:"url" mapstructure:"url"`
 		ManagementToken string `yaml:"management_token" mapstructure:"management_token"`
 	} `yaml:"connector" mapstructure:"connector"`
+	// Messaging splits the conversation read side (this API) from the write side (cmd/messaging-command).
+	Messaging struct {
+		// CommandURL is where the API forwards conversation writes; empty makes those routes answer 503.
+		CommandURL string `yaml:"command_url" mapstructure:"command_url"`
+		// CommandPort is the listen port of the messaging command process.
+		CommandPort string `yaml:"command_port" mapstructure:"command_port"`
+	} `yaml:"messaging" mapstructure:"messaging"`
 	Facebook struct {
 		AppID        string `yaml:"app_id" mapstructure:"app_id"`
 		GraphVersion string `yaml:"graph_version" mapstructure:"graph_version"`

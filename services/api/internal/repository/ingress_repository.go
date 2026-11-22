@@ -36,7 +36,10 @@ func (r *IngressRepository) Apply(ctx context.Context, e ingress.Event, fn func(
 			return result.Error
 		}
 		duplicate := result.RowsAffected == 0
-		failure = fn(NewMessagingRepository(tx), b, duplicate)
+		repo := newTxMessagingRepository(tx)
+		if failure = fn(repo, b, duplicate); failure == nil {
+			failure = repo.flushConversationEvents(ctx)
+		}
 		if failure != nil {
 			return failure
 		}

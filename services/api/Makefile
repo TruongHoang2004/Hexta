@@ -8,6 +8,10 @@ APP_FILE=bin/ngoclam-zmp-be
 dev: 
 	go run -tags=dev $(MAIN_FILE)
 
+# Conversation write side; the API forwards claim/assign/handoff/reply routes to it (messaging.command_url).
+dev-messaging-command:
+	go run -tags=dev ./cmd/messaging-command
+
 build: 
 	go build -o bin/$(APP_NAME) $(MAIN_FILE)
 

@@ -66,7 +66,7 @@ services:
     command:
       - >-
         for t in hexta.ingress.received.v1 hexta.outbound.intent.v1 hexta.outbound.result.v1
-        hexta.connector.health.v1 hexta.orders.events.v1;
+        hexta.connector.health.v1 hexta.orders.events.v1 hexta.messaging.conversations.v1;
         do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
         --partitions 3 --replication-factor 1 || exit 1; done
   db-init:
@@ -175,6 +175,28 @@ services:
     environment:
       API_DATABASE_URL: postgresql://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public
       KAFKA_BROKERS: kafka:9092
+  # Conversation write side; the api service forwards conversation writes here.
+  messaging-command:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    command: ["./messaging-command"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
+      JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
+      CONNECTOR_MANAGEMENT_TOKEN: ${LOCAL_CONNECTOR_MANAGEMENT_TOKEN:?Set LOCAL_CONNECTOR_MANAGEMENT_TOKEN}
+    volumes:
+      - ./local/api.yaml:/app/config/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8082/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
   api:
     build:
       context: ..
@@ -186,6 +208,8 @@ services:
         condition: service_healthy
       kafka-topics:
         condition: service_completed_successfully
+      messaging-command:
+        condition: service_healthy
     environment:
       JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
       JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}

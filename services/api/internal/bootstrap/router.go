@@ -21,7 +21,16 @@ var RouterModule = fx.Options(
 	fx.Provide(fx.Annotate(router.CreatePublicRouterGroup, fx.ResultTags(`name:"public"`))),
 	fx.Provide(fx.Annotate(router.CreatePrivateRouterGroup, fx.ResultTags(`name:"private"`))),
 
+	fx.Provide(router.NewMessagingCommandGateway),
 	fx.Invoke(router.RegisterRoutes),
+)
+
+// MessagingCommandRouterModule serves only conversation writes; used by cmd/messaging-command.
+var MessagingCommandRouterModule = fx.Options(
+	fx.Provide(newRouter),
+	fx.Provide(fx.Annotate(router.CreatePublicRouterGroup, fx.ResultTags(`name:"public"`))),
+	fx.Provide(fx.Annotate(router.CreatePrivateRouterGroup, fx.ResultTags(`name:"private"`))),
+	fx.Invoke(router.RegisterMessagingCommandRoutes),
 )
 
 func newRouter(logger *zap.SugaredLogger, cfg *config.Config) *gin.Engine {
