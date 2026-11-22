@@ -22,7 +22,7 @@ Current source snapshot: codex/demo-work-units at b52a8ba; source reviewed in th
 | Redis | Existing tenant/session primitives and legacy AI draft/state cache; auth currently uses DB session repo | Durable business authority or a completed shared-cache redesign |
 | Kafka / Langfuse | Target designs; legacy infrastructure declarations only | Application producers/consumers, outbox/inbox or self-host trace deployment |
 
-Current HTTP orders route to SalesController. Legacy OrderService inventory effects and dormant Go Gemini/AIController foundations are not the active manual-sales route or approved new messaging scope. Generated RPC/smoke CLI is not an operational business dispatcher. apps/admin remains a starter, not the selected business UI.
+Current HTTP orders route to SalesController. Legacy OrderService inventory effects and dormant Go Gemini/AIController foundations are not the active manual-sales route or approved new messaging scope. Generated RPC/smoke CLI is not an operational business dispatcher. The starter apps/admin was removed; apps/web is the business UI for one or more tenants.
 
 ## Layer and ownership map
 

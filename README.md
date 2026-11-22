@@ -57,7 +57,6 @@ Hexta is architected with a decoupled frontend, high-throughput Go backend servi
 ### Monorepo Structure
 - **`apps/`**: Next.js 16 applications
   - `apps/web`: Primary customer e-commerce storefront (Port `3000`)
-  - `apps/admin`: Operational management dashboard (Port `3001`)
   - `apps/docs`: Developer & API documentation portal (Port `3002`)
   - `apps/landing`: Product showcase and marketing site (Port `3003`)
 - **`services/`**: Go microservices
@@ -184,7 +183,6 @@ make migrate-apply-local svc=api
    make ts-dev filter=web
 
    # Or launch any other app
-   pnpm --filter admin run dev -- -p 3001
    pnpm --filter docs run dev -- -p 3002
    pnpm --filter landing run dev -- -p 3003
    ```
