@@ -185,14 +185,15 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 // GoogleLogin
 // @Summary Google OAuth login
-// @Description Redirects to Google consent screen with secure CSRF state
+// @Description Redirects to Google consent screen with secure CSRF state, or back to the frontend login with an error when Google login is unavailable
 // @Tags Auth
 // @Success 302
 // @Router /api/v1/auth/google/login [get]
 func (ctrl *AuthController) GoogleLogin(c *gin.Context) {
 	url, err := ctrl.authService.GoogleLogin(c.Request.Context())
 	if err != nil {
-		ctrl.ErrorData(c, err)
+		// Browser navigation, not an API call: return the user to the login page instead of a JSON body.
+		c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?error=google_unavailable", ctrl.frontendURL()))
 		return
 	}
 	c.Redirect(http.StatusFound, url)
@@ -209,11 +210,7 @@ func (ctrl *AuthController) GoogleLogin(c *gin.Context) {
 func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 	state := c.Query("state")
-
-	frontendURL := "http://localhost:3000"
-	if ctrl.config != nil && ctrl.config.Server.FrontendURL != "" {
-		frontendURL = ctrl.config.Server.FrontendURL
-	}
+	frontendURL := ctrl.frontendURL()
 
 	if code == "" {
 		c.Redirect(http.StatusFound, fmt.Sprintf("%s/login?error=missing_code", frontendURL))
@@ -246,6 +243,13 @@ func (ctrl *AuthController) GoogleCallback(c *gin.Context) {
 	// Clean redirect without tokens in query parameters
 	redirectURL := fmt.Sprintf("%s/auth/callback", frontendURL)
 	c.Redirect(http.StatusFound, redirectURL)
+}
+
+func (ctrl *AuthController) frontendURL() string {
+	if ctrl.config != nil && ctrl.config.Server.FrontendURL != "" {
+		return ctrl.config.Server.FrontendURL
+	}
+	return "http://localhost:3000"
 }
 
 func (ctrl *AuthController) isProduction() bool {

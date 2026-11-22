@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -55,6 +56,12 @@ type AuthService struct {
 	accessTokenExpire  time.Duration
 	refreshTokenSecret []byte
 	refreshTokenExpire time.Duration
+	googleOAuth        *oauth2.Config
+}
+
+// ErrGoogleLoginNotConfigured reports a missing Google client ID, secret or redirect URL without revealing which.
+func ErrGoogleLoginNotConfigured(ctx context.Context) *errors.Error {
+	return errors.ErrSystemError(ctx, "Google login is not configured").SetHTTPStatus(http.StatusServiceUnavailable)
 }
 
 type AuthTokens struct {
@@ -117,6 +124,7 @@ func NewAuthServiceWithRepos(
 		accessTokenExpire:  accessExpire,
 		refreshTokenSecret: []byte(refreshSecret),
 		refreshTokenExpire: refreshExpire,
+		googleOAuth:        newGoogleOAuthConfig(cfg),
 	}, nil
 }
 
@@ -284,21 +292,17 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	}, nil
 }
 
-func (s *AuthService) getGoogleOAuthConfig() *oauth2.Config {
-	cfg := config.AppConfig
-	clientID := ""
-	clientSecret := ""
-	redirectURL := ""
-	if cfg != nil {
-		clientID = cfg.OAuth.Google.ClientID
-		clientSecret = cfg.OAuth.Google.ClientSecret
-		redirectURL = cfg.OAuth.Google.RedirectURL
+// newGoogleOAuthConfig returns nil when Google login is not fully configured.
+func newGoogleOAuthConfig(cfg *config.Config) *oauth2.Config {
+	settings := cfg.OAuth.Google
+	if settings.ClientID == "" || settings.ClientSecret == "" || settings.RedirectURL == "" {
+		return nil
 	}
 
 	return &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
+		ClientID:     settings.ClientID,
+		ClientSecret: settings.ClientSecret,
+		RedirectURL:  settings.RedirectURL,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
@@ -308,7 +312,10 @@ func (s *AuthService) getGoogleOAuthConfig() *oauth2.Config {
 }
 
 func (s *AuthService) GoogleLogin(ctx context.Context) (string, *errors.Error) {
-	conf := s.getGoogleOAuthConfig()
+	conf := s.googleOAuth
+	if conf == nil {
+		return "", ErrGoogleLoginNotConfigured(ctx)
+	}
 	state, err := s.generateAndSaveOAuthState(ctx)
 	if err != nil {
 		return "", errors.ErrSystemError(ctx, "Failed to generate secure OAuth state")
@@ -364,7 +371,10 @@ func (s *AuthService) GoogleCallback(ctx context.Context, code string, state str
 		return nil, err
 	}
 
-	conf := s.getGoogleOAuthConfig()
+	conf := s.googleOAuth
+	if conf == nil {
+		return nil, ErrGoogleLoginNotConfigured(ctx)
+	}
 
 	token, err := conf.Exchange(ctx, code)
 	if err != nil {

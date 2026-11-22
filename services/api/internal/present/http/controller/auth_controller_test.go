@@ -23,8 +23,9 @@ import (
 
 type cookieAuthService struct {
 	service.IAuthService
-	refreshInput  string
-	logoutSession int64
+	refreshInput   string
+	logoutSession  int64
+	googleLoginErr *sharedErrors.Error
 }
 
 func cookieTokens() *service.AuthTokens {
@@ -48,6 +49,12 @@ func (s *cookieAuthService) RefreshToken(_ context.Context, token string) (*serv
 func (s *cookieAuthService) Logout(_ context.Context, _ string, session int64) *sharedErrors.Error {
 	s.logoutSession = session
 	return nil
+}
+func (s *cookieAuthService) GoogleLogin(context.Context) (string, *sharedErrors.Error) {
+	if s.googleLoginErr != nil {
+		return "", s.googleLoginErr
+	}
+	return "https://accounts.google.example.test/o/oauth2/auth?client_id=fixture&state=fixture", nil
 }
 func (*cookieAuthService) GoogleCallback(context.Context, string, string, string, string, string) (*service.AuthTokens, *sharedErrors.Error) {
 	return cookieTokens(), nil
@@ -73,6 +80,7 @@ func cookieTestRouter(production bool) (*gin.Engine, *cookieAuthService) {
 		c.Request = c.Request.WithContext(ctx)
 		ctrl.Logout(c)
 	})
+	r.GET("/google", ctrl.GoogleLogin)
 	r.GET("/callback", ctrl.GoogleCallback)
 	return r, svc
 }
@@ -216,4 +224,20 @@ func TestOAuthUsesSameProtectedRefreshCookie(t *testing.T) {
 	require.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
 	require.Equal(t, "/", cookie.Path)
 	require.NotContains(t, rec.Header().Get("Location"), "fixture-refresh")
+}
+
+func TestGoogleLoginRedirectsToProviderOrBackToLogin(t *testing.T) {
+	r, svc := cookieTestRouter(true)
+	req := httptest.NewRequest(http.MethodGet, "/google", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusFound, rec.Code)
+	require.Equal(t, "https://accounts.google.example.test/o/oauth2/auth?client_id=fixture&state=fixture", rec.Header().Get("Location"))
+
+	svc.googleLoginErr = service.ErrGoogleLoginNotConfigured(context.Background())
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/google", nil))
+	require.Equal(t, http.StatusFound, rec.Code)
+	require.Equal(t, "https://app.example.test/login?error=google_unavailable", rec.Header().Get("Location"))
+	require.Empty(t, rec.Result().Cookies())
 }
