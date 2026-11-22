@@ -6,6 +6,15 @@ Applies to all apps; app-local instructions add only meaningful differences. Ins
 
 Before implementing UI, inspect [shared UI exports](../packages/ui/src/index.ts), search target-app components, and read candidate component APIs and existing usage. Prefer compatible existing components over new primitives. Explain an actual API/behavior gap before introducing a shared component; keep business compositions in the owning app. Semantic HTML is allowed and encouraged where appropriate; reuse is not a ban on native elements. Use [component discovery](../.agents/skills/frontend-component-discovery/SKILL.md) for a substantial UI addition, or reuse its already-completed result.
 
+## Component decomposition (required)
+
+Owner decision 2026-11-21: splitting components is mandatory, not stylistic.
+
+- One exported component per file, named for what it renders. A screen component only composes sections; sections own their own markup.
+- Split when a file passes ~250 lines, mixes data loading with rendering, or holds unrelated state. Loading, mutations and derived state move into a named hook (`useXxx`); presentational components receive props.
+- Prefer a reducer or hook over many related `useState` calls. Do not split into meaningless wrappers just to cut lines.
+- Code you substantially touch must be brought to these rules in the same change or a stated follow-up.
+
 ## Components, data and styles
 
 - Keep server/client boundaries intentional; add client behavior only where needed. Inspect neighboring routes, layouts and state ownership before extending them.
