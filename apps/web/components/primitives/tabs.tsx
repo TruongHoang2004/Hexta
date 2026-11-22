@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { Tabs as TabsRoot, TabsContent, TabsList, TabsTrigger } from "@hexta/ui";
 
 export interface TabItem<T extends string> {
   value: T;
@@ -6,50 +9,41 @@ export interface TabItem<T extends string> {
   badge?: ReactNode;
 }
 
-/** ARIA tablist with arrow-key navigation; the caller renders the active panel. */
+/** Tab bar plus the active panel (`children`), wired for ARIA and arrow keys by Radix. */
 export function Tabs<T extends string>({
   label,
   items,
   value,
   onChange,
-  idPrefix,
+  children,
+  panelClassName,
 }: {
   label: string;
   items: TabItem<T>[];
   value: T;
   onChange: (value: T) => void;
-  idPrefix: string;
+  children: ReactNode;
+  panelClassName?: string;
 }) {
-  function onKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
-    const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (!delta) return;
-    event.preventDefault();
-    const next = items[(index + delta + items.length) % items.length];
-    onChange(next.value);
-    document.getElementById(`${idPrefix}-tab-${next.value}`)?.focus();
-  }
   return (
-    <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 border-b border-border">
-      {items.map((item, index) => {
-        const active = item.value === value;
-        return (
-          <button
-            key={item.value}
-            id={`${idPrefix}-tab-${item.value}`}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-controls={`${idPrefix}-panel`}
-            tabIndex={active ? 0 : -1}
-            onClick={() => onChange(item.value)}
-            onKeyDown={(event) => onKeyDown(event, index)}
-            className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm ${active ? "border-foreground font-semibold" : "border-transparent text-muted hover:text-foreground"}`}
-          >
+    <TabsRoot
+      value={value}
+      onValueChange={(next) => {
+        const item = items.find((row) => row.value === next);
+        if (item) onChange(item.value);
+      }}
+    >
+      <TabsList aria-label={label}>
+        {items.map((item) => (
+          <TabsTrigger key={item.value} value={item.value}>
             {item.label}
             {item.badge}
-          </button>
-        );
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      <TabsContent value={value} className={panelClassName}>
+        {children}
+      </TabsContent>
+    </TabsRoot>
   );
 }

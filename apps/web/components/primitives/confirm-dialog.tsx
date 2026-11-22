@@ -1,7 +1,9 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { buttonClass, secondaryClass } from "./classes";
+"use client";
 
-/** Modal built on the native dialog element (focus trap and Escape handled by the browser). */
+import type { ReactNode } from "react";
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@hexta/ui";
+
+/** Confirmation modal (Radix Dialog: focus trap, Escape and outside click call onCancel). */
 export function ConfirmDialog({
   open,
   title,
@@ -23,37 +25,27 @@ export function ConfirmDialog({
   busy?: boolean;
   confirmDisabled?: boolean;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
   return (
-    <dialog
-      ref={ref}
-      aria-labelledby="confirm-dialog-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        onCancel();
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !busy) onCancel();
       }}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-0 text-foreground backdrop:bg-black/40"
     >
-      <div className="space-y-4 p-5">
-        <h2 id="confirm-dialog-title" className="text-lg font-semibold">
-          {title}
-        </h2>
-        <div className="space-y-3 text-sm">{children}</div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" className={secondaryClass} onClick={onCancel} disabled={busy}>
+      <DialogContent>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription asChild>
+          <div className="space-y-3 text-sm text-foreground">{children}</div>
+        </DialogDescription>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
             {cancelLabel}
-          </button>
-          <button type="button" className={buttonClass} onClick={onConfirm} disabled={busy || confirmDisabled}>
+          </Button>
+          <Button type="button" onClick={onConfirm} disabled={busy || confirmDisabled}>
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </dialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

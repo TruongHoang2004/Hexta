@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Notice, buttonClass, inputClass } from "@/components/primitives";
+import { Notice, Picker, buttonClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useCheckoutDraft } from "../../hooks/use-checkout-draft";
@@ -34,21 +34,15 @@ export function CheckoutScreen() {
                 {t("checkout.line", { quantity: item.quantity, name: item.product_name, price: formatVnd(item.unit_price) })}
               </p>
             ))}
-            <label className="block">
+            <label className="block space-y-1.5">
               {t("checkout.customer")}
-              <select
-                className={inputClass}
+              <Picker
                 disabled={checkout.busy || !!order}
                 value={checkout.customer}
-                onChange={(e) => checkout.setCustomer(e.target.value)}
-              >
-                <option value="">{t("checkout.selectCustomer")}</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name} · {c.phone || c.email}
-                  </option>
-                ))}
-              </select>
+                onChange={checkout.setCustomer}
+                placeholder={t("checkout.selectCustomer")}
+                options={customers.map((c) => ({ value: c.id, label: c.full_name, description: c.phone || c.email }))}
+              />
             </label>
             {!customers.length && <p>{t("checkout.noCustomers")}</p>}
             {order && <p>{t("checkout.serverTotal", { amount: formatVnd(order.total_amount) })}</p>}

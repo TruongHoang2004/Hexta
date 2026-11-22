@@ -1,6 +1,7 @@
-export const inputClass =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60";
-export const buttonClass =
-  "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
-export const secondaryClass =
-  "rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface disabled:opacity-50";
+import { buttonVariants, cn, fieldStyles } from "@hexta/ui";
+
+// Class strings for places that style a native element or a Link directly; they come from the
+// @hexta/ui variants so plain elements and shared components look the same.
+export const inputClass = cn(fieldStyles, "min-h-10");
+export const buttonClass = buttonVariants();
+export const secondaryClass = buttonVariants({ variant: "outline" });

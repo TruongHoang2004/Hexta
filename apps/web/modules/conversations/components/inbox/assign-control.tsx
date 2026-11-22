@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import type { TenantMember } from "@hexta/sdk";
-import { secondaryClass } from "@/components/primitives";
+import { Picker, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
-
-const inputStyle = "w-full rounded-lg border border-border bg-background p-2 text-sm";
 
 /** Owner-only control to assign the turn to a member or back to the queue. */
 export function AssignControl({
@@ -25,16 +23,17 @@ export function AssignControl({
   const [assignee, setAssignee] = useState(currentAssignee);
   return (
     <div className="space-y-2 border-t border-border pt-3">
-      <label className="block text-sm">
+      <label className="block space-y-1.5 text-sm">
         {t("desk.actions.assignTo")}
-        <select className={inputStyle} disabled={disabled} value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-          <option value="">{t("desk.actions.assignQueue")}</option>
-          {members.map((member) => (
-            <option key={member.user_id} value={member.user_id}>
-              {memberName(member.user_id)}
-            </option>
-          ))}
-        </select>
+        <Picker
+          disabled={disabled}
+          value={assignee}
+          onChange={setAssignee}
+          options={[
+            { value: "", label: t("desk.actions.assignQueue") },
+            ...members.map((member) => ({ value: member.user_id, label: memberName(member.user_id) })),
+          ]}
+        />
       </label>
       <button type="button" className={secondaryClass} disabled={disabled} onClick={() => onAssign(assignee || null)}>
         {t("desk.actions.assign")}

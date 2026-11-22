@@ -16,6 +16,9 @@ export const vi = {
     formerMember: "Thành viên cũ",
     goBack: "Quay lại",
     target: "Sắp có",
+    choose: "Chọn…",
+    search: "Tìm kiếm…",
+    noResults: "Không có kết quả phù hợp",
   },
   errors: {
     generic: "Không thể thực hiện thao tác này. Vui lòng thử lại.",

@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@hexta/ui";
 import { useT } from "@/lib/i18n/provider";
 import type { SelectablePage } from "../../types";
 
@@ -16,12 +17,11 @@ export function OAuthPageOption({ page, checked, disabled, onChange }: Props) {
   const taken = page.availability === "owned_by_other_tenant";
   return (
     <label className={`flex items-start gap-3 rounded-lg border border-border p-3 ${taken ? "opacity-60" : ""}`}>
-      <input
-        type="checkbox"
+      <Checkbox
         className="mt-1"
         disabled={taken || disabled}
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onCheckedChange={(next) => onChange(next === true)}
       />
       <span>
         <span className="block font-medium">{page.page_name}</span>

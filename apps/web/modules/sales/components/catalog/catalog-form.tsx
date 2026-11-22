@@ -1,6 +1,7 @@
 "use client";
 
-import { Field, buttonClass, inputClass } from "@/components/primitives";
+import { Textarea } from "@hexta/ui";
+import { Field, buttonClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import type { useCatalog } from "../../hooks/use-catalog";
@@ -57,8 +58,7 @@ export function CatalogForm({ kind, catalog }: { kind: CatalogKind; catalog: Ret
             <p className="text-xs text-muted">{t("catalog.products.priceHint")}</p>
             {field("category", t("catalog.products.category"), false, "text", 100)}
             <Field title={t("catalog.products.description")}>
-              <textarea
-                className={inputClass}
+              <Textarea
                 rows={3}
                 maxLength={10000}
                 value={form.description}

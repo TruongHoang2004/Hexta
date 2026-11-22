@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Textarea } from "@hexta/ui";
 import { onboarding, type Application } from "@/lib/services/onboarding";
 import { isConflict, useErrorText } from "@/lib/errors";
 import { useT } from "@/lib/i18n/provider";
 import {
   buttonClass,
-  inputClass,
   ConfirmDialog,
   EmptyState,
   Notice,
@@ -90,8 +90,7 @@ export default function PlatformPage() {
         </button>
       </div>
       <Notice error={error} success={success} />
-      <Tabs label={t("platform.tabsLabel")} idPrefix="platform" items={tabs} value={tab} onChange={setTab} />
-      <div id="platform-panel" role="tabpanel" aria-labelledby={`platform-tab-${tab}`}>
+      <Tabs label={t("platform.tabsLabel")} items={tabs} value={tab} onChange={setTab}>
         {loading ? (
           <p role="status">{t("platform.loading")}</p>
         ) : !shown.length ? (
@@ -141,7 +140,7 @@ export default function PlatformPage() {
             ))}
           </ul>
         )}
-      </div>
+      </Tabs>
       <ConfirmDialog
         open={!!rejecting}
         title={t("platform.rejectTitle", { name: rejecting?.name ?? "" })}
@@ -157,9 +156,9 @@ export default function PlatformPage() {
         <label className="block font-medium" htmlFor="reject-reason">
           {t("platform.rejectLabel")}
         </label>
-        <textarea
+        <Textarea
           id="reject-reason"
-          className={`${inputClass} ${reasonMissing ? "border-2 border-error" : ""}`}
+          className={reasonMissing ? "border-2 border-error" : undefined}
           rows={4}
           maxLength={2000}
           value={reason}

@@ -16,6 +16,9 @@ export const en: Messages = {
     formerMember: "Former member",
     goBack: "Go back",
     target: "Coming soon",
+    choose: "Choose…",
+    search: "Search…",
+    noResults: "No matches",
   },
   errors: {
     generic: "Unable to complete this action. Please try again.",

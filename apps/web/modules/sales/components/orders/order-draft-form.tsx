@@ -1,8 +1,9 @@
 "use client";
 
+import { Checkbox, Textarea } from "@hexta/ui";
 import Link from "next/link";
 import type { TenantMember } from "@hexta/sdk";
-import { Field, buttonClass, inputClass, secondaryClass } from "@/components/primitives";
+import { Field, buttonClass, secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -63,13 +64,12 @@ export function OrderDraftForm({ editor, order, customers, products, members, bu
           onRemove={editor.removeLine}
         />
         <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" checked={fields.delivery} onChange={(e) => update({ delivery: e.target.checked })} />
+          <Checkbox checked={fields.delivery} onCheckedChange={(checked) => update({ delivery: checked === true })} />
           {t("orders.editor.delivery")}
         </label>
         {fields.delivery && (
           <Field title={t("orders.editor.address")}>
-            <textarea
-              className={inputClass}
+            <Textarea
               maxLength={5000}
               rows={2}
               value={fields.address}
@@ -78,8 +78,7 @@ export function OrderDraftForm({ editor, order, customers, products, members, bu
           </Field>
         )}
         <Field title={t("orders.editor.notes")}>
-          <textarea
-            className={inputClass}
+          <Textarea
             rows={3}
             maxLength={10000}
             value={fields.notes}

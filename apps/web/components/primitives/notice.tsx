@@ -3,12 +3,12 @@ export function Notice({ error, success }: { error?: string; success?: string })
   return (
     <>
       {error && (
-        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+        <p role="alert" className="rounded-lg border border-error bg-error/10 p-3 text-sm text-foreground">
           {error}
         </p>
       )}
       {success && (
-        <p role="status" className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">
+        <p role="status" className="rounded-lg border border-success bg-success/10 p-3 text-sm text-foreground">
           {success}
         </p>
       )}

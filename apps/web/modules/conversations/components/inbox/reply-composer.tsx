@@ -1,10 +1,9 @@
 "use client";
 
+import { Textarea } from "@hexta/ui";
 import { buttonClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { platformLabel, type ChannelPlatform } from "@/modules/settings";
-
-const inputStyle = "w-full rounded-lg border border-border bg-background p-2 text-sm";
 
 /** Reply box. Shows why it is locked when the viewer cannot reply. */
 export function ReplyComposer({
@@ -55,8 +54,7 @@ export function ReplyComposer({
       )}
       <label className="block text-sm">
         <span className="sr-only">{t("desk.composer.label")}</span>
-        <textarea
-          className={inputStyle}
+        <Textarea
           rows={3}
           maxLength={platform ? 2000 : 4000}
           value={body}

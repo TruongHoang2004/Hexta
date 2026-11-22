@@ -1,10 +1,9 @@
 "use client";
 
-import { secondaryClass } from "@/components/primitives";
+import { Textarea } from "@hexta/ui";
+import { inputClass, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { useInboundSimulator } from "../../hooks/use-inbound-simulator";
-
-const inputStyle = "w-full rounded-lg border border-border bg-background p-2 text-sm";
 
 /** Collapsible form that adds a simulated customer message to the desk. */
 export function InboundSimulator({
@@ -27,7 +26,7 @@ export function InboundSimulator({
         }}
         className="grid gap-3 md:grid-cols-2"
       >
-        <label className="text-sm">
+        <label className="space-y-1.5 text-sm">
           {t("desk.simulator.reference")}
           <input
             required
@@ -35,10 +34,10 @@ export function InboundSimulator({
             disabled={form.busy}
             value={form.external}
             onChange={(e) => form.setExternal(e.target.value)}
-            className={inputStyle}
+            className={inputClass}
           />
         </label>
-        <label className="text-sm">
+        <label className="space-y-1.5 text-sm">
           {t("desk.simulator.name")}
           <input
             required
@@ -46,18 +45,17 @@ export function InboundSimulator({
             disabled={form.busy}
             value={form.name}
             onChange={(e) => form.setName(e.target.value)}
-            className={inputStyle}
+            className={inputClass}
           />
         </label>
-        <label className="text-sm md:col-span-2">
+        <label className="space-y-1.5 text-sm md:col-span-2">
           {t("desk.simulator.message")}
-          <textarea
+          <Textarea
             required
             maxLength={4000}
             disabled={form.busy}
             value={form.body}
             onChange={(e) => form.setBody(e.target.value)}
-            className={inputStyle}
           />
         </label>
         {form.error && (

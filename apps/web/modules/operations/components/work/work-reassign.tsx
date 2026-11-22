@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TenantMember } from "@hexta/sdk";
-import { Field, inputClass, secondaryClass } from "@/components/primitives";
+import { Field, Picker, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import type { WorkCommand, WorkCommandFields, WorkItem } from "../../types";
@@ -23,17 +23,17 @@ export function WorkReassign({ item, members, busy, onCommand }: Props) {
     <fieldset disabled={busy} className="space-y-3 border-t border-border pt-4">
       <legend className="sr-only">{t("work.owner.title")}</legend>
       <Field title={t("work.owner.reassignLabel")}>
-        <select className={inputClass} value={responsible} onChange={(e) => setResponsible(e.target.value)}>
-          <option value="">{t("work.owner.queue")}</option>
-          {item.responsible_id && !members.some((row) => row.user_id === item.responsible_id) && (
-            <option value={item.responsible_id}>{t("work.formerMember")}</option>
-          )}
-          {members.map((row) => (
-            <option key={row.id} value={row.user_id}>
-              {person(row.user_id)}
-            </option>
-          ))}
-        </select>
+        <Picker
+          value={responsible}
+          onChange={setResponsible}
+          options={[
+            { value: "", label: t("work.owner.queue") },
+            ...(item.responsible_id && !members.some((row) => row.user_id === item.responsible_id)
+              ? [{ value: item.responsible_id, label: t("work.formerMember") }]
+              : []),
+            ...members.map((row) => ({ value: row.user_id, label: person(row.user_id) })),
+          ]}
+        />
       </Field>
       <p className="text-xs text-muted">{t("work.owner.reassignNote")}</p>
       <button

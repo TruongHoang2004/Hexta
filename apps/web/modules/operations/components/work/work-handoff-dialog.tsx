@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TenantMember } from "@hexta/sdk";
-import { ConfirmDialog, Field, inputClass } from "@/components/primitives";
+import { ConfirmDialog, Field, Picker } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -38,16 +38,14 @@ export function WorkHandoffDialog({ open, item, members, busy, onCancel, onConfi
     >
       {nextStep && <p className="font-medium">{t("work.handoffDialog.next", { name: nextStep.name })}</p>}
       <Field title={t("work.handoffDialog.recipient")}>
-        <select className={inputClass} value={recipient} onChange={(e) => setRecipient(e.target.value)}>
-          <option value="">{t("work.handoffDialog.selectRecipient")}</option>
-          {members
+        <Picker
+          value={recipient}
+          onChange={setRecipient}
+          placeholder={t("work.handoffDialog.selectRecipient")}
+          options={members
             .filter((row) => row.user_id !== userID)
-            .map((row) => (
-              <option key={row.id} value={row.user_id}>
-                {person(row.user_id)}
-              </option>
-            ))}
-        </select>
+            .map((row) => ({ value: row.user_id, label: person(row.user_id) }))}
+        />
       </Field>
       <p className="rounded-lg bg-background p-3">
         {currentStep?.handoff_mode === "acceptance" ? t("work.handoffDialog.acceptance") : t("work.handoffDialog.direct")}

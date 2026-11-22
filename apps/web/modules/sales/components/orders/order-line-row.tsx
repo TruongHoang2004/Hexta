@@ -1,6 +1,6 @@
 "use client";
 
-import { Field, inputClass, secondaryClass } from "@/components/primitives";
+import { Field, Picker, inputClass, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import type { OrderLine } from "../../types";
 import type { VariantOption } from "../../utils";
@@ -20,28 +20,24 @@ export function OrderLineRow({ index, line, variants, onChange, onRemove }: Prop
   return (
     <div className={`space-y-3 rounded-lg border bg-background p-3 ${missingPrice ? "border-error/60" : "border-border"}`}>
       <Field title={t("orders.editor.product", { index: index + 1 })}>
-        <select
-          className={inputClass}
+        <Picker
           required
           value={line.variant_id}
-          onChange={(e) => {
-            const variant = variants.find((row) => row.id === e.target.value);
+          placeholder={t("orders.editor.selectProduct")}
+          onChange={(value) => {
+            const variant = variants.find((row) => row.id === value);
             onChange({
-              variant_id: e.target.value,
+              variant_id: value,
               unit_price: variant?.price_provided ? String(variant.price) : "",
             });
           }}
-        >
-          <option value="">{t("orders.editor.selectProduct")}</option>
-          {line.variant_id && !variants.some((row) => row.id === line.variant_id) && (
-            <option value={line.variant_id}>{t("orders.editor.unavailableProduct", { id: line.variant_id })}</option>
-          )}
-          {variants.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.label}
-            </option>
-          ))}
-        </select>
+          options={[
+            ...(line.variant_id && !variants.some((row) => row.id === line.variant_id)
+              ? [{ value: line.variant_id, label: t("orders.editor.unavailableProduct", { id: line.variant_id }) }]
+              : []),
+            ...variants.map((row) => ({ value: row.id, label: row.label })),
+          ]}
+        />
       </Field>
       <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
         <Field title={t("orders.editor.quantity")}>

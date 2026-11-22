@@ -24,8 +24,7 @@ export function WorkList({ list, members, selectedID, busy, onOpen }: Props) {
   const tabs = workViews.map((value) => ({ value, label: t(`work.tabs.${value}`) }));
   return (
     <section className="min-w-0 flex-[1_1_320px] space-y-4 rounded-xl border border-border bg-surface p-4 xl:max-w-[460px]">
-      <Tabs label={t("work.tabsLabel")} idPrefix="work" items={tabs} value={view} onChange={list.setView} />
-      <div id="work-panel" role="tabpanel" aria-labelledby={`work-tab-${view}`} className="space-y-2">
+      <Tabs label={t("work.tabsLabel")} items={tabs} value={view} onChange={list.setView} panelClassName="space-y-2">
         {loading ? (
           <p role="status">{t("work.loading")}</p>
         ) : !rows.length ? (
@@ -42,7 +41,7 @@ export function WorkList({ list, members, selectedID, busy, onOpen }: Props) {
             />
           ))
         )}
-      </div>
+      </Tabs>
       <Pager page={list.page} total={list.total} onChange={list.setPage} disabled={busy || loading} />
     </section>
   );

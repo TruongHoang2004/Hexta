@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TenantMember } from "@hexta/sdk";
-import { Field, buttonClass, inputClass } from "@/components/primitives";
+import { Field, Picker, buttonClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import type { Order } from "@/modules/sales";
@@ -38,34 +38,33 @@ export function WorkCreator({ definitions, orders, members, busy, onCreate }: Pr
       <form onSubmit={(e) => void submit(e)}>
         <fieldset disabled={busy || !orders.length || !definitions.length} className="grid gap-3 md:grid-cols-3">
           <Field title={t("work.creator.order")}>
-            <select className={inputClass} required value={order} onChange={(e) => setOrder(e.target.value)}>
-              <option value="">{t("work.creator.selectOrder")}</option>
-              {orders.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.order_number}
-                </option>
-              ))}
-            </select>
+            <Picker
+              required
+              value={order}
+              onChange={setOrder}
+              placeholder={t("work.creator.selectOrder")}
+              options={orders.map((row) => ({ value: row.id, label: row.order_number }))}
+            />
           </Field>
           <Field title={t("work.creator.workflow")}>
-            <select className={inputClass} required value={definition} onChange={(e) => setDefinition(e.target.value)}>
-              <option value="">{t("work.creator.selectWorkflow")}</option>
-              {definitions.map((row) => (
-                <option key={row.id} value={row.versions[0]?.id}>
-                  {row.name} · v{row.version}
-                </option>
-              ))}
-            </select>
+            <Picker
+              required
+              value={definition}
+              onChange={setDefinition}
+              placeholder={t("work.creator.selectWorkflow")}
+              options={definitions
+                .filter((row) => row.versions[0])
+                .map((row) => ({ value: row.versions[0].id, label: `${row.name} · v${row.version}` }))}
+            />
           </Field>
           <Field title={t("work.creator.responsible")}>
-            <select className={inputClass} required value={responsible} onChange={(e) => setResponsible(e.target.value)}>
-              <option value="">{t("work.creator.selectEmployee")}</option>
-              {members.map((row) => (
-                <option key={row.id} value={row.user_id}>
-                  {person(row.user_id)}
-                </option>
-              ))}
-            </select>
+            <Picker
+              required
+              value={responsible}
+              onChange={setResponsible}
+              placeholder={t("work.creator.selectEmployee")}
+              options={members.map((row) => ({ value: row.user_id, label: person(row.user_id) }))}
+            />
           </Field>
           <div className="md:col-span-3">
             <button className={buttonClass} type="submit">

@@ -1,7 +1,7 @@
 "use client";
 
 import type { TenantMember } from "@hexta/sdk";
-import { Field, inputClass } from "@/components/primitives";
+import { Field, Picker, type PickerOption } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
@@ -18,42 +18,45 @@ interface Props {
   assigned: boolean;
 }
 
-/** Customer and assignee pickers; members can only assign themselves. */
+/** Customer and assignee pickers; members can only assign themselves. A disabled fieldset disables both. */
 export function OrderPartyFields({ customer, employee, onChange, customers, members, assigned }: Props) {
   const { isOwner } = useWorkspace();
   const userID = useAuthStore((state) => state.user?.id);
   const t = useT();
   const memberName = useMemberName(members);
+  const customerOptions: PickerOption[] = [
+    { value: "", label: t("orders.editor.selectLater") },
+    ...(customer && !customers.some((row) => row.id === customer)
+      ? [{ value: customer, label: t("orders.unavailableCustomer") }]
+      : []),
+    ...customers.map((row) => ({ value: row.id, label: row.full_name, description: row.phone || row.email })),
+  ];
+  const memberOptions: PickerOption[] = [
+    { value: "", label: t("orders.editor.unassigned"), disabled: !isOwner && assigned },
+    ...(employee && !members.some((row) => row.user_id === employee)
+      ? [{ value: employee, label: t("orders.editor.formerMember") }]
+      : []),
+    ...members.map((row) => ({
+      value: row.user_id,
+      label: memberName(row.user_id),
+      disabled: !isOwner && row.user_id !== userID,
+    })),
+  ];
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <Field title={t("orders.editor.customer")}>
-        <select className={inputClass} value={customer} onChange={(e) => onChange({ customer: e.target.value })}>
-          <option value="">{t("orders.editor.selectLater")}</option>
-          {customer && !customers.some((row) => row.id === customer) && (
-            <option value={customer}>{t("orders.unavailableCustomer")}</option>
-          )}
-          {customers.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.full_name}
-              {row.phone ? ` · ${row.phone}` : ""}
-            </option>
-          ))}
-        </select>
+        <Picker
+          options={customerOptions}
+          value={customer}
+          onChange={(value) => onChange({ customer: value })}
+        />
       </Field>
       <Field title={t("orders.editor.assignee")}>
-        <select className={inputClass} value={employee} onChange={(e) => onChange({ employee: e.target.value })}>
-          <option value="" disabled={!isOwner && assigned}>
-            {t("orders.editor.unassigned")}
-          </option>
-          {employee && !members.some((row) => row.user_id === employee) && (
-            <option value={employee}>{t("orders.editor.formerMember")}</option>
-          )}
-          {members.map((row) => (
-            <option key={row.id} value={row.user_id} disabled={!isOwner && row.user_id !== userID}>
-              {memberName(row.user_id)}
-            </option>
-          ))}
-        </select>
+        <Picker
+          options={memberOptions}
+          value={employee}
+          onChange={(value) => onChange({ employee: value })}
+        />
       </Field>
     </div>
   );
