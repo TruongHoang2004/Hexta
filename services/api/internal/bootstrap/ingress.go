@@ -9,6 +9,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/postgres"
@@ -30,6 +31,8 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 	consumer := service.NewIngressService(store)
 	deliveryStore := repository.NewDeliveryRepository(db)
 	delivery := service.NewDeliveryService(deliveryStore)
+	views := repository.NewConversationViewRepository(db)
+	projector := service.NewConversationProjector(views)
 	consumers := []struct {
 		group, topic string
 		quarantine   func(context.Context, string, string) error
@@ -48,6 +51,16 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 				return false, nil
 			}
 			return true, func() *apperrors.Error { return delivery.ConsumeResult(ctx, e) }
+		}},
+		{"hexta-api-conversation-view-v1", types.ConversationEventsTopic, views.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
+			tenant, change, ok := projector.Decode(value)
+			if !ok {
+				return false, nil
+			}
+			if change == nil {
+				return true, func() *apperrors.Error { return nil }
+			}
+			return true, func() *apperrors.Error { return projector.Project(ctx, tenant, *change) }
 		}},
 		{"hexta-api-connector-health-v1", outbound.HealthTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
 			var e outbound.ConnectionHealthEvent

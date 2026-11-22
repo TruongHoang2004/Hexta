@@ -115,3 +115,26 @@ type OutboundAttempt struct {
 }
 
 func (OutboundAttempt) TableName() string { return "outbound_attempts" }
+
+// ConversationView is the read model row for one conversation and its open turn.
+type ConversationView struct {
+	TenantID          string
+	ThreadID          string
+	ExternalKey       string
+	DisplayName       string
+	ThreadCreatedAt   time.Time
+	ThreadUpdatedAt   time.Time
+	ConnectionID      *string
+	RecipientID       *string
+	TurnID            string
+	Lifecycle         string
+	Control           string
+	AssigneeID        *string
+	NeedsHuman        bool
+	ContextRevision   int64
+	ControlGeneration int64
+	TurnVersion       int64
+	LastActivityAt    time.Time
+}
+
+func (ConversationView) TableName() string { return "messaging_conversation_views" }

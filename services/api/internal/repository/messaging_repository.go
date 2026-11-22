@@ -30,15 +30,29 @@ type MessagingStore interface {
 	SendConnection(context.Context, string, string) (*types.ChannelConnection, *apperrors.Error)
 	InsertOutbound(context.Context, types.OutboundIntent, types.OutboundAttempt, *model.DomainEvent) *apperrors.Error
 }
-type MessagingRepository struct{ *SalesRepository }
+type MessagingRepository struct {
+	*SalesRepository
+	// dirty collects threads changed in this transaction; nil outside transactions, where nothing is tracked.
+	dirty map[conversationKey]struct{}
+}
 
 func NewMessagingRepository(db *gorm.DB) *MessagingRepository {
-	return &MessagingRepository{NewSalesRepository(db)}
+	return &MessagingRepository{SalesRepository: NewSalesRepository(db)}
+}
+
+// newTxMessagingRepository tracks changed threads so the transaction can emit conversation events before commit.
+func newTxMessagingRepository(tx *gorm.DB) *MessagingRepository {
+	repo := NewMessagingRepository(tx)
+	repo.dirty = map[conversationKey]struct{}{}
+	return repo
 }
 func (r *MessagingRepository) Within(ctx context.Context, fn func(MessagingStore) *apperrors.Error) *apperrors.Error {
 	var failure *apperrors.Error
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		failure = fn(NewMessagingRepository(tx))
+		repo := newTxMessagingRepository(tx)
+		if failure = fn(repo); failure == nil {
+			failure = repo.flushConversationEvents(ctx)
+		}
 		if failure != nil {
 			return failure
 		}
@@ -78,6 +92,7 @@ func (r *MessagingRepository) UpsertThread(ctx context.Context, value types.Mess
 		return nil, salesDBError(ctx, err)
 	}
 	value = persistencemap.Thread(row)
+	r.markConversation(value.TenantID, value.ID)
 	return &value, nil
 }
 func (r *MessagingRepository) CurrentTurn(ctx context.Context, tenant, thread string) (*types.MessagingTurn, *apperrors.Error) {
@@ -101,6 +116,7 @@ func (r *MessagingRepository) Turn(ctx context.Context, tenant, id string) (*typ
 	return &value, nil
 }
 func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.MessagingTurn, create bool) *apperrors.Error {
+	r.markConversation(value.TenantID, value.ThreadID)
 	row := persistencemap.TurnRow(value)
 	if create {
 		if err := r.db.WithContext(ctx).Create(&row).Error; err != nil {
@@ -118,6 +134,7 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 	return nil
 }
 func (r *MessagingRepository) SaveThread(ctx context.Context, value types.MessagingThread) *apperrors.Error {
+	r.markConversation(value.TenantID, value.ID)
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.Thread{}).Where("tenant_id = ? AND id = ?", value.TenantID, value.ID).Update("updated_at", value.UpdatedAt).Error; err != nil {
 		return salesDBError(ctx, err)
 	}
@@ -145,6 +162,7 @@ func (r *MessagingRepository) InsertMessage(ctx context.Context, value types.Mes
 
 // BindThreadChannel records the provider recipient once; an existing binding is never reassigned.
 func (r *MessagingRepository) BindThreadChannel(ctx context.Context, tenant, thread, connection, recipient string) *apperrors.Error {
+	r.markConversation(tenant, thread)
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.Thread{}).Where("tenant_id = ? AND id = ? AND connection_id IS NULL", tenant, thread).
 		Updates(map[string]any{"connection_id": connection, "recipient_id": recipient}).Error; err != nil {
 		return salesDBError(ctx, err)
@@ -173,4 +191,16 @@ func (r *MessagingRepository) InsertOutbound(ctx context.Context, intent types.O
 		}
 	}
 	return nil
+}
+
+func (r *MessagingRepository) Scope(ctx context.Context, tenant, actor string) (types.MessagingScope, *apperrors.Error) {
+	workspace, err := r.Tenant(ctx, tenant)
+	if err != nil {
+		return types.MessagingScope{}, err
+	}
+	member, err := r.Member(ctx, tenant, actor)
+	if err != nil {
+		return types.MessagingScope{}, err
+	}
+	return types.MessagingScope{Active: workspace.Status == model.TenantStatusActive, Member: member != nil, Owner: workspace.OwnerID == actor}, nil
 }

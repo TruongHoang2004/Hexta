@@ -1,4 +1,4 @@
-h1:ZEs4+QYOjngOOvF0JJnF6bmEjvKsX7BHiheqghoYStA=
+h1:JCfqjcqszSwTBLldgZ+RUWrvySu6JftOUFrecdB+up8=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -16,3 +16,5 @@ h1:ZEs4+QYOjngOOvF0JJnF6bmEjvKsX7BHiheqghoYStA=
 20261114164249_facebook_platform_connection.sql h1:M2hA9TSlWXNaJAil/ovUY3D1dDBqfsI/s3UMEvgXVyU=
 20261114164302_backfill_connection_status.sql h1:RJcTDMaQS7xUptUTaAtq/lOh02TXGMD5jJ67oca3UYg=
 20261116020138_telegram_bot_connection.sql h1:i82UqI2HUJwY/BwNGz0zeLzzkTbEukpnHK+F9N9V9M8=
+20261122052820_messaging_conversation_views.sql h1:pUwbigHr8yz2monzLFn727+lsZ+6m20Ueafgt2Nfglk=
+20261122052827_backfill_messaging_conversation_views.sql h1:ZaYuorD2DANLZjDbc2HTRWvBXYLoLbnYCEtCZryjdL4=

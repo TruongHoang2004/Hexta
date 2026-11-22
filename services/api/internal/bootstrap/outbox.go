@@ -34,7 +34,8 @@ func registerOutboxRelay(lc fx.Lifecycle, cfg *config.Config, store repository.I
 	}
 	publisher := kafkatransport.NewTopicPublisher(strings.Split(brokers, ","), types.OrderEventsTopic)
 	intents := kafkatransport.NewTopicPublisher(strings.Split(brokers, ","), outbound.IntentTopic)
-	relay := service.NewOutboxRelay(store, publisher).WithIntentPublisher(intents)
+	conversations := kafkatransport.NewTopicPublisher(strings.Split(brokers, ","), types.ConversationEventsTopic)
+	relay := service.NewOutboxRelay(store, publisher).WithIntentPublisher(intents).WithConversationPublisher(conversations)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	lc.Append(fx.Hook{
@@ -52,7 +53,7 @@ func registerOutboxRelay(lc fx.Lifecycle, cfg *config.Config, store repository.I
 			case <-stopCtx.Done():
 				return stopCtx.Err()
 			}
-			return errors.Join(publisher.Writer.Close(), intents.Writer.Close())
+			return errors.Join(publisher.Writer.Close(), intents.Writer.Close(), conversations.Writer.Close())
 		},
 	})
 }

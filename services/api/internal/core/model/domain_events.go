@@ -7,6 +7,9 @@ const (
 	// DomainEventOutboundIntent rows carry a shared outbound.IntentEvent payload for the connector topic.
 	DomainEventOutboundIntent = "outbound.intent"
 
+	// DomainEventConversationChanged rows carry a types.ConversationChanged snapshot for the conversation read model.
+	DomainEventConversationChanged = "messaging.conversation.changed"
+
 	DomainEventStatePending   = "pending"
 	DomainEventStateLeased    = "leased"
 	DomainEventStatePublished = "published"

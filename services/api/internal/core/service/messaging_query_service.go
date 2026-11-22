@@ -25,7 +25,7 @@ func (s *MessagingQueryService) authorized(ctx context.Context, tenant, actor st
 		return apperrors.ErrBadRequest(ctx).SetDetail("valid tenant ID required")
 	}
 	return s.repo.ReadWithin(ctx, func(r repository.MessagingQueryStore) *apperrors.Error {
-		scope, err := r.Scope(ctx, tenant, actor)
+		scope, err := r.ReadScope(ctx, tenant, actor)
 		if err != nil {
 			return err
 		}

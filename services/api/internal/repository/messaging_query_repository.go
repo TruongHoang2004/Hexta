@@ -15,7 +15,7 @@ import (
 // MessagingQueryStore is the read side of messaging. Implementations must not write.
 type MessagingQueryStore interface {
 	ReadWithin(context.Context, func(MessagingQueryStore) *apperrors.Error) *apperrors.Error
-	Scope(context.Context, string, string) (types.MessagingScope, *apperrors.Error)
+	ReadScope(context.Context, string, string) (types.MessagingScope, *apperrors.Error)
 	Conversations(context.Context, string, string, types.MessagingQuery) (types.MessagingPage, *apperrors.Error)
 	Thread(context.Context, string, string, bool) (*types.MessagingThread, *apperrors.Error)
 	CurrentTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
@@ -40,61 +40,49 @@ func (r *MessagingRepository) ReadWithin(ctx context.Context, fn func(MessagingQ
 	}
 	return nil
 }
-func (r *MessagingRepository) Scope(ctx context.Context, tenant, actor string) (types.MessagingScope, *apperrors.Error) {
-	workspace, err := r.Tenant(ctx, tenant)
-	if err != nil {
-		return types.MessagingScope{}, err
+
+// ReadScope resolves membership without row locks, which a read-only transaction cannot take.
+func (r *MessagingRepository) ReadScope(ctx context.Context, tenant, actor string) (types.MessagingScope, *apperrors.Error) {
+	var workspace model.Tenant
+	if err := r.db.WithContext(ctx).Where("id = ?", tenant).First(&workspace).Error; err != nil {
+		return types.MessagingScope{}, salesDBError(ctx, err)
 	}
-	member, err := r.Member(ctx, tenant, actor)
-	if err != nil {
-		return types.MessagingScope{}, err
+	var members int64
+	if err := r.db.WithContext(ctx).Model(&model.TenantMember{}).Where("tenant_id = ? AND user_id = ?", tenant, actor).Count(&members).Error; err != nil {
+		return types.MessagingScope{}, salesDBError(ctx, err)
 	}
-	return types.MessagingScope{Active: workspace.Status == model.TenantStatusActive, Member: member != nil, Owner: workspace.OwnerID == actor}, nil
+	return types.MessagingScope{Active: workspace.Status == model.TenantStatusActive, Member: members > 0, Owner: workspace.OwnerID == actor}, nil
 }
 
+// Conversations reads the conversation read model; it never touches the write-side thread/turn tables.
 func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor string, input types.MessagingQuery) (types.MessagingPage, *apperrors.Error) {
-	rows := []messagingmodel.Thread{}
-	q := r.db.WithContext(ctx).Table("messaging_threads AS th").Select("th.*").Joins("JOIN messaging_turns AS t ON t.tenant_id = th.tenant_id AND t.thread_id = th.id AND t.lifecycle = 'open'").Where("th.tenant_id = ?", tenant)
+	rows := []messagingmodel.ConversationView{}
+	q := r.db.WithContext(ctx).Where("tenant_id = ?", tenant)
 	switch input.Filter {
 	case "unassigned":
-		q = q.Where("t.assignee_id IS NULL")
+		q = q.Where("assignee_id IS NULL")
 	case "mine":
-		q = q.Where("t.assignee_id = ?", actor)
+		q = q.Where("assignee_id = ?", actor)
 	case "needs_human":
-		q = q.Where("(t.needs_human = TRUE OR (t.control = ? AND t.assignee_id IS NULL))", "sales")
+		q = q.Where("(needs_human = TRUE OR (control = ? AND assignee_id IS NULL))", "sales")
 	case "bot":
 		// Mirrors MessagingTurn.HandlingState() == BOT_ACTIVE.
-		q = q.Where("t.control = ? AND t.assignee_id IS NULL AND t.needs_human = FALSE", "system")
+		q = q.Where("control = ? AND assignee_id IS NULL AND needs_human = FALSE", "system")
 	}
 	if input.Cursor != "" {
-		q = q.Where("th.id < ?", input.Cursor)
+		q = q.Where("thread_id < ?", input.Cursor)
 	}
-	if err := q.Order("th.id DESC").Limit(input.Limit + 1).Scan(&rows).Error; err != nil {
+	if err := q.Order("thread_id DESC").Limit(input.Limit + 1).Find(&rows).Error; err != nil {
 		return types.MessagingPage{}, salesDBError(ctx, err)
 	}
 	result := types.MessagingPage{Items: []types.MessagingConversation{}}
 	if len(rows) > input.Limit {
 		rows = rows[:input.Limit]
-		result.NextCursor = rows[len(rows)-1].ID
-	}
-	if len(rows) == 0 {
-		return result, nil
-	}
-	ids := make([]string, len(rows))
-	for i, row := range rows {
-		ids[i] = row.ID
-	}
-	turns := []messagingmodel.Turn{}
-	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND thread_id IN ? AND lifecycle = 'open'", tenant, ids).Find(&turns).Error; err != nil {
-		return result, salesDBError(ctx, err)
-	}
-	byThread := map[string]types.MessagingTurn{}
-	for _, row := range turns {
-		byThread[row.ThreadID] = persistencemap.Turn(row)
+		result.NextCursor = rows[len(rows)-1].ThreadID
 	}
 	for _, row := range rows {
-		turn := byThread[row.ID]
-		result.Items = append(result.Items, types.MessagingConversation{Thread: persistencemap.Thread(row), Turn: &turn})
+		thread, turn := persistencemap.ConversationView(row)
+		result.Items = append(result.Items, types.MessagingConversation{Thread: thread, Turn: &turn})
 	}
 	return result, nil
 }

@@ -63,3 +63,10 @@ func MessageRow(value types.MessagingMessage) messagingmodel.Message {
 	}
 	return row
 }
+
+// ConversationView maps a read model row back to the thread and open turn the API returns.
+func ConversationView(row messagingmodel.ConversationView) (types.MessagingThread, types.MessagingTurn) {
+	thread := types.MessagingThread{ID: row.ThreadID, TenantID: row.TenantID, ExternalKey: row.ExternalKey, DisplayName: row.DisplayName, CreatedAt: row.ThreadCreatedAt, UpdatedAt: row.ThreadUpdatedAt, ConnectionID: text(row.ConnectionID), RecipientID: text(row.RecipientID)}
+	turn := types.MessagingTurn{ID: row.TurnID, TenantID: row.TenantID, ThreadID: row.ThreadID, Lifecycle: row.Lifecycle, Control: row.Control, AssigneeID: row.AssigneeID, NeedsHuman: row.NeedsHuman, ContextRevision: row.ContextRevision, ControlGeneration: row.ControlGeneration, Version: row.TurnVersion, LastActivityAt: row.LastActivityAt}
+	return thread, turn
+}
