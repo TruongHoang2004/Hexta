@@ -98,13 +98,7 @@ func (s *ChannelService) ConnectTelegramBot(ctx context.Context, tenant, actor, 
 }
 
 func (s *ChannelService) ListTelegramConnections(ctx context.Context, tenant, actor string) ([]types.ChannelConnection, *apperrors.Error) {
-	var result []types.ChannelConnection
-	err := s.authorized(ctx, tenant, actor, false, func(r repository.ChannelStore) *apperrors.Error {
-		var err *apperrors.Error
-		result, err = r.Connections(ctx, tenant, types.ChannelPlatformTelegram)
-		return err
-	})
-	return result, err
+	return s.ListConnections(ctx, tenant, actor, types.ChannelPlatformTelegram)
 }
 
 // UpdateTelegramConnection applies pause/resume/disconnect, or rotate_token. A rotated token must belong to the same

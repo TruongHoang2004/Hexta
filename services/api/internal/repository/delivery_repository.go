@@ -112,7 +112,7 @@ func (r *DeliveryRepository) MarkAuthExpired(ctx context.Context, tenant, id str
 		return salesDBError(ctx, err)
 	}
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.Connection{}).Where("tenant_id = ? AND id = ? AND version = ?", tenant, id, row.Version).
-		Updates(map[string]any{"status": types.ChannelStatusAuthExpired, "last_error_code": code, "last_error_message": types.ChannelAuthExpiredMessages[row.Platform], "updated_at": now}).Error; err != nil {
+		Updates(map[string]any{"status": types.ChannelStatusAuthExpired, "last_error_code": code, "last_error_message": types.ChannelPlatforms[row.Platform].AuthExpiredMessage, "updated_at": now}).Error; err != nil {
 		return salesDBError(ctx, err)
 	}
 	return nil

@@ -1,76 +1,67 @@
 import { sdk } from "@/lib/sdk";
-import type {
-  ChannelConnection,
-  ConnectionAction,
-  FacebookConnection,
-  OAuthPages,
-  TelegramAction,
-  TelegramConnection,
-} from "../types";
+import type { ChannelConnection, ChannelPlatform, ConnectionAction, OAuthPages } from "../types";
 
 // Meta redirects here; the path must match the API's allowed OAuth callback.
 export const facebookCallbackPath = "/channels/facebook/callback";
-const base = (tenant: string) => `/api/v1/tenants/${tenant}/channels/facebook`;
+const tenantBase = (tenant: string) => `/api/v1/tenants/${tenant}`;
 
-export const channels = {
-  async startFacebook(tenant: string): Promise<string> {
-    const result = await sdk.client.post<{ data: { auth_url: string } }>(`${base(tenant)}/oauth/start`, {
-      redirect_uri: `${window.location.origin}${facebookCallbackPath}`,
-    });
-    return result.data.data.auth_url;
-  },
-  async completeFacebook(params: { code: string; state: string; error: string }): Promise<OAuthPages> {
-    const result = await sdk.client.get<{ data: OAuthPages }>("/api/v1/channels/facebook/oauth/callback", { params });
-    return result.data.data;
-  },
-  async list(tenant: string, signal?: AbortSignal): Promise<FacebookConnection[]> {
-    const result = await sdk.client.get<{ data: { connections: FacebookConnection[] } }>(
-      `${base(tenant)}/connections`,
-      { signal },
+/** Every connection of the workspace, whatever its type, is listed and managed through one resource. */
+export const connections = {
+  async list(tenant: string, signal?: AbortSignal, platform?: ChannelPlatform): Promise<ChannelConnection[]> {
+    const result = await sdk.client.get<{ data: { connections: ChannelConnection[] } }>(
+      `${tenantBase(tenant)}/connections`,
+      { signal, params: platform ? { platform } : undefined },
     );
     return result.data.data.connections;
   },
-  async connect(tenant: string, session: string, pageIDs: string[]): Promise<FacebookConnection[]> {
-    const result = await sdk.client.post<{ data: { connections: FacebookConnection[] } }>(
-      `${base(tenant)}/connections`,
-      { oauth_session_id: session, page_ids: pageIDs },
-    );
-    return result.data.data.connections;
-  },
-  async update(tenant: string, id: string, action: ConnectionAction): Promise<FacebookConnection> {
-    const result = await sdk.client.patch<{ data: FacebookConnection }>(`${base(tenant)}/connections/${id}`, {
-      action,
-    });
-    return result.data.data;
-  },
-};
-
-const telegramBase = (tenant: string) => `/api/v1/tenants/${tenant}/channels/telegram/connections`;
-
-// The Bot Token is sent once over the API and never returned; callers must clear it from state after submit.
-export const telegram = {
-  async list(tenant: string, signal?: AbortSignal): Promise<TelegramConnection[]> {
-    const result = await sdk.client.get<{ data: { connections: TelegramConnection[] } }>(telegramBase(tenant), {
-      signal,
-    });
-    return result.data.data.connections;
-  },
-  async connect(tenant: string, botToken: string): Promise<TelegramConnection> {
-    const result = await sdk.client.post<{ data: TelegramConnection }>(telegramBase(tenant), { bot_token: botToken });
-    return result.data.data;
-  },
-  async update(tenant: string, id: string, action: TelegramAction, botToken?: string): Promise<TelegramConnection> {
-    const result = await sdk.client.patch<{ data: TelegramConnection }>(
-      `${telegramBase(tenant)}/${id}`,
+  // The Bot Token is sent once for rotate_token and never returned; callers clear it from state before calling.
+  async update(tenant: string, id: string, action: ConnectionAction, botToken?: string): Promise<ChannelConnection> {
+    const result = await sdk.client.patch<{ data: ChannelConnection }>(
+      `${tenantBase(tenant)}/connections/${id}`,
       action === "rotate_token" ? { action, bot_token: botToken } : { action },
     );
     return result.data.data;
   },
 };
 
-// Lists every channel connection for banners and composer locks. A platform that fails to load is omitted.
+/** Creating a connection differs per type: Facebook uses Meta OAuth and Page selection. */
+export const facebook = {
+  async start(tenant: string): Promise<string> {
+    const result = await sdk.client.post<{ data: { auth_url: string } }>(
+      `${tenantBase(tenant)}/channels/facebook/oauth/start`,
+      { redirect_uri: `${window.location.origin}${facebookCallbackPath}` },
+    );
+    return result.data.data.auth_url;
+  },
+  async complete(params: { code: string; state: string; error: string }): Promise<OAuthPages> {
+    const result = await sdk.client.get<{ data: OAuthPages }>("/api/v1/channels/facebook/oauth/callback", { params });
+    return result.data.data;
+  },
+  async connectPages(tenant: string, session: string, pageIDs: string[]): Promise<ChannelConnection[]> {
+    const result = await sdk.client.post<{ data: { connections: ChannelConnection[] } }>(
+      `${tenantBase(tenant)}/channels/facebook/connections`,
+      { oauth_session_id: session, page_ids: pageIDs },
+    );
+    return result.data.data.connections;
+  },
+};
+
+/** Telegram connects with a @BotFather Bot Token, sent once and never returned. */
+export const telegram = {
+  async connect(tenant: string, botToken: string): Promise<ChannelConnection> {
+    const result = await sdk.client.post<{ data: ChannelConnection }>(
+      `${tenantBase(tenant)}/channels/telegram/connections`,
+      { bot_token: botToken },
+    );
+    return result.data.data;
+  },
+};
+
+// Lists every channel connection for banners and composer locks; null when the list cannot be loaded.
 export async function listAllConnections(tenant: string, signal?: AbortSignal): Promise<ChannelConnection[] | null> {
-  const results = await Promise.allSettled([channels.list(tenant, signal), telegram.list(tenant, signal)]);
-  if (results.every((r) => r.status === "rejected")) return null;
-  return results.flatMap((r): ChannelConnection[] => (r.status === "fulfilled" ? r.value : []));
+  try {
+    return await connections.list(tenant, signal);
+  } catch {
+    return null;
+  }
 }

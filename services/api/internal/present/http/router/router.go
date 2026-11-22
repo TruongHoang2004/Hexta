@@ -99,12 +99,11 @@ func RegisterRoutes(
 	registerMessagingCommandRoutes(resources, messagingCommands.Handle)
 
 	resources.POST("/channels/facebook/oauth/start", channels.StartFacebookOAuth)
-	resources.GET("/channels/facebook/connections", channels.ListFacebookConnections)
+	// Connections of every type are listed and managed through one resource; only creation differs per type.
+	resources.GET("/connections", channels.ListConnections)
+	resources.PATCH("/connections/:id", channels.UpdateConnection)
 	resources.POST("/channels/facebook/connections", channels.ConnectFacebookPages)
-	resources.PATCH("/channels/facebook/connections/:id", channels.UpdateFacebookConnection)
-	resources.GET("/channels/telegram/connections", channels.ListTelegramConnections)
 	resources.POST("/channels/telegram/connections", channels.ConnectTelegramBot)
-	resources.PATCH("/channels/telegram/connections/:id", channels.UpdateTelegramConnection)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

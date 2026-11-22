@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useErrorText } from "@/lib/errors";
-import { channels } from "../services/channels";
+import { facebook } from "../services/channels";
 import type { OAuthPages } from "../types";
 
 /** Exchanges the OAuth callback once, then connects the Pages the owner selects. */
@@ -22,8 +22,8 @@ export function useFacebookOAuth() {
     // The state is single-use; never exchange it twice (e.g. on a development double effect).
     if (!state || started.current === state) return;
     started.current = state;
-    channels
-      .completeFacebook({ code: params.get("code") ?? "", state, error: params.get("error") ?? "" })
+    facebook
+      .complete({ code: params.get("code") ?? "", state, error: params.get("error") ?? "" })
       .then((pages) => {
         setResult(pages);
         setSelected(pages.pages.filter((p) => p.availability === "available").map((p) => p.page_id));
@@ -40,7 +40,7 @@ export function useFacebookOAuth() {
     setBusy(true);
     setError("");
     try {
-      await channels.connect(result.tenant_id, result.oauth_session_id, selected);
+      await facebook.connectPages(result.tenant_id, result.oauth_session_id, selected);
       router.push(`/tenants/${result.tenant_id}/settings/channels`);
     } catch (err) {
       setError(errorText(err));

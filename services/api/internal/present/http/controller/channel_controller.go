@@ -130,49 +130,59 @@ func (ctrl *ChannelController) ConnectFacebookPages(c *gin.Context) {
 	ctrl.Success(c, dto.ConnectFacebookPagesResponse{Connections: httpmap.Connections(result)})
 }
 
-// ListFacebookConnections
-// @Summary List Facebook Page connections
-// @Description Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners.
+// ListConnections
+// @Summary List channel connections
+// @Description Active tenant membership required. Returns every non-disconnected connection of the tenant (any number per type), optionally filtered by platform, with status and the owner actions allowed in that state. Credentials are never included.
 // @Tags Channels
 // @Produce json
 // @Security BearerAuth
 // @Param tenantID path string true "Tenant ID"
-// @Success 200 {object} response.Response[dto.ListFacebookConnectionsResponse]
+// @Param platform query string false "Connection type" Enums(facebook, telegram)
+// @Success 200 {object} response.Response[dto.ListConnectionsResponse]
 // @Failure 400,401,403 {object} apperrors.ErrorResponse
-// @Router /api/v1/tenants/{tenantID}/channels/facebook/connections [get]
-func (ctrl *ChannelController) ListFacebookConnections(c *gin.Context) {
+// @Router /api/v1/tenants/{tenantID}/connections [get]
+func (ctrl *ChannelController) ListConnections(c *gin.Context) {
+	var query dto.ListConnectionsQuery
 	if !ctrl.bind(c, nil) {
 		return
 	}
+	if err := c.ShouldBindQuery(&query); err != nil {
+		ctrl.ErrorData(c, apperrors.ErrBadRequest(c.Request.Context()).SetDetail("invalid query"))
+		return
+	}
+	if err := ctrl.ValidateRequest(c.Request.Context(), &query); err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
 	tenant, actor := salesScope(c)
-	result, err := ctrl.channels.ListFacebookConnections(c.Request.Context(), tenant, actor)
+	result, err := ctrl.channels.ListConnections(c.Request.Context(), tenant, actor, query.Platform)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return
 	}
-	ctrl.Success(c, dto.ListFacebookConnectionsResponse{Connections: httpmap.Connections(result)})
+	ctrl.Success(c, dto.ListConnectionsResponse{Connections: httpmap.Connections(result)})
 }
 
-// UpdateFacebookConnection
-// @Summary Pause, resume or disconnect a Facebook Page
-// @Description Tenant owner only. Pause/disconnect cancel pending outbound intents; disconnect wipes the stored Page credential and unsubscribes webhooks. Repeating an action in effect re-syncs the connector.
+// UpdateConnection
+// @Summary Pause, resume, disconnect or rotate the credential of a connection
+// @Description Tenant owner only. Works for every connection type. Pause/disconnect cancel pending outbound intents; disconnect wipes the stored credential and removes the provider webhook. rotate_token (Telegram) requires bot_token for the same bot (a different bot returns 409) and re-activates the connection; other types return 400. Repeating an action in effect re-syncs the connector.
 // @Tags Channels
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param tenantID path string true "Tenant ID"
 // @Param id path string true "Connection ID"
-// @Param request body dto.UpdateFacebookConnectionRequest true "Action"
-// @Success 200 {object} response.Response[dto.FacebookConnectionDTO]
-// @Failure 400,401,403,404,409,502,503 {object} apperrors.ErrorResponse
-// @Router /api/v1/tenants/{tenantID}/channels/facebook/connections/{id} [patch]
-func (ctrl *ChannelController) UpdateFacebookConnection(c *gin.Context) {
-	var input dto.UpdateFacebookConnectionRequest
+// @Param request body dto.UpdateConnectionRequest true "Action"
+// @Success 200 {object} response.Response[dto.ConnectionDTO]
+// @Failure 400,401,403,404,409,422,502,503 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/connections/{id} [patch]
+func (ctrl *ChannelController) UpdateConnection(c *gin.Context) {
+	var input dto.UpdateConnectionRequest
 	if !ctrl.bind(c, &input) {
 		return
 	}
 	tenant, actor := salesScope(c)
-	result, err := ctrl.channels.UpdateFacebookConnection(c.Request.Context(), tenant, actor, c.Param("id"), input.Action)
+	result, err := ctrl.channels.UpdateConnection(c.Request.Context(), tenant, actor, c.Param("id"), input.Action, input.BotToken)
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return
@@ -189,7 +199,7 @@ func (ctrl *ChannelController) UpdateFacebookConnection(c *gin.Context) {
 // @Security BearerAuth
 // @Param tenantID path string true "Tenant ID"
 // @Param request body dto.ConnectTelegramBotRequest true "Bot Token"
-// @Success 200 {object} response.Response[dto.TelegramConnectionDTO]
+// @Success 200 {object} response.Response[dto.ConnectionDTO]
 // @Failure 400,401,403,409,422,502,503 {object} apperrors.ErrorResponse
 // @Router /api/v1/tenants/{tenantID}/channels/telegram/connections [post]
 func (ctrl *ChannelController) ConnectTelegramBot(c *gin.Context) {
@@ -203,55 +213,5 @@ func (ctrl *ChannelController) ConnectTelegramBot(c *gin.Context) {
 		ctrl.ErrorData(c, err)
 		return
 	}
-	ctrl.Success(c, httpmap.TelegramConnection(*result))
-}
-
-// ListTelegramConnections
-// @Summary List Telegram bot connections
-// @Description Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners. Bot Tokens are never included.
-// @Tags Channels
-// @Produce json
-// @Security BearerAuth
-// @Param tenantID path string true "Tenant ID"
-// @Success 200 {object} response.Response[dto.ListTelegramConnectionsResponse]
-// @Failure 400,401,403 {object} apperrors.ErrorResponse
-// @Router /api/v1/tenants/{tenantID}/channels/telegram/connections [get]
-func (ctrl *ChannelController) ListTelegramConnections(c *gin.Context) {
-	if !ctrl.bind(c, nil) {
-		return
-	}
-	tenant, actor := salesScope(c)
-	result, err := ctrl.channels.ListTelegramConnections(c.Request.Context(), tenant, actor)
-	if err != nil {
-		ctrl.ErrorData(c, err)
-		return
-	}
-	ctrl.Success(c, dto.ListTelegramConnectionsResponse{Connections: httpmap.TelegramConnections(result)})
-}
-
-// UpdateTelegramConnection
-// @Summary Pause, resume, disconnect or rotate the token of a Telegram bot
-// @Description Tenant owner only. Pause/disconnect cancel pending outbound intents and delete the webhook; disconnect also wipes the stored Bot Token and webhook secret. rotate_token requires bot_token for the same bot (a different bot returns 409) and re-activates the connection. Repeating pause/resume/disconnect in effect re-syncs the connector.
-// @Tags Channels
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param tenantID path string true "Tenant ID"
-// @Param id path string true "Connection ID"
-// @Param request body dto.UpdateTelegramConnectionRequest true "Action"
-// @Success 200 {object} response.Response[dto.TelegramConnectionDTO]
-// @Failure 400,401,403,404,409,422,502,503 {object} apperrors.ErrorResponse
-// @Router /api/v1/tenants/{tenantID}/channels/telegram/connections/{id} [patch]
-func (ctrl *ChannelController) UpdateTelegramConnection(c *gin.Context) {
-	var input dto.UpdateTelegramConnectionRequest
-	if !ctrl.bind(c, &input) {
-		return
-	}
-	tenant, actor := salesScope(c)
-	result, err := ctrl.channels.UpdateTelegramConnection(c.Request.Context(), tenant, actor, c.Param("id"), input.Action, input.BotToken)
-	if err != nil {
-		ctrl.ErrorData(c, err)
-		return
-	}
-	ctrl.Success(c, httpmap.TelegramConnection(*result))
+	ctrl.Success(c, httpmap.Connection(*result))
 }

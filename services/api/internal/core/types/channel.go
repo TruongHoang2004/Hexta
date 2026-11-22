@@ -23,9 +23,59 @@ const (
 	PageOwnedByOtherTenant         = "owned_by_other_tenant"
 )
 
+// Connection actions. Every platform supports pause/resume/disconnect; credential rotation is platform specific.
+const (
+	ChannelActionPause       = "pause"
+	ChannelActionResume      = "resume"
+	ChannelActionDisconnect  = "disconnect"
+	ChannelActionRotateToken = "rotate_token"
+)
+
+// ChannelPlatformSpec describes one connection type. A tenant may hold any number of connections of any type; adding a
+// type adds one entry here plus its connect flow and connector plugin.
+type ChannelPlatformSpec struct {
+	// ThreadName is the inbox display name of the platform's threads.
+	ThreadName string
+	// AuthExpiredMessage is the owner-facing reason shown when the platform rejects the stored credential.
+	AuthExpiredMessage string
+	// RotatesCredential reports whether a connection can replace its credential in place (rotate_token).
+	RotatesCredential bool
+}
+
+// ChannelPlatforms is the registry of supported connection types.
+var ChannelPlatforms = map[string]ChannelPlatformSpec{
+	ChannelPlatformFacebook: {ThreadName: "Facebook Messenger", AuthExpiredMessage: "Facebook authorization expired or was revoked; reconnect the Page"},
+	ChannelPlatformTelegram: {ThreadName: "Telegram", AuthExpiredMessage: "Telegram rejected the Bot Token (revoked or invalid); rotate the token", RotatesCredential: true},
+}
+
 // ChannelThreadNames are the inbox display names of real channel threads, keyed by platform. A thread whose external
 // key starts with "<platform>:" belongs to that channel and cannot be written through the simulator.
-var ChannelThreadNames = map[string]string{ChannelPlatformFacebook: "Facebook Messenger", ChannelPlatformTelegram: "Telegram"}
+var ChannelThreadNames = func() map[string]string {
+	names := make(map[string]string, len(ChannelPlatforms))
+	for platform, spec := range ChannelPlatforms {
+		names[platform] = spec.ThreadName
+	}
+	return names
+}()
+
+// ChannelConnectionActions lists the actions an owner may apply to a connection in its current state.
+func ChannelConnectionActions(c ChannelConnection) []string {
+	spec, ok := ChannelPlatforms[c.Platform]
+	if !ok || c.Status == ChannelStatusDisconnected {
+		return []string{}
+	}
+	actions := []string{}
+	switch c.Status {
+	case ChannelStatusActive, ChannelStatusAuthExpired:
+		actions = append(actions, ChannelActionPause)
+	case ChannelStatusPaused:
+		actions = append(actions, ChannelActionResume)
+	}
+	if spec.RotatesCredential {
+		actions = append(actions, ChannelActionRotateToken)
+	}
+	return append(actions, ChannelActionDisconnect)
+}
 
 // ChannelThreadPlatform returns the platform of a real channel thread key, or "" for simulator threads.
 func ChannelThreadPlatform(externalKey string) string {
@@ -34,12 +84,6 @@ func ChannelThreadPlatform(externalKey string) string {
 		return platform
 	}
 	return ""
-}
-
-// ChannelAuthExpiredMessages are the owner-facing reasons shown when a platform rejects the stored credential.
-var ChannelAuthExpiredMessages = map[string]string{
-	ChannelPlatformFacebook: "Facebook authorization expired or was revoked; reconnect the Page",
-	ChannelPlatformTelegram: "Telegram rejected the Bot Token (revoked or invalid); rotate the token",
 }
 
 // ChannelConnection is the API-owned authority mirror of a provider account binding (1 Page/Bot = 1 tenant).

@@ -219,3 +219,16 @@ substitutes the fake model for a real provider; offline use must select fake. Th
 connect Go and Python with a shared private internal token. No public API contract
 or schema migration changed. Desk automation, channel sends and durable consulting
 jobs remain separate work.
+
+## Unified channel connections — 2026-11-22 (owner decision, IMPLEMENTED in branch `feat/unified-connections`)
+
+Each Facebook Page or Telegram bot is one connection with a type (`platform`); a tenant may hold any number of each. Listing and management use one resource; only creation differs per type:
+
+| Method/path | Who | Purpose |
+| --- | --- | --- |
+| `GET /api/v1/tenants/{tenantID}/connections?platform=` | active member | Every non-disconnected connection (optional type filter), with `status` and `actions` (owner actions allowed in that state) |
+| `PATCH /api/v1/tenants/{tenantID}/connections/{id}` | owner | `pause`, `resume`, `disconnect` for every type; `rotate_token` (+`bot_token`) only for types that rotate credentials (Telegram), else 400 |
+| `POST …/channels/facebook/oauth/start`, `GET /api/v1/channels/facebook/oauth/callback`, `POST …/channels/facebook/connections` | owner | Facebook OAuth + Page selection (unchanged) |
+| `POST …/channels/telegram/connections` | owner | Telegram Bot Token connect (unchanged) |
+
+The per-platform `GET/PATCH …/channels/{facebook,telegram}/connections` routes were removed (pre-production; the web app was the only consumer). Type-specific copy and capabilities live in `types.ChannelPlatforms` (thread name, auth-expired message, credential rotation); `types.ChannelConnectionActions` derives the allowed actions. Adding a type means one registry entry, its connect flow and a connector plugin.

@@ -117,10 +117,15 @@ func connectionList(rows []messagingmodel.Connection) []types.ChannelConnection 
 	return result
 }
 
-// Connections lists a tenant's current (non-disconnected) bindings; the per-tenant set is small and bounded.
+// Connections lists a tenant's current (non-disconnected) bindings of one platform, or of every platform when
+// platform is empty; the per-tenant set is small and bounded.
 func (r *ChannelRepository) Connections(ctx context.Context, tenant, platform string) ([]types.ChannelConnection, *apperrors.Error) {
 	rows := []messagingmodel.Connection{}
-	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND platform = ? AND status <> ?", tenant, platform, types.ChannelStatusDisconnected).Order("updated_at DESC, id").Limit(200).Find(&rows).Error; err != nil {
+	query := r.db.WithContext(ctx).Where("tenant_id = ? AND status <> ?", tenant, types.ChannelStatusDisconnected)
+	if platform != "" {
+		query = query.Where("platform = ?", platform)
+	}
+	if err := query.Order("updated_at DESC, id").Limit(200).Find(&rows).Error; err != nil {
 		return nil, channelDBError(ctx, err)
 	}
 	return connectionList(rows), nil

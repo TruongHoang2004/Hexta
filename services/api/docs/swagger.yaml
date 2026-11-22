@@ -319,7 +319,7 @@ definitions:
     properties:
       connections:
         items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO'
         type: array
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectTelegramBotRequest:
@@ -330,12 +330,18 @@ definitions:
     required:
     - bot_token
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO:
     properties:
       account_id:
         type: string
       account_name:
         type: string
+      account_username:
+        type: string
+      actions:
+        items:
+          type: string
+        type: array
       id:
         type: string
       last_error_code:
@@ -343,8 +349,15 @@ definitions:
       last_error_message:
         type: string
       platform:
+        enum:
+        - facebook
+        - telegram
         type: string
       status:
+        enum:
+        - active
+        - paused
+        - auth_expired
         type: string
       tenant_id:
         type: string
@@ -375,18 +388,11 @@ definitions:
       status:
         type: string
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListConnectionsResponse:
     properties:
       connections:
         items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
-        type: array
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse:
-    properties:
-      connections:
-        items:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO'
         type: array
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.LoginRequest:
@@ -878,31 +884,6 @@ definitions:
       expires_at:
         type: string
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO:
-    properties:
-      account_id:
-        type: string
-      account_name:
-        type: string
-      account_username:
-        type: string
-      id:
-        type: string
-      last_error_code:
-        type: string
-      last_error_message:
-        type: string
-      platform:
-        type: string
-      status:
-        type: string
-      tenant_id:
-        type: string
-      updated_at:
-        type: string
-      version:
-        type: integer
-    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest:
     properties:
       name:
@@ -1034,18 +1015,7 @@ definitions:
       revoked:
         type: boolean
     type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest:
-    properties:
-      action:
-        enum:
-        - pause
-        - resume
-        - disconnect
-        type: string
-    required:
-    - action
-    type: object
-  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest:
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateConnectionRequest:
     properties:
       action:
         enum:
@@ -1216,10 +1186,10 @@ definitions:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectFacebookPagesResponse'
       meta: {}
     type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO
   : properties:
       data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookOAuthPagesResponse
@@ -1234,16 +1204,10 @@ definitions:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.HealthResponse'
       meta: {}
     type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListConnectionsResponse
   : properties:
       data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse'
-      meta: {}
-    type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse
-  : properties:
-      data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse'
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListConnectionsResponse'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_LoginResponse
@@ -1340,12 +1304,6 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthResponse'
-      meta: {}
-    type: object
-  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO
-  : properties:
-      data:
-        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TenantApplicationResponse
@@ -1617,7 +1575,8 @@ paths:
       - Auth
   /api/v1/auth/google/login:
     get:
-      description: Redirects to Google consent screen with secure CSRF state
+      description: Redirects to Google consent screen with secure CSRF state, or back
+        to the frontend login with an error when Google login is unavailable
       responses:
         "302":
           description: Found
@@ -2031,39 +1990,6 @@ paths:
       tags:
       - Tenants
   /api/v1/tenants/{tenantID}/channels/facebook/connections:
-    get:
-      description: Active tenant membership required. Returns non-disconnected connections
-        with status (active, paused, auth_expired) for settings and Inbox banners.
-      parameters:
-      - description: Tenant ID
-        in: path
-        name: tenantID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: List Facebook Page connections
-      tags:
-      - Channels
     post:
       consumes:
       - application/json
@@ -2122,70 +2048,6 @@ paths:
       summary: Connect selected Facebook Pages
       tags:
       - Channels
-  /api/v1/tenants/{tenantID}/channels/facebook/connections/{id}:
-    patch:
-      consumes:
-      - application/json
-      description: Tenant owner only. Pause/disconnect cancel pending outbound intents;
-        disconnect wipes the stored Page credential and unsubscribes webhooks. Repeating
-        an action in effect re-syncs the connector.
-      parameters:
-      - description: Tenant ID
-        in: path
-        name: tenantID
-        required: true
-        type: string
-      - description: Connection ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Action
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "502":
-          description: Bad Gateway
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Pause, resume or disconnect a Facebook Page
-      tags:
-      - Channels
   /api/v1/tenants/{tenantID}/channels/facebook/oauth/start:
     post:
       consumes:
@@ -2234,40 +2096,6 @@ paths:
       tags:
       - Channels
   /api/v1/tenants/{tenantID}/channels/telegram/connections:
-    get:
-      description: Active tenant membership required. Returns non-disconnected connections
-        with status (active, paused, auth_expired) for settings and Inbox banners.
-        Bot Tokens are never included.
-      parameters:
-      - description: Tenant ID
-        in: path
-        name: tenantID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/errors.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: List Telegram bot connections
-      tags:
-      - Channels
     post:
       consumes:
       - application/json
@@ -2294,7 +2122,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO'
         "400":
           description: Bad Request
           schema:
@@ -2328,15 +2156,58 @@ paths:
       summary: Connect a Telegram bot
       tags:
       - Channels
-  /api/v1/tenants/{tenantID}/channels/telegram/connections/{id}:
+  /api/v1/tenants/{tenantID}/connections:
+    get:
+      description: Active tenant membership required. Returns every non-disconnected
+        connection of the tenant (any number per type), optionally filtered by platform,
+        with status and the owner actions allowed in that state. Credentials are never
+        included.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Connection type
+        enum:
+        - facebook
+        - telegram
+        in: query
+        name: platform
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListConnectionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List channel connections
+      tags:
+      - Channels
+  /api/v1/tenants/{tenantID}/connections/{id}:
     patch:
       consumes:
       - application/json
-      description: Tenant owner only. Pause/disconnect cancel pending outbound intents
-        and delete the webhook; disconnect also wipes the stored Bot Token and webhook
-        secret. rotate_token requires bot_token for the same bot (a different bot
-        returns 409) and re-activates the connection. Repeating pause/resume/disconnect
-        in effect re-syncs the connector.
+      description: Tenant owner only. Works for every connection type. Pause/disconnect
+        cancel pending outbound intents; disconnect wipes the stored credential and
+        removes the provider webhook. rotate_token (Telegram) requires bot_token for
+        the same bot (a different bot returns 409) and re-activates the connection;
+        other types return 400. Repeating an action in effect re-syncs the connector.
       parameters:
       - description: Tenant ID
         in: path
@@ -2353,14 +2224,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest'
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateConnectionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO'
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO'
         "400":
           description: Bad Request
           schema:
@@ -2395,7 +2266,7 @@ paths:
             $ref: '#/definitions/errors.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Pause, resume, disconnect or rotate the token of a Telegram bot
+      summary: Pause, resume, disconnect or rotate the credential of a connection
       tags:
       - Channels
   /api/v1/tenants/{tenantID}/conversations:

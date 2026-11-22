@@ -124,7 +124,7 @@
         },
         "/api/v1/auth/google/login": {
             "get": {
-                "description": "Redirects to Google consent screen with secure CSRF state",
+                "description": "Redirects to Google consent screen with secure CSRF state, or back to the frontend login with an error when Google login is unavailable",
                 "tags": [
                     "Auth"
                 ],
@@ -767,56 +767,6 @@
             }
         },
         "/api/v1/tenants/{tenantID}/channels/facebook/connections": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Channels"
-                ],
-                "summary": "List Facebook Page connections",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "tenantID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -885,101 +835,6 @@
                     },
                     "422": {
                         "description": "Unprocessable Entity",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/tenants/{tenantID}/channels/facebook/connections/{id}": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Tenant owner only. Pause/disconnect cancel pending outbound intents; disconnect wipes the stored Page credential and unsubscribes webhooks. Repeating an action in effect re-syncs the connector.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Channels"
-                ],
-                "summary": "Pause, resume or disconnect a Facebook Page",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "tenantID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Connection ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Action",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
@@ -1070,56 +925,6 @@
             }
         },
         "/api/v1/tenants/{tenantID}/channels/telegram/connections": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Active tenant membership required. Returns non-disconnected connections with status (active, paused, auth_expired) for settings and Inbox banners. Bot Tokens are never included.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Channels"
-                ],
-                "summary": "List Telegram bot connections",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Tenant ID",
-                        "name": "tenantID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errors.ErrorResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -1159,7 +964,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO"
                         }
                     },
                     "400": {
@@ -1207,14 +1012,76 @@
                 }
             }
         },
-        "/api/v1/tenants/{tenantID}/channels/telegram/connections/{id}": {
+        "/api/v1/tenants/{tenantID}/connections": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Active tenant membership required. Returns every non-disconnected connection of the tenant (any number per type), optionally filtered by platform, with status and the owner actions allowed in that state. Credentials are never included.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Channels"
+                ],
+                "summary": "List channel connections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "facebook",
+                            "telegram"
+                        ],
+                        "type": "string",
+                        "description": "Connection type",
+                        "name": "platform",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListConnectionsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/connections/{id}": {
             "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Tenant owner only. Pause/disconnect cancel pending outbound intents and delete the webhook; disconnect also wipes the stored Bot Token and webhook secret. rotate_token requires bot_token for the same bot (a different bot returns 409) and re-activates the connection. Repeating pause/resume/disconnect in effect re-syncs the connector.",
+                "description": "Tenant owner only. Works for every connection type. Pause/disconnect cancel pending outbound intents; disconnect wipes the stored credential and removes the provider webhook. rotate_token (Telegram) requires bot_token for the same bot (a different bot returns 409) and re-activates the connection; other types return 400. Repeating an action in effect re-syncs the connector.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1224,7 +1091,7 @@
                 "tags": [
                     "Channels"
                 ],
-                "summary": "Pause, resume, disconnect or rotate the token of a Telegram bot",
+                "summary": "Pause, resume, disconnect or rotate the credential of a connection",
                 "parameters": [
                     {
                         "type": "string",
@@ -1246,7 +1113,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateConnectionRequest"
                         }
                     }
                 ],
@@ -1254,7 +1121,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO"
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO"
                         }
                     },
                     "400": {
@@ -3825,7 +3692,7 @@
                 "connections": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO"
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO"
                     }
                 }
             }
@@ -3842,7 +3709,7 @@
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO": {
             "type": "object",
             "properties": {
                 "account_id": {
@@ -3850,6 +3717,15 @@
                 },
                 "account_name": {
                     "type": "string"
+                },
+                "account_username": {
+                    "type": "string"
+                },
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "string"
@@ -3861,10 +3737,19 @@
                     "type": "string"
                 },
                 "platform": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "facebook",
+                        "telegram"
+                    ]
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "paused",
+                        "auth_expired"
+                    ]
                 },
                 "tenant_id": {
                     "type": "string"
@@ -3911,24 +3796,13 @@
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListConnectionsResponse": {
             "type": "object",
             "properties": {
                 "connections": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO"
-                    }
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse": {
-            "type": "object",
-            "properties": {
-                "connections": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO"
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO"
                     }
                 }
             }
@@ -4657,44 +4531,6 @@
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO": {
-            "type": "object",
-            "properties": {
-                "account_id": {
-                    "type": "string"
-                },
-                "account_name": {
-                    "type": "string"
-                },
-                "account_username": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_error_code": {
-                    "type": "string"
-                },
-                "last_error_message": {
-                    "type": "string"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "tenant_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TenantApplicationRequest": {
             "type": "object",
             "required": [
@@ -4893,23 +4729,7 @@
                 }
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateFacebookConnectionRequest": {
-            "type": "object",
-            "required": [
-                "action"
-            ],
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [
-                        "pause",
-                        "resume",
-                        "disconnect"
-                    ]
-                }
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateTelegramConnectionRequest": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.UpdateConnectionRequest": {
             "type": "object",
             "required": [
                 "action"
@@ -5162,11 +4982,11 @@
                 "meta": {}
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_FacebookConnectionDTO": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ConnectionDTO": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.FacebookConnectionDTO"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ConnectionDTO"
                 },
                 "meta": {}
             }
@@ -5189,20 +5009,11 @@
                 "meta": {}
             }
         },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListFacebookConnectionsResponse": {
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListConnectionsResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListFacebookConnectionsResponse"
-                },
-                "meta": {}
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_ListTelegramConnectionsResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListTelegramConnectionsResponse"
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.ListConnectionsResponse"
                 },
                 "meta": {}
             }
@@ -5347,15 +5158,6 @@
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.StartFacebookOAuthResponse"
-                },
-                "meta": {}
-            }
-        },
-        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_TelegramConnectionDTO": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.TelegramConnectionDTO"
                 },
                 "meta": {}
             }
