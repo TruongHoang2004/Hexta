@@ -8,6 +8,8 @@ import (
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/mapper/messaging/httpmap"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -27,9 +29,28 @@ func NewConversationStreamController(validate *validator.Validate, hub *service.
 	return &ConversationStreamController{NewBaseController(validate), hub}
 }
 
+// streamFrame maps a hint to its SSE event: `message` carries a stored message in the API message shape,
+// `delivery` a delivery-state update for one message, `changed` a list refresh trigger, `resync` a full refetch.
+func streamFrame(hint types.RealtimeHint) (string, []byte) {
+	var data []byte
+	switch {
+	case hint.ThreadID == "":
+		data, _ = json.Marshal(gin.H{})
+		return "resync", data
+	case hint.Reason == types.RealtimeMessageCreated && hint.Message != nil:
+		data, _ = json.Marshal(gin.H{"thread_id": hint.ThreadID, "message": httpmap.Message(*hint.Message)})
+		return "message", data
+	case hint.Reason == types.RealtimeDeliveryChanged && hint.Message != nil:
+		data, _ = json.Marshal(gin.H{"thread_id": hint.ThreadID, "message_id": hint.Message.ID, "delivery_status": hint.Message.DeliveryStatus, "delivery_error_reason": hint.Message.DeliveryErrorReason})
+		return "delivery", data
+	}
+	data, _ = json.Marshal(gin.H{"thread_id": hint.ThreadID, "reason": hint.Reason})
+	return "changed", data
+}
+
 // Stream
 // @Summary Stream conversation change hints (SSE)
-// @Description Server-sent events: `ready` on connect, `changed` {thread_id, reason} per change, `resync` when hints may have been lost. Hints carry no message content; refetch through the read endpoints. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.
+// @Description Server-sent events: `ready` on connect; `message` {thread_id, message} for each new stored message (message has the same shape as in the conversation messages response); `delivery` {thread_id, message_id, delivery_status, delivery_error_reason}; `changed` {thread_id, reason} when the conversation list should refresh; `resync` when events may have been lost and clients must refetch. PostgreSQL stays authoritative; clients dedupe by message id. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.
 // @Tags Messaging
 // @Produce text/event-stream
 // @Security BearerAuth
@@ -81,11 +102,7 @@ func (ctrl *ConversationStreamController) Stream(c *gin.Context) {
 				return
 			}
 		case hint := <-sub.C:
-			data, _ := json.Marshal(hint)
-			event := "changed"
-			if hint.ThreadID == "" {
-				event = "resync"
-			}
+			event, data := streamFrame(hint)
 			if !write("event: %s\ndata: %s\n\n", event, data) {
 				return
 			}

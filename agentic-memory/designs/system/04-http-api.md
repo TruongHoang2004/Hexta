@@ -70,7 +70,7 @@ Cursor pagination for conversations/messages/scripts must have a stable order an
 | POST /simulation/{connector}/events | normalized fixture | development/demo credentials, simulated connector only |
 | GET /tenants/{tenant}/conversations | cursor, assignee/unassigned/needs_human filters | paginated thread/current-turn summaries |
 | GET /tenants/{tenant}/conversations/{id}/messages | cursor, turn | message and delivery states, no provider secrets |
-| GET /tenants/{tenant}/conversations/stream | none | IMPLEMENTED SSE (`ready`, `changed` {thread_id, reason}, `resync`, `reconnect`); hints only, no content; max 5 streams per user and tenant; closes after about 10 minutes |
+| GET /tenants/{tenant}/conversations/stream | none | IMPLEMENTED SSE: `message` (whole stored message, API message shape), `delivery` (message id + new state), `changed` (list refresh trigger), `resync`, `ready`, `reconnect`; PostgreSQL stays authoritative and clients dedupe by message id; max 5 streams per user and tenant; closes after about 10 minutes |
 | POST /tenants/{tenant}/turns/{id}/claim | expected_version | updated turn or 409; atomic self-claim |
 | POST /tenants/{tenant}/turns/{id}/assign | assignee_id, expected_version | owner permission; current membership required |
 | POST /tenants/{tenant}/turns/{id}/return-to-system | expected_version | assigned sale; does not replay old sends |

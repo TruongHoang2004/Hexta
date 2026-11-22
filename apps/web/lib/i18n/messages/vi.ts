@@ -66,6 +66,7 @@ export const vi = {
     refresh: "Làm mới",
     liveOn: "Đang cập nhật trực tiếp",
     liveOff: "Đang kết nối lại…",
+    newMessages: "Có tin nhắn mới ↓",
     listLabel: "Danh sách hội thoại",
     filterLabel: "Lọc hội thoại",
     filters: { bot: "Bot", needs_human: "Chờ nhân viên", mine: "Của tôi", all: "Tất cả" },

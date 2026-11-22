@@ -14,10 +14,28 @@ import (
 	"github.com/google/uuid"
 )
 
-type MessagingCommandService struct{ repo repository.MessagingStore }
+type MessagingCommandService struct {
+	repo      repository.MessagingStore
+	publisher RealtimePublisher
+}
 
 func NewMessagingCommandService(repo repository.MessagingStore) *MessagingCommandService {
 	return &MessagingCommandService{repo: repo}
+}
+
+// WithPublisher pushes every newly stored message to connected clients after its transaction commits.
+func (s *MessagingCommandService) WithPublisher(publisher RealtimePublisher) *MessagingCommandService {
+	s.publisher = publisher
+	return s
+}
+
+// announce publishes a committed, newly created message. Replays and failed transactions announce nothing, and
+// a publish failure never affects the command: clients repair gaps by refetching on reconnect.
+func (s *MessagingCommandService) announce(ctx context.Context, message *types.MessagingMessage, fresh bool, err *apperrors.Error) {
+	if s.publisher == nil || err != nil || !fresh || message == nil {
+		return
+	}
+	_ = s.publisher.Publish(ctx, message.TenantID, types.RealtimeHint{ThreadID: message.ThreadID, Reason: types.RealtimeMessageCreated, Message: message})
 }
 func (s *MessagingCommandService) authorized(ctx context.Context, tenant, actor string, fn func(repository.MessagingStore, bool) *apperrors.Error) *apperrors.Error {
 	if actor == "" {
@@ -52,6 +70,7 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 		Input types.MessagingInbound
 	}{actor, input})
 	var result *types.MessagingMessage
+	fresh := false
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
 		now := time.Now().UTC()
 		thread, err := r.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: tenant, ExternalKey: input.ExternalKey, DisplayName: input.DisplayName, CreatedAt: now, UpdatedAt: now})
@@ -87,12 +106,14 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 		if err := r.InsertMessage(ctx, *result); err != nil {
 			return err
 		}
+		fresh = true
 		thread.UpdatedAt = now
 		if err := r.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
 		return r.Audit(ctx, tenant, actor, "messaging.simulated_inbound", "messaging_thread", thread.ID, map[string]string{"message_id": result.ID})
 	})
+	s.announce(ctx, result, fresh, err)
 	return result, err
 }
 
@@ -213,6 +234,7 @@ func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, ac
 		Input       replyFingerprint
 	}{actor, id, replyFingerprint{input.ExpectedVersion, input.ContextRevision, input.AssigneeID, input.Body, input.RequestKey}})
 	var result *types.MessagingMessage
+	fresh := false
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
 		turn, err := messagingLockedTurn(ctx, r, tenant, id)
 		if err != nil {
@@ -247,6 +269,7 @@ func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, ac
 		if err := r.InsertMessage(ctx, *result); err != nil {
 			return err
 		}
+		fresh = true
 		turn.Version++
 		turn.ContextRevision++
 		turn.LastActivityAt = now
@@ -263,6 +286,7 @@ func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, ac
 		}
 		return r.Audit(ctx, tenant, actor, "messaging.simulated_reply", "messaging_turn", id, map[string]string{"message_id": result.ID})
 	})
+	s.announce(ctx, result, fresh, err)
 	return result, err
 }
 
@@ -280,6 +304,7 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 	}
 	hash := messagingHash(struct{ Actor, Turn, Text string }{actor, id, input.Text})
 	var result *types.MessagingMessage
+	fresh := false
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
 		turn, err := messagingLockedTurn(ctx, r, tenant, id)
 		if err != nil {
@@ -321,6 +346,7 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 		if err := r.InsertMessage(ctx, *result); err != nil {
 			return err
 		}
+		fresh = true
 		intent := types.OutboundIntent{ID: messagingID(), TenantID: tenant, ConnectionID: conn.ID, MessageID: result.ID, ClientMessageID: input.ClientMessageID, RequestHash: hash, RecipientID: thread.RecipientID, Status: types.IntentPending, CreatedAt: now, UpdatedAt: now}
 		attempt := types.OutboundAttempt{ID: messagingID(), TenantID: tenant, IntentID: intent.ID, Status: types.IntentPending, ConnectionVersion: conn.Version, CreatedAt: now}
 		payload, _ := json.Marshal(outbound.IntentEvent{SchemaVersion: 1, IntentID: intent.ID, AttemptID: attempt.ID, CorrelationID: result.ID, TenantID: tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: input.Text, IssuedAt: now, ExpiresAt: now.Add(outboundIntentTTL)})
@@ -340,5 +366,6 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 		}
 		return r.Audit(ctx, tenant, actor, "messaging.channel_reply", "messaging_turn", id, map[string]string{"message_id": result.ID, "intent_id": intent.ID})
 	})
+	s.announce(ctx, result, fresh, err)
 	return result, err
 }

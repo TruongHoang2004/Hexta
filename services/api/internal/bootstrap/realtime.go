@@ -12,7 +12,7 @@ import (
 // BuildRealtime owns the SSE fan-out hub and its Redis subscription for the API process lifetime.
 func BuildRealtime() fx.Option {
 	return fx.Options(
-		fx.Provide(service.NewConversationStreamHub, cache.NewRealtimeBusFromRedis),
+		fx.Provide(service.NewConversationStreamHub),
 		fx.Invoke(registerConversationStreamHub),
 	)
 }

@@ -66,6 +66,7 @@ export const en: Messages = {
     refresh: "Refresh",
     liveOn: "Live updates on",
     liveOff: "Reconnecting…",
+    newMessages: "New messages ↓",
     listLabel: "Conversation list",
     filterLabel: "Filter conversations",
     filters: { bot: "Bot", needs_human: "Waiting for staff", mine: "Mine", all: "All" },

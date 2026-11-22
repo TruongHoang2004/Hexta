@@ -6,7 +6,7 @@ import { secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useChannelConnections } from "../../hooks/use-channel-connections";
-import { useConversationStream, type StreamChange } from "../../hooks/use-conversation-stream";
+import { useConversationStream } from "../../hooks/use-conversation-stream";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
 import { ConversationList } from "./conversation-list";
@@ -21,17 +21,10 @@ export function InboxScreen() {
   const [refresh, setRefresh] = useState(0);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [selected, setSelected] = useState("");
-  // Realtime hints: `liveList` refreshes the list, `liveThread` only when the open conversation is affected.
+  // Pushed events reach the open conversation through `subscribe`; the list refreshes quietly from them.
   const [liveList, setLiveList] = useState(0);
-  const [liveThread, setLiveThread] = useState(0);
-  const onStreamChange = useCallback(
-    (change: StreamChange) => {
-      setLiveList((v) => v + 1);
-      if (change.resync || (selected && change.threads.has(selected))) setLiveThread((v) => v + 1);
-    },
-    [selected],
-  );
-  const streamStatus = useConversationStream(tenantID, onStreamChange);
+  const onListChange = useCallback(() => setLiveList((v) => v + 1), []);
+  const { status: streamStatus, subscribe } = useConversationStream(tenantID, onListChange);
   const list = useInboxConversations(tenantID, refresh, liveList);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
@@ -76,7 +69,7 @@ export function InboxScreen() {
             members={members}
             connections={connections}
             externalRefresh={detailRefresh}
-            live={liveThread}
+            subscribe={subscribe}
             onChanged={reloadList}
           />
         ) : (

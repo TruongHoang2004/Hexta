@@ -1407,7 +1407,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Server-sent events: ` + "`" + `ready` + "`" + ` on connect, ` + "`" + `changed` + "`" + ` {thread_id, reason} per change, ` + "`" + `resync` + "`" + ` when hints may have been lost. Hints carry no message content; refetch through the read endpoints. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.",
+                "description": "Server-sent events: ` + "`" + `ready` + "`" + ` on connect; ` + "`" + `message` + "`" + ` {thread_id, message} for each new stored message (message has the same shape as in the conversation messages response); ` + "`" + `delivery` + "`" + ` {thread_id, message_id, delivery_status, delivery_error_reason}; ` + "`" + `changed` + "`" + ` {thread_id, reason} when the conversation list should refresh; ` + "`" + `resync` + "`" + ` when events may have been lost and clients must refetch. PostgreSQL stays authoritative; clients dedupe by message id. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.",
                 "produces": [
                     "text/event-stream"
                 ],

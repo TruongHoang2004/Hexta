@@ -2,8 +2,8 @@
 
 ## 2026-11-22 — Realtime inbox updates (in review)
 
-- New SSE route `GET /tenants/{tenantID}/conversations/stream` pushes content-free hints; the web inbox refetches the list and the open conversation, with quiet reloads, automatic reconnect and a status label.
-- Hints flow projector/delivery → Redis pub/sub → API hub → streams, published only after the read model is updated; lost hints are repaired by `resync` on reconnect. `ingress` gains `REDIS_ADDR` in compose.
+- New SSE route `GET /tenants/{tenantID}/conversations/stream` pushes each newly stored message whole (and delivery updates), so a customer message appears in the staff member's open chat at once; the conversation list refreshes quietly. Automatic reconnect, `resync` after gaps, connection status label.
+- Messages are published after commit by `ingress` (real channels) and `messaging-command` (simulator and staff replies) over Redis pub/sub to an in-process hub in the API; PostgreSQL stays authoritative. `ingress` gains `REDIS_ADDR` in compose.
 - Details and evidence: [session](epics/EPIC-004-messaging/sessions/2026-11-22_messaging-realtime.md).
 
 ## 2026-11-22 — Messaging read/write split (CQRS, in review)

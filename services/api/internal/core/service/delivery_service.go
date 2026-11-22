@@ -30,7 +30,7 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid outbound result")
 	}
-	var thread string
+	var thread, messageID string
 	err := s.store.Within(ctx, func(r repository.DeliveryStore) *apperrors.Error {
 		intent, err := r.Intent(ctx, e.TenantID, e.IntentID)
 		if err != nil || intent == nil || intent.ConnectionID != e.ConnectionID {
@@ -58,6 +58,7 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 			return err
 		}
 		if s.publisher != nil {
+			messageID = intent.MessageID
 			if thread, err = r.ThreadOfMessage(ctx, e.TenantID, intent.MessageID); err != nil {
 				return err
 			}
@@ -69,7 +70,8 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 	})
 	if err == nil && thread != "" && s.publisher != nil {
 		// Best effort after commit; clients resynchronize on reconnect.
-		_ = s.publisher.Publish(ctx, e.TenantID, types.RealtimeHint{ThreadID: thread, Reason: types.RealtimeDeliveryChanged})
+		update := &types.MessagingMessage{ID: messageID, ThreadID: thread, DeliveryStatus: e.Status, DeliveryErrorReason: e.ErrorCategory}
+		_ = s.publisher.Publish(ctx, e.TenantID, types.RealtimeHint{ThreadID: thread, Reason: types.RealtimeDeliveryChanged, Message: update})
 	}
 	return err
 }

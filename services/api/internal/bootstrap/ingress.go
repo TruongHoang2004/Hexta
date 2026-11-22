@@ -29,7 +29,7 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 	}
 	brokers := strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
 	store := repository.NewIngressRepository(db)
-	consumer := service.NewIngressService(store)
+	ingressService := service.NewIngressService(store)
 	deliveryStore := repository.NewDeliveryRepository(db)
 	delivery := service.NewDeliveryService(deliveryStore)
 	views := repository.NewConversationViewRepository(db)
@@ -39,6 +39,7 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 		bus := cache.NewRealtimeBusForAddr(addr)
 		defer bus.Close()
 		projector.WithPublisher(bus)
+		ingressService.WithPublisher(bus)
 		delivery.WithPublisher(bus)
 	}
 	consumers := []struct {
@@ -51,7 +52,7 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 			if json.Unmarshal(value, &e) != nil || e.Validate() != nil {
 				return false, nil
 			}
-			return true, func() *apperrors.Error { return consumer.Consume(ctx, e) }
+			return true, func() *apperrors.Error { return ingressService.Consume(ctx, e) }
 		}},
 		{"hexta-api-outbound-result-v1", outbound.ResultTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
 			var e outbound.ResultEvent
