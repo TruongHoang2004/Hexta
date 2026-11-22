@@ -45,7 +45,7 @@ export const vi = {
     switchTo: "Chuyển sang {language}",
   },
   shell: {
-    businessWorkspace: "Không gian làm việc",
+    businessWorkspace: "Workspace",
     yourAccount: "Tài khoản của bạn",
     changeWorkspace: "Đổi workspace",
     navLabel: "Điều hướng workspace",
@@ -534,7 +534,7 @@ export const vi = {
     back: "Về danh sách workspace",
   },
   workspaces: {
-    title: "Không gian làm việc",
+    title: "Workspace",
     description: "Mở workspace đang hoạt động hoặc đăng ký workspace mới cho doanh nghiệp.",
     hub: "Workspace",
     reviewPortal: "Trang duyệt của Hexta →",
@@ -634,7 +634,7 @@ export const vi = {
   registerWorkspace: {
     back: "Workspace",
     title: "Đăng ký workspace cho doanh nghiệp",
-    description: "Tạo một không gian làm việc riêng để quản lý hội thoại, đơn hàng, khách hàng và quy trình.",
+    description: "Tạo một Workspace riêng để quản lý hội thoại, đơn hàng, khách hàng và quy trình.",
     badge: "Thiết lập",
     includedTitle: "Workspace có gì",
     includedBody: "Mỗi workspace có sẵn các phần sau.",
@@ -726,7 +726,7 @@ export const vi = {
     callbackFailed: "Đăng nhập thất bại: không tìm thấy token.",
   },
   meta: {
-    title: "Hexta — Không gian làm việc bán hàng",
+    title: "Hexta — Workspace bán hàng",
     description: "Quản lý hội thoại, khách hàng, sản phẩm và đơn hàng trong workspace của doanh nghiệp.",
   },
   nav: {
@@ -740,5 +740,10 @@ export const vi = {
     members: "Thành viên",
     channels: "Kênh kết nối",
     plan: "Gói dịch vụ",
+    groups: {
+      conversations: "Hội thoại",
+      sales: "Bán hàng",
+      operations: "Vận hành",
+    },
   },
 } as const;

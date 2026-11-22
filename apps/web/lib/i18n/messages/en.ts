@@ -740,5 +740,10 @@ export const en: Messages = {
     members: "Members",
     channels: "Channels",
     plan: "Service plan",
+    groups: {
+      conversations: "Conversations",
+      sales: "Sales",
+      operations: "Operations",
+    },
   },
 };

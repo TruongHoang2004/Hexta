@@ -1,2 +1,5 @@
-import { Catalog } from "@/components/sales/catalog";
-export default function Page() { return <Catalog kind="products" />; }
+import { CatalogScreen } from "@/modules/sales";
+
+export default function Page() {
+  return <CatalogScreen kind="products" />;
+}

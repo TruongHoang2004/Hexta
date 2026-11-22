@@ -1,2 +1,5 @@
-import { Orders } from "@/components/sales/orders";
-export default function Page() { return <Orders />; }
+import { OrdersScreen } from "@/modules/sales";
+
+export default function Page() {
+  return <OrdersScreen />;
+}

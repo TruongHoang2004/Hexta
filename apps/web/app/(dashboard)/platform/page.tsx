@@ -12,7 +12,7 @@ import {
   StatusChip,
   Tabs,
   secondaryClass,
-} from "@/components/sales/primitives";
+} from "@/components/primitives";
 
 type Status = Application["status"];
 

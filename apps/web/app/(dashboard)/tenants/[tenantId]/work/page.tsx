@@ -1,4 +1,5 @@
-import { WorkItems } from "@/components/sales/work-items";
+import { WorkScreen } from "@/modules/operations";
+
 export default function Page() {
-  return <WorkItems />;
+  return <WorkScreen />;
 }

@@ -1,4 +1,5 @@
-import { Storefront } from "@/components/consultant/storefront";
+import { StorefrontScreen } from "@/modules/conversations";
+
 export default function Page() {
-  return <Storefront />;
+  return <StorefrontScreen />;
 }
