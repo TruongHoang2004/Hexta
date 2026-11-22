@@ -13,6 +13,8 @@ This directory provides automated End-to-End (E2E) integration test suites and h
 | **End-to-End (E2E)** | [`e2e/`](e2e/) | [`httpexpect/v2`](https://github.com/gavv/httpexpect) | Full HTTP API integration flows against live running services. |
 | **Stress Testing** | [`stress/`](stress/) / [`cmd/`](cmd/) | [`vegeta/v12`](https://github.com/tsenart/vegeta) | High-concurrency load and latency testing. |
 | **Mock Fixtures** | [`mock/`](mock/) | Go Mock Generators | Reusable test data generators for users and requests. |
+| **Mock providers** | [`mockplatform/`](mockplatform/), [`cmd/mockplatform/`](cmd/mockplatform/) | stdlib HTTP | Simulated Meta Graph API and Telegram Bot API for local runs and load tests. |
+| **Channel load** | [`cmd/loadgen/`](cmd/loadgen/) | stdlib HTTP + pgx | Signed webhook load into the connector with lost/duplicate/latency checks. |
 | **Test Config** | [`config/`](config/) | Go Config | Target base URL and environment bindings. |
 
 ---
@@ -65,6 +67,31 @@ Default stress parameters attack the target endpoint at 50 requests/second for 3
 
 ---
 
+## Mock providers and load generator
+
+`mockplatform` stands in for Meta and Telegram so the connector can run without provider accounts. It implements what the connector calls (Graph `dialog/oauth`, `oauth/access_token`, `me/accounts`, `{page}/subscribed_apps`, `{page}/messages`; Bot API `getMe`, `setWebhook`, `deleteWebhook`, `sendMessage`), builds provider-shaped webhooks independently of the connector parser, and signs Facebook webhooks with the shared app secret.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | Customer chat page for manual runs |
+| `POST /mock/customers/{facebook,telegram}` | Send a customer message `{account_id, customer, text}` or a photo (`media: "image"`) to the connector |
+| `GET /mock/messages?platform&account&customer&after` | Customer messages and sends received from the connector |
+| `GET`/`PUT /mock/faults` | Send latency (global or per Page/bot ID), error rate and kind: `server_error`, `rate_limit`, `blocked`, `auth_expired`, `chat_not_found`, `window_24h` |
+| `GET /mock/state`, `GET /mock/stats` | Pages, bots and webhook state; counters |
+| `GET /mock/telegram/webhook?bot=` | A bot's webhook URL and secret, for `loadgen` only |
+
+Faults apply to sends only. Page tokens are derived from the app secret, so they survive a mock restart; Telegram webhooks do not. Nothing logs tokens, secrets or message text.
+
+`loadgen` posts webhooks at a fixed open-loop rate (at most 512 in flight; the report shows schedule lag if it falls behind). Each text starts with `lg:<run>:<seq>`. With `-db` it polls `messaging_messages` read-only during and after the attack and reports lost and duplicate messages and webhook → visible latency, precise to `-poll` (default 200ms). The API stores the provider timestamp, not its commit time, so latency is measured from the first poll that saw the row. Each poll rereads the run's rows; long T1 runs need an API-side commit timestamp first.
+
+Run both inside the local Compose network; see [the demo runbook](../infrastructure/README.demo.md#channels-mock-providers-and-live-telegram). For T1/T2, raise `-rate`, `-duration` and `-customers`; for T5, stop Kafka (`./scripts/local.sh stop kafka`) during a run and start it again. Outbound load (T3) is not implemented yet.
+
+```sh
+go test -race ./mockplatform/...
+```
+
+---
+
 ## 🛠 Useful Commands
 
 | Command | Action |
@@ -81,4 +108,4 @@ Default stress parameters attack the target endpoint at 50 requests/second for 3
 ## 🔗 Repository & Contributing
 
 Maintained within the [Hexta monorepo](https://github.com/TruongHoang2004/Hexta).
-All tests must follow the project rules in [`GEMINI.md`](../GEMINI.md) and use English for test cases, logs, and assertions.
+All tests must follow the project rules in [`AGENTS.md`](../AGENTS.md) and use English for test cases, logs, and assertions.

@@ -4,7 +4,7 @@ This is the primary runbook for the current runnable system: Next.js web, Go API
 
 ## Requirements and first start
 
-Install Docker Engine/Desktop with Compose v2, start the engine, and open a POSIX shell (macOS/Linux/WSL) at the repository root. Ensure ports 3000, 8080, 55433, 56379, 58000, 55051, 58091 and 59092 are free. The first build downloads Go/Node/Python dependencies and needs network access. Resource needs depend on the host; this is not a measured VPS sizing recommendation.
+Install Docker Engine/Desktop with Compose v2, start the engine, and open a POSIX shell (macOS/Linux/WSL) at the repository root. Ensure ports 3000, 8080, 55433, 56379, 58000, 55051, 58091, 58092 and 59092 are free (and 58090 with `--mock`). The first build downloads Go/Node/Python dependencies and needs network access. Resource needs depend on the host; this is not a measured VPS sizing recommendation.
 
 ```sh
 make up      # same as ./scripts/local.sh up --build -d --wait
@@ -26,7 +26,8 @@ Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atl
 | AI gRPC | 127.0.0.1:55051 | Internal StartRun/GetRun/CancelRun |
 | PostgreSQL | 127.0.0.1:55433 | Database hexta_demo; local-only user hexta_demo/password local-demo-only |
 | Redis | 127.0.0.1:56379 | Local application cache |
-| Connector | http://127.0.0.1:58091 | Channel webhooks/management (placeholder Meta app; no live channel) |
+| Connector | http://127.0.0.1:58091 | Channel webhooks/management (placeholder Meta app unless `--mock`; see [Channels](#channels-mock-providers-and-live-telegram)) |
+| Webhook proxy | http://127.0.0.1:58092 | Only `/webhooks/*`, for a temporary tunnel to the connector |
 | Kafka | 127.0.0.1:59092 | Host bootstrap address; containers use kafka:9092 |
 
 Open `/register`, create an account, sign in, and open `/tenants`. No initial owner account or production seed data is injected. `NEXT_PUBLIC_API_URL` is baked into the web image as `http://localhost:8080`; changing it requires a web rebuild. Browser localhost and container names are different: API connects to `postgres:5432` and `redis:6379`, never host loopback. Google login is not configured in this profile. Legacy Go AI HTTP routes are unregistered in this keyless demo; Python messaging integration remains separate.
@@ -107,6 +108,44 @@ Owners create email-addressed invitations in Members & invitations. The UI retur
 The first demo stops at confirmation. Workflow/handoff, cancellation/return cases, dashboard, messaging and AI/channel integration are later slices. No stock reservation, payment collection, customer sending, key setup or generated data is required. The previous generic order status/payment HTTP routes are removed; API clients must use explicit draft save and confirmation. Swagger documents the current routes.
 
 Step-by-step acceptance checks for an evening test session: [manual demo checklist](TESTING.demo.md).
+
+## Channels: mock providers and live Telegram
+
+Facebook and Telegram send/receive need a provider. Locally there are two modes; switch by recreating the connector and API.
+
+**Mock providers (no accounts, no public URL).** `./scripts/local.sh --mock …` adds [`compose.mock.yml`](compose.mock.yml): a `mockplatform` service ([test/mockplatform](../test/mockplatform)) that speaks the Meta Graph API and Telegram Bot API, and points the connector and API at it. Pass `--mock` on every command so the overlay stays applied.
+
+```sh
+./scripts/local.sh --mock up --build -d --wait
+```
+
+1. In a tenant you own, open Settings → Channels.
+   - Telegram: paste any well-formed token such as `123456789:` followed by 35 letters or digits; the mock accepts it as bot `123456789`.
+   - Facebook: Connect, then Continue on the mock consent page at `localhost:58090`, then pick a "Mock Shop" Page.
+2. Open http://localhost:58090, choose the Page or bot, and send a message as a customer (text or photo). It appears in Desk.
+3. Claim the conversation in Desk and reply; the reply appears on the mock page and Desk shows Sent.
+4. Use "Send faults" on the mock page to make sends fail (`blocked` → Failed, `server_error` → Unknown) or slow down.
+
+The mock keeps state in memory. After it restarts, Facebook Pages keep working (their tokens are deterministic), but Telegram bots lose their webhook until you pause and resume them in Hexta. The `meta_app_secret` local secret signs mock Facebook webhooks, as Meta's app secret would.
+
+**Live Telegram through a tunnel.** Telegram needs a public HTTPS webhook. Without `--mock`, the connector calls the real Bot API and registers `TELEGRAM_WEBHOOK_BASE_URL`. `webhook-proxy` publishes only `/webhooks/*` on `127.0.0.1:58092`, so the tunnel never exposes the connector's `/internal/*` API.
+
+```sh
+cloudflared tunnel --url http://localhost:58092   # separate terminal; prints https://<random>.trycloudflare.com
+# Add TELEGRAM_WEBHOOK_BASE_URL=https://<random>.trycloudflare.com to infrastructure/.env.local, then:
+./scripts/local.sh up -d --wait connector api webhook-proxy
+```
+
+Connect a real bot token from @BotFather in Settings → Channels, message the bot from Telegram, and reply from Desk. A quick tunnel URL changes on every start: update the variable, recreate the connector, then pause and resume the bot so its webhook is registered again. Remove the variable (and pause or disconnect the bot) when done. Facebook live needs a real Meta app and is not covered here.
+
+**Load generator.** The `mockplatform` image also contains `loadgen`, which posts signed webhooks straight to the connector at a fixed rate and checks the API database (read-only) for lost or duplicate messages and webhook → visible latency. Connect a mock Page or bot first, then:
+
+```sh
+./scripts/local.sh --mock run --rm --no-deps mockplatform ./loadgen -platform telegram -account <bot id> \
+  -rate 20 -duration 30s -db 'postgresql://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable'
+```
+
+Use `-platform facebook -account 1000000000000001` for the first mock Page. Results on Docker Desktop are not VPS capacity measurements; see [test/README.md](../test/README.md#mock-providers-and-load-generator).
 
 ## Atlas for all current services
 

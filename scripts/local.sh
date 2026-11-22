@@ -36,7 +36,13 @@ for pair in connector_management_token:LOCAL_CONNECTOR_MANAGEMENT_TOKEN connecto
     key=${pair#*:}
     (umask 022; grep "^$key=" "$env_file" | head -n 1 | cut -d= -f2- | tr -d '\n' > "$secrets_dir/$name")
 done
+# --mock adds the simulated Meta/Telegram providers (infrastructure/compose.mock.yml).
+files="-f infrastructure/compose.demo.yml"
+if [ "${1:-}" = "--mock" ]; then
+    files="$files -f infrastructure/compose.mock.yml"
+    shift
+fi
 if [ "$#" -eq 0 ]; then
     set -- up --build -d --wait
 fi
-exec docker compose --env-file "$env_file" -f infrastructure/compose.demo.yml "$@"
+exec docker compose --env-file "$env_file" $files "$@"

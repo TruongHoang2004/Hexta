@@ -106,14 +106,19 @@ func Run(ctx context.Context) error {
 			case <-workerCtx.Done():
 				return
 			case <-ticker.C:
-				v, err := store.Claim(workerCtx)
-				if err != nil {
-					continue
+				// Drain the backlog; wait for the next tick only once it is empty or a publish fails.
+				for {
+					v, err := store.Claim(workerCtx)
+					if err != nil {
+						break
+					}
+					call, stop := context.WithTimeout(workerCtx, 10*time.Second)
+					err = service.Publish(call, pub, v.Payload)
+					stop()
+					if store.Finish(workerCtx, v, err == nil) != nil || err != nil {
+						break
+					}
 				}
-				call, stop := context.WithTimeout(workerCtx, 10*time.Second)
-				err = service.Publish(call, pub, v.Payload)
-				stop()
-				_ = store.Finish(workerCtx, v, err == nil)
 			}
 		}
 	}()

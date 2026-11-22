@@ -32,6 +32,6 @@ connector:
   url: http://connector:8091
   management_token: ${CONNECTOR_MANAGEMENT_TOKEN}
 facebook:
-  app_id: facebook-disabled
+  app_id: ${META_APP_ID}
   graph_version: v21.0
-  dialog_url: ''
+  dialog_url: ${META_OAUTH_DIALOG_URL}

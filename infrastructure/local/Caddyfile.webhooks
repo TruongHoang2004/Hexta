@@ -1,0 +1,19 @@
+# Local webhook edge for a temporary tunnel (see README.demo.md). Only provider webhooks reach the connector;
+# its /internal/* control plane is never routed.
+{
+	auto_https off
+	admin off
+}
+
+:8092 {
+	@webhooks path /webhooks/facebook /webhooks/telegram/*
+	handle @webhooks {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy connector:8091
+	}
+	handle {
+		respond 404
+	}
+}

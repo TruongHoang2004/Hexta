@@ -1,0 +1,40 @@
+# Mock providers overlay: ./scripts/local.sh --mock <compose args>
+# Points the connector and API at the simulated Meta Graph API and Telegram Bot API (test/mockplatform),
+# so Facebook Pages and Telegram bots can be connected, messaged and answered without real provider access.
+services:
+  mockplatform:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile
+    environment:
+      MOCK_LISTEN_ADDR: 0.0.0.0:8090
+      MOCK_APP_ID: mock-app
+      MOCK_APP_SECRET_FILE: /run/secrets/meta_app_secret
+      MOCK_CONNECTOR_URL: http://connector:8091
+    secrets:
+      - meta_app_secret
+    ports:
+      - "127.0.0.1:58090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+  connector:
+    depends_on:
+      mockplatform:
+        condition: service_healthy
+    environment:
+      META_APP_ID: mock-app
+      META_GRAPH_URL: http://mockplatform:8090
+      TELEGRAM_API_URL: http://mockplatform:8090
+      # Telegram webhooks stay on the Compose network; the mock delivers them directly.
+      TELEGRAM_WEBHOOK_BASE_URL: http://connector:8091
+  api:
+    environment:
+      META_APP_ID: mock-app
+      # The browser opens the mock consent page, so this is the host-published address.
+      META_OAUTH_DIALOG_URL: http://localhost:58090

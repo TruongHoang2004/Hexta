@@ -153,6 +153,8 @@ services:
       META_APP_ID: facebook-disabled
       META_APP_SECRET_FILE: /run/secrets/meta_app_secret
       META_VERIFY_TOKEN_FILE: /run/secrets/meta_verify_token
+      # Public HTTPS origin forwarded to webhook-proxy (for example a cloudflared tunnel); empty disables Telegram.
+      TELEGRAM_WEBHOOK_BASE_URL: ${TELEGRAM_WEBHOOK_BASE_URL:-}
     secrets:
       - connector_management_token
       - connector_credential_key
@@ -161,6 +163,21 @@ services:
     ports:
       - "127.0.0.1:58091:8091"
     read_only: true
+    security_opt:
+      - no-new-privileges:true
+  # Only the provider webhooks, for a tunnel to http://localhost:58092; never /internal/*.
+  webhook-proxy:
+    image: caddy:2.8-alpine
+    depends_on:
+      - connector
+    volumes:
+      - ./local/Caddyfile.webhooks:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:58092:8092"
+    read_only: true
+    tmpfs:
+      - /config
+      - /data
     security_opt:
       - no-new-privileges:true
   # Kafka consumer: ingress events, outbound results and connector health.
@@ -187,6 +204,9 @@ services:
       kafka-topics:
         condition: service_completed_successfully
     environment:
+      # Overridden by compose.mock.yml; the placeholder keeps Facebook connect inert.
+      META_APP_ID: facebook-disabled
+      META_OAUTH_DIALOG_URL: ""
       JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
       JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
       CONNECTOR_MANAGEMENT_TOKEN: ${LOCAL_CONNECTOR_MANAGEMENT_TOKEN:?Set LOCAL_CONNECTOR_MANAGEMENT_TOKEN}
