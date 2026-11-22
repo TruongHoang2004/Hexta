@@ -18,9 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
@@ -116,7 +117,7 @@ func TestConnectorTelegramConnectIngressSendAndResults(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 	defer cancel()
-	createTopics(t, ctx, broker, ingress.Topic, outbound.IntentTopic, outbound.ResultTopic, outbound.HealthTopic)
+	createTopics(t, ctx, broker, messaging.MessageReceivedTopic, delivery.SendRequestedTopic, delivery.SendCompletedTopic, connection.HealthChangedTopic)
 
 	bot := time.Now().UnixNano() % 1_000_000_000_000
 	botID := strconv.FormatInt(bot, 10)
@@ -198,9 +199,9 @@ func TestConnectorTelegramConnectIngressSendAndResults(t *testing.T) {
 	consumerDone := make(chan error, 1)
 	go func() { consumerDone <- RunIngress(ctx, db) }()
 	defer func() { cancel(); <-consumerDone }()
-	intents := kafkatransport.NewTopicPublisher([]string{broker}, outbound.IntentTopic)
+	intents := kafkatransport.NewTopicPublisher([]string{broker}, delivery.SendRequestedTopic)
 	defer intents.Writer.Close()
-	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), &fakeKafka{}).WithIntentPublisher(intents)
+	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), intentsOnly{intents})
 
 	update := 0
 	post := func(chat int64, chatType, content, secretHeader string) int {
@@ -257,10 +258,10 @@ func TestConnectorTelegramConnectIngressSendAndResults(t *testing.T) {
 	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	want := map[string][2]string{
 		"9001": {types.DeliverySent, ""},
-		"9002": {types.DeliveryFailed, outbound.ErrorBotBlocked},
-		"9003": {types.DeliveryFailed, outbound.ErrorChatNotFound},
-		"9004": {types.DeliveryUnknown, outbound.ErrorTransport},
-		"9005": {types.DeliveryFailed, outbound.ErrorAuthExpired},
+		"9002": {types.DeliveryFailed, delivery.ErrorBotBlocked},
+		"9003": {types.DeliveryFailed, delivery.ErrorChatNotFound},
+		"9004": {types.DeliveryUnknown, delivery.ErrorTransport},
+		"9005": {types.DeliveryFailed, delivery.ErrorAuthExpired},
 	}
 	expected := map[string][2]string{}
 	for _, thread := range threads {

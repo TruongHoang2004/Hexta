@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"testing"
 	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,49 +43,58 @@ func (s *fakeOutboxStore) FinishEvent(ctx context.Context, event *model.DomainEv
 }
 
 type fakePublisher struct {
+	topics []string
 	keys   []string
 	values [][]byte
 	err    error
 	ctxOK  bool
 }
 
-func (p *fakePublisher) Publish(ctx context.Context, key string, value []byte) error {
+func (p *fakePublisher) PublishTo(ctx context.Context, topic, key string, value []byte) error {
 	_, p.ctxOK = ctx.Deadline()
+	p.topics = append(p.topics, topic)
 	p.keys = append(p.keys, key)
 	p.values = append(p.values, value)
 	return p.err
 }
 
-func outboxEvent() *model.DomainEvent {
-	return &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000001", TenantID: "tenant", EventType: model.DomainEventOrderConfirmed, AggregateID: "order-1", Payload: `{"order_id":"order-1","version":2}`, Fence: 1, CreatedAt: time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC)}
+func meta(id string) events.Meta {
+	return events.Meta{EventID: id, CorrelationID: "8b0f1c1e-0000-4000-8000-0000000000ff", TenantID: "tenant", OccurredAt: time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC)}
 }
 
-func TestOutboxRelayPublishesVersionedEnvelopeKeyedByAggregate(t *testing.T) {
-	store := &fakeOutboxStore{events: []*model.DomainEvent{outboxEvent()}}
+func row(t *testing.T, id, topic, aggregate string, payload any) *model.DomainEvent {
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+	return &model.DomainEvent{ID: id, TenantID: "tenant", EventType: topic, AggregateID: aggregate, Payload: string(b), Fence: 1}
+}
+
+func outboxEvent(t *testing.T) *model.DomainEvent {
+	id := "8b0f1c1e-0000-4000-8000-000000000001"
+	return row(t, id, model.DomainEventOrderConfirmed, "order-1", order.OrderConfirmed{Meta: meta(id), OrderID: "order-1", OrderNumber: "SO-1", Version: 2, TotalAmount: "10.00", ConfirmedBy: "owner"})
+}
+
+func TestOutboxRelayPublishesRawEventToItsTopic(t *testing.T) {
+	event := outboxEvent(t)
+	store := &fakeOutboxStore{events: []*model.DomainEvent{event}}
 	publisher := &fakePublisher{}
 	claimed, err := NewOutboxRelay(store, publisher).RelayOne(context.Background())
 	require.Nil(t, err)
 	require.True(t, claimed)
 	require.True(t, publisher.ctxOK, "publication must be bounded by a timeout")
+	require.Equal(t, []string{order.OrderConfirmedTopic}, publisher.topics)
 	require.Equal(t, []string{"order-1"}, publisher.keys)
-
-	var envelope types.DomainEventEnvelope
-	require.NoError(t, json.Unmarshal(publisher.values[0], &envelope))
-	require.Equal(t, 1, envelope.SchemaVersion)
-	require.Equal(t, "8b0f1c1e-0000-4000-8000-000000000001", envelope.EventID)
-	require.Equal(t, model.DomainEventOrderConfirmed, envelope.EventType)
-	require.Equal(t, "tenant", envelope.TenantID)
-	require.JSONEq(t, `{"order_id":"order-1","version":2}`, string(envelope.Data))
-	require.Equal(t, map[string]bool{envelope.EventID: true}, store.finished)
+	require.JSONEq(t, event.Payload, string(publisher.values[0]), "the payload is the shared event, not an envelope")
+	require.Equal(t, map[string]bool{event.ID: true}, store.finished)
 }
 
 func TestOutboxRelayReleasesFailedPublicationForRetry(t *testing.T) {
-	store := &fakeOutboxStore{events: []*model.DomainEvent{outboxEvent()}}
+	event := outboxEvent(t)
+	store := &fakeOutboxStore{events: []*model.DomainEvent{event}}
 	claimed, err := NewOutboxRelay(store, &fakePublisher{err: stderrors.New("broker unavailable")}).RelayOne(context.Background())
 	require.True(t, claimed)
 	require.NotNil(t, err)
 	require.NotContains(t, err.GetDetail(), "broker unavailable")
-	require.Equal(t, map[string]bool{outboxEvent().ID: false}, store.finished)
+	require.Equal(t, map[string]bool{event.ID: false}, store.finished)
 }
 
 func TestOutboxRelayIdleAndClaimFailure(t *testing.T) {
@@ -98,40 +110,36 @@ func TestOutboxRelayIdleAndClaimFailure(t *testing.T) {
 	require.Empty(t, publisher.keys)
 }
 
-func TestOutboxRelayRoutesIntentsAsRawContractToIntentTopic(t *testing.T) {
-	payload := `{"schema_version":1,"intent_id":"i","connection_id":"conn","recipient_id":"psid","text":"hi"}`
-	intent := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000002", TenantID: "tenant", EventType: model.DomainEventOutboundIntent, AggregateID: "i", Payload: payload, Fence: 1}
-	orders, intents := &fakePublisher{}, &fakePublisher{}
-	store := &fakeOutboxStore{events: []*model.DomainEvent{intent}}
-	claimed, err := NewOutboxRelay(store, orders).WithIntentPublisher(intents).RelayOne(context.Background())
-	require.True(t, claimed)
-	require.Nil(t, err)
-	require.Empty(t, orders.keys, "intents must never reach the order topic")
-	require.Equal(t, []string{"conn:psid"}, intents.keys, "intents are ordered per Page conversation")
-	require.JSONEq(t, payload, string(intents.values[0]), "the connector reads the shared contract, not an envelope")
-
-	// Without an intent publisher the row is released for retry instead of being dropped.
-	store = &fakeOutboxStore{events: []*model.DomainEvent{intent}}
-	claimed, err = NewOutboxRelay(store, orders).RelayOne(context.Background())
-	require.True(t, claimed)
-	require.NotNil(t, err)
-	require.Equal(t, map[string]bool{intent.ID: false}, store.finished)
+func TestOutboxRelayRoutesEachEventToItsOwnTopicAndKey(t *testing.T) {
+	intentID := "8b0f1c1e-0000-4000-8000-000000000002"
+	intentMeta := meta(intentID)
+	intentMeta.TenantID = "8b0f1c1e-0000-4000-8000-0000000000aa"
+	intent := row(t, intentID, model.DomainEventOutboundIntent, "i", delivery.SendRequested{Meta: intentMeta, IntentID: "8b0f1c1e-0000-4000-8000-000000000010", AttemptID: "8b0f1c1e-0000-4000-8000-000000000011", ConnectionID: "8b0f1c1e-0000-4000-8000-000000000012", ConnectionVersion: 1, Platform: "facebook", AccountID: "page", RecipientID: "psid", Text: "hi", ExpiresAt: time.Date(2026, 11, 14, 10, 5, 0, 0, time.UTC)})
+	changeID := "8b0f1c1e-0000-4000-8000-000000000003"
+	change := row(t, changeID, model.DomainEventConversationChanged, "thread-1", messaging.ConversationChanged{Meta: meta(changeID), ThreadID: "thread-1", TurnID: "turn-1", TurnVersion: 1})
+	store := &fakeOutboxStore{events: []*model.DomainEvent{intent, change}}
+	publisher := &fakePublisher{}
+	relay := NewOutboxRelay(store, publisher)
+	for range 2 {
+		claimed, err := relay.RelayOne(context.Background())
+		require.True(t, claimed)
+		require.Nil(t, err)
+	}
+	require.Equal(t, []string{delivery.SendRequestedTopic, messaging.ConversationChangedTopic}, publisher.topics)
+	require.Equal(t, []string{"8b0f1c1e-0000-4000-8000-000000000012:psid", "thread-1"}, publisher.keys, "deliveries are ordered per provider conversation, snapshots per thread")
 }
 
-func TestOutboxRelayRoutesConversationChangesToTheReadModelTopic(t *testing.T) {
-	change := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000003", TenantID: "tenant", EventType: model.DomainEventConversationChanged, AggregateID: "thread-1", Payload: `{"thread_id":"thread-1"}`, Fence: 1}
-	orders, conversations := &fakePublisher{}, &fakePublisher{}
-	store := &fakeOutboxStore{events: []*model.DomainEvent{change}}
-	claimed, err := NewOutboxRelay(store, orders).WithConversationPublisher(conversations).RelayOne(context.Background())
-	require.True(t, claimed)
-	require.Nil(t, err)
-	require.Empty(t, orders.keys, "conversation snapshots must never reach the order topic")
-	require.Equal(t, []string{"thread-1"}, conversations.keys, "snapshots are keyed by thread so one thread stays ordered")
-
-	// Without a conversation publisher the row is released for retry instead of leaking to the order topic.
-	store = &fakeOutboxStore{events: []*model.DomainEvent{change}}
-	claimed, err = NewOutboxRelay(store, orders).RelayOne(context.Background())
-	require.True(t, claimed)
-	require.NotNil(t, err)
-	require.Empty(t, orders.keys)
+func TestOutboxRelayNeverPublishesUnknownTopicsOrInvalidPayloads(t *testing.T) {
+	unknown := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000004", TenantID: "tenant", EventType: "order.confirmed", Payload: `{}`, Fence: 1}
+	invalid := &model.DomainEvent{ID: "8b0f1c1e-0000-4000-8000-000000000005", TenantID: "tenant", EventType: model.DomainEventOrderConfirmed, Payload: `{"order_id":"o"}`, Fence: 1}
+	store := &fakeOutboxStore{events: []*model.DomainEvent{unknown, invalid}}
+	publisher := &fakePublisher{}
+	relay := NewOutboxRelay(store, publisher)
+	for range 2 {
+		claimed, err := relay.RelayOne(context.Background())
+		require.True(t, claimed)
+		require.NotNil(t, err)
+	}
+	require.Empty(t, publisher.topics)
+	require.Equal(t, map[string]bool{unknown.ID: false, invalid.ID: false}, store.finished)
 }

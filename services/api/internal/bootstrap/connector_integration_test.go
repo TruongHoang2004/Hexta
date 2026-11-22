@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -55,7 +55,7 @@ func TestConnectorFacebookToInbox(t *testing.T) {
 	if err != nil {
 		t.Fatal("test broker unavailable")
 	}
-	err = conn.CreateTopics(kafka.TopicConfig{Topic: ingress.Topic, NumPartitions: 1, ReplicationFactor: 1})
+	err = conn.CreateTopics(kafka.TopicConfig{Topic: messaging.MessageReceivedTopic, NumPartitions: 1, ReplicationFactor: 1})
 	conn.Close()
 	if err != nil {
 		t.Fatal(err)

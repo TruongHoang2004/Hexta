@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/postgres"
@@ -30,7 +31,7 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 	store := repository.NewIngressRepository(db)
 	consumer := service.NewIngressService(store)
 	deliveryStore := repository.NewDeliveryRepository(db)
-	delivery := service.NewDeliveryService(deliveryStore)
+	deliveries := service.NewDeliveryService(deliveryStore)
 	views := repository.NewConversationViewRepository(db)
 	projector := service.NewConversationProjector(views)
 	consumers := []struct {
@@ -38,21 +39,21 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 		quarantine   func(context.Context, string, string) error
 		apply        func([]byte) (bool, func() *apperrors.Error)
 	}{
-		{"hexta-api-ingress-v1", ingress.Topic, store.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
-			var e ingress.Event
+		{"hexta-api-ingress-v1", messaging.MessageReceivedTopic, store.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
+			var e messaging.MessageReceived
 			if json.Unmarshal(value, &e) != nil || e.Validate() != nil {
 				return false, nil
 			}
 			return true, func() *apperrors.Error { return consumer.Consume(ctx, e) }
 		}},
-		{"hexta-api-outbound-result-v1", outbound.ResultTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
-			var e outbound.ResultEvent
+		{"hexta-api-outbound-result-v1", delivery.SendCompletedTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
+			var e delivery.SendCompleted
 			if json.Unmarshal(value, &e) != nil || e.Validate() != nil {
 				return false, nil
 			}
-			return true, func() *apperrors.Error { return delivery.ConsumeResult(ctx, e) }
+			return true, func() *apperrors.Error { return deliveries.ConsumeResult(ctx, e) }
 		}},
-		{"hexta-api-conversation-view-v1", types.ConversationEventsTopic, views.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
+		{"hexta-api-conversation-view-v1", messaging.ConversationChangedTopic, views.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
 			tenant, change, ok := projector.Decode(value)
 			if !ok {
 				return false, nil
@@ -62,12 +63,12 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 			}
 			return true, func() *apperrors.Error { return projector.Project(ctx, tenant, *change) }
 		}},
-		{"hexta-api-connector-health-v1", outbound.HealthTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
-			var e outbound.ConnectionHealthEvent
+		{"hexta-api-connector-health-v1", connection.HealthChangedTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
+			var e connection.HealthChanged
 			if json.Unmarshal(value, &e) != nil || e.Validate() != nil {
 				return false, nil
 			}
-			return true, func() *apperrors.Error { return delivery.ConsumeHealth(ctx, e) }
+			return true, func() *apperrors.Error { return deliveries.ConsumeHealth(ctx, e) }
 		}},
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -97,7 +98,7 @@ func consumeTopic(ctx context.Context, reader *kafka.Reader, quarantine func(con
 		}
 		valid, run := apply(m.Value)
 		if !valid {
-			if err := quarantine(ctx, ingress.Hash(string(m.Value)), "invalid_envelope"); err != nil {
+			if err := quarantine(ctx, events.Hash(string(m.Value)), "invalid_envelope"); err != nil {
 				return errors.New("quarantine unavailable")
 			}
 			if err := reader.CommitMessages(ctx, m); err != nil {

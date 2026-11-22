@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/google/uuid"
 	"time"
@@ -25,7 +26,7 @@ type Connection struct {
 	BotToken string `json:"bot_token,omitempty"`
 }
 type Accepted struct {
-	Event  ingress.Event
+	Event  messaging.MessageReceived
 	Reason string
 }
 type InboundStore interface {
@@ -49,7 +50,7 @@ func (s *InboundService) Receive(ctx context.Context, app, platform string, body
 	if len(items) == 0 {
 		return errors.New("empty batch")
 	}
-	return s.Store.Accept(ctx, app, platform, ingress.Hash(platform, string(body)), items, now)
+	return s.Store.Accept(ctx, app, platform, events.Hash(platform, string(body)), items, now)
 }
 
 // ErrInvalidPayload marks a verified callback whose body can never be parsed; retrying it cannot succeed.
@@ -76,10 +77,9 @@ func (s *InboundService) ReceiveConnection(ctx context.Context, c Connection, bo
 		items[i].Event.AccountID = c.AccountID
 		items[i].Event.Recipient = c.AccountID
 	}
-	return s.Store.Accept(ctx, c.AppID, c.Platform, ingress.Hash(c.Platform, c.ID, string(body)), items, now)
+	return s.Store.Accept(ctx, c.AppID, c.Platform, events.Hash(c.Platform, c.ID, string(body)), items, now)
 }
-func Envelope(e ingress.Event, c Connection) ingress.Event {
-	e.SchemaVersion = 1
+func Envelope(e messaging.MessageReceived, c Connection) messaging.MessageReceived {
 	e.EventID = uuid.NewString()
 	e.CorrelationID = e.EventID
 	e.ConnectionID = c.ID

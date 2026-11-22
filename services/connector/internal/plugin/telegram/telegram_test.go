@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 )
 
 func TestParsePrivateTextAndMedia(t *testing.T) {
@@ -14,7 +14,7 @@ func TestParsePrivateTextAndMedia(t *testing.T) {
 		t.Fatal("private text", err, items)
 	}
 	e := items[0].Event
-	if e.Platform != "telegram" || e.Type != ingress.TypeMessage || e.Text != "Xin chào" || e.ConversationKey != "42" || e.Sender != "42" || e.MessageID != "7" || e.SourceIdentity != "message:42:7" || e.ReplyTo != "5" || e.Direction != "inbound" || !e.SourceAt.Equal(time.Unix(1700000000, 0)) {
+	if e.Platform != "telegram" || len(e.UnsupportedMedia) != 0 || e.Text != "Xin chào" || e.ConversationKey != "42" || e.Sender != "42" || e.MessageID != "7" || e.SourceIdentity != "message:42:7" || e.ReplyTo != "5" || e.Direction != "inbound" || !e.SourceAt.Equal(time.Unix(1700000000, 0)) {
 		t.Fatal("text mapping", e)
 	}
 	for body, kind := range map[string]string{
@@ -30,7 +30,7 @@ func TestParsePrivateTextAndMedia(t *testing.T) {
 			t.Fatal("media", body, err, items)
 		}
 		e := items[0].Event
-		if e.Type != ingress.TypeUnsupportedMedia || e.Text != "" || len(e.Attachments) != 1 || e.Attachments[0].Type != kind || !ingress.MediaKinds[kind] {
+		if e.Text != "" || len(e.UnsupportedMedia) != 1 || e.UnsupportedMedia[0] != kind || !messaging.MediaKinds[kind] {
 			t.Fatal("media mapping", body, e)
 		}
 	}

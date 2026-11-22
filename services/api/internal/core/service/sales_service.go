@@ -3,8 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"net/mail"
 	"strings"
+	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -383,6 +386,7 @@ func (s *SalesService) Confirm(ctx context.Context, tenant, actor, id string, ve
 
 // orderConfirmedEvent is committed in the confirmation transaction; the outbox relay publishes it later.
 func orderConfirmedEvent(row *model.Order, actor string) *model.DomainEvent {
-	payload, _ := json.Marshal(types.OrderConfirmed{OrderID: row.ID, OrderNumber: row.OrderNumber, Version: row.Version, TotalAmount: row.TotalAmount, ConfirmedBy: actor})
-	return &model.DomainEvent{ID: uuid.NewString(), TenantID: row.TenantID, EventType: model.DomainEventOrderConfirmed, AggregateID: row.ID, Payload: string(payload), State: model.DomainEventStatePending}
+	meta := events.NewMeta(row.TenantID, "", time.Now())
+	payload, _ := json.Marshal(order.OrderConfirmed{Meta: meta, OrderID: row.ID, OrderNumber: row.OrderNumber, Version: row.Version, TotalAmount: row.TotalAmount.String(), ConfirmedBy: actor})
+	return &model.DomainEvent{ID: meta.EventID, TenantID: row.TenantID, EventType: model.DomainEventOrderConfirmed, AggregateID: row.ID, Payload: string(payload), State: model.DomainEventStatePending}
 }

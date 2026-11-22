@@ -3,7 +3,8 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ func TestDurableAcceptanceDuplicateQuarantineAndFencing(t *testing.T) {
 	s, c := fixtureStore(t)
 	ctx := context.Background()
 	now := time.Now().UTC()
-	e := ingress.Event{Platform: "facebook", AccountID: c.AccountID, ConversationKey: "customer", MessageID: uuid.NewString(), Sender: "customer", Recipient: c.AccountID, Direction: "inbound", Type: "message", Text: "fixture", SourceAt: now, ReceivedAt: now, Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Platform: "facebook", AccountID: c.AccountID, ConversationKey: "customer", MessageID: uuid.NewString(), Sender: "customer", Recipient: c.AccountID, Direction: "inbound", Text: "fixture", SourceAt: now, Meta: events.Meta{OccurredAt: now}, Acquisition: "webhook", Purpose: "live"}
 	e.SourceIdentity = "message:" + e.MessageID
 	items := []plugin.Item{{AccountID: c.AccountID, Event: e}, {AccountID: c.AccountID, Reason: "malformed_item"}, {AccountID: "unknown", Reason: "unsupported_event"}}
 	receipt := uuid.NewString()
@@ -59,7 +60,7 @@ func TestDurableAcceptanceDuplicateQuarantineAndFencing(t *testing.T) {
 	if s.Pool.QueryRow(ctx, "SELECT id,payload FROM connector.events WHERE receipt_id=$1 AND state='pending'", receipt).Scan(&id, &payload) != nil {
 		t.Fatal("durability")
 	}
-	var decoded ingress.Event
+	var decoded messaging.MessageReceived
 	if json.Unmarshal(payload, &decoded) != nil || decoded.TenantID != c.TenantID {
 		t.Fatal("trusted mapping")
 	}
@@ -146,7 +147,7 @@ func TestSyncCheckpointAndCancellation(t *testing.T) {
 }
 
 func fixtureEvent(c service.Connection, now time.Time) plugin.Item {
-	e := ingress.Event{Platform: "facebook", AccountID: c.AccountID, ConversationKey: "customer", MessageID: uuid.NewString(), Sender: "customer", Recipient: c.AccountID, Direction: "inbound", Type: "message", Text: "fixture", SourceAt: now, ReceivedAt: now, Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Platform: "facebook", AccountID: c.AccountID, ConversationKey: "customer", MessageID: uuid.NewString(), Sender: "customer", Recipient: c.AccountID, Direction: "inbound", Text: "fixture", SourceAt: now, Meta: events.Meta{OccurredAt: now}, Acquisition: "webhook", Purpose: "live"}
 	e.SourceIdentity = "message:" + e.MessageID
 	return plugin.Item{AccountID: c.AccountID, Event: e}
 }

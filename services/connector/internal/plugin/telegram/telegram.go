@@ -10,7 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 )
 
@@ -81,7 +82,7 @@ func (TelegramPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 	if m.From != nil && m.From.ID != 0 {
 		sender = strconv.FormatInt(m.From.ID, 10)
 	}
-	e := ingress.Event{Platform: "telegram", Sender: sender, ConversationKey: chat, Direction: "inbound", Type: ingress.TypeMessage, SourceAt: time.Unix(m.Date, 0).UTC(), ReceivedAt: received, Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Platform: "telegram", Sender: sender, ConversationKey: chat, Direction: messaging.DirectionInbound, SourceAt: time.Unix(m.Date, 0).UTC(), Meta: events.Meta{OccurredAt: received}, Acquisition: "webhook", Purpose: "live"}
 	item := plugin.Item{}
 	if m.MessageID > 0 {
 		e.MessageID = strconv.FormatInt(m.MessageID, 10)
@@ -93,22 +94,21 @@ func (TelegramPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 	}
 	for _, media := range mediaKinds {
 		if _, ok := fields[media.field]; ok {
-			e.Attachments = append(e.Attachments, ingress.Attachment{Type: media.kind})
+			e.UnsupportedMedia = append(e.UnsupportedMedia, media.kind)
 		}
 	}
 	switch {
-	case len(e.Attachments) > 0:
+	case len(e.UnsupportedMedia) > 0:
 		// Captions are dropped with the media; only the placeholder kinds are kept.
-		e.Type = ingress.TypeUnsupportedMedia
 	case m.Text != nil:
 		e.Text = *m.Text
-		if len([]rune(e.Text)) > 4000 {
+		if len([]rune(e.Text)) > messaging.MaxTextRunes {
 			item.Reason = "text_too_long"
 		}
 	default:
 		item.Reason = "unsupported_event"
 	}
-	if e.MessageID == "" || m.Date <= 0 || m.Chat.ID == 0 || (e.Type == ingress.TypeMessage && e.Text == "" && item.Reason == "") {
+	if e.MessageID == "" || m.Date <= 0 || m.Chat.ID == 0 || (len(e.UnsupportedMedia) == 0 && e.Text == "" && item.Reason == "") {
 		item.Reason = "invalid_message"
 	}
 	item.Event = e

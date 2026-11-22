@@ -2,15 +2,15 @@ package repository
 
 import (
 	"context"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"gorm.io/gorm"
 )
 
 // ConversationViewStore maintains the conversation read model. Only the projector and repair tooling write it.
 type ConversationViewStore interface {
-	Apply(context.Context, string, types.ConversationChanged) *apperrors.Error
+	Apply(context.Context, string, messaging.ConversationChanged) *apperrors.Error
 	Rebuild(context.Context, string) *apperrors.Error
 	Quarantine(context.Context, string, string) error
 }
@@ -23,7 +23,7 @@ func NewConversationViewRepository(db *gorm.DB) *ConversationViewRepository {
 
 // Apply upserts one snapshot. Replays and out-of-order deliveries are harmless: an older (turn version, thread
 // update time) never overwrites a newer row, while an identical snapshot is re-applied idempotently.
-func (r *ConversationViewRepository) Apply(ctx context.Context, tenant string, e types.ConversationChanged) *apperrors.Error {
+func (r *ConversationViewRepository) Apply(ctx context.Context, tenant string, e messaging.ConversationChanged) *apperrors.Error {
 	err := r.db.WithContext(ctx).Exec(`
 INSERT INTO messaging_conversation_views (tenant_id, thread_id, external_key, display_name, thread_created_at, thread_updated_at,
   connection_id, recipient_id, turn_id, lifecycle, control, assignee_id, needs_human, context_revision, control_generation, turn_version, last_activity_at)

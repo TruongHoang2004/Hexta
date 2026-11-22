@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -130,9 +132,9 @@ func TestTelegramRotatePauseDisconnect(t *testing.T) {
 	requireSalesStatus(t, err, 409)
 
 	// auth_expired from a send result, then rotation with the same bot recovers it.
-	delivery := NewDeliveryService(repository.NewDeliveryRepository(f.db))
-	health := outbound.ConnectionHealthEvent{SchemaVersion: 1, EventID: uuid.NewString(), TenantID: f.tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Status: outbound.ErrorAuthExpired, ErrorCode: "401", OccurredAt: time.Now()}
-	if err := delivery.ConsumeHealth(ctx, health); err != nil {
+	deliveries := NewDeliveryService(repository.NewDeliveryRepository(f.db))
+	health := connection.HealthChanged{Meta: events.Meta{EventID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Status: connection.StatusAuthExpired, ErrorCode: "401"}
+	if err := deliveries.ConsumeHealth(ctx, health); err != nil {
 		t.Fatal(err)
 	}
 	list, _ := s.ListTelegramConnections(ctx, f.tenant, f.owner)
@@ -181,13 +183,13 @@ func TestTelegramIngressAndSend(t *testing.T) {
 		t.Fatal(err)
 	}
 	in := NewIngressService(repository.NewIngressRepository(f.db))
-	e := ingress.Event{SchemaVersion: 1, EventID: uuid.NewString(), CorrelationID: uuid.NewString(), Platform: "telegram", ConnectionID: conn.ID, ConnectionVersion: conn.Version, TenantID: f.tenant, AccountID: "777001", ConversationKey: "4242", MessageID: "7", SourceIdentity: "message:4242:7", Sender: "4242", Recipient: "777001", Direction: "inbound", Type: ingress.TypeMessage, Text: "Xin chào", SourceAt: time.Now(), ReceivedAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Meta: events.Meta{EventID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, Platform: "telegram", ConnectionID: conn.ID, ConnectionVersion: conn.Version, AccountID: "777001", ConversationKey: "4242", MessageID: "7", SourceIdentity: "message:4242:7", Sender: "4242", Recipient: "777001", Direction: "inbound", Text: "Xin chào", SourceAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
 	if err := in.Consume(ctx, e); err != nil {
 		t.Fatal(err)
 	}
 	voice := e
-	voice.EventID, voice.MessageID, voice.SourceIdentity, voice.Type, voice.Text = uuid.NewString(), "8", "message:4242:8", ingress.TypeUnsupportedMedia, ""
-	voice.Attachments = []ingress.Attachment{{Type: "audio"}}
+	voice.EventID, voice.MessageID, voice.SourceIdentity, voice.Text = uuid.NewString(), "8", "message:4242:8", ""
+	voice.UnsupportedMedia = []string{"audio"}
 	if err := in.Consume(ctx, voice); err != nil {
 		t.Fatal(err)
 	}
@@ -219,14 +221,14 @@ func TestTelegramIngressAndSend(t *testing.T) {
 	f.db.Where("tenant_id = ? AND message_id = ?", f.tenant, sent.ID).First(&row)
 	var attempt messagingmodel.OutboundAttempt
 	f.db.Where("tenant_id = ? AND intent_id = ?", f.tenant, row.ID).First(&attempt)
-	delivery := NewDeliveryService(repository.NewDeliveryRepository(f.db))
-	result := outbound.ResultEvent{SchemaVersion: 1, IntentID: row.ID, AttemptID: attempt.ID, TenantID: f.tenant, ConnectionID: conn.ID, Status: outbound.StatusFailed, ErrorCategory: outbound.ErrorBotBlocked, ErrorCode: "403", OccurredAt: time.Now()}
-	if err := delivery.ConsumeResult(ctx, result); err != nil {
+	deliveries := NewDeliveryService(repository.NewDeliveryRepository(f.db))
+	result := delivery.SendCompleted{Meta: events.Meta{EventID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, IntentID: row.ID, AttemptID: attempt.ID, ConnectionID: conn.ID, Status: delivery.StatusFailed, ErrorCategory: delivery.ErrorBotBlocked, ErrorCode: "403"}
+	if err := deliveries.ConsumeResult(ctx, result); err != nil {
 		t.Fatal(err)
 	}
 	detail, _ = m.Detail(ctx, f.tenant, f.sale, thread.ID, types.MessagingQuery{Limit: 20})
 	last := detail.Messages[0]
-	if last.ID != sent.ID || last.DeliveryStatus != types.DeliveryFailed || last.DeliveryErrorReason != outbound.ErrorBotBlocked {
+	if last.ID != sent.ID || last.DeliveryStatus != types.DeliveryFailed || last.DeliveryErrorReason != delivery.ErrorBotBlocked {
 		t.Fatal("bot_blocked outcome", last)
 	}
 	// A blocked user does not expire the bot connection.

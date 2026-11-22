@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/secret"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
@@ -106,22 +108,22 @@ func TestCredentialLifecycleReplayAndPageHandover(t *testing.T) {
 	}
 }
 
-func intentFor(c service.Connection) outbound.IntentEvent {
+func intentFor(c service.Connection) delivery.SendRequested {
 	now := time.Now().UTC()
-	return outbound.IntentEvent{SchemaVersion: 1, IntentID: uuid.NewString(), AttemptID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: c.TenantID, ConnectionID: c.ID, ConnectionVersion: c.Version, Platform: "facebook", AccountID: c.AccountID, RecipientID: "psid", Text: "hello", IssuedAt: now, ExpiresAt: now.Add(time.Minute)}
+	return delivery.SendRequested{Meta: events.Meta{EventID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: c.TenantID, OccurredAt: now}, IntentID: uuid.NewString(), AttemptID: uuid.NewString(), ConnectionID: c.ID, ConnectionVersion: c.Version, Platform: "facebook", AccountID: c.AccountID, RecipientID: "psid", Text: "hello", ExpiresAt: now.Add(time.Minute)}
 }
 
-func results(t *testing.T, s *Store, intent string) []outbound.ResultEvent {
+func results(t *testing.T, s *Store, intent string) []delivery.SendCompleted {
 	t.Helper()
-	rows, err := s.Pool.Query(context.Background(), "SELECT payload FROM connector.outbound_events WHERE event_key=$1 AND topic=$2 ORDER BY available_at", intent, outbound.ResultTopic)
+	rows, err := s.Pool.Query(context.Background(), "SELECT payload FROM connector.outbound_events WHERE event_key=$1 AND topic=$2 ORDER BY available_at", intent, delivery.SendCompletedTopic)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
-	var out []outbound.ResultEvent
+	var out []delivery.SendCompleted
 	for rows.Next() {
 		var payload []byte
-		var r outbound.ResultEvent
+		var r delivery.SendCompleted
 		if rows.Scan(&payload) != nil || json.Unmarshal(payload, &r) != nil {
 			t.Fatal("result decode")
 		}
@@ -148,7 +150,7 @@ func TestOutboundSingleAttemptAndClassification(t *testing.T) {
 		}
 	}
 	got := results(t, s, intent.IntentID)
-	if provider.sends != 1 || len(got) != 1 || got[0].Status != outbound.StatusSent || got[0].ProviderMessageID != "mid.1" {
+	if provider.sends != 1 || len(got) != 1 || got[0].Status != delivery.StatusSent || got[0].ProviderMessageID != "mid.1" {
 		t.Fatal("redelivery resent or missing result", provider.sends, got)
 	}
 
@@ -161,21 +163,21 @@ func TestOutboundSingleAttemptAndClassification(t *testing.T) {
 	if err := sender.Handle(ctx, payload); err != nil {
 		t.Fatal(err)
 	}
-	if got := results(t, s, crashed.IntentID); provider.sends != 1 || len(got) != 1 || got[0].Status != outbound.StatusUnknown {
+	if got := results(t, s, crashed.IntentID); provider.sends != 1 || len(got) != 1 || got[0].Status != delivery.StatusUnknown {
 		t.Fatal("interrupted attempt", got)
 	}
 
-	provider.sendErr = &plugin.ProviderError{Category: outbound.ErrorAuthExpired, Code: "190"}
+	provider.sendErr = &plugin.ProviderError{Category: delivery.ErrorAuthExpired, Code: "190"}
 	revoked := intentFor(c)
 	payload, _ = json.Marshal(revoked)
 	if err := sender.Handle(ctx, payload); err != nil {
 		t.Fatal(err)
 	}
-	if got := results(t, s, revoked.IntentID); len(got) != 1 || got[0].Status != outbound.StatusFailed || got[0].ErrorCategory != outbound.ErrorAuthExpired {
+	if got := results(t, s, revoked.IntentID); len(got) != 1 || got[0].Status != delivery.StatusFailed || got[0].ErrorCategory != delivery.ErrorAuthExpired {
 		t.Fatal("auth classification", got)
 	}
 	var health int
-	s.Pool.QueryRow(ctx, "SELECT count(*) FROM connector.outbound_events WHERE topic=$1 AND event_key=$2", outbound.HealthTopic, c.ID).Scan(&health)
+	s.Pool.QueryRow(ctx, "SELECT count(*) FROM connector.outbound_events WHERE topic=$1 AND event_key=$2", connection.HealthChangedTopic, c.ID).Scan(&health)
 	if health != 1 {
 		t.Fatal("auth expiry health event missing", health)
 	}
@@ -184,9 +186,9 @@ func TestOutboundSingleAttemptAndClassification(t *testing.T) {
 	stale := intentFor(c)
 	stale.ConnectionVersion--
 	expired := intentFor(c)
-	expired.IssuedAt = expired.IssuedAt.Add(-time.Hour)
+	expired.OccurredAt = expired.OccurredAt.Add(-time.Hour)
 	expired.ExpiresAt = time.Now().Add(-time.Second)
-	for intent, category := range map[*outbound.IntentEvent]string{&stale: outbound.ErrorConnectionInactive, &expired: outbound.ErrorExpired} {
+	for intent, category := range map[*delivery.SendRequested]string{&stale: delivery.ErrorConnectionInactive, &expired: delivery.ErrorExpired} {
 		payload, _ = json.Marshal(intent)
 		if err := sender.Handle(ctx, payload); err != nil {
 			t.Fatal(err)

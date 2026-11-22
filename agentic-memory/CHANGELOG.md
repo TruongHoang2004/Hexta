@@ -1,5 +1,11 @@
 # Consolidated Project Changelog
 
+## 2026-11-22 — Per-event contracts and topics (in review)
+
+- `packages/shared/events`: one file per event (`MessageReceived`, `ConversationChanged`, `SendRequested`, `SendCompleted`, `HealthChanged`, `OrderConfirmed`), each on its own topic `hexta.<domain>.<event>.v1` with flat JSON and shared `Meta`; `catalog` lists them.
+- API outbox relay routes by catalog (event type = topic) through one multi-topic publisher; envelopes, `ingress`/`outbound` packages and the old topic names removed. Connector migration renames its outbound topic check; Compose provisions the new topics.
+- Details: [session](epics/EPIC-005-kafka/sessions/2026-11-22_event-contracts.md).
+
 ## 2026-11-22 — Messaging read/write split (CQRS, in review)
 
 - Conversation reads and writes are separate in the API: query/command services, controllers and stores; writes run in the new `messaging-command` process and the public API forwards to it (`messaging.command_url`).

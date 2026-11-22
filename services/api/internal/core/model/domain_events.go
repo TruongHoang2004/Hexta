@@ -1,14 +1,18 @@
 package model
 
-import "time"
+import (
+	"time"
 
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
+)
+
+// Outbox event types are the destination topics: each row carries the complete shared event payload published as is.
 const (
-	DomainEventOrderConfirmed = "order.confirmed"
-	// DomainEventOutboundIntent rows carry a shared outbound.IntentEvent payload for the connector topic.
-	DomainEventOutboundIntent = "outbound.intent"
-
-	// DomainEventConversationChanged rows carry a types.ConversationChanged snapshot for the conversation read model.
-	DomainEventConversationChanged = "messaging.conversation.changed"
+	DomainEventOrderConfirmed      = order.OrderConfirmedTopic
+	DomainEventOutboundIntent      = delivery.SendRequestedTopic
+	DomainEventConversationChanged = messaging.ConversationChangedTopic
 
 	DomainEventStatePending   = "pending"
 	DomainEventStateLeased    = "leased"

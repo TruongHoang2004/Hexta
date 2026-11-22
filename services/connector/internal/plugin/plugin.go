@@ -3,7 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"net/url"
 	"time"
 )
@@ -13,7 +13,7 @@ var ErrUnsupported = errors.New("unsupported capability")
 type Capabilities struct{ Webhook, Fetch, Settings, Outbound bool }
 type Item struct {
 	AccountID string
-	Event     ingress.Event
+	Event     messaging.MessageReceived
 	Reason    string
 }
 type Webhook interface {

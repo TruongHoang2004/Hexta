@@ -14,9 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
@@ -83,7 +84,7 @@ func TestLiveTelegramWebhookAcceptance(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), wait+2*time.Minute)
 	defer cancel()
-	createTopics(t, ctx, broker, ingress.Topic, outbound.IntentTopic, outbound.ResultTopic, outbound.HealthTopic)
+	createTopics(t, ctx, broker, messaging.MessageReceivedTopic, delivery.SendRequestedTopic, delivery.SendCompletedTopic, connection.HealthChangedTopic)
 
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
@@ -176,9 +177,9 @@ func TestLiveTelegramWebhookAcceptance(t *testing.T) {
 	if appErr != nil {
 		t.Fatal("live send", appErr)
 	}
-	intents := kafkatransport.NewTopicPublisher([]string{broker}, outbound.IntentTopic)
+	intents := kafkatransport.NewTopicPublisher([]string{broker}, delivery.SendRequestedTopic)
 	defer intents.Writer.Close()
-	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), &fakeKafka{}).WithIntentPublisher(intents)
+	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), intentsOnly{intents})
 	for claimed := true; claimed; {
 		claimed, _ = relay.RelayOne(ctx)
 	}

@@ -1,5 +1,23 @@
 # Kafka event backbone
 
+## Event contracts: one event, one file, one topic — 2026-11-22 (owner decision, IMPLEMENTED in branch `refactor/event-contracts`)
+
+Owner decisions: every event type has its own topic (no topic mixes event types); contracts live in `packages/shared/events`, one Go file per event in its domain package; messages are text-only for now, so there is a single message event. Pre-production, so v1 topics and payloads were replaced without a compatibility window.
+
+- Naming: topic `hexta.<domain>.<event-kebab>.v<N>`; a breaking change creates `v<N+1>`. Payloads are flat JSON embedding `events.Meta` (`event_id`, optional `correlation_id`, `tenant_id`, `occurred_at`); no envelope, `event_type` or `schema_version` field, because the topic identifies the event and version.
+- `packages/shared/events/catalog` lists every topic with a decoder; the API outbox relay routes rows by it (outbox `event_type` = topic, payload = complete event, partition key = the event's `Key()`), and a test keeps the Compose topic provisioning equal to the catalog.
+
+| Topic | Event (file) | Producer → consumer | Key |
+| --- | --- | --- | --- |
+| `hexta.messaging.message-received.v1` | `messaging.MessageReceived` (`messaging/message_received.go`) | connector → API ingress | hash(tenant, connection, conversation) |
+| `hexta.messaging.conversation-changed.v1` | `messaging.ConversationChanged` | API outbox → API conversation read model | thread |
+| `hexta.delivery.send-requested.v1` | `delivery.SendRequested` | API outbox → connector | connection:recipient |
+| `hexta.delivery.send-completed.v1` | `delivery.SendCompleted` | connector outbox → API delivery | intent |
+| `hexta.connection.health-changed.v1` | `connection.HealthChanged` | connector outbox → API channels | connection |
+| `hexta.order.order-confirmed.v1` | `order.OrderConfirmed` | API outbox → (none yet) | order |
+
+`MessageReceived` replaces `ingress.Event`: text, or no text plus `unsupported_media_kinds` for the media placeholder; `direction=outbound` marks provider echoes. Every message carries its own `connection_id`, so a tenant may hold any number of Pages/bots. Topic names and the envelope described further below for the 2026-11-03 slices are superseded by this section; planned topics in "Use cases" remain proposals and must follow this naming when implemented.
+
 ## Connector direction update — 2026-11-03
 
 DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.

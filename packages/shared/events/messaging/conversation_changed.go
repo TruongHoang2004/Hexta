@@ -1,0 +1,47 @@
+package messaging
+
+import (
+	"errors"
+	"time"
+
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+)
+
+// ConversationChangedTopic carries ConversationChanged. Producer: API messaging command side (outbox).
+// Consumer: API conversation read model.
+const ConversationChangedTopic = "hexta.messaging.conversation-changed.v1"
+
+// ConversationChanged is the full thread and its open turn after a committed change, so consumers can upsert
+// idempotently. It carries no message bodies or customer contact data.
+type ConversationChanged struct {
+	events.Meta
+	ThreadID          string    `json:"thread_id"`
+	ExternalKey       string    `json:"external_key"`
+	DisplayName       string    `json:"display_name"`
+	ConnectionID      string    `json:"connection_id,omitempty"`
+	RecipientID       string    `json:"recipient_id,omitempty"`
+	ThreadCreatedAt   time.Time `json:"thread_created_at"`
+	ThreadUpdatedAt   time.Time `json:"thread_updated_at"`
+	TurnID            string    `json:"turn_id"`
+	Lifecycle         string    `json:"lifecycle"`
+	Control           string    `json:"control"`
+	AssigneeID        *string   `json:"assignee_id"`
+	NeedsHuman        bool      `json:"needs_human"`
+	ContextRevision   int64     `json:"context_revision"`
+	ControlGeneration int64     `json:"control_generation"`
+	TurnVersion       int64     `json:"turn_version"`
+	LastActivityAt    time.Time `json:"last_activity_at"`
+}
+
+// Key orders changes per thread.
+func (e ConversationChanged) Key() string { return e.ThreadID }
+
+func (e ConversationChanged) Validate() error {
+	if err := e.Meta.Validate(); err != nil {
+		return err
+	}
+	if e.ThreadID == "" || e.TurnID == "" {
+		return errors.New("invalid conversation change")
+	}
+	return nil
+}

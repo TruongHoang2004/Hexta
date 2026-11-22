@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"time"
@@ -23,7 +23,7 @@ func (s *Store) CommitPage(ctx context.Context, j service.SyncJob, p plugin.Page
 	// Data first, then fenced checkpoint. A crash between commits refetches the same page;
 	// provider message identity deduplicates it, including overlap with webhooks.
 	b, _ := json.Marshal(p.Items)
-	if err := s.Accept(ctx, j.AppID, j.Platform, ingress.Hash(j.ID, j.Cursor, string(b)), p.Items, time.Now().UTC()); err != nil {
+	if err := s.Accept(ctx, j.AppID, j.Platform, events.Hash(j.ID, j.Cursor, string(b)), p.Items, time.Now().UTC()); err != nil {
 		return err
 	}
 	state := "pending"
