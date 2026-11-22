@@ -4,7 +4,7 @@ Implemented from the owner-approved read-only proposal on 2026-11-03. This docum
 
 ## Ownership and hierarchy
 
-Global → domain → meaningful app differences → task workflow skills. Domain AGENTS live in apps, services/api, services/ai, packages/ui, packages/sdk, packages/shared, proto, migrations and infrastructure. Web adds app behavior; admin/docs/landing retain generated Next.js blocks without invented business conventions. No generic services/packages layer is needed.
+Global → domain → meaningful app differences → task workflow skills. Domain AGENTS live in apps, services/api, services/ai, packages/ui, packages/sdk, packages/shared, proto, migrations and infrastructure. Web adds app behavior; docs/landing retain generated Next.js blocks without invented business conventions. No generic services/packages layer is needed.
 
 The router's domain-entry table is the source for Antigravity selectors. Its behavior rows remain an explicit reasoning procedure, not an executable semantic checker. Root-started tasks must select deeper and sibling instruction files before editing. Deduplicate already-read sources. A domain entry may point to an existing detailed rule without copying it; keep stable API rule IDs and E/D/O/P provenance. Approval of this migration does not approve previously proposed API mechanisms.
 

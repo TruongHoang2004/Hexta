@@ -1,4 +1,5 @@
-import { Inbox } from "@/components/messaging/inbox";
+import { InboxScreen } from "@/modules/conversations";
+
 export default function Page() {
-  return <Inbox />;
+  return <InboxScreen />;
 }

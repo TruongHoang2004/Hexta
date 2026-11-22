@@ -1,4 +1,5 @@
-import { ConsultantCheckout } from "@/components/consultant/checkout";
+import { CheckoutScreen } from "@/modules/conversations";
+
 export default function Page() {
-  return <ConsultantCheckout />;
+  return <CheckoutScreen />;
 }

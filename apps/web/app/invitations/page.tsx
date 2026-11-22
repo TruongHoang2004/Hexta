@@ -9,7 +9,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { onboarding, type InvitationResult } from "@/lib/services/onboarding";
 import { useErrorText } from "@/lib/errors";
 import { useT } from "@/lib/i18n/provider";
-import { buttonClass, secondaryClass, Notice, StatusChip } from "@/components/sales/primitives";
+import { buttonClass, secondaryClass, Notice, StatusChip } from "@/components/primitives";
 
 type Problem = "" | "missing" | "wrongEmail" | "unavailable" | "other";
 

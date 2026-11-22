@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useWorkspace } from "@/components/sales/workspace";
+import { useWorkspace } from "@/components/layout/workspace-context";
 import { onboarding, type Application } from "@/lib/services/onboarding";
 import { useErrorText } from "@/lib/errors";
 import { useT } from "@/lib/i18n/provider";
 import { useAuthStore } from "@/store/useAuthStore";
-import { StatusChip } from "@/components/sales/primitives";
+import { StatusChip } from "@/components/primitives";
 import { Button, toast } from "@hexta/ui";
 import { PageHeader } from "@/components/page-header";
 import {
