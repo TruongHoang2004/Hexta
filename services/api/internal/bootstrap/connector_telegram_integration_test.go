@@ -254,7 +254,7 @@ func TestConnectorTelegramConnectIngressSendAndResults(t *testing.T) {
 		t.Fatal("group updates must not reach the inbox; voice must be a placeholder", len(threads), messages, placeholders)
 	}
 
-	inbox := service.NewMessagingService(repository.NewMessagingRepository(db))
+	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	want := map[string][2]string{
 		"9001": {types.DeliverySent, ""},
 		"9002": {types.DeliveryFailed, outbound.ErrorBotBlocked},

@@ -2,12 +2,9 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
@@ -17,12 +14,12 @@ import (
 	"github.com/google/uuid"
 )
 
-type MessagingService struct{ repo repository.MessagingStore }
+type MessagingCommandService struct{ repo repository.MessagingStore }
 
-func NewMessagingService(repo repository.MessagingStore) *MessagingService {
-	return &MessagingService{repo: repo}
+func NewMessagingCommandService(repo repository.MessagingStore) *MessagingCommandService {
+	return &MessagingCommandService{repo: repo}
 }
-func (s *MessagingService) authorized(ctx context.Context, tenant, actor string, fn func(repository.MessagingStore, bool) *apperrors.Error) *apperrors.Error {
+func (s *MessagingCommandService) authorized(ctx context.Context, tenant, actor string, fn func(repository.MessagingStore, bool) *apperrors.Error) *apperrors.Error {
 	if actor == "" {
 		return apperrors.ErrUnauthorized(ctx)
 	}
@@ -40,69 +37,7 @@ func (s *MessagingService) authorized(ctx context.Context, tenant, actor string,
 		return fn(r, scope.Owner)
 	})
 }
-func messagingQuery(ctx context.Context, q types.MessagingQuery) *apperrors.Error {
-	if q.Limit < 1 || q.Limit > 100 {
-		return apperrors.ErrBadRequest(ctx).SetDetail("limit must be between 1 and 100")
-	}
-	if q.Cursor != "" {
-		if _, err := uuid.Parse(q.Cursor); err != nil {
-			return apperrors.ErrBadRequest(ctx).SetDetail("invalid cursor")
-		}
-	}
-	switch q.Filter {
-	case "", "all", "mine", "unassigned", "needs_human", "bot":
-		return nil
-	}
-	return apperrors.ErrBadRequest(ctx).SetDetail("invalid conversation filter")
-}
-func messagingText(value string, max int) bool {
-	return strings.TrimSpace(value) != "" && utf8.ValidString(value) && utf8.RuneCountInString(value) <= max
-}
-func messagingKey(ctx context.Context, key string) *apperrors.Error {
-	if _, err := uuid.Parse(key); err != nil {
-		return apperrors.ErrBadRequest(ctx).SetDetail("request_key must be a UUID")
-	}
-	return nil
-}
-func messagingID() string { return uuid.Must(uuid.NewV7()).String() }
-func messagingHash(value any) string {
-	data, _ := json.Marshal(value)
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
-}
-func (s *MessagingService) Conversations(ctx context.Context, tenant, actor string, input types.MessagingQuery) (types.MessagingPage, *apperrors.Error) {
-	var result types.MessagingPage
-	if err := messagingQuery(ctx, input); err != nil {
-		return result, err
-	}
-	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
-		var err *apperrors.Error
-		result, err = r.Conversations(ctx, tenant, actor, input)
-		return err
-	})
-	return result, err
-}
-func (s *MessagingService) Detail(ctx context.Context, tenant, actor, id string, input types.MessagingQuery) (types.MessagingDetail, *apperrors.Error) {
-	var result types.MessagingDetail
-	if err := messagingQuery(ctx, input); err != nil {
-		return result, err
-	}
-	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
-		thread, err := r.Thread(ctx, tenant, id, false)
-		if err != nil {
-			return err
-		}
-		turn, err := r.CurrentTurn(ctx, tenant, id)
-		if err != nil {
-			return err
-		}
-		result.Conversation = types.MessagingConversation{Thread: *thread, Turn: turn}
-		result.Messages, result.NextCursor, err = r.Messages(ctx, tenant, id, input)
-		return err
-	})
-	return result, err
-}
-func (s *MessagingService) Inbound(ctx context.Context, tenant, actor string, input types.MessagingInbound) (*types.MessagingMessage, *apperrors.Error) {
+func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor string, input types.MessagingInbound) (*types.MessagingMessage, *apperrors.Error) {
 	input.ExternalKey = strings.TrimSpace(input.ExternalKey)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.Body = strings.TrimSpace(input.Body)
@@ -172,7 +107,7 @@ func messagingLockedTurn(ctx context.Context, r repository.MessagingStore, tenan
 	}
 	return r.Turn(ctx, tenant, id)
 }
-func (s *MessagingService) Command(ctx context.Context, tenant, actor, id, action string, input types.MessagingCommand) (*types.MessagingTurn, *apperrors.Error) {
+func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id, action string, input types.MessagingCommand) (*types.MessagingTurn, *apperrors.Error) {
 	if input.ExpectedVersion < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("positive expected_version required")
 	}
@@ -258,7 +193,7 @@ func (s *MessagingService) Command(ctx context.Context, tenant, actor, id, actio
 	})
 	return result, err
 }
-func (s *MessagingService) SendSimulation(ctx context.Context, tenant, actor, id string, input types.MessagingCommand) (*types.MessagingMessage, *apperrors.Error) {
+func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, actor, id string, input types.MessagingCommand) (*types.MessagingMessage, *apperrors.Error) {
 	input.Body = strings.TrimSpace(input.Body)
 	if !messagingText(input.Body, 4000) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("body (1–4000) and positive version/context required")
@@ -335,7 +270,7 @@ const outboundIntentTTL = 10 * time.Minute
 
 // SendChannel records an authorized real-channel reply and its single-attempt delivery intent in one transaction.
 // The connector performs the provider call later; this request never calls Meta and never retries.
-func (s *MessagingService) SendChannel(ctx context.Context, tenant, actor, id string, input types.ChannelSendInput) (*types.MessagingMessage, *apperrors.Error) {
+func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor, id string, input types.ChannelSendInput) (*types.MessagingMessage, *apperrors.Error) {
 	input.Text = strings.TrimSpace(input.Text)
 	if !messagingText(input.Text, outbound.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("text (1–2000) and positive version/context required")

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
-	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
@@ -171,7 +170,7 @@ func TestConnectorFacebookToInbox(t *testing.T) {
 	if count != 1 {
 		t.Fatal("duplicate mutation", count)
 	}
-	inbox := service.NewMessagingService(repository.NewMessagingRepository(db))
+	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	detail, appErr := inbox.Detail(ctx, tenant, "operator", message.ThreadID, types.MessagingQuery{Limit: 20})
 	if appErr != nil || len(detail.Messages) != 1 || detail.Messages[0].Status != "received" || !detail.Conversation.Turn.NeedsHuman {
 		t.Fatal("real inbox projection")

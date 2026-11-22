@@ -17,7 +17,8 @@ func RegisterRoutes(
 	tenantController *controller.TenantController,
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
-	messaging *controller.MessagingController,
+	messagingQuery *controller.MessagingQueryController,
+	messagingCommand *controller.MessagingCommandController,
 	channels *controller.ChannelController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
@@ -100,15 +101,15 @@ func RegisterRoutes(
 	resources.POST("/work-items/:id/assign", workflows.Assign)
 	resources.POST("/work-items/:id/complete", workflows.Complete)
 
-	resources.GET("/conversations", messaging.List)
-	resources.GET("/conversations/:id/messages", messaging.Detail)
-	resources.POST("/simulator/messages", messaging.Inbound)
-	resources.POST("/turns/:id/claim", messaging.Claim)
-	resources.POST("/turns/:id/assign", messaging.Assign)
-	resources.POST("/turns/:id/handoff", messaging.Handoff)
-	resources.POST("/turns/:id/return-to-bot", messaging.ReturnToBot)
-	resources.POST("/turns/:id/send-simulation", messaging.Send)
-	resources.POST("/turns/:id/messages", messaging.SendChannel)
+	resources.GET("/conversations", messagingQuery.List)
+	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
+	resources.POST("/simulator/messages", messagingCommand.Inbound)
+	resources.POST("/turns/:id/claim", messagingCommand.Claim)
+	resources.POST("/turns/:id/assign", messagingCommand.Assign)
+	resources.POST("/turns/:id/handoff", messagingCommand.Handoff)
+	resources.POST("/turns/:id/return-to-bot", messagingCommand.ReturnToBot)
+	resources.POST("/turns/:id/send-simulation", messagingCommand.Send)
+	resources.POST("/turns/:id/messages", messagingCommand.SendChannel)
 
 	resources.POST("/channels/facebook/oauth/start", channels.StartFacebookOAuth)
 	resources.GET("/channels/facebook/connections", channels.ListFacebookConnections)

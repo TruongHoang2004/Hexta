@@ -35,14 +35,16 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ctrl := NewMessagingController(validator.New(), service.NewMessagingService(repository.NewMessagingRepository(db)))
+	store := repository.NewMessagingRepository(db)
+	queries := NewMessagingQueryController(validator.New(), service.NewMessagingQueryService(store))
+	ctrl := NewMessagingCommandController(validator.New(), service.NewMessagingCommandService(store))
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Request = c.Request.WithContext(common.SetAuthInfo(c.Request.Context(), &types.AuthInfo{UserID: c.GetHeader("Test-Actor")}))
 	})
 	group := router.Group("/tenants/:tenantID")
-	group.GET("/conversations", ctrl.List)
-	group.GET("/conversations/:id/messages", ctrl.Detail)
+	group.GET("/conversations", queries.List)
+	group.GET("/conversations/:id/messages", queries.Detail)
 	group.POST("/simulator/messages", ctrl.Inbound)
 	group.POST("/turns/:id/claim", ctrl.Claim)
 	group.POST("/turns/:id/assign", ctrl.Assign)
