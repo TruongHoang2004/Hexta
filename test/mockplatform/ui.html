@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hexta mock platform</title>
+<style>
+:root{--bg:#fff;--fg:#1d2433;--muted:#667085;--line:#d0d5dd;--in:#eef2f6;--out:#1d4ed8;--outfg:#fff;--warn:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--fg:#e6e8eb;--muted:#98a2b3;--line:#344054;--in:#1f242b;--out:#2563eb;--warn:#f97066}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif}
+main{display:grid;grid-template-columns:minmax(16rem,22rem) 1fr;gap:1rem;max-width:72rem;margin:0 auto;padding:1rem}
+@media (max-width:48rem){main{grid-template-columns:1fr}}
+h1{font-size:1.2rem;margin:0 0 .25rem}h2{font-size:1rem;margin:1.25rem 0 .5rem}p{color:var(--muted);margin:.25rem 0}
+label{display:block;font-size:.85rem;color:var(--muted);margin:.5rem 0 .2rem}
+select,input,textarea,button{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:.4rem;padding:.45rem .6rem;width:100%}
+button{cursor:pointer;width:auto}button.primary{background:var(--out);color:var(--outfg);border-color:var(--out)}
+.row{display:flex;gap:.5rem;margin-top:.5rem}
+#log{border:1px solid var(--line);border-radius:.5rem;padding:.75rem;height:min(70vh,40rem);overflow-y:auto;display:flex;flex-direction:column;gap:.4rem}
+.msg{max-width:75%;padding:.45rem .7rem;border-radius:.8rem;white-space:pre-wrap;word-break:break-word}
+.inbound{align-self:flex-start;background:var(--in)}.outbound{align-self:flex-end;background:var(--out);color:var(--outfg)}
+.meta{font-size:.75rem;opacity:.75;margin-top:.15rem}.bad{color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+<section>
+<h1>Hexta mock platform</h1>
+<p>Chat as a customer with a mock Facebook Page or Telegram bot connected in Hexta. Replies sent from Desk appear on the right.</p>
+<label for="account">Page or bot</label>
+<select id="account"></select>
+<p id="hint"></p>
+<label for="customer">Customer ID (PSID or numeric chat ID)</label>
+<input id="customer" value="7000000001" autocomplete="off">
+<label for="text">Message</label>
+<textarea id="text" rows="3">Xin chào, shop còn hàng không?</textarea>
+<div class="row"><button class="primary" id="send">Send text</button><button id="photo">Send photo</button></div>
+<p id="result" role="status"></p>
+<h2>Send faults</h2>
+<label for="latency">Latency (ms)</label><input id="latency" type="number" min="0" value="0">
+<label for="rate">Error rate (0–1)</label><input id="rate" type="number" min="0" max="1" step="0.1" value="0">
+<label for="kind">Error kind</label>
+<select id="kind"><option>server_error</option><option>rate_limit</option><option>blocked</option><option>auth_expired</option><option>chat_not_found</option><option>window_24h</option></select>
+<div class="row"><button id="faults">Apply</button><button id="reset">Reset</button></div>
+</section>
+<section>
+<h2 id="title">Conversation</h2>
+<div id="log" aria-live="polite"></div>
+</section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let accounts = [];
+async function json(url, opts) { const r = await fetch(url, opts); return [r.status, await r.json().catch(() => ({}))]; }
+async function loadState() {
+  const [, s] = await json('/mock/state');
+  const current = $('account').value;
+  accounts = [...(s.pages || []).map(p => ({platform: 'facebook', id: p.id, label: 'Facebook · ' + p.name, ready: p.subscribed})),
+              ...(s.bots || []).map(b => ({platform: 'telegram', id: b.id, label: 'Telegram · @' + b.username, ready: b.webhook_set}))];
+  $('account').innerHTML = accounts.map(a => `<option value="${a.platform}:${a.id}">${a.label}${a.ready ? '' : ' (not connected)'}</option>`).join('');
+  if (current) $('account').value = current;
+  const a = selected();
+  $('hint').textContent = !accounts.length ? 'Connect a Telegram bot (any token like 123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA) or a Facebook Page in Hexta first.' : (a && !a.ready ? 'Not connected in Hexta yet: messages will be refused.' : '');
+}
+function selected() { const [platform, id] = ($('account').value || ':').split(':'); return accounts.find(a => a.platform === platform && a.id === id); }
+async function loadLog() {
+  const a = selected(); const customer = $('customer').value.trim();
+  if (!a || !customer) { $('log').innerHTML = ''; return; }
+  $('title').textContent = `Conversation with ${customer}`;
+  const [, m] = await json(`/mock/messages?platform=${a.platform}&account=${a.id}&customer=${encodeURIComponent(customer)}&limit=500`);
+  const log = $('log'); const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+  log.innerHTML = '';
+  for (const x of m.messages || []) {
+    const div = document.createElement('div'); div.className = 'msg ' + x.direction; div.textContent = x.text;
+    const meta = document.createElement('div'); meta.className = 'meta' + (x.status === 200 ? '' : ' bad');
+    meta.textContent = new Date(x.at).toLocaleTimeString() + (x.direction === 'inbound' ? ` · webhook ${x.status || 'unreachable'}` : '');
+    div.appendChild(meta); log.appendChild(div);
+  }
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+async function send(media) {
+  const a = selected(); if (!a) return;
+  const [status, r] = await json('/mock/customers/' + a.platform, {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({account_id: a.id, customer: $('customer').value.trim(), text: $('text').value, media})});
+  $('result').textContent = status === 200 ? `Delivered to connector: HTTP ${r.webhook_status || 'unreachable'}` : (r.error || 'Failed: HTTP ' + status);
+  loadLog();
+}
+async function applyFaults(reset) {
+  const body = reset ? {} : {latency_ms: +$('latency').value, error_rate: +$('rate').value, error_kind: $('kind').value};
+  const [status] = await json('/mock/faults', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  $('result').textContent = status === 200 ? (reset ? 'Faults cleared' : 'Faults applied') : 'Invalid faults';
+  if (reset) { $('latency').value = 0; $('rate').value = 0; }
+}
+$('send').onclick = () => send('');
+$('photo').onclick = () => send('image');
+$('faults').onclick = () => applyFaults(false);
+$('reset').onclick = () => applyFaults(true);
+$('account').onchange = loadLog; $('customer').onchange = loadLog;
+loadState().then(loadLog);
+setInterval(() => { loadState(); loadLog(); }, 1500);
+</script>
+</body>
+</html>

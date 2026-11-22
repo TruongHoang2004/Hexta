@@ -3,7 +3,7 @@ epic: EPIC-008
 title: Direct platform connector and eventual VPS deployment
 status: in-progress
 completed: false
-updated: 2026-11-18
+updated: 2026-11-22
 ---
 
 # Direct platform connector and eventual VPS deployment
@@ -46,6 +46,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 - [2026-11-16 single-host deployment](sessions/2026-11-16_single-host-deployment.md) — production Compose stack + runbook for hexta.org (2 vCPU / 16 GB); verified locally with `DOMAIN=localhost`; real-server deployment NOT_RUN.
 - [2026-11-16 Telegram Bot connection](sessions/2026-11-16_telegram-bot-connection.md) — [PR #71](https://github.com/TruongHoang2004/Hexta/pull/71) merged into `main` (`cec936c`): owner Bot Token connect/rotate, pause/resume/disconnect, private-chat webhook with secret header, media placeholders, single-attempt sendMessage with `bot_blocked`/`chat_not_found`. Isolated mock-Bot-API E2E verified; live Telegram NOT_RUN.
 - [2026-11-18 load capacity targets](sessions/2026-11-18_load-capacity-targets.md) — owner-set T1–T5 targets (300 msg/s sustained, stretch 500; 1,000 msg/s burst; 100 sends/s; 500 req/s; 5 min Kafka outage; baseline ~1 msg/s) on two hosts (infrastructure 2 vCPU / 4 GB, applications 2 vCPU / 16 GB), recorded in design and thesis; measurement NOT_RUN.
+- [2026-11-22 channel E2E + mock platform](sessions/2026-11-22_channel-e2e-mock-platform.md) — local, unmerged: `test/mockplatform` (simulated Graph/Bot API, customer simulator, send faults), `loadgen`, demo `--mock` overlay and tunnel-only `webhook-proxy`, Kafka `BatchTimeout` 5 ms. Mock E2E send/receive PASS for both channels; local 20–50 msg/s with 0 lost/duplicate. Live Telegram/Facebook NOT_RUN.
 - [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md) — [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: connector acceptance no longer uses a global advisory lock; admission limit is now approximate.
 
 ## Remaining work and next handoff
