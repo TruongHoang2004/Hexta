@@ -2,6 +2,8 @@ package service_test
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -195,8 +197,15 @@ func TestInvalidAndTamperedTokenRejection(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func withGoogleOAuth(cfg *config.Config) *config.Config {
+	cfg.OAuth.Google.ClientID = "fixture-client.apps.googleusercontent.com"
+	cfg.OAuth.Google.ClientSecret = "fixture-client-secret"
+	cfg.OAuth.Google.RedirectURL = "http://localhost:8080/api/v1/auth/google/callback"
+	return cfg
+}
+
 func TestOAuthStateGenerationAndCSRFValidation(t *testing.T) {
-	cfg := createTestConfig("secret", "secret", 900, 86400)
+	cfg := withGoogleOAuth(createTestConfig("secret", "secret", 900, 86400))
 	identityRepo := newMockIdentityRepo()
 	sessionRepo := newMockSessionRepo()
 
@@ -328,5 +337,45 @@ func TestAuthServiceRejectsMissingSigningConfiguration(t *testing.T) {
 		svc, err := service.NewAuthServiceWithRepos(newMockIdentityRepo(), newMockSessionRepo(), nil, cfg)
 		require.Error(t, err)
 		require.Nil(t, svc)
+	}
+}
+
+func TestGoogleLoginUsesInjectedClientConfiguration(t *testing.T) {
+	cfg := withGoogleOAuth(createTestConfig("secret", "secret", 900, 86400))
+	// The global config must not be consulted; the demo stack previously sent an empty client_id from it.
+	saved := config.AppConfig
+	config.AppConfig = nil
+	t.Cleanup(func() { config.AppConfig = saved })
+	authSvc, initErr := service.NewAuthServiceWithRepos(newMockIdentityRepo(), newMockSessionRepo(), nil, cfg)
+	require.NoError(t, initErr)
+
+	loginURL, err := authSvc.GoogleLogin(context.Background())
+	require.Nil(t, err)
+	parsed, parseErr := url.Parse(loginURL)
+	require.NoError(t, parseErr)
+	query := parsed.Query()
+	assert.Equal(t, cfg.OAuth.Google.ClientID, query.Get("client_id"))
+	assert.Equal(t, cfg.OAuth.Google.RedirectURL, query.Get("redirect_uri"))
+	assert.NotContains(t, loginURL, cfg.OAuth.Google.ClientSecret)
+}
+
+func TestGoogleLoginFailsWhenNotConfigured(t *testing.T) {
+	for name, clear := range map[string]func(*config.Config){
+		"client id":     func(c *config.Config) { c.OAuth.Google.ClientID = "" },
+		"client secret": func(c *config.Config) { c.OAuth.Google.ClientSecret = "" },
+		"redirect url":  func(c *config.Config) { c.OAuth.Google.RedirectURL = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := withGoogleOAuth(createTestConfig("secret", "secret", 900, 86400))
+			clear(cfg)
+			authSvc, initErr := service.NewAuthServiceWithRepos(newMockIdentityRepo(), newMockSessionRepo(), nil, cfg)
+			require.NoError(t, initErr)
+
+			loginURL, err := authSvc.GoogleLogin(context.Background())
+			require.NotNil(t, err)
+			assert.Empty(t, loginURL)
+			assert.Equal(t, http.StatusServiceUnavailable, err.GetHttpStatus())
+			assert.NotContains(t, err.ToJSon(), "fixture-client")
+		})
 	}
 }

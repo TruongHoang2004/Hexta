@@ -13,7 +13,7 @@ make logs s="api connector"
 make down    # keeps data volumes
 ```
 
-The launcher generates random local service/JWT/connector secrets in `infrastructure/.env.local` using a temporary Python container, appending only missing keys so existing values are preserved, and mirrors the connector secrets into the private `infrastructure/.env.local.secrets/` directory for the read-only connector. Both are git-ignored; do not commit or share them. No provider keys or Google OAuth credentials are needed. If launching from PowerShell, use WSL or create the equivalent env file and invoke `docker compose --env-file infrastructure/.env.local -f infrastructure/compose.demo.yml ...`.
+The launcher generates random local service/JWT/connector secrets in `infrastructure/.env.local` using a temporary Python container, appending only missing keys so existing values are preserved, and mirrors the connector secrets into the private `infrastructure/.env.local.secrets/` directory for the read-only connector. Both are git-ignored; do not commit or share them. No provider keys or Google OAuth credentials are needed; see [Google login](#google-login) to enable it. If launching from PowerShell, use WSL or create the equivalent env file and invoke `docker compose --env-file infrastructure/.env.local -f infrastructure/compose.demo.yml ...`.
 
 Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atlas applies the existing Go business migrations to `public` with explicit revision metadata scope. A separate Atlas `migrate-ai` job applies the AI history; the Python service performs no startup DDL. API and AI use independent revision schemas. `db-init`, `migrate`, `migrate-ai`, `migrate-connector` and `kafka-topics` exiting with code 0 is expected; the long-running services are postgres, redis, kafka, api, ingress, ai, connector and web. The connector owns the separate `hexta_connector` database with its own `hexta_connector` login, as in production. Existing `hexta-demo` PostgreSQL volume is retained and initialized in place; no root/legacy database is used.
 
@@ -30,7 +30,21 @@ Initialization creates a restricted `hexta_ai` role and `ai_runtime` schema. Atl
 | Webhook proxy | http://127.0.0.1:58092 | Only `/webhooks/*`, for a temporary tunnel to the connector |
 | Kafka | 127.0.0.1:59092 | Host bootstrap address; containers use kafka:9092 |
 
-Open `/register`, create an account, sign in, and open `/tenants`. No initial owner account or production seed data is injected. `NEXT_PUBLIC_API_URL` is baked into the web image as `http://localhost:8080`; changing it requires a web rebuild. Browser localhost and container names are different: API connects to `postgres:5432` and `redis:6379`, never host loopback. Google login is not configured in this profile. Legacy Go AI HTTP routes are unregistered in this keyless demo; Python messaging integration remains separate.
+Open `/register`, create an account, sign in, and open `/tenants`. No initial owner account or production seed data is injected. `NEXT_PUBLIC_API_URL` is baked into the web image as `http://localhost:8080`; changing it requires a web rebuild. Browser localhost and container names are different: API connects to `postgres:5432` and `redis:6379`, never host loopback. Google login is disabled unless configured as described below. Legacy Go AI HTTP routes are unregistered in this keyless demo; Python messaging integration remains separate.
+
+## Google login
+
+Google login is optional. Without credentials, "Sign in with Google" returns to `/login?error=google_unavailable` instead of opening Google.
+
+1. In Google Cloud Console, create an OAuth client of type *Web application* and add `http://localhost:8080/api/v1/auth/google/callback` as an authorized redirect URI.
+2. Append the client values to `infrastructure/.env.local` (the launcher keeps existing keys):
+
+   ```sh
+   GOOGLE_CLIENT_ID=<client-id>.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=<client-secret>
+   ```
+
+3. Recreate the API container: `./scripts/local.sh up -d --wait api`.
 
 ## Verify the stack using only Docker
 

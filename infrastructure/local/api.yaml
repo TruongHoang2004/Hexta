@@ -15,8 +15,8 @@ jwt:
   refresh_token_expire: 604800
 oauth:
   google:
-    client_id: ''
-    client_secret: ''
+    client_id: ${GOOGLE_CLIENT_ID}
+    client_secret: ${GOOGLE_CLIENT_SECRET}
     redirect_url: http://localhost:8080/api/v1/auth/google/callback
 ai:
   consult_url: ${AI_CONSULT_URL}
