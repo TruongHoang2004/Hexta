@@ -62,8 +62,10 @@ export const vi = {
   desk: {
     title: "Hộp thư",
     subtitle: "Nhận hội thoại, trả lời khách và chuyển giao giữa bot với nhân viên.",
-    notice: "Hội thoại Facebook, Telegram và mô phỏng hiển thị ở đây. Bot AI và tự đóng lượt sau 24 giờ chưa bật. Bấm Làm mới để xem tin mới và trạng thái gửi.",
+    notice: "Hội thoại Facebook, Telegram và mô phỏng hiển thị ở đây. Bot AI và tự đóng lượt sau 24 giờ chưa bật. Tin mới và trạng thái gửi tự cập nhật; bấm Làm mới nếu mất kết nối.",
     refresh: "Làm mới",
+    liveOn: "Đang cập nhật trực tiếp",
+    liveOff: "Đang kết nối lại…",
     listLabel: "Danh sách hội thoại",
     filterLabel: "Lọc hội thoại",
     filters: { bot: "Bot", needs_human: "Chờ nhân viên", mine: "Của tôi", all: "Tất cả" },

@@ -62,8 +62,10 @@ export const en: Messages = {
   desk: {
     title: "Inbox",
     subtitle: "Claim conversations, reply to customers and hand over between the bot and staff.",
-    notice: "Facebook, Telegram and simulator conversations appear here. AI replies and automatic 24-hour turn expiry are not enabled. Use Refresh to see new activity and delivery status.",
+    notice: "Facebook, Telegram and simulator conversations appear here. AI replies and automatic 24-hour turn expiry are not enabled. New messages and delivery status appear automatically; use Refresh if the connection drops.",
     refresh: "Refresh",
+    liveOn: "Live updates on",
+    liveOff: "Reconnecting…",
     listLabel: "Conversation list",
     filterLabel: "Filter conversations",
     filters: { bot: "Bot", needs_human: "Waiting for staff", mine: "Mine", all: "All" },

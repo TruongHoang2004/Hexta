@@ -274,7 +274,8 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 		t.Fatal("outbox intent", events)
 	}
 
-	delivery := NewDeliveryService(repository.NewDeliveryRepository(f.db))
+	hints := &recordingPublisher{}
+	delivery := NewDeliveryService(repository.NewDeliveryRepository(f.db)).WithPublisher(hints)
 	result := outbound.ResultEvent{SchemaVersion: 1, IntentID: intent.IntentID, AttemptID: intent.AttemptID, TenantID: f.tenant, ConnectionID: conn.ID, Status: outbound.StatusFailed, ErrorCategory: outbound.ErrorAuthExpired, ErrorCode: "190", OccurredAt: time.Now()}
 	for i := 0; i < 2; i++ {
 		if err := delivery.ConsumeResult(ctx, result); err != nil {
@@ -285,6 +286,9 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 	late.Status, late.ErrorCategory = outbound.StatusSent, ""
 	if err := delivery.ConsumeResult(ctx, late); err != nil {
 		t.Fatal(err)
+	}
+	if len(hints.hints) != 1 || hints.hints[0].ThreadID != thread.ID || hints.hints[0].Reason != types.RealtimeDeliveryChanged {
+		t.Fatal("exactly the first recorded outcome announces a delivery hint for its thread", hints.hints)
 	}
 	detail, _ = m.Detail(ctx, f.tenant, f.sale, thread.ID, types.MessagingQuery{Limit: 20})
 	if detail.Messages[0].DeliveryStatus != types.DeliveryFailed || detail.Messages[0].DeliveryErrorReason != outbound.ErrorAuthExpired {

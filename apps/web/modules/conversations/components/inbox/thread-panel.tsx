@@ -25,6 +25,7 @@ export function ThreadPanel({
   members,
   connections,
   externalRefresh,
+  live,
   onChanged,
 }: {
   tenantID: string;
@@ -34,12 +35,13 @@ export function ThreadPanel({
   // null while unknown; the API still rejects sends on inactive connections.
   connections: ChannelConnection[] | null;
   externalRefresh: number;
+  live: number;
   onChanged: () => void;
 }) {
   const t = useT();
   const memberName = useMemberName(members);
   const userID = useAuthStore((state) => state.user?.id);
-  const thread = useThread({ tenantID, threadID, externalRefresh, onChanged });
+  const thread = useThread({ tenantID, threadID, externalRefresh, live, onChanged });
   const { detail } = thread;
   const platform = threadPlatform(detail);
   const sender = useReplySender({

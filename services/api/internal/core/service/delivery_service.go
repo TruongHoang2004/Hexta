@@ -11,17 +11,27 @@ import (
 
 // DeliveryService applies connector outcomes. Results are deduplicated by attempt state, so Kafka redelivery
 // cannot regress a recorded outcome, and no result ever triggers an automatic resend.
-type DeliveryService struct{ store repository.DeliveryStore }
+type DeliveryService struct {
+	store     repository.DeliveryStore
+	publisher RealtimePublisher
+}
 
 func NewDeliveryService(store repository.DeliveryStore) *DeliveryService {
-	return &DeliveryService{store}
+	return &DeliveryService{store: store}
+}
+
+// WithPublisher announces committed delivery changes (sent, failed) to connected clients.
+func (s *DeliveryService) WithPublisher(publisher RealtimePublisher) *DeliveryService {
+	s.publisher = publisher
+	return s
 }
 
 func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEvent) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid outbound result")
 	}
-	return s.store.Within(ctx, func(r repository.DeliveryStore) *apperrors.Error {
+	var thread string
+	err := s.store.Within(ctx, func(r repository.DeliveryStore) *apperrors.Error {
 		intent, err := r.Intent(ctx, e.TenantID, e.IntentID)
 		if err != nil || intent == nil || intent.ConnectionID != e.ConnectionID {
 			return err
@@ -47,11 +57,21 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 		if err := r.SetMessageDelivery(ctx, e.TenantID, intent.MessageID, e.Status, e.ErrorCategory); err != nil {
 			return err
 		}
+		if s.publisher != nil {
+			if thread, err = r.ThreadOfMessage(ctx, e.TenantID, intent.MessageID); err != nil {
+				return err
+			}
+		}
 		if e.ErrorCategory == outbound.ErrorAuthExpired {
 			return r.MarkAuthExpired(ctx, e.TenantID, e.ConnectionID, attempt.ConnectionVersion, e.ErrorCode, at)
 		}
 		return nil
 	})
+	if err == nil && thread != "" && s.publisher != nil {
+		// Best effort after commit; clients resynchronize on reconnect.
+		_ = s.publisher.Publish(ctx, e.TenantID, types.RealtimeHint{ThreadID: thread, Reason: types.RealtimeDeliveryChanged})
+	}
+	return err
 }
 
 func (s *DeliveryService) ConsumeHealth(ctx context.Context, e outbound.ConnectionHealthEvent) *apperrors.Error {

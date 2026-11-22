@@ -67,6 +67,7 @@ func main() {
 		bootstrap.BuildValidator(),
 		bootstrap.BuildMiddleware(),
 		bootstrap.BuildOutbox(),
+		bootstrap.BuildRealtime(),
 		bootstrap.ServerModule,
 		bootstrap.RouterModule,
 		bootstrap.TelemetryModule,

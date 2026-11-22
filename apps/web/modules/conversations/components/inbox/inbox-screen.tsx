@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ExpiredConnectionBanner } from "@/modules/settings";
 import { secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useChannelConnections } from "../../hooks/use-channel-connections";
+import { useConversationStream, type StreamChange } from "../../hooks/use-conversation-stream";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
 import { ConversationList } from "./conversation-list";
@@ -20,7 +21,18 @@ export function InboxScreen() {
   const [refresh, setRefresh] = useState(0);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [selected, setSelected] = useState("");
-  const list = useInboxConversations(tenantID, refresh);
+  // Realtime hints: `liveList` refreshes the list, `liveThread` only when the open conversation is affected.
+  const [liveList, setLiveList] = useState(0);
+  const [liveThread, setLiveThread] = useState(0);
+  const onStreamChange = useCallback(
+    (change: StreamChange) => {
+      setLiveList((v) => v + 1);
+      if (change.resync || (selected && change.threads.has(selected))) setLiveThread((v) => v + 1);
+    },
+    [selected],
+  );
+  const streamStatus = useConversationStream(tenantID, onStreamChange);
+  const list = useInboxConversations(tenantID, refresh, liveList);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
   const reloadList = () => setRefresh((v) => v + 1);
@@ -32,9 +44,14 @@ export function InboxScreen() {
           <h1 className="text-2xl font-semibold">{t("desk.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
         </div>
-        <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
-          {t("desk.refresh")}
-        </button>
+        <div className="flex items-center gap-3">
+          <p role="status" className="text-xs text-muted">
+            {streamStatus === "live" ? t("desk.liveOn") : t("desk.liveOff")}
+          </p>
+          <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
+            {t("desk.refresh")}
+          </button>
+        </div>
       </div>
       <p role="note" className="rounded-lg border border-border bg-surface p-3 text-sm text-muted">
         {t("desk.notice")}
@@ -59,6 +76,7 @@ export function InboxScreen() {
             members={members}
             connections={connections}
             externalRefresh={detailRefresh}
+            live={liveThread}
             onChanged={reloadList}
           />
         ) : (

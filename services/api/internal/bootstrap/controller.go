@@ -14,6 +14,7 @@ func BuildController() fx.Option {
 		fx.Provide(controller.NewWorkflowController),
 		fx.Provide(controller.NewMessagingQueryController),
 		fx.Provide(controller.NewMessagingCommandController),
+		fx.Provide(controller.NewConversationStreamController),
 		fx.Provide(controller.NewChannelController),
 		fx.Provide(controller.NewHealthController),
 		fx.Provide(controller.NewAuthController),

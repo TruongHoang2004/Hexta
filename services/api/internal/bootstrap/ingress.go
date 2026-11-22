@@ -10,6 +10,7 @@ import (
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/postgres"
@@ -33,6 +34,13 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 	delivery := service.NewDeliveryService(deliveryStore)
 	views := repository.NewConversationViewRepository(db)
 	projector := service.NewConversationProjector(views)
+	// Realtime hints are optional: without REDIS_ADDR the process still projects, clients just don't get pushes.
+	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
+		bus := cache.NewRealtimeBusForAddr(addr)
+		defer bus.Close()
+		projector.WithPublisher(bus)
+		delivery.WithPublisher(bus)
+	}
 	consumers := []struct {
 		group, topic string
 		quarantine   func(context.Context, string, string) error

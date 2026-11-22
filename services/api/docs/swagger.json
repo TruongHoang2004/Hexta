@@ -124,7 +124,7 @@
         },
         "/api/v1/auth/google/login": {
             "get": {
-                "description": "Redirects to Google consent screen with secure CSRF state",
+                "description": "Redirects to Google consent screen with secure CSRF state, or back to the frontend login with an error when Google login is unavailable",
                 "tags": [
                     "Auth"
                 ],
@@ -1386,6 +1386,70 @@
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/conversations/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-sent events: `ready` on connect, `changed` {thread_id, reason} per change, `resync` when hints may have been lost. Hints carry no message content; refetch through the read endpoints. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Messaging"
+                ],
+                "summary": "Stream conversation change hints (SSE)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
