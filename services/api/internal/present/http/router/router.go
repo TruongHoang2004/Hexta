@@ -18,7 +18,7 @@ func RegisterRoutes(
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
 	messagingQuery *controller.MessagingQueryController,
-	messagingCommand *controller.MessagingCommandController,
+	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
@@ -68,14 +68,7 @@ func RegisterRoutes(
 	tenantGroup.POST("/:tenantID/invitations", onboarding.CreateEmailInvitation)
 	tenantGroup.GET("/:tenantID/invitations", onboarding.ListInvitations)
 	tenantGroup.POST("/:tenantID/invitations/:id/revoke", onboarding.RevokeInvitation)
-	resources := tenantGroup.Group("/:tenantID")
-	resources.Use(func(c *gin.Context) {
-		if header := c.GetHeader("X-Tenant-ID"); header != "" && header != c.Param("tenantID") {
-			c.AbortWithStatusJSON(400, gin.H{"detail": "tenant route and header conflict"})
-			return
-		}
-	})
-	resources.Use(tenantMiddleware.RequireTenantMember())
+	resources := tenantResources(tenantGroup, tenantMiddleware)
 	resources.POST("/orders", salesController.CreateOrder)
 	resources.GET("/orders", salesController.ListOrders)
 	resources.GET("/orders/:id", salesController.GetOrder)
@@ -103,13 +96,7 @@ func RegisterRoutes(
 
 	resources.GET("/conversations", messagingQuery.List)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
-	resources.POST("/simulator/messages", messagingCommand.Inbound)
-	resources.POST("/turns/:id/claim", messagingCommand.Claim)
-	resources.POST("/turns/:id/assign", messagingCommand.Assign)
-	resources.POST("/turns/:id/handoff", messagingCommand.Handoff)
-	resources.POST("/turns/:id/return-to-bot", messagingCommand.ReturnToBot)
-	resources.POST("/turns/:id/send-simulation", messagingCommand.Send)
-	resources.POST("/turns/:id/messages", messagingCommand.SendChannel)
+	registerMessagingCommandRoutes(resources, messagingCommands.Handle)
 
 	resources.POST("/channels/facebook/oauth/start", channels.StartFacebookOAuth)
 	resources.GET("/channels/facebook/connections", channels.ListFacebookConnections)
@@ -138,4 +125,17 @@ type Params struct {
 
 	Public  *gin.RouterGroup `name:"public"`
 	Private *gin.RouterGroup `name:"private"`
+}
+
+// tenantResources is the authenticated, tenant-member-checked group shared by every process serving tenant routes.
+func tenantResources(tenantGroup *gin.RouterGroup, tenantMiddleware *middleware.TenantMiddleware) *gin.RouterGroup {
+	resources := tenantGroup.Group("/:tenantID")
+	resources.Use(func(c *gin.Context) {
+		if header := c.GetHeader("X-Tenant-ID"); header != "" && header != c.Param("tenantID") {
+			c.AbortWithStatusJSON(400, gin.H{"detail": "tenant route and header conflict"})
+			return
+		}
+	})
+	resources.Use(tenantMiddleware.RequireTenantMember())
+	return resources
 }

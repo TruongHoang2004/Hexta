@@ -34,6 +34,10 @@ ai:
   max_tokens: ${AI_MAX_TOKENS}
   temperature: ${AI_TEMPERATURE}
 
+messaging:
+  command_url: http://localhost:8082
+  command_port: "8082"
+
 kafka:
   brokers: ${KAFKA_BROKERS}
 

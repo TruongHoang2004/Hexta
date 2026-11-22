@@ -147,6 +147,36 @@ services:
       CONNECTOR_DATABASE_URL: postgres://hexta_connector:${CONNECTOR_DB_PASSWORD}@postgres:5432/hexta_connector?sslmode=disable
     command: ["apply"]
 
+  # Conversation write side; the api service forwards conversation writes here. Not routed by Caddy.
+  messaging-command:
+    image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/api:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
+    restart: unless-stopped
+    command: ["./messaging-command"]
+    depends_on:
+      migrate-api:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN}
+      API_DB_PASSWORD: ${API_DB_PASSWORD}
+      JWT_ACCESS_TOKEN_SECRET: ${JWT_ACCESS_TOKEN_SECRET:?Set JWT_ACCESS_TOKEN_SECRET}
+      JWT_REFRESH_TOKEN_SECRET: ${JWT_REFRESH_TOKEN_SECRET:?Set JWT_REFRESH_TOKEN_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN}
+      CONNECTOR_MANAGEMENT_TOKEN: ${CONNECTOR_MANAGEMENT_TOKEN:?Set CONNECTOR_MANAGEMENT_TOKEN}
+      META_APP_ID: ${META_APP_ID:-}
+    volumes:
+      - ./prod/api.yaml:/app/config/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8082/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    mem_limit: 256m
+    logging: *logging
+
   api:
     image: ${HEXTA_IMAGE_REGISTRY:-ghcr.io/truonghoang2004/hexta}/api:${HEXTA_IMAGE_TAG:?Set HEXTA_IMAGE_TAG}
     restart: unless-stopped
@@ -157,6 +187,8 @@ services:
         condition: service_healthy
       kafka-topics:
         condition: service_completed_successfully
+      messaging-command:
+        condition: service_healthy
     environment:
       DOMAIN: ${DOMAIN}
       API_DB_PASSWORD: ${API_DB_PASSWORD}
