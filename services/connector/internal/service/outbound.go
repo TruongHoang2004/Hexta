@@ -4,19 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
-	"github.com/google/uuid"
 )
 
 const sendTimeout = 15 * time.Second
 
 // AttemptOutcome is a durable attempt result. Health is set when the provider reported revoked/expired credentials.
 type AttemptOutcome struct {
-	Result outbound.ResultEvent
-	Health *outbound.ConnectionHealthEvent
+	Result delivery.SendCompleted
+	Health *connection.HealthChanged
 }
 
 // Dispatch is returned when an attempt was durably claimed and the provider call may proceed.
@@ -28,7 +29,7 @@ type Dispatch struct {
 type OutboundStore interface {
 	// BeginAttempt claims attempt_id once. A nil Dispatch means nothing may be sent: the attempt was a
 	// duplicate, or it was rejected (inactive connection, stale version, expired intent) with its result enqueued.
-	BeginAttempt(ctx context.Context, intent outbound.IntentEvent, now time.Time, reject func(Connection, *Sealed) *AttemptOutcome) (*Dispatch, error)
+	BeginAttempt(ctx context.Context, intent delivery.SendRequested, now time.Time, reject func(Connection, *Sealed) *AttemptOutcome) (*Dispatch, error)
 	FinishAttempt(ctx context.Context, outcome AttemptOutcome) error
 }
 
@@ -50,19 +51,19 @@ func (s *OutboundService) now() time.Time {
 // ErrInvalidIntent marks a message that can never be processed; the consumer commits past it.
 var ErrInvalidIntent = errors.New("invalid outbound intent")
 
-func outcome(intent outbound.IntentEvent, status, category, code, provider string, at time.Time) *AttemptOutcome {
-	return &AttemptOutcome{Result: outbound.ResultEvent{SchemaVersion: 1, IntentID: intent.IntentID, AttemptID: intent.AttemptID, TenantID: intent.TenantID, ConnectionID: intent.ConnectionID, Status: status, ErrorCategory: category, ErrorCode: code, ProviderMessageID: provider, OccurredAt: at}}
+func outcome(intent delivery.SendRequested, status, category, code, provider string, at time.Time) *AttemptOutcome {
+	return &AttemptOutcome{Result: delivery.SendCompleted{Meta: events.NewMeta(intent.TenantID, intent.CorrelationID, at), IntentID: intent.IntentID, AttemptID: intent.AttemptID, ConnectionID: intent.ConnectionID, Status: status, ErrorCategory: category, ErrorCode: code, ProviderMessageID: provider}}
 }
 
 func authExpired(o *AttemptOutcome, c Connection, at time.Time) *AttemptOutcome {
-	o.Health = &outbound.ConnectionHealthEvent{SchemaVersion: 1, EventID: uuid.NewString(), TenantID: c.TenantID, ConnectionID: c.ID, ConnectionVersion: c.Version, Status: outbound.ErrorAuthExpired, ErrorCode: o.Result.ErrorCode, OccurredAt: at}
+	o.Health = &connection.HealthChanged{Meta: events.NewMeta(c.TenantID, "", at), ConnectionID: c.ID, ConnectionVersion: c.Version, Status: connection.StatusAuthExpired, ErrorCode: o.Result.ErrorCode}
 	return o
 }
 
 // Handle executes at most one provider call per attempt. A returned error (other than ErrInvalidIntent) is a
 // connector storage failure; the consumer retries the same message without advancing its offset.
 func (s *OutboundService) Handle(ctx context.Context, payload []byte) error {
-	var intent outbound.IntentEvent
+	var intent delivery.SendRequested
 	if json.Unmarshal(payload, &intent) != nil || intent.Validate() != nil {
 		return ErrInvalidIntent
 	}
@@ -70,13 +71,13 @@ func (s *OutboundService) Handle(ctx context.Context, payload []byte) error {
 	dispatch, err := s.Store.BeginAttempt(ctx, intent, now, func(c Connection, credential *Sealed) *AttemptOutcome {
 		switch {
 		case !now.Before(intent.ExpiresAt):
-			return outcome(intent, outbound.StatusFailed, outbound.ErrorExpired, "", "", now)
+			return outcome(intent, delivery.StatusFailed, delivery.ErrorExpired, "", "", now)
 		case c.ID == "" || !c.Enabled || c.Version != intent.ConnectionVersion || c.TenantID != intent.TenantID || c.AccountID != intent.AccountID || c.Platform != intent.Platform:
-			return outcome(intent, outbound.StatusFailed, outbound.ErrorConnectionInactive, "", "", now)
+			return outcome(intent, delivery.StatusFailed, delivery.ErrorConnectionInactive, "", "", now)
 		case s.Senders[c.Platform] == nil:
-			return outcome(intent, outbound.StatusFailed, outbound.ErrorConnectionInactive, "platform_unavailable", "", now)
+			return outcome(intent, delivery.StatusFailed, delivery.ErrorConnectionInactive, "platform_unavailable", "", now)
 		case credential == nil:
-			return authExpired(outcome(intent, outbound.StatusFailed, outbound.ErrorAuthExpired, "no_credential", "", now), c, now)
+			return authExpired(outcome(intent, delivery.StatusFailed, delivery.ErrorAuthExpired, "no_credential", "", now), c, now)
 		}
 		return nil
 	})
@@ -85,24 +86,24 @@ func (s *OutboundService) Handle(ctx context.Context, payload []byte) error {
 	}
 	token, err := s.Sealer.Open(dispatch.Credential.Ciphertext, dispatch.Credential.KeyVersion, connectionAD(dispatch.Connection.ID))
 	if err != nil {
-		return s.Store.FinishAttempt(ctx, *outcome(intent, outbound.StatusFailed, outbound.ErrorTransport, "credential_unreadable", "", s.now()))
+		return s.Store.FinishAttempt(ctx, *outcome(intent, delivery.StatusFailed, delivery.ErrorTransport, "credential_unreadable", "", s.now()))
 	}
 	call, cancel := context.WithTimeout(ctx, sendTimeout)
 	providerID, sendErr := s.Senders[dispatch.Connection.Platform].SendText(call, intent.AccountID, string(token), intent.RecipientID, intent.Text)
 	cancel()
 	at := s.now()
-	result := outcome(intent, outbound.StatusSent, "", "", providerID, at)
+	result := outcome(intent, delivery.StatusSent, "", "", providerID, at)
 	if sendErr != nil {
 		var pe *plugin.ProviderError
 		if !errors.As(sendErr, &pe) {
-			pe = &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "unclassified", Unknown: true}
+			pe = &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "unclassified", Unknown: true}
 		}
-		status := outbound.StatusFailed
+		status := delivery.StatusFailed
 		if pe.Unknown {
-			status = outbound.StatusUnknown
+			status = delivery.StatusUnknown
 		}
 		result = outcome(intent, status, pe.Category, pe.Code, "", at)
-		if pe.Category == outbound.ErrorAuthExpired {
+		if pe.Category == delivery.ErrorAuthExpired {
 			result = authExpired(result, dispatch.Connection, at)
 		}
 	}

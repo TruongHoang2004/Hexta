@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"github.com/jackc/pgx/v5"
@@ -54,7 +54,7 @@ func (s *Store) Accept(ctx context.Context, app, platform, receipt string, items
 	if backlog > room {
 		return errors.New("storage capacity")
 	}
-	events := make([]acceptedEvent, 0, len(items))
+	accepted := make([]acceptedEvent, 0, len(items))
 	for i, item := range items {
 		var c service.Connection
 		err = tx.QueryRow(ctx, "SELECT id,version,tenant_id,platform,account_id,app_id,enabled FROM connector.connections WHERE app_id=$1 AND platform=$2 AND account_id=$3 FOR SHARE", app, platform, item.AccountID).Scan(&c.ID, &c.Version, &c.TenantID, &c.Platform, &c.AccountID, &c.AppID, &c.Enabled)
@@ -68,7 +68,7 @@ func (s *Store) Accept(ctx context.Context, app, platform, receipt string, items
 			reason = "disabled_connection"
 		}
 		e := service.Envelope(item.Event, c)
-		v := acceptedEvent{id: e.EventID, key: ingress.Hash(app, receipt, string(rune(i))), state: "pending", reason: reason}
+		v := acceptedEvent{id: e.EventID, key: events.Hash(app, receipt, string(rune(i))), state: "pending", reason: reason}
 		if reason != "" {
 			v.state = "quarantine"
 		} else {
@@ -81,11 +81,11 @@ func (s *Store) Accept(ctx context.Context, app, platform, receipt string, items
 				return err
 			}
 		}
-		events = append(events, v)
+		accepted = append(accepted, v)
 	}
 	// Overlapping batches (webhook/poll or redelivery) insert shared event keys in one order, so they cannot deadlock.
-	slices.SortStableFunc(events, func(a, b acceptedEvent) int { return strings.Compare(a.key, b.key) })
-	for _, v := range events {
+	slices.SortStableFunc(accepted, func(a, b acceptedEvent) int { return strings.Compare(a.key, b.key) })
+	for _, v := range accepted {
 		if _, err = tx.Exec(ctx, "INSERT INTO connector.events(id,receipt_id,app_id,event_key,payload,state,reason,available_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(event_key) DO NOTHING", v.id, receipt, app, v.key, v.payload, v.state, v.reason, now); err != nil {
 			return err
 		}

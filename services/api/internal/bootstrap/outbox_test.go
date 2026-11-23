@@ -2,6 +2,9 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/json"
+
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"testing"
 	"time"
 
@@ -50,10 +53,19 @@ func (s *relayStore) FinishEvent(_ context.Context, event *model.DomainEvent, pu
 
 type relayPublisher struct{}
 
-func (relayPublisher) Publish(context.Context, string, []byte) error { return nil }
+func (relayPublisher) PublishTo(context.Context, string, string, []byte) error { return nil }
+
+// orderEvent is a publishable outbox row carrying a valid shared order.confirmed payload.
+func orderEvent(t *testing.T, id string) *model.DomainEvent {
+	payload, err := json.Marshal(order.OrderConfirmed{OrderID: "order", OrderNumber: "SO-1", Version: 2, TotalAmount: "10.00", ConfirmedBy: "owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &model.DomainEvent{ID: id, TenantID: "tenant", EventType: model.DomainEventOrderConfirmed, AggregateID: "order", Payload: string(payload)}
+}
 
 func TestRunOutboxRelayDrainsAndStops(t *testing.T) {
-	store := &relayStore{pending: []*model.DomainEvent{{ID: "a", Payload: "{}"}, {ID: "b", Payload: "{}"}}, finished: make(chan string, 2)}
+	store := &relayStore{pending: []*model.DomainEvent{orderEvent(t, "a"), orderEvent(t, "b")}, finished: make(chan string, 2)}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {

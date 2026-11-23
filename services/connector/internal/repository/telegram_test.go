@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/telegram"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/secret"
@@ -120,7 +120,7 @@ func TestTelegramConnectionLifecycle(t *testing.T) {
 
 	// Outbound uses the rotated token through the shared single-attempt flow.
 	sender := &service.OutboundService{Store: s, Senders: map[string]plugin.TextSender{"telegram": bots}, Sealer: sealer}
-	for category, sendErr := range map[string]error{"": nil, outbound.ErrorBotBlocked: &plugin.ProviderError{Category: outbound.ErrorBotBlocked, Code: "403"}, outbound.ErrorChatNotFound: &plugin.ProviderError{Category: outbound.ErrorChatNotFound, Code: "400"}} {
+	for category, sendErr := range map[string]error{"": nil, delivery.ErrorBotBlocked: &plugin.ProviderError{Category: delivery.ErrorBotBlocked, Code: "403"}, delivery.ErrorChatNotFound: &plugin.ProviderError{Category: delivery.ErrorChatNotFound, Code: "400"}} {
 		bots.sendErr = sendErr
 		intent := intentFor(c)
 		intent.Platform, intent.RecipientID = "telegram", "42"

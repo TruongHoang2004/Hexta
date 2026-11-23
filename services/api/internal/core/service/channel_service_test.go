@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -223,13 +225,13 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 	connected, _ := connectPages(t, channels, f.tenant, f.owner, "page-a")
 	conn := connected[0]
 	in := NewIngressService(repository.NewIngressRepository(f.db))
-	e := ingress.Event{SchemaVersion: 1, EventID: uuid.NewString(), CorrelationID: uuid.NewString(), Platform: "facebook", ConnectionID: conn.ID, ConnectionVersion: conn.Version, TenantID: f.tenant, AccountID: "page-a", ConversationKey: "psid-1", MessageID: "m1", SourceIdentity: "message:m1", Sender: "psid-1", Recipient: "page-a", Direction: "inbound", Type: ingress.TypeMessage, Text: "hello", SourceAt: time.Now(), ReceivedAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Meta: events.Meta{EventID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, Platform: "facebook", ConnectionID: conn.ID, ConnectionVersion: conn.Version, AccountID: "page-a", ConversationKey: "psid-1", MessageID: "m1", SourceIdentity: "message:m1", Sender: "psid-1", Recipient: "page-a", Direction: "inbound", Text: "hello", SourceAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
 	if err := in.Consume(ctx, e); err != nil {
 		t.Fatal(err)
 	}
 	media := e
-	media.EventID, media.MessageID, media.SourceIdentity, media.Type, media.Text = uuid.NewString(), "m2", "message:m2", ingress.TypeUnsupportedMedia, ""
-	media.Attachments = []ingress.Attachment{{Type: "image"}, {Type: "sticker"}}
+	media.EventID, media.MessageID, media.SourceIdentity, media.Text = uuid.NewString(), "m2", "message:m2", ""
+	media.UnsupportedMedia = []string{"image", "sticker"}
 	if err := in.Consume(ctx, media); err != nil {
 		t.Fatal(err)
 	}
@@ -267,27 +269,27 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 	changed.Text = "different"
 	_, err = m.SendChannel(ctx, f.tenant, f.sale, turn.ID, changed)
 	requireSalesStatus(t, err, 409)
-	var events []model.DomainEvent
-	f.db.Where("tenant_id = ? AND event_type = ?", f.tenant, model.DomainEventOutboundIntent).Find(&events)
-	var intent outbound.IntentEvent
-	if len(events) != 1 || json.Unmarshal([]byte(events[0].Payload), &intent) != nil || intent.Validate() != nil || intent.RecipientID != "psid-1" || intent.AccountID != "page-a" || intent.ConnectionVersion != conn.Version {
-		t.Fatal("outbox intent", events)
+	var outbox []model.DomainEvent
+	f.db.Where("tenant_id = ? AND event_type = ?", f.tenant, model.DomainEventOutboundIntent).Find(&outbox)
+	var intent delivery.SendRequested
+	if len(outbox) != 1 || json.Unmarshal([]byte(outbox[0].Payload), &intent) != nil || intent.Validate() != nil || intent.RecipientID != "psid-1" || intent.AccountID != "page-a" || intent.ConnectionVersion != conn.Version {
+		t.Fatal("outbox intent", outbox)
 	}
 
-	delivery := NewDeliveryService(repository.NewDeliveryRepository(f.db))
-	result := outbound.ResultEvent{SchemaVersion: 1, IntentID: intent.IntentID, AttemptID: intent.AttemptID, TenantID: f.tenant, ConnectionID: conn.ID, Status: outbound.StatusFailed, ErrorCategory: outbound.ErrorAuthExpired, ErrorCode: "190", OccurredAt: time.Now()}
+	deliveries := NewDeliveryService(repository.NewDeliveryRepository(f.db))
+	result := delivery.SendCompleted{Meta: events.Meta{EventID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, IntentID: intent.IntentID, AttemptID: intent.AttemptID, ConnectionID: conn.ID, Status: delivery.StatusFailed, ErrorCategory: delivery.ErrorAuthExpired, ErrorCode: "190"}
 	for i := 0; i < 2; i++ {
-		if err := delivery.ConsumeResult(ctx, result); err != nil {
+		if err := deliveries.ConsumeResult(ctx, result); err != nil {
 			t.Fatal(err)
 		}
 	}
 	late := result
-	late.Status, late.ErrorCategory = outbound.StatusSent, ""
-	if err := delivery.ConsumeResult(ctx, late); err != nil {
+	late.Status, late.ErrorCategory = delivery.StatusSent, ""
+	if err := deliveries.ConsumeResult(ctx, late); err != nil {
 		t.Fatal(err)
 	}
 	detail, _ = m.Detail(ctx, f.tenant, f.sale, thread.ID, types.MessagingQuery{Limit: 20})
-	if detail.Messages[0].DeliveryStatus != types.DeliveryFailed || detail.Messages[0].DeliveryErrorReason != outbound.ErrorAuthExpired {
+	if detail.Messages[0].DeliveryStatus != types.DeliveryFailed || detail.Messages[0].DeliveryErrorReason != delivery.ErrorAuthExpired {
 		t.Fatal("recorded outcome regressed or missing", detail.Messages[0])
 	}
 	list, _ := channels.ListFacebookConnections(ctx, f.tenant, f.sale)
@@ -302,8 +304,8 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 	if reconnected[0].ID != conn.ID || reconnected[0].Status != types.ChannelStatusActive || reconnected[0].Version <= conn.Version {
 		t.Fatal("reconnect", reconnected)
 	}
-	health := outbound.ConnectionHealthEvent{SchemaVersion: 1, EventID: uuid.NewString(), TenantID: f.tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Status: outbound.ErrorAuthExpired, ErrorCode: "190", OccurredAt: time.Now()}
-	if err := delivery.ConsumeHealth(ctx, health); err != nil {
+	health := connection.HealthChanged{Meta: events.Meta{EventID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Status: connection.StatusAuthExpired, ErrorCode: "190"}
+	if err := deliveries.ConsumeHealth(ctx, health); err != nil {
 		t.Fatal(err)
 	}
 	list, _ = channels.ListFacebookConnections(ctx, f.tenant, f.owner)
@@ -311,7 +313,7 @@ func TestChannelSendAndDeliveryResults(t *testing.T) {
 		t.Fatal("stale health event expired a reconnected binding")
 	}
 	health.ConnectionVersion = reconnected[0].Version
-	_ = delivery.ConsumeHealth(ctx, health)
+	_ = deliveries.ConsumeHealth(ctx, health)
 	list, _ = channels.ListFacebookConnections(ctx, f.tenant, f.owner)
 	if list[0].Status != types.ChannelStatusAuthExpired {
 		t.Fatal("current health event ignored")

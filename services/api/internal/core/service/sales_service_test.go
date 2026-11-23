@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"os"
 	"sync"
 	"testing"
@@ -122,8 +123,8 @@ func TestSalesIncompleteDraftAndConfirmation(t *testing.T) {
 	if len(events) != 1 || events[0].TenantID != f.tenant || events[0].EventType != model.DomainEventOrderConfirmed || events[0].State != model.DomainEventStatePending {
 		t.Fatalf("expected one pending order.confirmed event, got %+v", events)
 	}
-	var payload types.OrderConfirmed
-	if json.Unmarshal([]byte(events[0].Payload), &payload) != nil || payload.OrderID != draft.ID || payload.Version != confirmed.Version || payload.ConfirmedBy != f.sale || payload.OrderNumber != confirmed.OrderNumber {
+	var payload order.OrderConfirmed
+	if json.Unmarshal([]byte(events[0].Payload), &payload) != nil || payload.OrderID != draft.ID || payload.Version != confirmed.Version || payload.ConfirmedBy != f.sale || payload.OrderNumber != confirmed.OrderNumber || payload.Validate() != nil || payload.TotalAmount != confirmed.TotalAmount.String() {
 		t.Fatalf("unexpected order.confirmed payload %s", events[0].Payload)
 	}
 	input.Version = confirmed.Version

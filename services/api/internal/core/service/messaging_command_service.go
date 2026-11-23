@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"strings"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
@@ -272,7 +273,7 @@ const outboundIntentTTL = 10 * time.Minute
 // The connector performs the provider call later; this request never calls Meta and never retries.
 func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor, id string, input types.ChannelSendInput) (*types.MessagingMessage, *apperrors.Error) {
 	input.Text = strings.TrimSpace(input.Text)
-	if !messagingText(input.Text, outbound.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
+	if !messagingText(input.Text, delivery.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("text (1–2000) and positive version/context required")
 	}
 	if _, err := uuid.Parse(input.ClientMessageID); err != nil {
@@ -323,8 +324,9 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 		}
 		intent := types.OutboundIntent{ID: messagingID(), TenantID: tenant, ConnectionID: conn.ID, MessageID: result.ID, ClientMessageID: input.ClientMessageID, RequestHash: hash, RecipientID: thread.RecipientID, Status: types.IntentPending, CreatedAt: now, UpdatedAt: now}
 		attempt := types.OutboundAttempt{ID: messagingID(), TenantID: tenant, IntentID: intent.ID, Status: types.IntentPending, ConnectionVersion: conn.Version, CreatedAt: now}
-		payload, _ := json.Marshal(outbound.IntentEvent{SchemaVersion: 1, IntentID: intent.ID, AttemptID: attempt.ID, CorrelationID: result.ID, TenantID: tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: input.Text, IssuedAt: now, ExpiresAt: now.Add(outboundIntentTTL)})
-		event := &model.DomainEvent{ID: uuid.NewString(), TenantID: tenant, EventType: model.DomainEventOutboundIntent, AggregateID: intent.ID, Payload: string(payload), State: model.DomainEventStatePending}
+		meta := events.Meta{EventID: uuid.NewString(), CorrelationID: result.ID, TenantID: tenant, OccurredAt: now}
+		payload, _ := json.Marshal(delivery.SendRequested{Meta: meta, IntentID: intent.ID, AttemptID: attempt.ID, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: input.Text, ExpiresAt: now.Add(outboundIntentTTL)})
+		event := &model.DomainEvent{ID: meta.EventID, TenantID: tenant, EventType: model.DomainEventOutboundIntent, AggregateID: intent.ID, Payload: string(payload), State: model.DomainEventStatePending}
 		if err := r.InsertOutbound(ctx, intent, attempt, event); err != nil {
 			return err
 		}

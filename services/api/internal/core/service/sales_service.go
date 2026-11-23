@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"net/mail"
 	"strings"
 
@@ -383,6 +384,6 @@ func (s *SalesService) Confirm(ctx context.Context, tenant, actor, id string, ve
 
 // orderConfirmedEvent is committed in the confirmation transaction; the outbox relay publishes it later.
 func orderConfirmedEvent(row *model.Order, actor string) *model.DomainEvent {
-	payload, _ := json.Marshal(types.OrderConfirmed{OrderID: row.ID, OrderNumber: row.OrderNumber, Version: row.Version, TotalAmount: row.TotalAmount, ConfirmedBy: actor})
+	payload, _ := json.Marshal(order.OrderConfirmed{OrderID: row.ID, OrderNumber: row.OrderNumber, Version: row.Version, TotalAmount: row.TotalAmount.String(), ConfirmedBy: actor})
 	return &model.DomainEvent{ID: uuid.NewString(), TenantID: row.TenantID, EventType: model.DomainEventOrderConfirmed, AggregateID: row.ID, Payload: string(payload), State: model.DomainEventStatePending}
 }

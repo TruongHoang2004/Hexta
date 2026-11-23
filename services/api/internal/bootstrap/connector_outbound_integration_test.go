@@ -22,9 +22,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/api/config"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
@@ -119,7 +120,7 @@ func TestConnectorFacebookOAuthSendAndDeliveryResults(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 	defer cancel()
-	createTopics(t, ctx, broker, ingress.Topic, outbound.IntentTopic, outbound.ResultTopic, outbound.HealthTopic)
+	createTopics(t, ctx, broker, messaging.MessageReceivedTopic, delivery.SendRequestedTopic, delivery.SendCompletedTopic, connection.HealthChangedTopic)
 
 	graph := &mockGraph{sends: map[string]int{}, page: page}
 	graphServer := httptest.NewServer(graph)
@@ -194,9 +195,9 @@ func TestConnectorFacebookOAuthSendAndDeliveryResults(t *testing.T) {
 	consumerDone := make(chan error, 1)
 	go func() { consumerDone <- RunIngress(ctx, db) }()
 	defer func() { cancel(); <-consumerDone }()
-	intents := kafkatransport.NewTopicPublisher([]string{broker}, outbound.IntentTopic)
+	intents := kafkatransport.NewTopicPublisher([]string{broker}, delivery.SendRequestedTopic)
 	defer intents.Writer.Close()
-	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), &fakeKafka{}).WithIntentPublisher(intents)
+	relay := service.NewOutboxRelay(repository.NewOutboxRepository(db), intentsOnly{intents})
 
 	inbox := newMessagingFacade(repository.NewMessagingRepository(db))
 	for _, psid := range []string{"psid-ok", "psid-window"} {
@@ -252,7 +253,7 @@ func TestConnectorFacebookOAuthSendAndDeliveryResults(t *testing.T) {
 			case <-time.After(100 * time.Millisecond):
 			}
 		}
-		if status == types.DeliveryFailed && (message.DeliveryErrorReason == nil || *message.DeliveryErrorReason != outbound.ErrorWindow24h) {
+		if status == types.DeliveryFailed && (message.DeliveryErrorReason == nil || *message.DeliveryErrorReason != delivery.ErrorWindow24h) {
 			t.Fatal("window classification", message.DeliveryErrorReason)
 		}
 	}
@@ -268,8 +269,13 @@ func TestConnectorFacebookOAuthSendAndDeliveryResults(t *testing.T) {
 	}
 }
 
-type fakeKafka struct{}
+// intentsOnly forwards delivery send requests to the test broker; other outbox topics are not provisioned there and
+// stay pending.
+type intentsOnly struct{ inner *kafkatransport.Publisher }
 
-func (fakeKafka) Publish(context.Context, string, []byte) error {
-	return stderrors.New("order topic unused")
+func (p intentsOnly) PublishTo(ctx context.Context, topic, key string, value []byte) error {
+	if topic != delivery.SendRequestedTopic {
+		return stderrors.New("topic not provisioned in this test")
+	}
+	return p.inner.Publish(ctx, key, value)
 }

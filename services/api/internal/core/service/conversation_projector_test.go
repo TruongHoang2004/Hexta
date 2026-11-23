@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"testing"
 	"time"
 
@@ -25,7 +27,7 @@ func conversationEvents(t *testing.T, db *gorm.DB, tenant string) []model.Domain
 // envelope wraps an outbox row exactly like the relay does before publishing.
 func envelope(t *testing.T, e model.DomainEvent) []byte {
 	t.Helper()
-	value, err := json.Marshal(types.DomainEventEnvelope{SchemaVersion: 1, EventID: e.ID, EventType: e.EventType, TenantID: e.TenantID, AggregateID: e.AggregateID, OccurredAt: time.Now().UTC(), Data: json.RawMessage(e.Payload)})
+	value, err := json.Marshal(events.Envelope{SchemaVersion: 1, EventID: e.ID, EventType: e.EventType, TenantID: e.TenantID, AggregateID: e.AggregateID, OccurredAt: time.Now().UTC(), Data: json.RawMessage(e.Payload)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +47,7 @@ func TestConversationEventsAreEmittedOncePerThreadAndTransaction(t *testing.T) {
 	if len(events) != 2 || events[1].AggregateID != message.ThreadID || events[1].State != model.DomainEventStatePending {
 		t.Fatalf("claim must add one pending event for the thread: %+v", events)
 	}
-	var change types.ConversationChanged
+	var change messaging.ConversationChanged
 	if err := json.Unmarshal([]byte(events[1].Payload), &change); err != nil {
 		t.Fatal(err)
 	}
@@ -107,9 +109,9 @@ func TestConversationProjectionMatchesAuthoritativeState(t *testing.T) {
 func TestConversationProjectorDecode(t *testing.T) {
 	p := NewConversationProjector(nil)
 	tenant, thread, turn := uuid.NewString(), uuid.NewString(), uuid.NewString()
-	data, _ := json.Marshal(types.ConversationChanged{ThreadID: thread, TurnID: turn, TurnVersion: 1, Lifecycle: "open", Control: "sales"})
+	data, _ := json.Marshal(messaging.ConversationChanged{ThreadID: thread, TurnID: turn, TurnVersion: 1, Lifecycle: "open", Control: "sales"})
 	wrap := func(kind string, version int, aggregate string) []byte {
-		v, _ := json.Marshal(types.DomainEventEnvelope{SchemaVersion: version, EventID: uuid.NewString(), EventType: kind, TenantID: tenant, AggregateID: aggregate, Data: data})
+		v, _ := json.Marshal(events.Envelope{SchemaVersion: version, EventID: uuid.NewString(), EventType: kind, TenantID: tenant, AggregateID: aggregate, Data: data})
 		return v
 	}
 	for name, c := range map[string]struct {

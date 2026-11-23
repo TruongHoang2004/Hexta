@@ -6,7 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"net/url"
 	"strings"
@@ -62,7 +63,7 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 				result = append(result, item)
 				continue
 			}
-			e := ingress.Event{Platform: "facebook", AccountID: entry.ID, Sender: m.Sender.ID, Recipient: m.Recipient.ID, ConversationKey: m.Sender.ID, Direction: "inbound", Type: "message", SourceAt: time.UnixMilli(m.Timestamp), ReceivedAt: received, Acquisition: "webhook", Purpose: "live"}
+			e := messaging.MessageReceived{Platform: "facebook", AccountID: entry.ID, Sender: m.Sender.ID, Recipient: m.Recipient.ID, ConversationKey: m.Sender.ID, Direction: messaging.DirectionInbound, SourceAt: time.UnixMilli(m.Timestamp), Meta: events.Meta{OccurredAt: received}, Acquisition: "webhook", Purpose: "live"}
 			if m.Message == nil {
 				switch {
 				case len(m.Reaction) > 0:
@@ -80,8 +81,7 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 				e.Text = m.Message.Text
 				e.ReplyTo = m.Message.Reply.MID
 				if m.Message.Echo {
-					e.Direction = "outbound"
-					e.Type = "echo"
+					e.Direction = messaging.DirectionOutbound
 					e.ConversationKey = m.Recipient.ID
 				}
 				// Media is surfaced as a placeholder carrying kinds only; URLs/binaries are never stored.
@@ -90,21 +90,18 @@ func (FacebookPlugin) Parse(body []byte, received time.Time) ([]plugin.Item, err
 					if kind == "image" && (len(a.Payload.StickerID) > 0 || len(m.Message.StickerID) > 0) {
 						kind = "sticker"
 					}
-					if !ingress.MediaKinds[kind] {
+					if !messaging.MediaKinds[kind] {
 						item.Reason = "unsupported_attachment"
 					}
-					e.Attachments = append(e.Attachments, ingress.Attachment{Type: kind})
+					e.UnsupportedMedia = append(e.UnsupportedMedia, kind)
 				}
-				if len(e.Attachments) > 0 {
+				if len(e.UnsupportedMedia) > 0 {
 					e.Text = ""
-					if !m.Message.Echo {
-						e.Type = ingress.TypeUnsupportedMedia
-					}
 				}
-				if len(e.Attachments) > 10 {
+				if len(e.UnsupportedMedia) > messaging.MaxUnsupportedMedia {
 					item.Reason = "unsupported_attachment"
 				}
-				if e.MessageID == "" || (e.Text == "" && len(e.Attachments) == 0) || len([]rune(e.Text)) > 4000 || m.Timestamp <= 0 || e.Sender == "" || len(e.Sender) > 255 || e.Recipient == "" || len(e.Recipient) > 255 || entry.ID == "" || (!m.Message.Echo && e.Recipient != entry.ID) || (m.Message.Echo && e.Sender != entry.ID) {
+				if e.MessageID == "" || (e.Text == "" && len(e.UnsupportedMedia) == 0) || len([]rune(e.Text)) > messaging.MaxTextRunes || m.Timestamp <= 0 || e.Sender == "" || len(e.Sender) > 255 || e.Recipient == "" || len(e.Recipient) > 255 || entry.ID == "" || (!m.Message.Echo && e.Recipient != entry.ID) || (m.Message.Echo && e.Sender != entry.ID) {
 					item.Reason = "invalid_message"
 				}
 			}

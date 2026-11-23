@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -17,7 +18,7 @@ func NewDeliveryService(store repository.DeliveryStore) *DeliveryService {
 	return &DeliveryService{store}
 }
 
-func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEvent) *apperrors.Error {
+func (s *DeliveryService) ConsumeResult(ctx context.Context, e delivery.SendCompleted) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid outbound result")
 	}
@@ -32,7 +33,7 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 		}
 		// A cancelled attempt may still have reached the provider; record sent/unknown truthfully.
 		cancelled := attempt.Status == types.IntentCancelled
-		if attempt.Status != types.IntentPending && !(cancelled && e.Status != outbound.StatusFailed) {
+		if attempt.Status != types.IntentPending && !(cancelled && e.Status != delivery.StatusFailed) {
 			return nil
 		}
 		at := e.OccurredAt.UTC()
@@ -47,14 +48,14 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 		if err := r.SetMessageDelivery(ctx, e.TenantID, intent.MessageID, e.Status, e.ErrorCategory); err != nil {
 			return err
 		}
-		if e.ErrorCategory == outbound.ErrorAuthExpired {
+		if e.ErrorCategory == delivery.ErrorAuthExpired {
 			return r.MarkAuthExpired(ctx, e.TenantID, e.ConnectionID, attempt.ConnectionVersion, e.ErrorCode, at)
 		}
 		return nil
 	})
 }
 
-func (s *DeliveryService) ConsumeHealth(ctx context.Context, e outbound.ConnectionHealthEvent) *apperrors.Error {
+func (s *DeliveryService) ConsumeHealth(ctx context.Context, e connection.HealthChanged) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid connection health event")
 	}

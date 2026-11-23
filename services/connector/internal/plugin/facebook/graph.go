@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 )
 
@@ -42,17 +42,17 @@ func Classify(status, code, subcode int) *plugin.ProviderError {
 	}
 	switch {
 	case code == 190 || (code >= 200 && code < 300):
-		return &plugin.ProviderError{Category: outbound.ErrorAuthExpired, Code: c}
+		return &plugin.ProviderError{Category: delivery.ErrorAuthExpired, Code: c}
 	case code == 10 || code == 2022 || subcode == 2018278:
-		return &plugin.ProviderError{Category: outbound.ErrorWindow24h, Code: c}
+		return &plugin.ProviderError{Category: delivery.ErrorWindow24h, Code: c}
 	case code == 4 || code == 17 || code == 32 || code == 613 || status == http.StatusTooManyRequests:
-		return &plugin.ProviderError{Category: outbound.ErrorRateLimit, Code: c}
+		return &plugin.ProviderError{Category: delivery.ErrorRateLimit, Code: c}
 	case code == 551 || subcode == 2018001 || subcode == 2018108:
-		return &plugin.ProviderError{Category: outbound.ErrorInvalidRecipient, Code: c}
+		return &plugin.ProviderError{Category: delivery.ErrorInvalidRecipient, Code: c}
 	case status >= 500:
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: c, Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: c, Unknown: true}
 	}
-	return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: c}
+	return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: c}
 }
 
 func (g *Graph) endpoint(path string) string { return g.BaseURL + "/" + g.Version + "/" + path }
@@ -61,12 +61,12 @@ func (g *Graph) do(req *http.Request, out any) error {
 	res, err := g.Client.Do(req)
 	if err != nil {
 		// Connection/timeout failures after dispatch cannot prove the provider did nothing.
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "network", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "network", Unknown: true}
 	}
 	defer res.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if err != nil {
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "read", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "read", Unknown: true}
 	}
 	if res.StatusCode != http.StatusOK {
 		var body struct {
@@ -79,7 +79,7 @@ func (g *Graph) do(req *http.Request, out any) error {
 		return Classify(res.StatusCode, body.Error.Code, body.Error.Subcode)
 	}
 	if out != nil && json.Unmarshal(data, out) != nil {
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "decode", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "decode", Unknown: true}
 	}
 	return nil
 }

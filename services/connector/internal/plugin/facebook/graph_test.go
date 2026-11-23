@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 )
 
@@ -19,14 +19,14 @@ func TestClassify(t *testing.T) {
 		category          string
 		unknown           bool
 	}{
-		{400, 10, 2018278, outbound.ErrorWindow24h, false},
-		{400, 2022, 0, outbound.ErrorWindow24h, false},
-		{400, 190, 460, outbound.ErrorAuthExpired, false},
-		{403, 200, 0, outbound.ErrorAuthExpired, false},
-		{400, 613, 0, outbound.ErrorRateLimit, false},
-		{400, 100, 2018001, outbound.ErrorInvalidRecipient, false},
-		{500, 2, 0, outbound.ErrorTransport, true},
-		{400, 100, 0, outbound.ErrorTransport, false},
+		{400, 10, 2018278, delivery.ErrorWindow24h, false},
+		{400, 2022, 0, delivery.ErrorWindow24h, false},
+		{400, 190, 460, delivery.ErrorAuthExpired, false},
+		{403, 200, 0, delivery.ErrorAuthExpired, false},
+		{400, 613, 0, delivery.ErrorRateLimit, false},
+		{400, 100, 2018001, delivery.ErrorInvalidRecipient, false},
+		{500, 2, 0, delivery.ErrorTransport, true},
+		{400, 100, 0, delivery.ErrorTransport, false},
 	} {
 		got := Classify(c.status, c.code, c.sub)
 		if got.Category != c.category || got.Unknown != c.unknown {
@@ -63,7 +63,7 @@ func TestGraphKeepsSecretsOutOfErrorsAndURLs(t *testing.T) {
 		t.Fatal("exchange", err, pages)
 	}
 	_, err = g.SendText(context.Background(), "p1", "page-token", "psid", "hi")
-	if ge, ok := err.(*plugin.ProviderError); !ok || ge.Category != outbound.ErrorWindow24h || strings.Contains(err.Error(), "page-token") {
+	if ge, ok := err.(*plugin.ProviderError); !ok || ge.Category != delivery.ErrorWindow24h || strings.Contains(err.Error(), "page-token") {
 		t.Fatal("send classification", err)
 	}
 	g.BaseURL = "http://127.0.0.1:1"
