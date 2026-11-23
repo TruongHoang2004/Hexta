@@ -213,6 +213,21 @@ Kafka holds only in-flight events. The connector and API keep their durable outb
 
 Never run `down -v` on the server: it deletes the database volume. Never print `.env`, `secrets/` or `docker compose config` output into logs or chats; it contains resolved secrets.
 
+## Shared host behind an existing reverse proxy
+
+Use this when another app's nginx already owns ports 80/443 (for example the eztech host, where a shared nginx with certbot serves other sites on the Docker network `infra-net`). Caddy then publishes no port, joins that network as `hexta-edge` and keeps Hexta's routing over plain HTTP; nginx terminates TLS. The overlay also lowers the Kafka heap for ~4 GB hosts.
+
+1. DNS: `A app.hexta.org → <server IP>` (Cloudflare: DNS only). Set `DOMAIN=app.hexta.org` and `HEXTA_EDGE_NETWORK=infra-net` in `prod/.env`; `ACME_EMAIL` must still be non-empty but is unused.
+2. Start the stack with the overlay on every command (`prod.sh` takes extra `-f` files before the Compose command):
+   ```sh
+   echo sha-<7 chars> > infrastructure/prod/state/deployed
+   ./scripts/prod.sh -f infrastructure/compose.prod.shared-edge.yml pull
+   ./scripts/prod.sh -f infrastructure/compose.prod.shared-edge.yml up -d --wait
+   ```
+3. Copy [prod/nginx-shared-edge.conf](prod/nginx-shared-edge.conf) into the proxy's `conf.d` with only the HTTP block, `nginx -t` and reload, issue the certificate with the proxy's certbot (webroot `/var/www/certbot`), then add the HTTPS block, `nginx -t` and reload again.
+
+The deploy agent does not pass the overlay; until it does, update by hand (step 2 with the new tag). Upstreams in `Caddyfile.shared-edge` are container names (`hexta-prod-<service>-1`) because the shared network can hold other apps' `api`/`postgres`/`redis` aliases.
+
 ## Known limits
 
 - One host, no high availability. Disk loss means restoring from an off-server backup.
