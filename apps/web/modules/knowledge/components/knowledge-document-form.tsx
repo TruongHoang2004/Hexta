@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Textarea } from "@hexta/ui";
-import { Field, inputClass } from "@/components/primitives";
+import { Button, Input, Textarea } from "@hexta/ui";
+import { Field } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import { knowledgeLimits, type KnowledgeDocumentInput } from "../types";
 
@@ -31,8 +31,7 @@ export function KnowledgeDocumentForm({ creating, form, valid, busy, onChange, o
         {creating ? t("knowledge.form.createTitle") : t("knowledge.form.editTitle")}
       </h3>
       <Field title={t("knowledge.form.title")}>
-        <input
-          className={inputClass}
+        <Input
           value={form.title}
           maxLength={knowledgeLimits.title}
           disabled={busy}
