@@ -100,6 +100,7 @@ func RegisterRoutes(
 	resources.GET("/overview", overview.Overview)
 
 	resources.GET("/conversations", messagingQuery.List)
+	resources.GET("/conversations/summary", messagingQuery.Summary)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
 	registerMessagingCommandRoutes(resources, messagingCommands.Handle)
 

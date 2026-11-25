@@ -32,9 +32,9 @@ export const mediaKinds = ["image", "video", "audio", "file", "sticker"] as cons
 export type MediaKind = (typeof mediaKinds)[number];
 
 /** Inbox list filters shown on the desk. */
-export type DeskFilter = Extract<InboxFilter, "bot" | "needs_human" | "mine" | "all">;
+export type DeskFilter = Extract<InboxFilter, "bot" | "waiting" | "mine" | "all">;
 
-export type ThreadCommand = "claim" | "assign" | "handoff" | "return-to-bot";
+export type ThreadCommand = "claim" | "assign" | "handoff" | "return-to-bot" | "resolve";
 
 /** One message in the consultant chat, with the structured parts streamed alongside it. */
 export type ConsultTurn = ChatMessage & {

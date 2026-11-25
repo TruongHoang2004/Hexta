@@ -21,14 +21,15 @@ func (r *MessagingRepository) markConversation(tenant, thread string) {
 }
 
 // flushConversationEvents writes one messaging.conversation.changed outbox row per changed thread, with the final
-// thread and open-turn state, in the same transaction as the change. Threads without an open turn emit nothing.
+// thread and latest-turn state (a closed turn included), in the same transaction as the change. Threads without
+// any turn emit nothing.
 func (r *MessagingRepository) flushConversationEvents(ctx context.Context) *apperrors.Error {
 	for key := range r.dirty {
 		thread, err := r.Thread(ctx, key.tenant, key.thread, false)
 		if err != nil {
 			return err
 		}
-		turn, err := r.CurrentTurn(ctx, key.tenant, key.thread)
+		turn, err := r.LatestTurn(ctx, key.tenant, key.thread)
 		if err != nil {
 			return err
 		}
@@ -48,14 +49,14 @@ func (r *MessagingRepository) flushConversationEvents(ctx context.Context) *appe
 	return nil
 }
 
-// ConversationChangedOf snapshots a thread and its open turn as the event payload.
+// ConversationChangedOf snapshots a thread and its latest turn as the event payload.
 func ConversationChangedOf(thread types.MessagingThread, turn types.MessagingTurn) messaging.ConversationChanged {
 	return messaging.ConversationChanged{
 		ThreadID: thread.ID, ExternalKey: thread.ExternalKey, DisplayName: thread.DisplayName,
 		ConnectionID: thread.ConnectionID, RecipientID: thread.RecipientID,
 		ThreadCreatedAt: thread.CreatedAt, ThreadUpdatedAt: thread.UpdatedAt,
 		TurnID: turn.ID, Lifecycle: turn.Lifecycle, Control: turn.Control, AssigneeID: turn.AssigneeID,
-		NeedsHuman: turn.NeedsHuman, ContextRevision: turn.ContextRevision, ControlGeneration: turn.ControlGeneration,
+		NeedsHuman: turn.NeedsHuman, NeedsHumanReason: turn.NeedsHumanReason, ContextRevision: turn.ContextRevision, ControlGeneration: turn.ControlGeneration,
 		TurnVersion: turn.Version, LastActivityAt: turn.LastActivityAt,
 	}
 }

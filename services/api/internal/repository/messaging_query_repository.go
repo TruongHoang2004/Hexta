@@ -19,6 +19,8 @@ type MessagingQueryStore interface {
 	Conversations(context.Context, string, string, types.MessagingQuery) (types.MessagingPage, *apperrors.Error)
 	Thread(context.Context, string, string, bool) (*types.MessagingThread, *apperrors.Error)
 	CurrentTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
+	LatestTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
+	WaitingStaffCount(context.Context, string) (int64, *apperrors.Error)
 	Messages(context.Context, string, string, types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error)
 }
 
@@ -58,6 +60,10 @@ func (r *MessagingRepository) ReadScope(ctx context.Context, tenant, actor strin
 func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor string, input types.MessagingQuery) (types.MessagingPage, *apperrors.Error) {
 	rows := []messagingmodel.ConversationView{}
 	q := r.db.WithContext(ctx).Where("tenant_id = ?", tenant)
+	// Every filter except "all" lists open turns only; closed conversations stay visible under "all".
+	if input.Filter != "" && input.Filter != "all" {
+		q = q.Where("lifecycle = ?", types.TurnOpen)
+	}
 	switch input.Filter {
 	case "unassigned":
 		q = q.Where("assignee_id IS NULL")
@@ -65,6 +71,9 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 		q = q.Where("assignee_id = ?", actor)
 	case "needs_human":
 		q = q.Where("(needs_human = TRUE OR (control = ? AND assignee_id IS NULL))", "sales")
+	case "waiting":
+		// Mirrors MessagingTurn.HandlingState() == WAITING_STAFF.
+		q = q.Where("control = ? AND assignee_id IS NULL", "sales")
 	case "bot":
 		// Mirrors MessagingTurn.HandlingState() == BOT_ACTIVE.
 		q = q.Where("control = ? AND assignee_id IS NULL AND needs_human = FALSE", "system")
@@ -85,6 +94,17 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 		result.Items = append(result.Items, types.MessagingConversation{Thread: thread, Turn: &turn})
 	}
 	return result, nil
+}
+
+// WaitingStaffCount counts the tenant's open conversations waiting for staff, from the read model.
+func (r *MessagingRepository) WaitingStaffCount(ctx context.Context, tenant string) (int64, *apperrors.Error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&messagingmodel.ConversationView{}).
+		Where("tenant_id = ? AND lifecycle = ? AND control = ? AND assignee_id IS NULL", tenant, types.TurnOpen, "sales").
+		Count(&count).Error; err != nil {
+		return 0, salesDBError(ctx, err)
+	}
+	return count, nil
 }
 
 func (r *MessagingRepository) Messages(ctx context.Context, tenant, thread string, input types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error) {

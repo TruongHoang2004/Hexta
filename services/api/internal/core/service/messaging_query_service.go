@@ -45,7 +45,7 @@ func messagingQuery(ctx context.Context, q types.MessagingQuery) *apperrors.Erro
 		}
 	}
 	switch q.Filter {
-	case "", "all", "mine", "unassigned", "needs_human", "bot":
+	case "", "all", "mine", "unassigned", "needs_human", "waiting", "bot":
 		return nil
 	}
 	return apperrors.ErrBadRequest(ctx).SetDetail("invalid conversation filter")
@@ -72,12 +72,24 @@ func (s *MessagingQueryService) Detail(ctx context.Context, tenant, actor, id st
 		if err != nil {
 			return err
 		}
-		turn, err := r.CurrentTurn(ctx, tenant, id)
+		turn, err := r.LatestTurn(ctx, tenant, id)
 		if err != nil {
 			return err
 		}
 		result.Conversation = types.MessagingConversation{Thread: *thread, Turn: turn}
 		result.Messages, result.NextCursor, err = r.Messages(ctx, tenant, id, input)
+		return err
+	})
+	return result, err
+}
+
+// Summary returns the tenant-wide Desk notification state: conversations waiting for staff. Every member sees the
+// same queue; the count comes from the conversation read model.
+func (s *MessagingQueryService) Summary(ctx context.Context, tenant, actor string) (types.MessagingSummary, *apperrors.Error) {
+	var result types.MessagingSummary
+	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingQueryStore) *apperrors.Error {
+		var err *apperrors.Error
+		result.WaitingStaff, err = r.WaitingStaffCount(ctx, tenant)
 		return err
 	})
 	return result, err

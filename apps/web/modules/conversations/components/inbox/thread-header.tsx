@@ -42,7 +42,9 @@ export function ThreadHeader({
         {turn && (
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
             <StatusChip tone={state.tone}>{state.label}</StatusChip>
-            {turn.needs_human && <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>}
+            {turn.needs_human && turn.lifecycle === "open" && (
+              <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>
+            )}
             <span>{source ? t(`desk.sources.${source}`) : ""}</span>
           </div>
         )}

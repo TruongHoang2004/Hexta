@@ -14,6 +14,7 @@ import { AssignControl } from "./assign-control";
 import { CustomerPanel } from "./customer-panel";
 import { HandoffDialog } from "./handoff-dialog";
 import { MessageHistory } from "./message-history";
+import { NeedsHumanPanel } from "./needs-human-panel";
 import { ReplyComposer } from "./reply-composer";
 import { ThreadHeader } from "./thread-header";
 
@@ -126,7 +127,15 @@ export function ThreadPanel({
         )}
       </section>
       <CustomerPanel tenantID={tenantID} detail={detail}>
-        {owner && turn && (
+        {turn?.needs_human && turn.lifecycle === "open" && (
+          <NeedsHumanPanel
+            turn={turn}
+            canResolve={access.canResolve}
+            disabled={commandsDisabled}
+            onResolve={() => void run("resolve")}
+          />
+        )}
+        {owner && turn?.lifecycle === "open" && (
           <AssignControl
             key={`${turn.id}:${turn.version}`}
             members={members}

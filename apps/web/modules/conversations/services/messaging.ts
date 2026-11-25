@@ -8,10 +8,14 @@ export interface MessagingTurn {
   handling_state?: "BOT_ACTIVE" | "WAITING_STAFF" | "STAFF_ACTIVE" | "UNKNOWN";
   assignee_id: string | null;
   needs_human: boolean;
+  /** Handoff reason code behind needs_human; absent when none was given. */
+  needs_human_reason?: string;
   context_revision: number;
   control_generation: number;
   version: number;
   last_activity_at: string;
+  /** Set once the turn closed after 24 hours of inactivity. */
+  closed_at?: string;
 }
 export interface Conversation {
   thread: {
@@ -50,7 +54,11 @@ export interface MessagingPage {
   items: Conversation[];
   next_cursor: string;
 }
-export type InboxFilter = "all" | "unassigned" | "mine" | "needs_human" | "bot";
+export type InboxFilter = "all" | "unassigned" | "mine" | "needs_human" | "waiting" | "bot";
+/** Tenant-wide Desk notification state. */
+export interface MessagingSummary {
+  waiting_staff_count: number;
+}
 export interface InboundInput {
   external_key: string;
   display_name: string;
@@ -83,6 +91,13 @@ export const messaging = {
     );
     return result.data.data;
   },
+  async summary(tenant: string, signal?: AbortSignal): Promise<MessagingSummary> {
+    const result = await sdk.client.get<{ data: MessagingSummary }>(
+      `${base(tenant)}/conversations/summary`,
+      { signal },
+    );
+    return result.data.data;
+  },
   async detail(
     tenant: string,
     thread: string,
@@ -108,7 +123,7 @@ export const messaging = {
   async command(
     tenant: string,
     turn: MessagingTurn,
-    action: "claim" | "assign" | "handoff" | "return-to-bot",
+    action: "claim" | "assign" | "handoff" | "return-to-bot" | "resolve",
     assignee?: string | null,
     reason?: string,
   ): Promise<MessagingTurn> {

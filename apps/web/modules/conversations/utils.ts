@@ -3,6 +3,7 @@ import type { Translate } from "@/lib/i18n/translate";
 import type { ChannelConnection, ChannelPlatform } from "@/modules/settings";
 import type { MessagingDetail, MessagingTurn } from "./services/messaging";
 import { checkoutKey, type ConsultDraft } from "./services/consultant";
+import { handoffReasons } from "./types";
 
 export function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -17,6 +18,7 @@ export function turnState(
   turn: MessagingTurn | null | undefined,
   userID: string | undefined,
 ): { label: string; tone: ChipTone } {
+  if (turn?.lifecycle === "closed") return { label: t("desk.states.CLOSED"), tone: "neutral" };
   switch (turn?.handling_state) {
     case "BOT_ACTIVE":
       return { label: t("desk.states.BOT_ACTIVE"), tone: "neutral" };
@@ -31,6 +33,12 @@ export function turnState(
   }
 }
 
+/** Localized needs-human reason; a flag raised without a handoff reason reads as a new customer message. */
+export function needsHumanReason(t: Translate, turn: MessagingTurn): string {
+  const code = turn.needs_human_reason ?? "";
+  return isOneOf(handoffReasons, code) ? t(`desk.reasons.${code}`) : t("desk.needsHumanPanel.defaultReason");
+}
+
 /** Real channel of a conversation, or null for simulated ones. */
 export function threadPlatform(detail: MessagingDetail | null): ChannelPlatform | null {
   const source = detail?.conversation.source;
@@ -43,6 +51,8 @@ export interface ThreadAccess {
   canClaim: boolean;
   canHandoff: boolean;
   canReturn: boolean;
+  /** Only the assigned sale can resolve needs-human; the API enforces it. */
+  canResolve: boolean;
   /** Why the composer is disabled, or "" when the viewer can reply. */
   readOnlyReason: string;
 }
@@ -75,17 +85,19 @@ export function threadAccess(args: {
       : platform === "telegram"
         ? t("desk.readOnly.expiredTelegram")
         : t("desk.readOnly.expiredFacebook");
-  const canReply = !locked && assigned && turn?.control === "sales";
+  const open = turn?.lifecycle === "open";
+  const canReply = !locked && open && assigned && turn?.control === "sales";
   const readOnlyReason = locked
     ? lockReason
     : canReply || !turn
       ? ""
-      : turn.assignee_id && !assigned
-        ? t("desk.readOnly.otherStaff", { name: assigneeName })
-        : turn.handling_state === "BOT_ACTIVE"
-          ? t("desk.readOnly.bot")
-          : t("desk.readOnly.waiting");
-  const open = turn?.lifecycle === "open";
+      : !open
+        ? t("desk.readOnly.closed")
+        : turn.assignee_id && !assigned
+          ? t("desk.readOnly.otherStaff", { name: assigneeName })
+          : turn.handling_state === "BOT_ACTIVE"
+            ? t("desk.readOnly.bot")
+            : t("desk.readOnly.waiting");
   return {
     assigned,
     canReply,
@@ -93,6 +105,7 @@ export function threadAccess(args: {
     canClaim: open && (!turn.assignee_id || assigned),
     canHandoff: open && turn.handling_state !== "WAITING_STAFF" && (assigned || owner || turn.handling_state === "BOT_ACTIVE"),
     canReturn: open && (assigned || owner) && turn.control === "sales",
+    canResolve: open && assigned && turn.handling_state === "STAFF_ACTIVE" && turn.needs_human,
   };
 }
 
