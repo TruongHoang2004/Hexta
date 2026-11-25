@@ -136,10 +136,11 @@ Configuration problems never stop the service (so they never fail a deploy); the
 
 | Setting | Result |
 | --- | --- |
-| Real `AI_PROVIDER` without its key, without `AI_MODEL`, with another provider's model (`anthropic` + `gpt-4o-mini`), invalid numbers, or an unknown provider | Error `AI disabled: <reason>`; AI disabled as above |
+| Real `AI_PROVIDER` without its key, without `AI_MODEL`, with another provider's model (`anthropic` + `gpt-4o-mini`, `openai` + `claude-…`), invalid numbers, or an unknown provider | Error `AI disabled: <reason>`; AI disabled as above |
 | `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY`, or invalid `AI_JEV_*` values | Error `Jev router off: …`; Jev stays off |
 | `AI_EMBEDDING_PROVIDER=gemini` without `GEMINI_API_KEY` | Error; offline hashing embeddings |
-| AI disabled while Jev or Gemini embeddings are configured | Warning; both stay off (no paid call) |
+| AI disabled, or `AI_PROVIDER=fake` (offline simulation, demo/tests only), while Jev or Gemini embeddings are configured | Warning; both stay off (no paid call); `fake` runs are labelled simulated (`AI runtime SIMULATED …`) |
+| Invalid `AI_RAG_*` values | Error `Knowledge retrieval disabled: …`; no knowledge answers (handed to staff) |
 
 Turn AI off again with `AI_PROVIDER=disabled` and `./scripts/prod.sh up -d --wait ai`. Retrieval only uses chunks
 embedded with the current embedding model, so after any change of `AI_EMBEDDING_PROVIDER`/`AI_EMBEDDING_MODEL` run

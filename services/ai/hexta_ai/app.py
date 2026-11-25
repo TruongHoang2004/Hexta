@@ -14,7 +14,7 @@ from langsmith import tracing_context
 from hexta_ai.rpc import start_server
 from hexta_ai.graph import PreviewRequest, PreviewResult, build_graph
 from hexta_ai.knowledge.service import knowledge_from_env
-from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
+from hexta_ai.providers import BaseAIProvider, ProviderError, is_real, provider_from_env
 from hexta_ai.routing import router_from_env
 from hexta_ai.schemas.consultant import ConsultantRequest, ConsultantResponse
 from hexta_ai.graph_consultant import consultant_graph, create_consultant_graph
@@ -42,16 +42,20 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
     if len(token) < 24:
         raise RuntimeError("AI_INTERNAL_TOKEN must contain at least 24 characters")
     # Fail-safe (owner decision 2026-11-26): missing or partial AI settings disable AI with a logged reason instead
-    # of failing startup. Disabled AI also keeps Jev and paid embeddings off, so nothing is billed.
+    # of failing startup. Only a real (paid) answer model may turn on Jev or paid embeddings: disabled AI and the
+    # offline fake provider never bill anything, whatever keys are present, so a fake answer can only come from
+    # the explicit offline demo router (AI_FAKE_ROUTER) and stays labelled simulated.
     selected = provider if provider is not None else provider_from_env()
     enabled = selected.name != "disabled"
-    router = router_from_env(ai_enabled=enabled) if router is _FROM_ENV else router
-    knowledge = knowledge_from_env(paid_embeddings=enabled) if knowledge is _FROM_ENV else knowledge
+    real = is_real(selected)
+    router = router_from_env(ai_enabled=enabled, paid_allowed=real) if router is _FROM_ENV else router
+    knowledge = knowledge_from_env(paid_embeddings=real) if knowledge is _FROM_ENV else knowledge
     profile = RuntimeProfile(selected, router, knowledge)
     graph = build_graph(selected, router=router, knowledge=knowledge, simulated=profile.simulated)
     consultant = consultant_graph if enabled else create_consultant_graph(provider="disabled")
-    log.warning("AI runtime %s: provider=%s model=%s router=%s embeddings=%s",
-                "enabled" if enabled else "DISABLED (exact scripts only, everything else to staff)",
+    state = ("enabled" if real else "SIMULATED (offline fake provider, no paid call)" if enabled
+             else "DISABLED (exact scripts only, everything else to staff)")
+    log.warning("AI runtime %s: provider=%s model=%s router=%s embeddings=%s", state,
                 selected.name, selected.model, getattr(router, "name", "jev" if router else "none"),
                 getattr(getattr(knowledge, "embeddings", None), "model", "none"))
     runtime = {}

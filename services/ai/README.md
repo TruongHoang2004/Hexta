@@ -50,10 +50,13 @@ Set `AI_MODEL` explicitly for a real provider; these are configurable examples, 
 claim that every model supports structured output. `disabled` (the production default) proposes only a unique
 exact match of an active script and hands everything else to staff, with no router and no paid call. Startup is
 fail-safe (owner decision 2026-11-26): a real provider without its key or `AI_MODEL`, a model of another provider
-family (`anthropic` needs `claude-*`, `gemini` needs `gemini-*`), invalid numeric settings or an unknown
-`AI_PROVIDER` select `disabled` and log `AI disabled: <reason>` instead of failing startup. While AI is disabled,
-Jev and Gemini embeddings stay off too; `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY` and Gemini embeddings
-without a key are logged as errors and fall back to Jev off / offline hashing. One `AI runtime …` line reports
+family (`anthropic` needs `claude-*`, `gemini` needs `gemini-*`, `openai` needs `gpt-*`, `chatgpt-*` or
+`o1`/`o3`/`o4*`), invalid numeric settings or an unknown `AI_PROVIDER` select `disabled` and log
+`AI disabled: <reason>` instead of failing startup. Jev and Gemini embeddings run only with a real provider: while
+AI is disabled or `AI_PROVIDER=fake` (offline, simulated; fake answers only through `AI_FAKE_ROUTER`) they stay
+off whatever keys are set. Invalid `AI_RAG_*` values disable knowledge retrieval with an error log;
+`AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY` and Gemini embeddings without a key are logged as errors and fall
+back to Jev off / offline hashing. One `AI runtime …` line reports
 the effective provider, model, router and embedding model; health identifies the effective provider. Invalid keys
 fail calls safely without cross-provider failover.
 `AI_TIMEOUT` defaults to 20 seconds (1–30); `AI_MAX_TOKENS` to 2048 (64–8192);
@@ -119,7 +122,7 @@ Design: [agentic-memory/designs/2026-11-26_ai-jev-rag_design.md](../../agentic-m
   model `keyword-v1`): unique exact trigger → `script`; staff/complaint/refund/order-problem words → `human`
   (`customer_requested_staff`); product/price/stock/size/shipping/policy words → `answer`; very short or
   vague messages → `clarify`; otherwise the deterministic fallback (`keyword_no_match`) → `human`. It makes
-  no network call and keeps runs simulated. Jev, when enabled with a key, always wins. With the default fake
+  no network call and keeps runs simulated. Jev (enabled, with a key and a real provider) always wins. With the fake
   provider an `answer` is an extractive Vietnamese reply built from the best retrieved record (cited, price
   and stock from its attributes), so a demo shows "AI answer pending review with citations" without paid
   calls. Offline hashing embeddings (`hashing-768-v2`, diacritic-folded words and bigrams without filler

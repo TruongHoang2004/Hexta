@@ -31,7 +31,8 @@ DEFAULT_MODELS = {"fake": "deterministic", "gemini": "gemini-2.5-flash",
                   "openai": "gpt-4o-mini", "anthropic": "claude-sonnet-5-5"}
 KEYS = {"gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 # A model left over from another provider (for example AI_MODEL=gpt-4o-mini with anthropic) is a partial edit.
-MODEL_PREFIXES = {"gemini": "gemini-", "anthropic": "claude-"}
+MODEL_PREFIXES = {"gemini": ("gemini-",), "anthropic": ("claude-",),
+                  "openai": ("gpt-", "chatgpt-", "o1", "o3", "o4")}
 PROVIDERS = ("disabled", *DEFAULT_MODELS)
 
 
@@ -62,7 +63,7 @@ def configured_provider() -> BaseAIProvider:
     model = os.getenv("AI_MODEL", "").strip()
     if not model:
         raise AIConfigError(f"AI_PROVIDER={name} needs AI_MODEL")
-    if not model.startswith(MODEL_PREFIXES.get(name, "")):
+    if not model.startswith(MODEL_PREFIXES[name]):
         raise AIConfigError(f"AI_MODEL is not a {name} model (edit AI_PROVIDER and AI_MODEL together)")
     key = os.getenv(KEYS[name]) or os.getenv("AI_API_KEY", "")
     if not key.strip():
@@ -80,6 +81,12 @@ def configured_provider() -> BaseAIProvider:
         raise AIConfigError("invalid AI_MODEL, AI_TIMEOUT, AI_MAX_TOKENS, AI_MAX_INPUT_TOKENS, AI_TEMPERATURE or "
                             "AI_CONFIDENCE_THRESHOLD") from None
     return get_provider(name, config)
+
+
+def is_real(provider: BaseAIProvider) -> bool:
+    """A configured paid model. Only then may Jev routing or paid embeddings run: the disabled provider and the
+    offline fake provider (demo/tests) never enable a paid call, whatever keys are present."""
+    return provider.name != "disabled" and not provider.simulated
 
 
 def provider_from_env() -> BaseAIProvider:

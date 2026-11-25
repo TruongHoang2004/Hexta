@@ -12,12 +12,13 @@ FAKE_ROUTERS = {"keyword": KeywordRouter}
 log = logging.getLogger(__name__)
 
 
-def router_from_env(*, ai_enabled: bool = True):
-    """Primary router: Jev when enabled with a key; else AI_FAKE_ROUTER (offline, simulated); else None, which keeps
-    the existing provider classifier. With AI disabled there is no router at all (exact scripts or staff). Invalid
-    Jev settings are logged and keep Jev off instead of failing startup."""
+def router_from_env(*, ai_enabled: bool = True, paid_allowed: bool | None = None):
+    """Primary router: Jev when enabled with a key and a real answer model is configured (paid_allowed, default
+    ai_enabled); else AI_FAKE_ROUTER (offline, simulated, the explicit demo flag); else None, which keeps the
+    existing provider classifier. With AI disabled there is no router at all (exact scripts or staff). Invalid Jev
+    settings are logged and keep Jev off instead of failing startup."""
     try:
-        jev = jev_router_from_env(allowed=ai_enabled)
+        jev = jev_router_from_env(allowed=ai_enabled if paid_allowed is None else paid_allowed)
     except RuntimeError:
         log.error("Jev router off: invalid AI_JEV_* settings (misconfiguration)")
         jev = None

@@ -258,6 +258,7 @@ def jev_router_from_env(*, allowed: bool = True) -> JevRouter | None:
         log.error("Jev router off: AI_JEV_ENABLED=true but TYPESAFE_API_KEY is empty (misconfiguration)")
         return None
     if not allowed:
-        log.warning("Jev router off: AI is disabled, so no paid routing call is made")
+        log.warning("Jev router off: AI is disabled or offline (AI_PROVIDER is not a real provider), so no paid "
+                    "routing call is made")
         return None
     return JevRouter(config)

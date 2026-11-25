@@ -23,11 +23,13 @@ class RagConfig(BaseModel):
 
 
 def rag_config_from_env() -> RagConfig:
+    """Strict: raises RuntimeError naming the settings (never their values) when any AI_RAG_* value is invalid."""
     try:
         return RagConfig(top_k=os.getenv("AI_RAG_TOP_K", "6"), min_similarity=os.getenv("AI_RAG_MIN_SIMILARITY", "0.55"),
                          max_context_tokens=os.getenv("AI_RAG_MAX_CONTEXT_TOKENS", "6000"))
     except ValidationError:
-        raise RuntimeError("Invalid retrieval configuration") from None
+        raise RuntimeError("Invalid retrieval configuration (AI_RAG_TOP_K, AI_RAG_MIN_SIMILARITY or "
+                           "AI_RAG_MAX_CONTEXT_TOKENS)") from None
 
 
 def decide(row: dict | None, document: KnowledgeInput, model: str) -> str:
@@ -132,8 +134,8 @@ def safe_embeddings_from_env(*, paid_allowed: bool = True):
 
     requested = os.getenv("AI_EMBEDDING_PROVIDER", "fake").strip().lower() or "fake"
     if requested != "fake" and not paid_allowed:
-        log.warning("Knowledge embeddings use the offline hashing model: AI is disabled, so AI_EMBEDDING_PROVIDER "
-                    "is ignored")
+        log.warning("Knowledge embeddings use the offline hashing model: AI is disabled or offline (AI_PROVIDER is "
+                    "not a real provider), so AI_EMBEDDING_PROVIDER is ignored")
         return HashingEmbeddings()
     try:
         return embeddings_from_env()
@@ -143,9 +145,15 @@ def safe_embeddings_from_env(*, paid_allowed: bool = True):
 
 
 def knowledge_from_env(*, paid_embeddings: bool = True) -> KnowledgeService | None:
-    """Knowledge needs the AI database; without AI_DATABASE_URL retrieval/ingest are unavailable."""
+    """Knowledge needs the AI database; without AI_DATABASE_URL retrieval/ingest are unavailable. Invalid AI_RAG_*
+    values disable knowledge (RAG off: no knowledge answers, ingest unavailable) with an error log instead of
+    failing startup."""
     dsn = os.getenv("AI_DATABASE_URL", "").strip()
     if not dsn:
         return None
-    return KnowledgeService(KnowledgeStore(dsn), safe_embeddings_from_env(paid_allowed=paid_embeddings),
-                            rag_config_from_env())
+    try:
+        config = rag_config_from_env()
+    except RuntimeError as error:
+        log.error("Knowledge retrieval disabled: %s (misconfiguration); answers hand off to staff", error)
+        return None
+    return KnowledgeService(KnowledgeStore(dsn), safe_embeddings_from_env(paid_allowed=paid_embeddings), config)
