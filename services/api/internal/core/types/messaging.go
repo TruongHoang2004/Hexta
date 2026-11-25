@@ -25,6 +25,10 @@ type MessagingTurn struct {
 	Outcome, Note string
 	// LastHandlerID is the last staff member assigned to the turn; it survives return-to-bot and unassignment.
 	LastHandlerID *string
+	// ReviewPending marks a BOT_ACTIVE turn whose live bot proposal waits for staff review (owner decision D3,
+	// 2026-11-26): the turn counts as waiting for staff and does not expire. It is cleared when the proposal is sent,
+	// discarded or superseded and on every control change, so it is only ever set on a BOT_ACTIVE open turn.
+	ReviewPending bool
 }
 
 // A conversation session is a turn: it ends by the fixed 24-hour inactivity expiry or a manual close.
@@ -78,9 +82,10 @@ const (
 	TurnInactivityWindow = 24 * time.Hour
 )
 
-// ExpiryDue reports whether an open turn has been inactive for the whole window. needs_human always blocks expiry.
+// ExpiryDue reports whether an open turn has been inactive for the whole window. needs_human and a bot proposal
+// waiting for review always block expiry.
 func (t MessagingTurn) ExpiryDue(now time.Time) bool {
-	return t.Lifecycle == TurnOpen && !t.NeedsHuman && !t.LastActivityAt.After(now.Add(-TurnInactivityWindow))
+	return t.Lifecycle == TurnOpen && !t.NeedsHuman && !t.ReviewPending && !t.LastActivityAt.After(now.Add(-TurnInactivityWindow))
 }
 
 // Inbound placements decide where a customer message lands relative to the thread's latest turn.

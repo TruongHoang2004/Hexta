@@ -65,7 +65,7 @@ func TestReplyModeHTTPOwnerOnly(t *testing.T) {
 		}
 		return envelope.Data
 	}
-	if got := call(http.MethodGet, member, "", http.StatusOK); got.Configured || got.ReplyMode != types.ReplyModeSuggest {
+	if got := call(http.MethodGet, member, "", http.StatusOK); got.Configured || got.ReplyMode != types.ReplyModeOff {
 		t.Fatal(got)
 	}
 	call(http.MethodPut, owner, `{"reply_mode":"always","expected_version":0}`, http.StatusBadRequest)
@@ -75,4 +75,7 @@ func TestReplyModeHTTPOwnerOnly(t *testing.T) {
 		t.Fatal(got)
 	}
 	call(http.MethodPut, owner, `{"reply_mode":"suggest","expected_version":0}`, http.StatusConflict)
+	if got := call(http.MethodPut, owner, `{"reply_mode":"off","expected_version":1}`, http.StatusOK); !got.Configured || got.ReplyMode != types.ReplyModeOff || got.Version != 2 {
+		t.Fatal("the owner must be able to turn the bot off", got)
+	}
 }

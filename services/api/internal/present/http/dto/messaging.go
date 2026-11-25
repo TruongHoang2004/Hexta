@@ -61,6 +61,10 @@ type MessagingTurn struct {
 	Note    string `json:"note,omitempty"`
 	// LastHandlerID is the last staff member assigned to the session (kept after return to the bot).
 	LastHandlerID *string `json:"last_handler_id,omitempty"`
+	// ReviewPending is true while the bot handles the turn and its proposal waits for staff review: the
+	// conversation counts as waiting for staff and does not expire until the proposal is sent, discarded or
+	// superseded.
+	ReviewPending bool `json:"review_pending"`
 }
 
 // MessagingSessionRequest closes a session manually or edits a closed session's outcome and note.
@@ -102,7 +106,8 @@ type MessagingSessionPage struct {
 
 // MessagingSummary is the tenant-wide Desk notification state.
 type MessagingSummary struct {
-	// WaitingStaffCount is the number of open conversations waiting for staff (unassigned, staff control).
+	// WaitingStaffCount is the number of open conversations waiting for staff: unassigned under staff control, or
+	// under bot handling with a proposal waiting for review (review_pending).
 	WaitingStaffCount int64 `json:"waiting_staff_count"`
 }
 

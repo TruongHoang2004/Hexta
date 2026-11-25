@@ -492,9 +492,13 @@ CREATE TABLE "messaging_turns" (
  "version" bigint NOT NULL CHECK ("version" > 0),
  "last_activity_at" timestamptz NOT NULL,
  -- Handoff reason that raised needs_human; NULL when the flag was set without one (new turn, owner unassignment).
- "needs_human_reason" character varying(32) NULL CHECK ("needs_human_reason" IN ('customer_requested_staff', 'insufficient_information', 'ai_error', 'business_review', 'staff_handoff')),
+-- bot_off: a customer wrote on a bot-handled turn after the owner turned the bot off.
+ "needs_human_reason" character varying(32) NULL CHECK ("needs_human_reason" IN ('customer_requested_staff', 'insufficient_information', 'ai_error', 'business_review', 'staff_handoff', 'bot_off')),
  -- Set when the turn closes (24-hour inactivity expiry or manual close); a closed turn is never reopened.
  "closed_at" timestamptz NULL,
+ -- A bot-handled turn whose live bot proposal waits for staff review (suggest safety): it counts as waiting for
+ -- staff and does not expire. Cleared when the proposal is sent, discarded or superseded, and on every control change.
+ "review_pending" boolean NOT NULL DEFAULT false,
  -- Conversation sessions (a session is a turn): how it closed, who closed it manually, its outcome and note.
  -- Turns closed before close_cause existed were all expired (20261126900100 backfill).
  "close_cause" character varying(16) NULL CHECK ("close_cause" IN ('expired', 'closed_manually')),
@@ -504,6 +508,7 @@ CREATE TABLE "messaging_turns" (
  -- Last staff member assigned to the turn; kept after return-to-bot/unassignment so a closed session has a handler.
  "last_handler_id" character varying(255) NULL,
  CONSTRAINT "messaging_turns_closed_at_check" CHECK (("lifecycle" = 'closed') = ("closed_at" IS NOT NULL)),
+ CONSTRAINT "messaging_turns_review_pending_check" CHECK (NOT "review_pending" OR ("lifecycle" = 'open' AND "control" = 'system' AND "assignee_id" IS NULL AND NOT "needs_human")),
  CONSTRAINT "messaging_turns_close_lifecycle_check" CHECK (("lifecycle" = 'closed') = ("close_cause" IS NOT NULL)),
  CONSTRAINT "messaging_turns_manual_close_check" CHECK ("close_cause" IS DISTINCT FROM 'closed_manually' OR ("closed_by" IS NOT NULL AND "outcome" IS NOT NULL)),
  UNIQUE ("tenant_id", "id"),
@@ -512,7 +517,8 @@ CREATE TABLE "messaging_turns" (
 );
 CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_id", "thread_id") WHERE "lifecycle" = 'open';
 CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
--- Turn expiry scan: open turns that are not flagged for a person, oldest activity first.
+-- Turn expiry scan: open turns that are not flagged for a person, oldest activity first. The scan also skips turns
+-- whose bot proposal waits for review (review_pending); the predicate still covers it.
 CREATE INDEX "idx_messaging_turn_expiry" ON "messaging_turns" ("last_activity_at") WHERE "lifecycle" = 'open' AND "needs_human" = false;
 -- Orders linked to a conversation session; the composite key keeps the link inside the tenant.
 ALTER TABLE "orders" ADD CONSTRAINT "orders_messaging_turn_fkey" FOREIGN KEY ("tenant_id", "messaging_turn_id") REFERENCES "messaging_turns" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
@@ -538,6 +544,7 @@ CREATE TABLE "messaging_conversation_views" (
  "turn_version" bigint NOT NULL,
  "last_activity_at" timestamptz NOT NULL,
  "needs_human_reason" character varying(32) NULL,
+ "review_pending" boolean NOT NULL DEFAULT false,
  "closed_at" timestamptz NULL,
  "close_cause" character varying(16) NULL,
  "outcome" character varying(32) NULL,
@@ -545,8 +552,8 @@ CREATE TABLE "messaging_conversation_views" (
 );
 CREATE INDEX "idx_messaging_conversation_views_list" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC);
 CREATE INDEX "idx_messaging_conversation_views_assignee" ON "messaging_conversation_views" ("tenant_id", "assignee_id", "thread_id" DESC);
--- Desk waiting-for-staff count and filter.
-CREATE INDEX "idx_messaging_conversation_views_waiting" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC) WHERE "lifecycle" = 'open' AND "control" = 'sales' AND "assignee_id" IS NULL;
+-- Desk waiting-for-staff count and filter: unassigned staff-control turns plus bot turns whose proposal waits for review.
+CREATE INDEX "idx_messaging_conversation_views_waiting" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC) WHERE "lifecycle" = 'open' AND "assignee_id" IS NULL AND ("control" = 'sales' OR "review_pending");
 CREATE TABLE "messaging_messages" (
  "id" uuid NOT NULL PRIMARY KEY,
  "tenant_id" character varying(36) NOT NULL,
@@ -817,8 +824,8 @@ CREATE TABLE "order_case_events" (
   CONSTRAINT "order_case_events_version_check" CHECK (version > 0)
 );
 -- Bot reply mode per tenant (MVP 5 FR-5.1), changed by the tenant owner only. No row means the owner has not yet
--- configured the bot: new conversation turns wait for staff and the mode reads as 'suggest'. Once a row exists,
--- new turns start under bot handling.
+-- chosen a mode: it reads as 'off'. With 'off' new conversation turns wait for staff and the bot never runs; with
+-- 'suggest' or 'auto_send' new turns start under bot handling.
 CREATE TABLE "tenant_reply_settings" (
   "tenant_id" character varying(36) NOT NULL,
   "reply_mode" character varying(16) NOT NULL,
@@ -827,7 +834,7 @@ CREATE TABLE "tenant_reply_settings" (
   "updated_at" timestamptz NOT NULL,
   PRIMARY KEY ("tenant_id"),
   CONSTRAINT "tenant_reply_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
-  CONSTRAINT "tenant_reply_settings_mode_check" CHECK ((reply_mode)::text = ANY ((ARRAY['suggest'::character varying, 'auto_send'::character varying])::text[])),
+  CONSTRAINT "tenant_reply_settings_mode_check" CHECK ((reply_mode)::text = ANY ((ARRAY['off'::character varying, 'suggest'::character varying, 'auto_send'::character varying])::text[])),
   CONSTRAINT "tenant_reply_settings_version_check" CHECK (version > 0)
 );
 -- Bot reply proposals (MVP 5 FR-5.2/FR-5.3). A row starts as a durable routing job for one customer message and

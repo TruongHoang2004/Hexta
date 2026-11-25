@@ -648,8 +648,9 @@ definitions:
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSummary:
     properties:
       waiting_staff_count:
-        description: WaitingStaffCount is the number of open conversations waiting
-          for staff (unassigned, staff control).
+        description: |-
+          WaitingStaffCount is the number of open conversations waiting for staff: unassigned under staff control, or
+          under bot handling with a proposal waiting for review (review_pending).
         type: integer
     type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingThread:
@@ -723,6 +724,12 @@ definitions:
         - no_response
         - other
         type: string
+      review_pending:
+        description: |-
+          ReviewPending is true while the bot handles the turn and its proposal waits for staff review: the
+          conversation counts as waiting for staff and does not expire until the proposal is sent, discarded or
+          superseded.
+        type: boolean
       thread_id:
         type: string
       version:
@@ -1146,6 +1153,7 @@ definitions:
         type: boolean
       reply_mode:
         enum:
+        - "off"
         - suggest
         - auto_send
         type: string
@@ -1770,6 +1778,7 @@ definitions:
         type: integer
       reply_mode:
         enum:
+        - "off"
         - suggest
         - auto_send
         type: string
@@ -4764,9 +4773,9 @@ paths:
       - Scripts
   /api/v1/tenants/{tenantID}/settings/reply-mode:
     get:
-      description: 'Active tenant membership required. configured=false means the
-        owner never chose a mode: new conversations wait for staff and reply_mode
-        reads as suggest.'
+      description: Active tenant membership required. reply_mode is off (the default),
+        suggest or auto_send. configured=false means the owner never saved a mode;
+        reply_mode then reads as off and new conversations wait for staff.
       parameters:
       - description: Tenant ID
         in: path
@@ -4800,11 +4809,15 @@ paths:
     put:
       consumes:
       - application/json
-      description: 'Tenant owner only. suggest: the bot proposes and a sale sends;
-        auto_send: the bot sends eligible replies itself while a conversation is under
-        bot handling. The first save also enables bot handling for new conversations.
-        expected_version is the version last read (0 before the first save); a stale
-        version is 409. Existing proposals are never sent by a mode change.'
+      description: 'Tenant owner only. off: the bot never runs; new conversations
+        wait for staff, and a customer message on a conversation still under bot handling
+        hands it to staff (reason bot_off). suggest: the bot proposes and a sale sends.
+        auto_send: while a conversation is under bot handling the bot sends script
+        answers and clarifying questions itself; AI-written answers always wait for
+        staff review. With suggest or auto_send new conversations start under bot
+        handling. expected_version is the version last read (0 before the first save);
+        a stale version is 409. A mode change never moves existing conversations and
+        never sends existing proposals.'
       parameters:
       - description: Tenant ID
         in: path
@@ -5361,7 +5374,8 @@ paths:
       description: Answers the turn's newest customer message and replaces its live
         proposal. Any member on a bot-handled conversation, the assigned sale on a
         staff-handled one. A requested proposal is never sent automatically and never
-        changes control. Returns the routing job; poll the conversation for the result.
+        changes control. Refused with 409 while the reply mode is off. Returns the
+        routing job; poll the conversation for the result.
       parameters:
       - description: Tenant ID
         in: path
@@ -5466,8 +5480,8 @@ paths:
       consumes:
       - application/json
       description: Current assignee or tenant owner required for staffed conversations.
-        Handoff of a bot conversation requires active tenant membership. No AI or
-        live channel dispatch is performed.
+        While the tenant's reply mode is off the bot is off and the return is refused
+        with 409. No AI or live channel dispatch is performed.
       parameters:
       - description: Tenant ID
         in: path

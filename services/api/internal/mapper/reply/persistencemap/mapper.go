@@ -27,7 +27,7 @@ func text(value *string) string {
 
 // Settings maps a stored row; an unknown mode fails instead of being read as a send permission.
 func Settings(row replymodel.Settings) (types.ReplySettings, error) {
-	if row.ReplyMode != types.ReplyModeSuggest && row.ReplyMode != types.ReplyModeAutoSend {
+	if !types.ValidReplyMode(row.ReplyMode) {
 		return types.ReplySettings{}, ErrStoredMode
 	}
 	return types.ReplySettings{TenantID: row.TenantID, Mode: row.ReplyMode, Configured: true, Version: row.Version, UpdatedBy: row.UpdatedBy, UpdatedAt: row.UpdatedAt}, nil

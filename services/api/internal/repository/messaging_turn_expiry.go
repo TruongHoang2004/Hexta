@@ -17,7 +17,8 @@ import (
 // TurnExpiryStore is the persistence used by the turn expiry job. Lock order matches every other messaging writer:
 // thread, then pending outbound intents (the delivery consumer locks those first), then the turn.
 type TurnExpiryStore interface {
-	// ExpiryCandidates lists open, unflagged turns whose recorded activity is at or before cutoff, oldest first.
+	// ExpiryCandidates lists open turns that are neither flagged for a person nor holding a bot proposal waiting for
+	// review, whose recorded activity is at or before cutoff, oldest first.
 	// It takes no locks; every candidate is rechecked under the thread lock.
 	ExpiryCandidates(context.Context, time.Time, int) ([]types.TurnRef, *apperrors.Error)
 	WithinExpiry(context.Context, func(TurnExpiryStore) *apperrors.Error) *apperrors.Error
@@ -26,7 +27,8 @@ type TurnExpiryStore interface {
 	Turn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
 	// LockPendingIntents locks the turn's outbound intents that still have no outcome.
 	LockPendingIntents(context.Context, string, string) ([]types.OutboundIntent, *apperrors.Error)
-	// CloseTurn closes the turn only if it is still exactly the observed open, unflagged state; false otherwise.
+	// CloseTurn closes the turn only if it is still exactly the observed open, unflagged state (no needs_human, no
+	// proposal waiting for review); false otherwise.
 	CloseTurn(context.Context, types.MessagingTurn, types.TurnClosure, time.Time) (bool, *apperrors.Error)
 	// CancelIntents cancels pending intents and attempts; their still-sending messages become unknown.
 	CancelIntents(context.Context, string, []string, time.Time) *apperrors.Error
@@ -36,7 +38,7 @@ type TurnExpiryStore interface {
 func (r *MessagingRepository) ExpiryCandidates(ctx context.Context, cutoff time.Time, limit int) ([]types.TurnRef, *apperrors.Error) {
 	rows := []messagingmodel.Turn{}
 	if err := r.db.WithContext(ctx).Select("tenant_id", "thread_id", "id").
-		Where("lifecycle = ? AND needs_human = FALSE AND last_activity_at <= ?", types.TurnOpen, cutoff).
+		Where("lifecycle = ? AND needs_human = FALSE AND review_pending = FALSE AND last_activity_at <= ?", types.TurnOpen, cutoff).
 		Order("last_activity_at").Limit(limit).Find(&rows).Error; err != nil {
 		return nil, salesDBError(ctx, err)
 	}
@@ -93,10 +95,11 @@ func (r *MessagingRepository) CloseTurn(ctx context.Context, turn types.Messagin
 	q := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).
 		Where("tenant_id = ? AND id = ? AND version = ? AND lifecycle = ?", turn.TenantID, turn.ID, turn.Version, types.TurnOpen)
 	if closure.Cause == types.TurnCloseExpired {
-		q = q.Where("needs_human = FALSE AND last_activity_at = ?", turn.LastActivityAt)
+		q = q.Where("needs_human = FALSE AND review_pending = FALSE AND last_activity_at = ?", turn.LastActivityAt)
 	}
+	// Like every control change, closing clears needs_human and review_pending.
 	result := q.Updates(map[string]any{"lifecycle": row.Lifecycle, "closed_at": row.ClosedAt, "version": row.Version, "control_generation": row.ControlGeneration,
-		"needs_human": false, "needs_human_reason": nil, "close_cause": row.CloseCause, "closed_by": row.ClosedBy, "outcome": row.Outcome, "note": row.Note,
+		"needs_human": false, "needs_human_reason": nil, "review_pending": false, "close_cause": row.CloseCause, "closed_by": row.ClosedBy, "outcome": row.Outcome, "note": row.Note,
 		"last_handler_id": gorm.Expr("COALESCE(assignee_id, last_handler_id)")})
 	if result.Error != nil {
 		return false, salesDBError(ctx, result.Error)

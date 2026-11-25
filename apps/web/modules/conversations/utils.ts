@@ -3,7 +3,7 @@ import type { Translate } from "@/lib/i18n/translate";
 import type { ChannelConnection, ChannelPlatform } from "@/modules/settings";
 import type { MessagingDetail, MessagingTurn } from "./services/messaging";
 import { checkoutKey, type ConsultDraft } from "./services/consultant";
-import { handoffReasons } from "./types";
+import { needsHumanReasons } from "./types";
 
 export function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -36,7 +36,7 @@ export function turnState(
 /** Localized needs-human reason; a flag raised without a handoff reason reads as a new customer message. */
 export function needsHumanReason(t: Translate, turn: MessagingTurn): string {
   const code = turn.needs_human_reason ?? "";
-  return isOneOf(handoffReasons, code) ? t(`desk.reasons.${code}`) : t("desk.needsHumanPanel.defaultReason");
+  return isOneOf(needsHumanReasons, code) ? t(`desk.reasons.${code}`) : t("desk.needsHumanPanel.defaultReason");
 }
 
 /** Real channel of a conversation, or null for simulated ones. */
@@ -69,8 +69,10 @@ export function threadAccess(args: {
   owner: boolean;
   channelName: string;
   assigneeName: string;
+  /** The tenant's reply mode is off: the API refuses a return to the bot, so the action is hidden. */
+  botOff?: boolean;
 }): ThreadAccess {
-  const { t, detail, connections, userID, owner, channelName, assigneeName } = args;
+  const { t, detail, connections, userID, owner, channelName, assigneeName, botOff = false } = args;
   const turn = detail?.conversation.turn;
   const platform = threadPlatform(detail);
   const assigned = !!userID && turn?.assignee_id === userID;
@@ -104,7 +106,7 @@ export function threadAccess(args: {
     readOnlyReason,
     canClaim: open && (!turn.assignee_id || assigned),
     canHandoff: open && turn.handling_state !== "WAITING_STAFF" && (assigned || owner || turn.handling_state === "BOT_ACTIVE"),
-    canReturn: open && (assigned || owner) && turn.control === "sales",
+    canReturn: open && !botOff && (assigned || owner) && turn.control === "sales",
     canResolve: open && assigned && turn.handling_state === "STAFF_ACTIVE" && turn.needs_human,
   };
 }
@@ -118,8 +120,13 @@ export interface ProposalAccess {
   canRegenerate: boolean;
 }
 
-/** What the viewer may do with a bot proposal, mirroring the API rules. */
-export function proposalAccess(turn: MessagingTurn | null | undefined, userID: string | undefined, owner: boolean): ProposalAccess {
+/** What the viewer may do with a bot proposal, mirroring the API rules. A new proposal is refused while the bot is off. */
+export function proposalAccess(
+  turn: MessagingTurn | null | undefined,
+  userID: string | undefined,
+  owner: boolean,
+  botOff = false,
+): ProposalAccess {
   const open = turn?.lifecycle === "open";
   const assigned = !!userID && turn?.assignee_id === userID;
   const bot = open && turn?.handling_state === "BOT_ACTIVE";
@@ -128,7 +135,7 @@ export function proposalAccess(turn: MessagingTurn | null | undefined, userID: s
     canSend: bot || staffMine,
     claimsOnSend: bot,
     canDiscard: open && (owner || assigned || !turn?.assignee_id),
-    canRegenerate: bot || staffMine,
+    canRegenerate: !botOff && (bot || staffMine),
   };
 }
 

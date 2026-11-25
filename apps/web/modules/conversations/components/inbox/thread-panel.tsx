@@ -54,6 +54,7 @@ export function ThreadPanel({
     },
   });
   const replyMode = useReplyMode(tenantID);
+  const botOff = replyMode.settings?.reply_mode === "off";
   const [handoffOpen, setHandoffOpen] = useState(false);
   const turn = detail?.conversation.turn;
   const proposal = detail?.proposals?.[0] ?? null;
@@ -65,6 +66,7 @@ export function ThreadPanel({
     owner,
     channelName: platform ? platformLabel[platform] : "",
     assigneeName: turn?.assignee_id ? memberName(turn.assignee_id) : "",
+    botOff,
   });
   const busy = thread.busy || sender.busy;
   const commandsDisabled = busy || sender.uncertain;

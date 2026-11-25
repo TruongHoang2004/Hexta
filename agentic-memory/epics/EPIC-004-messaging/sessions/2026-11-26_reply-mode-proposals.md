@@ -35,9 +35,22 @@ Decisions for the owner:
 - Regenerate exists (wireframe "Tạo lại"); a person-requested proposal is never auto-sent and never hands off.
 - AI generation is opted in but no business facts are supplied, so the AI path currently yields clarification or handoff (OPEN: facts source, model-based script evaluation).
 
+## Owner decisions 2026-11-26 (D1–D3)
+
+The owner replaced the interim "saved row = bot on" rule and the all-candidates auto_send gate; see `designs/system/01-product-decisions.md` "Reply mode decisions — owner 2026-11-26". IMPLEMENTED (unmerged):
+
+- D1: mode `off` (default; missing row reads `off`, existing rows keep their mode). `newTurnHandling` starts BOT_ACTIVE only for suggest/auto_send. `botIntake` (simulator and channel ingress) hands a BOT_ACTIVE turn to staff with reason `bot_off` when a customer writes while the bot is off, so no routing job is created; the router skips script/AI work while off and `apply` rechecks the mode under the thread lock, dropping a queued job and handing its turn off (`botHandoff`, audited `messaging.handoff`). Existing turns are not moved by the switch itself; their pending proposals stay sendable/discardable. Return-to-bot and regenerate are refused with 409 while off; the Desk hides both actions.
+- D2: `autoSendEligible` = script route or clarify; AI `generate` answers always stay pending for review.
+- D3: `messaging_turns.review_pending` is set when a proposal is left pending on a BOT_ACTIVE turn and cleared on send, discard, supersede (new customer message, regenerate) and every control change (DB CHECK: only on open BOT_ACTIVE turns). It blocks expiry (`ExpiryDue`, candidate scan, conditional close) and is projected through `messaging.conversation.changed` (`review_pending`, additive/omitempty) to the view; the waiting count/filter is `assignee_id IS NULL AND (control = 'sales' OR review_pending)` with a matching partial index. Turn version bumps with every flag change, so replays keep ordering.
+- Web S-19: three options (Tắt / Gợi ý / Tự động gửi) on `@hexta/ui` ToggleGroup, auto_send copy says AI-written answers always wait for staff review, confirmations kept; Desk list shows a "proposal awaiting review" chip and the `bot_off` reason label.
+
+Superseded decision above: "Bot configured = a saved reply-mode row" no longer holds; `configured` in the API now only says whether a row exists.
+
 ## Verification and evidence
 
 Disposable `postgres:17.7-alpine3.23` container via `API_TEST_DATABASE_URL`; no application database touched. gofmt, `go vet`, `go test -race ./services/api/... ./packages/shared/...` PASS; Atlas diff/validate PASS; `pnpm --filter web lint`/`build` PASS. Browser acceptance and live Go↔Python routing NOT_RUN.
+
+D1–D3 (2026-11-26): disposable DB on container `hexta-integ-pg` only. gofmt, `go build`, `go vet`, `go test -race -count=1 ./services/api/... ./packages/shared/...` (incl. new `reply_mode_decisions_test.go` and docs contract) PASS; `atlas migrate diff`/`make migrate-hash`/`make migrate-validate` and `atlas schema diff` (synced) PASS; `make swagger` regenerated; `pnpm --filter web lint`/`build`, `tsc --noEmit` PASS. Browser acceptance of S-19/Desk NOT_RUN.
 
 ## Remaining
 

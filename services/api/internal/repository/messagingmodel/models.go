@@ -29,6 +29,7 @@ type Turn struct {
 	Version           int64
 	LastActivityAt    time.Time
 	ClosedAt          *time.Time
+	ReviewPending     bool
 	CloseCause        *string
 	ClosedBy          *string
 	Outcome           *string
@@ -143,6 +144,7 @@ type ConversationView struct {
 	TurnVersion       int64
 	LastActivityAt    time.Time
 	NeedsHumanReason  *string
+	ReviewPending     bool
 	ClosedAt          *time.Time
 	CloseCause        *string
 	Outcome           *string

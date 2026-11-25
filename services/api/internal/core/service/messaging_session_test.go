@@ -114,6 +114,10 @@ func TestSessionManualCloseFencesBotWorkAndClearsNeedsHuman(t *testing.T) {
 	if closed.Version != turn.Version+1 || closed.ControlGeneration != turn.ControlGeneration+1 {
 		t.Fatal("close must bump version and control generation", closed)
 	}
+	// A proposal waiting for review blocks expiry but not a manual close, which clears the review flag.
+	if !turn.ReviewPending || closed.ReviewPending {
+		t.Fatal("manual close must clear review_pending like every control change", turn.ReviewPending, closed.ReviewPending)
+	}
 	detail = b.detail(t, message.ThreadID)
 	if len(detail.Proposals) != 1 || !detail.Proposals[0].Stale {
 		t.Fatal("the pending proposal must read as stale after close", detail.Proposals)
@@ -355,7 +359,11 @@ func TestSessionOutcomeEditAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Return to the bot clears the assignee, but the sale stays the session's last handler.
+	// Return to the bot (allowed once a bot reply mode is chosen) clears the assignee, but the sale stays the
+	// session's last handler.
+	if _, err := NewReplySettingsService(repository.NewMessagingRepository(f.db)).Update(ctx, f.tenant, f.owner, types.ReplySettingsUpdate{Mode: types.ReplyModeSuggest}); err != nil {
+		t.Fatal(err)
+	}
 	returned, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: claimed.Version})
 	if err != nil || returned.AssigneeID != nil {
 		t.Fatal(err)

@@ -159,7 +159,7 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 	// bump (RecordSendActivity), so a writer holding an earlier read must not write the older value back.
 	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).
 		Updates(map[string]any{"assignee_id": row.AssigneeID, "control": row.Control, "needs_human": row.NeedsHuman, "needs_human_reason": row.NeedsHumanReason,
-			"lifecycle": row.Lifecycle, "context_revision": row.ContextRevision, "control_generation": row.ControlGeneration, "version": row.Version,
+			"review_pending": row.ReviewPending, "lifecycle": row.Lifecycle, "context_revision": row.ContextRevision, "control_generation": row.ControlGeneration, "version": row.Version,
 			"last_activity_at": gorm.Expr("GREATEST(last_activity_at, ?)", row.LastActivityAt), "closed_at": row.ClosedAt,
 			// Any assignment records the session's handler; unassignment and return-to-bot keep the last one.
 			"last_handler_id": gorm.Expr("COALESCE(CAST(? AS varchar), last_handler_id)", row.AssigneeID)})

@@ -33,6 +33,9 @@ type ConversationChanged struct {
 	ControlGeneration int64     `json:"control_generation"`
 	TurnVersion       int64     `json:"turn_version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
+	// ReviewPending is true while a bot-handled turn's proposal waits for staff review; omitted when false, so
+	// snapshots written before the field existed decode as false.
+	ReviewPending bool `json:"review_pending,omitempty"`
 	// Conversation session fields (additive; absent in events written before sessions existed). ClosedAt and
 	// CloseCause (expired | closed_manually) are set on a closed turn; Outcome once a session outcome is recorded.
 	ClosedAt   *time.Time `json:"closed_at,omitempty"`

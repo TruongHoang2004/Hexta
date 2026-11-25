@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"
@@ -113,6 +114,11 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":3,"reason":"arbitrary"}`, 400)
 	request("POST", "/turns/"+turn.ID+"/return-to-bot", "", `{"expected_version":3}`, 401)
 	request("POST", "/turns/"+turn.ID+"/return-to-bot", "sale", `{"expected_version":2}`, 409)
+	// The reply mode defaults to off: the bot is off, so returning to it is refused until the owner turns it on.
+	request("POST", "/turns/"+turn.ID+"/return-to-bot", "sale", `{"expected_version":3}`, 409)
+	if _, err := service.NewReplySettingsService(store).Update(context.Background(), tenant, "owner", types.ReplySettingsUpdate{Mode: types.ReplyModeSuggest}); err != nil {
+		t.Fatal(err)
+	}
 	var returned dto.MessagingTurn
 	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/return-to-bot", "sale", `{"expected_version":3}`, 200), &returned); err != nil {
 		t.Fatal(err)

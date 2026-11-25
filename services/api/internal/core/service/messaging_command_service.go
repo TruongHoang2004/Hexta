@@ -83,6 +83,8 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 			}
 			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: types.TurnOpen, ControlGeneration: 1}
 			newTurnHandling(turn, settings)
+		} else if err := botIntake(ctx, r, turn, now); err != nil {
+			return err
 		}
 		turn.ContextRevision++
 		turn.Version++
@@ -172,6 +174,14 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			if turn.HandlingState() != "STAFF_ACTIVE" && turn.HandlingState() != "WAITING_STAFF" {
 				return apperrors.ErrConflict(ctx, "turn", "not under staff control")
 			}
+			// With the reply mode off the bot is off: returning a conversation to it would leave nobody answering.
+			settings, err := r.ReplySettings(ctx, tenant, false)
+			if err != nil {
+				return err
+			}
+			if !settings.BotOn() {
+				return errBotOff(ctx, "returning the conversation to the bot")
+			}
 			// Explicit, authorized return is the only path back to automation; it clears the escalation.
 			turn.AssigneeID = nil
 			turn.Control = "system"
@@ -216,6 +226,8 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 		cancelled := 0
 		if fence {
 			turn.ControlGeneration++
+			// Every control change leaves bot handling or restarts it, so no proposal waits for review any more.
+			turn.ReviewPending = false
 			// A control change stops automatic sending, including bot replies already queued: undispatched sends
 			// are cancelled here (before the turn row is written, matching the delivery consumer's lock order);
 			// pending proposals become stale through the generation bump.

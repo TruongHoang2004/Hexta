@@ -89,6 +89,7 @@ export const en: Messages = {
       CLOSED: "Turn closed",
     },
     needsHuman: "Needs a person",
+    reviewPending: "Proposal awaiting review",
     needsHumanPanel: {
       title: "Needs a person",
       reason: "Reason: {reason}.",
@@ -203,6 +204,7 @@ export const en: Messages = {
       ai_error: "AI error",
       business_review: "Owner review needed",
       staff_handoff: "Staff handoff",
+      bot_off: "Bot turned off",
     },
     sender: {
       customer: "Customer",
@@ -948,6 +950,11 @@ export const en: Messages = {
     legend: "Choose a mode",
     current: "In use",
     modes: {
+      off: {
+        name: "Off",
+        body: "The bot does not run. Every new conversation waits for staff; no AI calls, no proposals.",
+        fit: "The default for every business. Good when you are not ready to use the bot.",
+      },
       suggest: {
         name: "Suggest",
         body: "The bot drafts a reply and staff review it before sending. Nothing reaches the customer until someone presses Send.",
@@ -955,19 +962,24 @@ export const en: Messages = {
       },
       auto_send: {
         name: "Auto-send",
-        body: "The bot sends replies from active scripts or AI itself when they are eligible. Uncertain questions still go to staff.",
+        body: "The bot sends answers from active scripts and clarifying questions itself. Answers the AI writes always wait for staff review before they are sent. Uncertain questions still go to staff.",
         fit: "Good once your scripts are stable.",
       },
     },
     flow: {
       title: "How the bot handles each message",
       script: "A script matches → use the script",
-      ai: "AI can answer → AI answer",
+      ai: "AI can answer → AI answer (always reviewed by staff)",
       clarify: "Unclear → ask the customer a clarifying question",
       handoff: "Needs a person → wait for staff",
       note: "Not every message calls the AI model: a matching active script is used first.",
     },
     confirm: {
+      off: {
+        title: "Turn the bot off?",
+        body: "From now on new conversations wait for staff. Conversations under “Bot handling” stay as they are, but the customer's next message moves them to waiting for staff. Proposals waiting for review stay for staff to send or discard.",
+        action: "Turn the bot off",
+      },
       suggest: {
         title: "Switch to Suggest?",
         body: "From now on the bot only proposes replies; staff send them. Replies the bot already sent are not affected.",
@@ -975,12 +987,11 @@ export const en: Messages = {
       },
       auto_send: {
         title: "Switch to Auto-send?",
-        body: "From now on the bot sends eligible replies to customers itself in “Bot handling” conversations. Proposals already waiting for review stay as they are and are not sent automatically.",
+        body: "From now on the bot sends script answers and clarifying questions to customers itself in “Bot handling” conversations. Answers the AI writes still wait for staff review. Proposals already waiting for review stay as they are and are not sent automatically.",
         action: "Turn on Auto-send",
       },
       enables: "Saving also turns the bot on: new conversations start under bot handling instead of waiting for staff.",
     },
-    notConfigured: "The bot is not turned on yet: new conversations wait for staff. Choose a mode to turn it on.",
     ownerOnly: "Only the business owner can change the reply mode.",
     saved: "Reply mode set to {mode}.",
     conflict: "The reply mode was changed elsewhere. Reload to see it.",

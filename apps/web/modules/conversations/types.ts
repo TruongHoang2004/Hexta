@@ -11,6 +11,9 @@ export const handoffReasons = [
 ] as const;
 export type HandoffReason = (typeof handoffReasons)[number];
 
+/** Every needs-human reason with a localized label: staff reasons plus bot_off (a customer wrote while the bot was off). */
+export const needsHumanReasons = [...handoffReasons, "bot_off"] as const;
+
 /** Delivery failure codes that have a localized explanation. */
 export const deliveryReasons = [
   "window_24h",

@@ -172,7 +172,7 @@ func (ctrl *MessagingCommandController) Handoff(c *gin.Context) {
 
 // ReturnToBot
 // @Summary Explicitly return a conversation to bot control without replaying messages
-// @Description Current assignee or tenant owner required for staffed conversations. Handoff of a bot conversation requires active tenant membership. No AI or live channel dispatch is performed.
+// @Description Current assignee or tenant owner required for staffed conversations. While the tenant's reply mode is off the bot is off and the return is refused with 409. No AI or live channel dispatch is performed.
 // @Tags Messaging
 // @Accept json
 // @Produce json

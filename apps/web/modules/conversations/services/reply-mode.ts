@@ -1,8 +1,9 @@
 import { sdk } from "@/lib/sdk";
 
-export type ReplyMode = "suggest" | "auto_send";
+/** off is every tenant's default: the bot never runs and new conversations wait for staff. */
+export type ReplyMode = "off" | "suggest" | "auto_send";
 
-/** The tenant's bot reply mode. `configured` is false until the owner first chooses one. */
+/** The tenant's bot reply mode. `configured` is false until the owner first saves one; the mode then reads as off. */
 export interface ReplySettings {
   reply_mode: ReplyMode;
   configured: boolean;

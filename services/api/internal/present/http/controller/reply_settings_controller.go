@@ -24,7 +24,7 @@ func NewReplySettingsController(validate *validator.Validate, settings *service.
 
 // GetReplyMode
 // @Summary Read the tenant's bot reply mode
-// @Description Active tenant membership required. configured=false means the owner never chose a mode: new conversations wait for staff and reply_mode reads as suggest.
+// @Description Active tenant membership required. reply_mode is off (the default), suggest or auto_send. configured=false means the owner never saved a mode; reply_mode then reads as off and new conversations wait for staff.
 // @Tags Messaging
 // @Produce json
 // @Security BearerAuth
@@ -47,7 +47,7 @@ func (ctrl *ReplySettingsController) GetReplyMode(c *gin.Context) {
 
 // UpdateReplyMode
 // @Summary Change the tenant's bot reply mode
-// @Description Tenant owner only. suggest: the bot proposes and a sale sends; auto_send: the bot sends eligible replies itself while a conversation is under bot handling. The first save also enables bot handling for new conversations. expected_version is the version last read (0 before the first save); a stale version is 409. Existing proposals are never sent by a mode change.
+// @Description Tenant owner only. off: the bot never runs; new conversations wait for staff, and a customer message on a conversation still under bot handling hands it to staff (reason bot_off). suggest: the bot proposes and a sale sends. auto_send: while a conversation is under bot handling the bot sends script answers and clarifying questions itself; AI-written answers always wait for staff review. With suggest or auto_send new conversations start under bot handling. expected_version is the version last read (0 before the first save); a stale version is 409. A mode change never moves existing conversations and never sends existing proposals.
 // @Tags Messaging
 // @Accept json
 // @Produce json

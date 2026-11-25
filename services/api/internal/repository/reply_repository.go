@@ -38,7 +38,7 @@ func (r *MessagingRepository) WithinReplySettings(ctx context.Context, fn func(R
 	return r.Within(ctx, func(tx MessagingStore) *apperrors.Error { return fn(tx.(*MessagingRepository)) })
 }
 
-// ReplySettings reads the tenant's reply mode; a missing row is the unconfigured suggest default.
+// ReplySettings reads the tenant's reply mode; a missing row is the unconfigured off default.
 func (r *MessagingRepository) ReplySettings(ctx context.Context, tenant string, lock bool) (types.ReplySettings, *apperrors.Error) {
 	var row replymodel.Settings
 	q := r.db.WithContext(ctx).Where("tenant_id = ?", tenant)
@@ -47,7 +47,7 @@ func (r *MessagingRepository) ReplySettings(ctx context.Context, tenant string, 
 	}
 	err := q.First(&row).Error
 	if stderrors.Is(err, gorm.ErrRecordNotFound) {
-		return types.ReplySettings{TenantID: tenant, Mode: types.ReplyModeSuggest}, nil
+		return types.ReplySettings{TenantID: tenant, Mode: types.ReplyModeOff}, nil
 	}
 	if err != nil {
 		return types.ReplySettings{}, salesDBError(ctx, err)

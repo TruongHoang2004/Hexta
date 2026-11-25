@@ -16,6 +16,11 @@ export interface MessagingTurn {
   last_activity_at: string;
   /** Set once the turn closed after 24 hours of inactivity. */
   closed_at?: string;
+  /**
+   * The bot handles the turn and its proposal waits for staff review: the conversation counts as waiting for staff
+   * (and is listed under the waiting filter) and does not expire until the proposal is sent, discarded or superseded.
+   */
+  review_pending?: boolean;
 }
 export interface Conversation {
   thread: {
