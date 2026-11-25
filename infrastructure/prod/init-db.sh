@@ -3,6 +3,9 @@
 # Each service gets its own login: API owns database "hexta" (schema public), AI owns schema ai_runtime in it,
 # and the connector owns a separate database "hexta_connector" that the API login cannot connect to.
 set -eu
+# This volume was initialized by the Debian (glibc) pgvector image: mark it so postgres-collation-guard
+# (compose.prod.yml) lets later starts through. Never copy this marker onto a volume created by another image.
+echo "glibc collation: fresh initdb by $(postgres --version) on $(date -u +%FT%TZ)" >"$PGDATA/HEXTA_GLIBC_COLLATION_OK"
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
 	-v api_pw="$API_DB_PASSWORD" -v ai_pw="$AI_DB_PASSWORD" -v connector_pw="$CONNECTOR_DB_PASSWORD" <<'SQL'
 CREATE ROLE hexta_api LOGIN PASSWORD :'api_pw';

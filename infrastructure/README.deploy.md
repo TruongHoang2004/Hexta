@@ -102,7 +102,50 @@ done
 sed -i 's|^ACME_EMAIL=.*|ACME_EMAIL=<your email>|' .env
 ```
 
-Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key (default `anthropic` / `claude-sonnet-5-5`, which needs `ANTHROPIC_API_KEY`; set `AI_PROVIDER=fake` to keep the bot offline), `META_APP_ID`, and `DEPLOY_NOTIFY_TELEGRAM_TOKEN` / `DEPLOY_NOTIFY_TELEGRAM_CHAT_ID` for deploy notifications. Use hex values for passwords because they are embedded in database URLs.
+Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `META_APP_ID`, and `DEPLOY_NOTIFY_TELEGRAM_TOKEN` / `DEPLOY_NOTIFY_TELEGRAM_CHAT_ID` for deploy notifications. AI stays off (`AI_PROVIDER=disabled`) until you enable it as described in [AI settings](#ai-settings). Use hex values for passwords because they are embedded in database URLs.
+
+### AI settings
+
+Owner decision 2026-11-26: production AI is **off** until it is fully configured. With the defaults
+(`AI_PROVIDER=disabled`) the bot sends only a unique exact match of an active script and hands every other message
+to staff. No paid model, Jev or embedding call is made; knowledge sync keeps running with the offline hashing
+embeddings (free). The `ai` service logs one startup line, `AI runtime DISABLED … provider=disabled`.
+
+To enable AI, set **all** of these in `prod/.env` together (Claude answers, Jev routing and Gemini embeddings are
+one feature: without Jev the Claude classifier never routes to knowledge answers):
+
+```sh
+AI_PROVIDER=anthropic
+AI_MODEL=claude-sonnet-5-5
+ANTHROPIC_API_KEY=<key>
+AI_JEV_ENABLED=true
+TYPESAFE_API_KEY=<key>
+AI_EMBEDDING_PROVIDER=gemini
+GEMINI_API_KEY=<key>
+```
+
+Apply and check, then re-embed the knowledge with the new model:
+
+```sh
+./scripts/prod.sh up -d --wait ai
+./scripts/prod.sh logs ai | grep "AI runtime"   # AI runtime enabled: provider=anthropic model=claude-sonnet-5-5 router=jev embeddings=gemini-embedding-001
+./scripts/prod.sh exec ingress ./knowledge-resync -all-tenants
+```
+
+Configuration problems never stop the service (so they never fail a deploy); they are logged and AI stays safe:
+
+| Setting | Result |
+| --- | --- |
+| Real `AI_PROVIDER` without its key, without `AI_MODEL`, with another provider's model (`anthropic` + `gpt-4o-mini`), invalid numbers, or an unknown provider | Error `AI disabled: <reason>`; AI disabled as above |
+| `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY`, or invalid `AI_JEV_*` values | Error `Jev router off: …`; Jev stays off |
+| `AI_EMBEDDING_PROVIDER=gemini` without `GEMINI_API_KEY` | Error; offline hashing embeddings |
+| AI disabled while Jev or Gemini embeddings are configured | Warning; both stay off (no paid call) |
+
+Turn AI off again with `AI_PROVIDER=disabled` and `./scripts/prod.sh up -d --wait ai`. Retrieval only uses chunks
+embedded with the current embedding model, so after any change of `AI_EMBEDDING_PROVIDER`/`AI_EMBEDDING_MODEL` run
+`./scripts/prod.sh exec ingress ./knowledge-resync -all-tenants` (or `-tenant <workspace id>`); until the sync job
+has re-sent every source, answers hand off for lack of knowledge. `./knowledge-resync -status` prints the job counts
+(pending, stuck, failed, done).
 
 Connector secret files (the connector runs as uid 10001):
 
@@ -137,7 +180,7 @@ cd /opt/hexta && ./scripts/prod.sh ps -a
 The agent checks out the released commit in detached mode; keep the checkout free of local edits (secrets, `.env`, `state/` and `backups/` are git-ignored). To deploy without waiting for the timer: `sudo systemctl start hexta-deploy`.
 
 Expected:
-- `migrate-api`, `migrate-ai`, `migrate-connector` and `kafka-topics` show `exited (0)`.
+- `postgres-collation-guard`, `postgres-extensions`, `migrate-api`, `migrate-ai`, `migrate-connector` and `kafka-topics` show `exited (0)`.
 - `postgres`, `redis`, `kafka`, `api`, `ai`, `web` are `healthy`.
 - `connector`, `ingress` and `caddy` are `running`.
 
@@ -178,6 +221,7 @@ Migration jobs rerun on every deploy; they apply only new migrations and exit 0 
 - **Automatic:** a deploy that fails to start or fails the health check is rolled back to the previous release; the failed tag is not retried until `release.env` changes.
 - **Deliberate (code only, no new migration):** revert the release PR's merge commit on `main` (GitHub "Revert" button). The agent deploys the previous tag within a minute.
 - **Emergency, from the server:** `sudo systemctl stop hexta-deploy.timer`, then `git checkout <previous commit> && HEXTA_IMAGE_TAG=sha-<previous> ./scripts/prod.sh up -d --wait && echo sha-<previous> > infrastructure/prod/state/deployed`. Re-enable the timer only after `release.env` on `main` points to a good tag.
+- **Across the pgvector switch (section 10a):** never roll back to a release from before the switch with the commands above: its Alpine Postgres image would start on the glibc-indexed volume and corrupt text indexes again. Use the rollback in section 10a (restore the pre-switch volume copy or dump). The deploy agent refuses such a release while the volume carries the marker.
 - **With migrations:** migrations are forward-only and additive by policy, so the previous code normally still runs on the newer schema. Roll back the code as above. Restore a backup (section 10) only for a destructive migration, and accept losing data written since that backup.
 
 ## 10. Backups
@@ -201,64 +245,151 @@ Kafka holds only in-flight events. The connector and API keep their durable outb
 ## 10a. One-time switch to the pgvector Postgres image
 
 The release that introduces AI knowledge answers changes `postgres` from `postgres:17.7-alpine3.23` (musl) to
-`pgvector/pgvector:0.8.1-pg17` (Debian, glibc) and adds the `postgres-extensions` job (`CREATE EXTENSION vector`
-as the superuser, before `migrate-ai`). Both images are PostgreSQL 17, so the data directory is reused as is, but
-**text sort order changes between musl and glibc**: every B-tree index on `text`/`varchar` columns (including the
-`varchar(36)` IDs used as primary keys) must be rebuilt before the applications write again, or lookups and unique
-checks can silently fail. Do not let the deploy agent perform this switch unattended.
+`pgvector/pgvector:0.8.1-pg17-bookworm` (Debian 12, glibc) and adds two one-shot jobs: `postgres-collation-guard`
+(before `postgres`) and `postgres-extensions` (`CREATE EXTENSION vector` as the superuser, before `migrate-ai`).
+Both images are PostgreSQL 17, so the data directory is reused as is, but **text sort order differs between musl
+and glibc**: every B-tree index on `text`/`varchar` columns (including the `varchar(36)` IDs used as primary keys)
+is silently wrong under glibc until it is rebuilt. Lookups can miss existing rows and unique checks can let
+duplicates in. Alpine-created databases record no collation version (`datcollversion` is NULL), so PostgreSQL
+prints no warning.
 
-Before merging that release PR:
+**The switch cannot happen unattended.** `postgres-collation-guard` mounts the data volume read-only and lets
+`postgres` start only when the volume is empty (a fresh install; `init-db.sh` then writes the marker under glibc)
+or carries `$PGDATA/HEXTA_GLIBC_COLLATION_OK`, which only the steps below write after REINDEX and amcheck. If the
+deploy agent reaches this release first, Compose replaces the postgres container but never starts it, the guard
+logs `REFUSING TO START POSTGRES … section 10a`, the deploy fails and the agent rolls back to the previous
+release. Expect a short outage in that case; the data is not touched. Do not delete or hand-write the marker.
 
-1. Put the new AI settings in `infrastructure/prod/.env`: `ANTHROPIC_API_KEY` (the default is now
-   `AI_PROVIDER=anthropic`, `AI_MODEL=claude-sonnet-5-5`; without a key the `ai` service fails closed and
-   `up --wait` fails, which triggers an automatic rollback). Set `AI_PROVIDER=fake` explicitly to keep the bot
-   offline instead. Optional: `AI_JEV_ENABLED=true` + `TYPESAFE_API_KEY`, `AI_EMBEDDING_PROVIDER=gemini` +
-   `GEMINI_API_KEY`.
-2. Pause automatic deploys: `sudo systemctl stop hexta-deploy.timer` (wait for a running deploy to finish:
-   `systemctl status hexta-deploy`).
+**Never start the Alpine image again on a switched volume.** After step 6 the only way back is the rollback below
+(the pre-switch volume copy or the dump). Releases from before this change have no guard, so Compose cannot stop
+them; the deploy agent from this release on refuses to deploy or roll back to such a release while the volume
+carries the marker (`release … rejected: its Alpine (musl) Postgres image must not start …`).
 
-Maintenance window (writers stopped, a few minutes of downtime):
+### Before the window
+
+1. Note the release commit X: the `main` commit whose images the release PR names ("Release sha-X to
+   production"; seven hex characters). Every command below uses it explicitly; do not source `release.env` from
+   another commit (commit X itself still holds the previous tag).
+2. Pause automatic deploys, then merge the release PR (the agent stays idle while paused):
+   `sudo systemctl stop hexta-deploy.timer` and wait until `systemctl is-active hexta-deploy` prints `inactive`.
+3. AI settings: nothing is required, AI stays off by default (see [AI settings](#ai-settings)). An existing
+   `.env` copied from the older template contains `AI_PROVIDER=fake` and `AI_MODEL=gpt-4o-mini`: change them to
+   `AI_PROVIDER=disabled` and an empty `AI_MODEL=`, or, to enable AI now, edit **both** `AI_PROVIDER` and
+   `AI_MODEL` together with the keys listed there. A leftover `gpt-4o-mini` with `anthropic` keeps AI disabled.
+4. Preflight on the running (old) stack:
 
 ```sh
 cd /opt/hexta
+mkdir -p ~/hexta-backups
+docker pull pgvector/pgvector:0.8.1-pg17-bookworm
+# Superuser login over TCP, as postgres-extensions uses it (POSTGRES_PASSWORD from .env). Prints 1.
+./scripts/prod.sh exec -T postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d hexta -Atc "select 1"'
+# Only if that fails with "password authentication failed": align the stored password with .env, then re-check.
+./scripts/prod.sh exec -T postgres sh -c 'psql -U postgres -q -v pw="$POSTGRES_PASSWORD"' <<'SQL'
+ALTER ROLE postgres PASSWORD :'pw';
+SQL
+# Disk: the dump goes to ~/hexta-backups, the volume copy and REINDEX use the Docker disk. Free space on each must
+# exceed the data size; keep at least 2.5x the data size free on the Docker disk.
+./scripts/prod.sh exec -T postgres du -sh /var/lib/postgresql/data
+df -h /var/lib/docker ~/hexta-backups
+```
+
+### Maintenance window (writers stopped, a few minutes of downtime)
+
+```sh
+cd /opt/hexta
+X=<7-char commit>                      # from step 1
+PG=pgvector/pgvector:0.8.1-pg17-bookworm
 # 1. Stop every writer; keep postgres running for the dump.
 ./scripts/prod.sh stop caddy web api messaging-command ingress connector ai
-# 2. Logical backup, verified, then copied off the server.
-./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > ~/hexta-backups/pre-pgvector-$(date +%F-%H%M).sql.gz
-gunzip -t ~/hexta-backups/pre-pgvector-*.sql.gz && ls -lh ~/hexta-backups/pre-pgvector-*.sql.gz
-# 3. File-level copy of the stopped volume for a fast rollback (needs free disk about the size of the volume).
+# 2. Logical backup, verified; copy it off the server before continuing.
+F=~/hexta-backups/pre-pgvector-$(date +%F-%H%M).sql.gz
+./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > "$F" && gunzip -t "$F" && ls -lh "$F"
+# 3. File-level copy of the stopped volume for a fast rollback. The copy volume must be new and empty.
 ./scripts/prod.sh stop postgres
 docker volume create hexta-prod_postgres_data_alpine17
-docker run --rm -v hexta-prod_postgres_data:/from:ro -v hexta-prod_postgres_data_alpine17:/to alpine:3.20 cp -a /from/. /to/
-# 4. Check out the release commit and start only postgres on the new image.
-git fetch origin && git checkout --detach <release commit>
-. infrastructure/prod/release.env && export HEXTA_IMAGE_TAG
-./scripts/prod.sh up -d --wait postgres
-# 5. Record the collation, rebuild every index of every database, refresh the recorded collation version.
-./scripts/prod.sh exec -T postgres psql -U postgres -Atc "SELECT datname, datcollate, datcollversion FROM pg_database"
-for db in hexta hexta_connector postgres template1; do
-  ./scripts/prod.sh exec -T postgres psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -c "REINDEX DATABASE $db" -c "ALTER DATABASE $db REFRESH COLLATION VERSION"
+docker run --rm --network none -v hexta-prod_postgres_data:/from:ro -v hexta-prod_postgres_data_alpine17:/to \
+  --entrypoint sh "$PG" -c '[ -z "$(ls -A /to)" ] || { echo "copy volume not empty: stop" >&2; exit 1; }; cp -a /from/. /to/ && du -s /from /to'
+# 4. Check out the release commit and pin its tag explicitly.
+git fetch origin && git checkout --detach "$(git rev-parse --verify "$X^{commit}")"
+export HEXTA_IMAGE_TAG=sha-$X
+./scripts/prod.sh pull --quiet
+# 5. Rebuild on glibc in an isolated container (no network: no application can connect; Compose stays blocked).
+docker run -d --name hexta-pg-reindex --network none -v hexta-prod_postgres_data:/var/lib/postgresql/data "$PG"
+until docker exec hexta-pg-reindex pg_isready -U postgres -q; do sleep 1; done
+P="docker exec -i -u postgres hexta-pg-reindex psql -U postgres -v ON_ERROR_STOP=1"
+$P -Atc "SELECT datname, datcollate, coalesce(datcollversion, 'NULL') FROM pg_database ORDER BY 1"
+# 5a. REINDEX every database, template0 included (opened only for this).
+$P -qc "ALTER DATABASE template0 ALLOW_CONNECTIONS true"
+for db in $($P -Atc "SELECT datname FROM pg_database ORDER BY 1"); do
+  $P -d "$db" -qc "REINDEX DATABASE \"$db\"" -c "REINDEX SYSTEM \"$db\"" || { echo "REINDEX failed in $db: STOP, restore"; break; }
+  echo "reindexed $db"
 done
-# 6. Start the stack: postgres-extensions creates vector, then migrate-api / migrate-ai run.
+# 5b. Refresh the recorded collation version only where one is recorded (Alpine databases record none: no-op).
+for db in $($P -Atc "SELECT datname FROM pg_database WHERE datcollversion IS NOT NULL"); do
+  $P -qc "ALTER DATABASE \"$db\" REFRESH COLLATION VERSION"
+done
+# 5c. Verify every valid B-tree index with amcheck (heap included), then remove amcheck again.
+for db in $($P -Atc "SELECT datname FROM pg_database ORDER BY 1"); do
+  n=$($P -d "$db" -qAt <<'SQL'
+SET client_min_messages = warning;
+CREATE EXTENSION IF NOT EXISTS amcheck;
+SELECT count(bt_index_check(c.oid, true)) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+  JOIN pg_am am ON am.oid = c.relam WHERE am.amname = 'btree' AND i.indisvalid AND c.relpersistence <> 't';
+DROP EXTENSION amcheck;
+SQL
+) || { echo "amcheck FAILED in $db: STOP, restore"; break; }
+  echo "amcheck $db: $n indexes OK"
+done
+$P -qc "ALTER DATABASE template0 ALLOW_CONNECTIONS false"
+# 5d. Only when every database printed "reindexed" and "indexes OK": write the marker, stop the container.
+docker exec -u postgres hexta-pg-reindex sh -c 'echo "glibc collation: REINDEX + amcheck by $(postgres --version) on $(date -u +%FT%TZ) (README.deploy.md 10a)" > "$PGDATA/HEXTA_GLIBC_COLLATION_OK"'
+docker stop hexta-pg-reindex && docker rm hexta-pg-reindex
+# 6. Start the stack: guard (marker found), postgres, postgres-extensions (vector), migrate-api / migrate-ai, apps.
 ./scripts/prod.sh up -d --wait --remove-orphans
+./scripts/prod.sh logs --no-log-prefix postgres-collation-guard | tail -1
 ./scripts/prod.sh exec -T postgres psql -U postgres -d hexta -Atc "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'"
+# 7. Record the deployed tag yourself, then resume the agent (it sees release.env = sha-X = deployed: no-op).
 echo "$HEXTA_IMAGE_TAG" > infrastructure/prod/state/deployed
 sudo systemctl start hexta-deploy.timer
 ```
 
-A `REINDEX` failure on a unique index means duplicate rows were written under a mismatched order; stop and
-restore (below) instead of deleting rows. `datcollate` `C`/`POSIX` databases are not affected by the libc change
-but are reindexed anyway.
+Deploy this release by hand as above; do not let the agent perform the first glibc start (an agent from an older
+release would roll back to the Alpine image if a later health check failed). A `REINDEX` failure on a unique index
+means duplicate rows were written under a mismatched order, and an amcheck error means an index is still wrong: in
+both cases stop and roll back (below) instead of deleting rows, and do not write the marker.
 
 Verify: section 6 health checks; `SELECT state, count(*) FROM knowledge_sync_jobs GROUP BY 1` in `hexta` drains
 from `pending` to `done` (migration 20261127100001 enqueues every active product and script once; `failed` rows
-carry a reason in `last_error`).
+carry a reason in `last_error`). `./scripts/prod.sh logs messaging-command | grep "Knowledge sync jobs need attention"`
+reports failed or stuck jobs every ten minutes while there are any.
 
-Rollback: `./scripts/prod.sh down` (never `-v`), copy `hexta-prod_postgres_data_alpine17` back into
-`hexta-prod_postgres_data` the same way as step 3, check out the previous release commit and start it. The new
-tables and the `vector` extension are additive; the previous code ignores them. Alternatively restore the
-`pre-pgvector` dump into an empty volume as in section 10. Delete `hexta-prod_postgres_data_alpine17` only after
-the new release has run cleanly for a while.
+### Rollback of the switch
+
+Never start the previous release on the switched volume, and never copy into a non-empty volume. Restore the
+musl copy into a recreated, empty volume (or restore the dump into an empty volume as in section 10):
+
+```sh
+cd /opt/hexta
+sudo systemctl stop hexta-deploy.timer
+PG=pgvector/pgvector:0.8.1-pg17-bookworm
+# Keep what was written since the switch (to re-enter by hand later), then remove the switched volume.
+./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > ~/hexta-backups/post-pgvector-$(date +%F-%H%M).sql.gz
+./scripts/prod.sh down                                   # never down -v
+docker volume rm hexta-prod_postgres_data
+# The previous release recreates the empty volume (with its Compose labels) without starting postgres.
+git checkout --detach <previous release commit>
+export HEXTA_IMAGE_TAG=sha-<previous>
+./scripts/prod.sh up --no-start postgres
+docker run --rm --network none -v hexta-prod_postgres_data_alpine17:/from:ro -v hexta-prod_postgres_data:/to \
+  --entrypoint sh "$PG" -c '[ -z "$(ls -A /to)" ] || { echo "target volume not empty: stop" >&2; exit 1; }; cp -a /from/. /to/'
+./scripts/prod.sh up -d --wait --remove-orphans
+echo "$HEXTA_IMAGE_TAG" > infrastructure/prod/state/deployed
+```
+
+Then revert the release PR on `main` before re-enabling the timer, or the agent deploys sha-X again (the guard stops
+it, since the restored copy has no marker). The new tables and the `vector` extension are additive; the previous
+code ignores them. Delete `hexta-prod_postgres_data_alpine17` only after the new release has run cleanly for a while.
 
 ## 11. Operations
 
@@ -272,6 +403,7 @@ the new release has run cleanly for a while.
 | Resource use | `docker stats --no-stream` |
 | Disk cleanup (old images) | `docker image prune -f` |
 | Postgres shell | `./scripts/prod.sh exec postgres psql -U postgres -d hexta` |
+| AI knowledge re-sync (embedding model switch) | `./scripts/prod.sh exec ingress ./knowledge-resync -all-tenants`; counts only: `… ./knowledge-resync -status` |
 
 Never run `down -v` on the server: it deletes the database volume. Never print `.env`, `secrets/` or `docker compose config` output into logs or chats; it contains resolved secrets.
 
@@ -296,4 +428,5 @@ The deploy agent does not pass the overlay; until it does, update by hand (step 
 - One host, no high availability. Disk loss means restoring from an off-server backup.
 - Each service uses one login for migrations and runtime; separate migrator/runtime roles are a follow-up.
 - No metrics or alerting are wired beyond deploy notices; use `ps`, `logs` and `docker stats`.
+- The pgvector switch (section 10a) was rehearsed locally on 2026-11-26 with real containers (Compose v5.6): fresh volume starts, an Alpine-created volume is refused by the guard, and the runbook (REINDEX, amcheck, marker) plus its rollback succeed. NOT_RUN on a server.
 - Verified locally on 2026-11-16 by running this stack with `DOMAIN=localhost` and images built through `compose.prod.build.yml` (same Dockerfiles and build args as CI), covering routing, health, migrations, topic creation, and register/login on one origin. The deploy agent was tested in a Linux container against a throwaway git remote with stubbed Docker/Compose: empty release, invalid tag, images not yet published, first deploy, no-op repeat, failed deploy with automatic rollback and backup, no retry of a failed tag, and recovery on the next release. NOT_RUN: the first CI publish of the `connector` and `ai` images and of the release PR, the agent against real Docker on a server, public certificates, DNS, live Facebook/Telegram callbacks and backup restore.

@@ -2,7 +2,7 @@
 name: hexta-connector-fixture
 services:
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.1-pg17-bookworm
     environment:
       POSTGRES_PASSWORD: fixture
     ports:

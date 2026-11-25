@@ -3,7 +3,7 @@ name: hexta-demo
 services:
   # pgvector build of PostgreSQL 17 (owner decision 2026-11-26): the AI knowledge store needs the vector extension.
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.1-pg17-bookworm
     environment:
       POSTGRES_DB: hexta_demo
       POSTGRES_USER: hexta_demo
@@ -71,7 +71,7 @@ services:
         do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
         --partitions 3 --replication-factor 1 || exit 1; done
   db-init:
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.1-pg17-bookworm
     depends_on:
       postgres:
         condition: service_healthy
@@ -298,7 +298,7 @@ services:
       - no-new-privileges:true
   test-postgres:
     profiles: ["test"]
-    image: pgvector/pgvector:0.8.1-pg17
+    image: pgvector/pgvector:0.8.1-pg17-bookworm
     environment:
       POSTGRES_USER: ai_test
       POSTGRES_PASSWORD: test-only

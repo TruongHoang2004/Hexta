@@ -82,10 +82,19 @@ products, active scripts and Settings › Tài liệu documents to the AI knowle
 
 No paid call is made; answers are labelled `requires_review` and are never sent automatically.
 
-Postgres now uses `pgvector/pgvector:0.8.1-pg17` (glibc) instead of the alpine image. An existing `hexta-demo`
-volume keeps working, but rebuild its text indexes once after the switch:
-`./scripts/local.sh exec -T postgres psql -U hexta_demo -d hexta_demo -c 'REINDEX DATABASE hexta_demo'` (repeat for
-`hexta_connector`), or reset the local data with `make reset`. `db-init` creates the `vector` extension.
+Postgres now uses `pgvector/pgvector:0.8.1-pg17-bookworm` (Debian, glibc) instead of `postgres:17.7-alpine3.23`
+(musl). Text sort order differs between the two C libraries, so an existing `hexta-demo` volume created by the alpine
+image starts but its text indexes (including `varchar(36)` primary keys) are silently wrong until rebuilt. Either
+reset the local data (`make reset`) or rebuild every index once, before using the stack:
+
+```sh
+./scripts/local.sh up -d --wait postgres
+./scripts/local.sh exec -T postgres sh -c 'for db in $(psql -U hexta_demo -d hexta_demo -Atc "SELECT datname FROM pg_database WHERE datallowconn"); do
+  psql -U hexta_demo -d "$db" -v ON_ERROR_STOP=1 -qc "REINDEX DATABASE \"$db\"" -c "REINDEX SYSTEM \"$db\"" || exit 1; echo "reindexed $db"; done'
+```
+
+A unique-index error during REINDEX means duplicates were written under the wrong order: `make reset` instead.
+`db-init` creates the `vector` extension. Production has its own guarded procedure (README.deploy.md section 10a).
 
 ## Logs, rebuild, stop and data
 
