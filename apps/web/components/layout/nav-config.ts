@@ -1,4 +1,4 @@
-import { ClipboardList, MessagesSquare, Settings, ShoppingBag, type LucideIcon } from "lucide-react";
+import { ClipboardList, MessagesSquare, ScrollText, Settings, ShoppingBag, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 export interface NavItem {
@@ -18,6 +18,7 @@ export interface NavGroup {
 export const settingsNav: NavItem[] = [
   { path: "settings/members", label: "nav.members" },
   { path: "settings/channels", label: "nav.channels" },
+  { path: "settings/script-permissions", label: "nav.scriptPermissions" },
   { path: "settings/subscription", label: "nav.plan" },
 ];
 
@@ -49,6 +50,12 @@ export const navGroups: NavGroup[] = [
       { path: "work", label: "nav.work" },
       { path: "workflows", label: "nav.workflows" },
     ],
+  },
+  {
+    id: "scripts",
+    label: "nav.groups.scripts",
+    icon: ScrollText,
+    items: [{ path: "scripts", label: "nav.scripts" }],
   },
   { id: "settings", label: "shell.settings", icon: Settings, items: settingsNav },
 ];
