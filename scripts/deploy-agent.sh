@@ -13,6 +13,8 @@ SERVICES="api connector ai web migrator"
 # Compose volume of the production database and the glibc marker written by README.deploy.md section 10a.
 PG_VOLUME="hexta-prod_postgres_data"
 PG_MARKER="HEXTA_GLIBC_COLLATION_OK"
+# Reads the marker; the same pinned reference as compose.prod.yml, so it is already on the host after the switch.
+PG_IMAGE="pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21"
 
 main() {
     cd "$(dirname "$0")/.."
@@ -61,10 +63,15 @@ main() {
         fi
     done
 
-    if musl_downgrade "$commit"; then
-        fail_release "$desired" "its Alpine (musl) Postgres image must not start on the glibc data volume; roll back with README.deploy.md section 10a"
-        return 1
-    fi
+    local guard=0
+    musl_downgrade "$commit" || guard=$?
+    case $guard in
+        1) ;;
+        0) fail_release "$desired" "its Alpine (musl) Postgres image must not start on the glibc data volume; roll back with README.deploy.md section 10a"
+           return 1 ;;
+        *) fail_release "$desired" "could not check the Postgres collation marker (Docker error); nothing was changed. Fix Docker, then remove infrastructure/prod/state/failed to retry"
+           return 1 ;;
+    esac
     if ! backup "$desired"; then
         fail_release "$desired" "database backup failed; nothing was changed"
         return 1
@@ -84,9 +91,12 @@ main() {
     fi
 
     echo "$desired" >"$state/failed"
-    if musl_downgrade "$previous_commit"; then
+    guard=0
+    musl_downgrade "$previous_commit" || guard=$?
+    if [ "$guard" -ne 1 ]; then
         # The failed release already started Postgres on glibc; the previous (musl) image would corrupt indexes.
-        log "deploy of $desired failed; automatic rollback to $current refused (musl Postgres on a glibc volume)"
+        # A marker that cannot be read (guard 2) is treated the same way: never risk the musl start.
+        log "deploy of $desired failed; automatic rollback to $current refused (musl Postgres on a glibc volume, or marker check failed)"
         notify "Hexta: deploy of $desired FAILED; rollback to $current refused (Postgres collation), see README.deploy.md 10a"
         return 1
     fi
@@ -116,16 +126,31 @@ deploy() {
     return 1
 }
 
-# musl_downgrade COMMIT: true when COMMIT predates the Compose collation guard (its Postgres is the Alpine/musl image)
-# while the data volume already carries the glibc marker. Starting it would corrupt text indexes; the only way back
-# is the volume copy or dump restore in README.deploy.md section 10a. Compose in such an old commit cannot check this.
+# musl_downgrade COMMIT: status 0 when COMMIT predates the Compose collation guard (its Postgres is the Alpine/musl
+# image) while the data volume already carries the glibc marker. Starting it would corrupt text indexes; the only way
+# back is the volume copy or dump restore in README.deploy.md section 10a. Compose in such an old commit cannot check
+# this. Status 1: safe (guarded commit, no volume, or no marker). Status 2: the check itself failed (Docker error);
+# callers refuse, never assume "no marker".
 musl_downgrade() {
-    if git show "$1:infrastructure/compose.prod.yml" 2>/dev/null | grep -q '^  postgres-collation-guard:'; then
+    local compose volumes rc=0
+    # Capture first: "git show | grep -q" under pipefail can fail with SIGPIPE and read as "no guard".
+    compose=$(git show "$1:infrastructure/compose.prod.yml" 2>/dev/null) || compose=""
+    if grep -q '^  postgres-collation-guard:' <<<"$compose"; then
         return 1
     fi
-    docker volume inspect "$PG_VOLUME" >/dev/null 2>&1 || return 1
-    docker run --rm --network none --user root -v "$PG_VOLUME:/data:ro" --entrypoint test \
-        pgvector/pgvector:0.8.1-pg17-bookworm -f "/data/$PG_MARKER"
+    volumes=$(docker volume ls -q) || { log "collation check: cannot list Docker volumes"; return 2; }
+    grep -qx "$PG_VOLUME" <<<"$volumes" || return 1
+    if ! docker image inspect "$PG_IMAGE" >/dev/null 2>&1 && ! docker pull --quiet "$PG_IMAGE" >/dev/null 2>&1; then
+        log "collation check: image $PG_IMAGE unavailable"
+        return 2
+    fi
+    docker run --rm --pull never --network none --user root -v "$PG_VOLUME:/data:ro" --entrypoint test \
+        "$PG_IMAGE" -f "/data/$PG_MARKER" || rc=$?
+    case $rc in
+        0) return 0 ;;
+        1) return 1 ;;
+        *) log "collation check: docker run failed with status $rc"; return 2 ;;
+    esac
 }
 
 backup() {
