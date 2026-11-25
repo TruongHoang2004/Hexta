@@ -1,4 +1,4 @@
-h1:iWcTrulBUstobM1EYxJWQ7KMcp/FN/MhW1RQs+l+JKs=
+h1:n/BLCmRXVMk4ETmdaqu7wCyt8739a6fBsnzkI0Pr8/E=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -19,4 +19,5 @@ h1:iWcTrulBUstobM1EYxJWQ7KMcp/FN/MhW1RQs+l+JKs=
 20261122052820_messaging_conversation_views.sql h1:pUwbigHr8yz2monzLFn727+lsZ+6m20Ueafgt2Nfglk=
 20261122052827_backfill_messaging_conversation_views.sql h1:ZaYuorD2DANLZjDbc2HTRWvBXYLoLbnYCEtCZryjdL4=
 20261126100000_scripts_and_permissions.sql h1:srWM227VvXvlJgBE1hKEDDsZqJ7VmalA12PI4zcRidA=
-20261126300000_messaging_turn_expiry.sql h1:IQwY7hBiX3pL6IWJU6SOO+X+WZgyORKidMiVI+vkKE8=
+20261126200000_reply_mode_and_proposals.sql h1:EuhV6lsxtATdJ7t/Nlk6Ej9mpeETXfBgeYkHKKO14I0=
+20261126300000_messaging_turn_expiry.sql h1:N0OqS2wsNc3Bd8WXyjY6wC0LHzwjhKNybzXQgqT0kYg=

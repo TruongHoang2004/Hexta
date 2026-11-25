@@ -728,3 +728,67 @@ CREATE TABLE "script_member_permissions" (
   CONSTRAINT "script_member_permissions_member_fkey" FOREIGN KEY ("tenant_id", "user_id") REFERENCES "tenant_members" ("tenant_id", "user_id") ON UPDATE NO ACTION ON DELETE CASCADE,
   CONSTRAINT "script_member_permissions_version_check" CHECK (version > 0)
 );
+-- Bot reply mode per tenant (MVP 5 FR-5.1), changed by the tenant owner only. No row means the owner has not yet
+-- configured the bot: new conversation turns wait for staff and the mode reads as 'suggest'. Once a row exists,
+-- new turns start under bot handling.
+CREATE TABLE "tenant_reply_settings" (
+  "tenant_id" character varying(36) NOT NULL,
+  "reply_mode" character varying(16) NOT NULL,
+  "version" bigint NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("tenant_id"),
+  CONSTRAINT "tenant_reply_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "tenant_reply_settings_mode_check" CHECK ((reply_mode)::text = ANY ((ARRAY['suggest'::character varying, 'auto_send'::character varying])::text[])),
+  CONSTRAINT "tenant_reply_settings_version_check" CHECK (version > 0)
+);
+-- Bot reply proposals (MVP 5 FR-5.2/FR-5.3). A row starts as a durable routing job for one customer message and
+-- becomes a proposal tied to its turn, control generation and source (immutable script version or AI run). A
+-- proposal whose control generation no longer matches its turn is stale and can never be sent.
+CREATE TABLE "messaging_reply_proposals" (
+  "id" uuid NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "thread_id" uuid NOT NULL,
+  "turn_id" uuid NOT NULL,
+  "trigger_message_id" uuid NOT NULL,
+  "control_generation" bigint NOT NULL,
+  "context_revision" bigint NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "route" character varying(16) NULL,
+  "source" character varying(16) NULL,
+  "script_version_id" character varying(36) NULL,
+  "ai_run_id" character varying(100) NULL,
+  "text" text NULL,
+  "reason" character varying(64) NULL,
+  -- Set when a person asked for this proposal (regenerate); such a proposal is never sent automatically.
+  "requested_by" character varying(255) NULL,
+  "decided_by" character varying(255) NULL,
+  "sent_message_id" uuid NULL,
+  "attempts" integer NOT NULL DEFAULT 0,
+  "available_at" timestamptz NOT NULL,
+  "version" bigint NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "messaging_reply_proposals_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "messaging_reply_proposals_turn_fkey" FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_trigger_fkey" FOREIGN KEY ("tenant_id", "trigger_message_id") REFERENCES "messaging_messages" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_sent_fkey" FOREIGN KEY ("tenant_id", "sent_message_id") REFERENCES "messaging_messages" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_script_fkey" FOREIGN KEY ("tenant_id", "script_version_id") REFERENCES "script_versions" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_status_check" CHECK ((status)::text = ANY ((ARRAY['routing'::character varying, 'pending'::character varying, 'sent'::character varying, 'auto_sent'::character varying, 'discarded'::character varying, 'superseded'::character varying, 'handed_off'::character varying, 'no_candidate'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_route_check" CHECK ((route)::text = ANY ((ARRAY['script'::character varying, 'answer'::character varying, 'clarify'::character varying, 'handoff'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_source_check" CHECK ((source)::text = ANY ((ARRAY['script'::character varying, 'ai'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_script_source_check" CHECK (((source)::text = 'script'::text) = (script_version_id IS NOT NULL)),
+  CONSTRAINT "messaging_reply_proposals_candidate_check" CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'sent'::character varying, 'auto_sent'::character varying, 'discarded'::character varying])::text[])) <= ((source IS NOT NULL) AND (text IS NOT NULL))),
+  CONSTRAINT "messaging_reply_proposals_sent_check" CHECK (((status)::text = ANY ((ARRAY['sent'::character varying, 'auto_sent'::character varying])::text[])) = (sent_message_id IS NOT NULL)),
+  CONSTRAINT "messaging_reply_proposals_text_check" CHECK ((char_length(text) >= 1) AND (char_length(text) <= 2000)),
+  CONSTRAINT "messaging_reply_proposals_generation_check" CHECK (control_generation > 0),
+  CONSTRAINT "messaging_reply_proposals_revision_check" CHECK (context_revision > 0),
+  CONSTRAINT "messaging_reply_proposals_version_check" CHECK (version > 0)
+);
+-- Router work queue: routing jobs that are due, oldest first.
+CREATE INDEX "idx_messaging_reply_proposals_routing" ON "messaging_reply_proposals" ("available_at") WHERE ((status)::text = 'routing'::text);
+-- Proposals of one turn, newest first.
+CREATE INDEX "idx_messaging_reply_proposals_turn" ON "messaging_reply_proposals" ("tenant_id", "turn_id", "id" DESC);
+-- At most one live (routing or pending) proposal per turn; a newer customer message supersedes the older one.
+CREATE UNIQUE INDEX "idx_messaging_reply_proposals_one_live" ON "messaging_reply_proposals" ("tenant_id", "turn_id") WHERE ((status)::text = ANY ((ARRAY['routing'::character varying, 'pending'::character varying])::text[]));
