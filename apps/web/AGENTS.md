@@ -23,6 +23,7 @@ Owner decision 2026-11-21: business code is grouped into domain modules matching
 | `modules/operations` | work items, workflows |
 | `modules/settings` | members, channels, service plan |
 | `modules/scripts` | bot reply scripts and their versions, Settings › Script permissions |
+| `modules/knowledge` | Settings › Documents (business FAQ/policy texts the bot may answer from; owner writes, members read) |
 | `modules/overview` | owner-only read-only overview (order and work counts, waiting/stuck work) |
 
 The workspace shell is layout, not a domain: `components/layout/` owns the dashboard shell, sidebar and its groups (`nav-config.ts`), workspace switcher and `useWorkspace` context.

@@ -5,6 +5,7 @@ import { useT } from "@/lib/i18n/provider";
 import type { ReplyProposal } from "../../services/messaging";
 import type { ReplyMode } from "../../services/reply-mode";
 import type { ProposalAccess } from "../../utils";
+import { ProposalCitations } from "./proposal-citations";
 import { ProposalEditor } from "./proposal-editor";
 import { ProposalStale } from "./proposal-stale";
 
@@ -48,6 +49,8 @@ export function ProposalCard({
     : access.claimsOnSend
       ? t("desk.proposal.claimsOnSend")
       : "";
+  // An AI-written answer is never sent automatically, in any reply mode (owner decision D2).
+  const needsReview = proposal.route === "answer" && proposal.source === "ai" && proposal.status === "pending";
   return (
     <section
       aria-labelledby={`proposal-${proposal.id}`}
@@ -62,6 +65,13 @@ export function ProposalCard({
         </h3>
         {mode && <span className="text-xs text-muted">{t("desk.proposal.mode", { mode: t(`replyMode.modes.${mode}.name`) })}</span>}
       </header>
+      {needsReview && !proposal.stale && (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <StatusChip tone="warning">{t("desk.proposal.reviewChip")}</StatusChip>
+          <span className="text-muted">{t("desk.proposal.reviewHint")}</span>
+        </p>
+      )}
+      {proposal.status !== "routing" && <ProposalCitations citations={proposal.citations ?? []} />}
       {error && (
         <p role="alert" className="text-sm text-error">
           {error}

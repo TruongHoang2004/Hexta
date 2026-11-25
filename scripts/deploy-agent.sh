@@ -10,6 +10,9 @@
 set -euo pipefail
 
 SERVICES="api connector ai web migrator"
+# Compose volume of the production database and the glibc marker written by README.deploy.md section 10a.
+PG_VOLUME="hexta-prod_postgres_data"
+PG_MARKER="HEXTA_GLIBC_COLLATION_OK"
 
 main() {
     cd "$(dirname "$0")/.."
@@ -58,6 +61,10 @@ main() {
         fi
     done
 
+    if musl_downgrade "$commit"; then
+        fail_release "$desired" "its Alpine (musl) Postgres image must not start on the glibc data volume; roll back with README.deploy.md section 10a"
+        return 1
+    fi
     if ! backup "$desired"; then
         fail_release "$desired" "database backup failed; nothing was changed"
         return 1
@@ -77,6 +84,12 @@ main() {
     fi
 
     echo "$desired" >"$state/failed"
+    if musl_downgrade "$previous_commit"; then
+        # The failed release already started Postgres on glibc; the previous (musl) image would corrupt indexes.
+        log "deploy of $desired failed; automatic rollback to $current refused (musl Postgres on a glibc volume)"
+        notify "Hexta: deploy of $desired FAILED; rollback to $current refused (Postgres collation), see README.deploy.md 10a"
+        return 1
+    fi
     git checkout --quiet --detach "$previous_commit"
     if [ -n "$current" ] && deploy "$current"; then
         log "deploy of $desired failed; rolled back to $current"
@@ -101,6 +114,18 @@ deploy() {
         sleep 5
     done
     return 1
+}
+
+# musl_downgrade COMMIT: true when COMMIT predates the Compose collation guard (its Postgres is the Alpine/musl image)
+# while the data volume already carries the glibc marker. Starting it would corrupt text indexes; the only way back
+# is the volume copy or dump restore in README.deploy.md section 10a. Compose in such an old commit cannot check this.
+musl_downgrade() {
+    if git show "$1:infrastructure/compose.prod.yml" 2>/dev/null | grep -q '^  postgres-collation-guard:'; then
+        return 1
+    fi
+    docker volume inspect "$PG_VOLUME" >/dev/null 2>&1 || return 1
+    docker run --rm --network none --user root -v "$PG_VOLUME:/data:ro" --entrypoint test \
+        pgvector/pgvector:0.8.1-pg17-bookworm -f "/data/$PG_MARKER"
 }
 
 backup() {

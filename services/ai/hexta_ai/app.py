@@ -1,5 +1,6 @@
 """Internal candidate preview and durable gRPC runtime. No customer channel access."""
 
+import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -12,17 +13,47 @@ from langsmith import tracing_context
 
 from hexta_ai.rpc import start_server
 from hexta_ai.graph import PreviewRequest, PreviewResult, build_graph
+from hexta_ai.knowledge.service import knowledge_from_env
 from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
+from hexta_ai.routing import router_from_env
 from hexta_ai.schemas.consultant import ConsultantRequest, ConsultantResponse
-from hexta_ai.graph_consultant import consultant_graph
+from hexta_ai.graph_consultant import consultant_graph, create_consultant_graph
+
+log = logging.getLogger(__name__)
 
 
-def create_app(internal_token: str | None = None, provider: BaseAIProvider | None = None) -> FastAPI:
+_FROM_ENV = object()
+
+
+class RuntimeProfile:
+    """Identity checked by durable recovery: paid when the answer model, Jev or embeddings are real. An offline
+    router (AI_FAKE_ROUTER) is simulated and keeps the profile simulated."""
+
+    def __init__(self, provider, router, knowledge):
+        self.name = provider.name
+        self.model = provider.model
+        self.simulated = (provider.simulated and (router is None or getattr(router, "simulated", False))
+                          and (knowledge is None or knowledge.simulated))
+
+
+def create_app(internal_token: str | None = None, provider: BaseAIProvider | None = None, *,
+               router=_FROM_ENV, knowledge=_FROM_ENV) -> FastAPI:
     token = internal_token if internal_token is not None else os.getenv("AI_INTERNAL_TOKEN", "")
     if len(token) < 24:
         raise RuntimeError("AI_INTERNAL_TOKEN must contain at least 24 characters")
+    # Fail-safe (owner decision 2026-11-26): missing or partial AI settings disable AI with a logged reason instead
+    # of failing startup. Disabled AI also keeps Jev and paid embeddings off, so nothing is billed.
     selected = provider if provider is not None else provider_from_env()
-    graph = build_graph(selected)
+    enabled = selected.name != "disabled"
+    router = router_from_env(ai_enabled=enabled) if router is _FROM_ENV else router
+    knowledge = knowledge_from_env(paid_embeddings=enabled) if knowledge is _FROM_ENV else knowledge
+    profile = RuntimeProfile(selected, router, knowledge)
+    graph = build_graph(selected, router=router, knowledge=knowledge, simulated=profile.simulated)
+    consultant = consultant_graph if enabled else create_consultant_graph(provider="disabled")
+    log.warning("AI runtime %s: provider=%s model=%s router=%s embeddings=%s",
+                "enabled" if enabled else "DISABLED (exact scripts only, everything else to staff)",
+                selected.name, selected.model, getattr(router, "name", "jev" if router else "none"),
+                getattr(getattr(knowledge, "embeddings", None), "model", "none"))
     runtime = {}
 
     async def run(request: PreviewRequest) -> PreviewResult:
@@ -37,7 +68,8 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
         try:
             if os.getenv("AI_GRPC_ENABLED", "true").lower() == "true":
                 server, service = await start_server(
-                    token, os.getenv("AI_GRPC_ADDRESS", "0.0.0.0:50051"), runner=run, provider=selected,
+                    token, os.getenv("AI_GRPC_ADDRESS", "0.0.0.0:50051"), runner=run, provider=profile,
+                    knowledge=knowledge,
                 )
             runtime["service"] = service
             yield
@@ -47,6 +79,10 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
             if service:
                 await service.close()
             await selected.close()
+            if router is not None:
+                await router.close()
+            if knowledge is not None:
+                await knowledge.close()
 
     app = FastAPI(lifespan=lifespan, title="Hexta AI Service", version="0.2.0",
                   docs_url=None, redoc_url=None)
@@ -61,7 +97,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
 
     @app.get("/health/live")
     def live() -> dict:
-        return {"status": "ok", "provider": selected.name, "simulated": selected.simulated}
+        return {"status": "ok", "provider": selected.name, "simulated": profile.simulated}
 
     @app.get("/health/ready")
     async def ready() -> dict:
@@ -71,7 +107,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
                 await service.ready()
             except Exception:
                 raise HTTPException(status_code=503, detail="AI runtime unavailable") from None
-        return {"status": "ready", "provider": selected.name, "simulated": selected.simulated}
+        return {"status": "ready", "provider": selected.name, "simulated": profile.simulated}
 
     @app.post("/internal/v1/preview", response_model=PreviewResult,
               dependencies=[Depends(authenticate)])
@@ -88,7 +124,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
               dependencies=[Depends(authenticate)])
     async def consult(request: ConsultantRequest) -> ConsultantResponse:
         with tracing_context(enabled=False):
-            result = await consultant_graph.ainvoke({"request": request}, {"recursion_limit": 10})
+            result = await consultant.ainvoke({"request": request}, {"recursion_limit": 10})
         return result["final_response"]
 
     return app

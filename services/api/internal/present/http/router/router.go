@@ -23,6 +23,7 @@ func RegisterRoutes(
 	channels *controller.ChannelController,
 	scripts *controller.ScriptController,
 	replySettings *controller.ReplySettingsController,
+	knowledge *controller.KnowledgeController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
@@ -130,6 +131,12 @@ func RegisterRoutes(
 	// Bot reply mode (MVP 5 FR-5.1); every member reads it, only the owner changes it.
 	resources.GET("/settings/reply-mode", replySettings.GetReplyMode)
 	resources.PUT("/settings/reply-mode", replySettings.UpdateReplyMode)
+
+	// Knowledge documents the bot may answer from; every member reads, only the owner changes them.
+	resources.GET("/knowledge-documents", knowledge.ListKnowledgeDocuments)
+	resources.POST("/knowledge-documents", knowledge.CreateKnowledgeDocument)
+	resources.PUT("/knowledge-documents/:id", knowledge.UpdateKnowledgeDocument)
+	resources.DELETE("/knowledge-documents/:id", knowledge.DeleteKnowledgeDocument)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

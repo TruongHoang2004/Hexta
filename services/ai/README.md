@@ -40,15 +40,22 @@ Existing process environment takes precedence. Select one provider:
 
 | AI_PROVIDER | Credential (preferred over AI_API_KEY) | AI_MODEL example |
 | --- | --- | --- |
+| disabled | None | (none) |
 | fake | None | deterministic |
 | gemini | GEMINI_API_KEY | gemini-2.5-flash |
 | openai | OPENAI_API_KEY | gpt-4o-mini |
-| anthropic | ANTHROPIC_API_KEY | claude-haiku-4-5 |
+| anthropic | ANTHROPIC_API_KEY | claude-sonnet-5-5 |
 
-Set `AI_MODEL` for the selected provider; these are configurable examples, not a
-claim that every model supports structured output. A missing key for a real provider
-fails startup; offline use must explicitly select fake. Health identifies the
-effective provider. Invalid keys fail calls safely without cross-provider failover.
+Set `AI_MODEL` explicitly for a real provider; these are configurable examples, not a
+claim that every model supports structured output. `disabled` (the production default) proposes only a unique
+exact match of an active script and hands everything else to staff, with no router and no paid call. Startup is
+fail-safe (owner decision 2026-11-26): a real provider without its key or `AI_MODEL`, a model of another provider
+family (`anthropic` needs `claude-*`, `gemini` needs `gemini-*`), invalid numeric settings or an unknown
+`AI_PROVIDER` select `disabled` and log `AI disabled: <reason>` instead of failing startup. While AI is disabled,
+Jev and Gemini embeddings stay off too; `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY` and Gemini embeddings
+without a key are logged as errors and fall back to Jev off / offline hashing. One `AI runtime …` line reports
+the effective provider, model, router and embedding model; health identifies the effective provider. Invalid keys
+fail calls safely without cross-provider failover.
 `AI_TIMEOUT` defaults to 20 seconds (1–30); `AI_MAX_TOKENS` to 2048 (64–8192);
 `AI_MAX_INPUT_TOKENS` to a conservative UTF-8 byte-based token estimate of 16000 (256–64000).
 `AI_TEMPERATURE` defaults to 0.7 for Gemini/OpenAI; the Anthropic integration
@@ -77,6 +84,59 @@ Only authenticated internal callers can use preview. Failure categories are
 `INPUT_BUDGET_EXCEEDED`; no provider bodies/credentials are returned or logged.
 The provider streaming port buffers one complete structured candidate; the public
 HTTP endpoint and RPCs remain non-streaming.
+
+## Jev routing, knowledge answers and RAG (2026-11-26)
+
+Design: [agentic-memory/designs/2026-11-26_ai-jev-rag_design.md](../../agentic-memory/designs/2026-11-26_ai-jev-rag_design.md).
+
+- **Router.** With `AI_JEV_ENABLED=true` and `TYPESAFE_API_KEY`, one TypeSafe System One call (model
+  `AI_JEV_MODEL`, default pinned `jev-1.14.0`) chooses `script` / `answer` / `clarify` / `human`. Only
+  typed-redacted text (`[PHONE]`, `[EMAIL]`, `[ADDRESS]`, see `hexta_ai/redaction.py`) and redacted script
+  excerpts are sent; script IDs become local labels. Thresholds (`AI_JEV_MIN_PROBABILITY`,
+  `AI_JEV_SCRIPT_MIN_PROBABILITY`, `AI_JEV_NOUL_YES`, `AI_JEV_NOUL_NO`) are configuration because Vietnamese
+  accuracy is not documented by the vendor. Jev errors, low probability or invalid output fall back to the
+  deterministic exact matcher and then `human`, never to a paid LLM routing call. Jev disabled (default)
+  keeps the existing classifier path. The SDK retries only HTTP 429/529 and its body-logging logger is kept
+  at WARNING.
+- **Knowledge.** Go pushes tenant products, documents and active scripts with `UpsertKnowledge` /
+  `DeleteKnowledge` (idempotent by source revision + content hash; attribute-only changes are not
+  re-embedded; deletes leave tombstones). Chunks and 768-dimension embeddings live in `ai_runtime`
+  (pgvector >= 0.8.0, extension in schema `public`). `AI_EMBEDDING_PROVIDER=fake` (default, offline
+  hashing) or `gemini` (`AI_EMBEDDING_MODEL`, default `gemini-embedding-001`, via langchain-google-genai).
+  Retrieval is tenant- and embedding-model-filtered top-k (`AI_RAG_TOP_K`), similarity floor
+  (`AI_RAG_MIN_SIMILARITY`) and context budget (`AI_RAG_MAX_CONTEXT_TOKENS`). Chunks stored under another
+  embedding model are ignored until Go re-sends the source; after switching models run the API's
+  `knowledge-resync` command (`make knowledge-resync all=1`, production: README.deploy.md "AI settings").
+- **Answers.** The answer route needs the caller's `allow_knowledge_answer`. Claude (default
+  `claude-sonnet-5-5`; any configured provider works) returns structured `kind/text/cited_source_ids/
+  confidence/needs_human`, with a stable cache-marked system prompt followed by knowledge, conversation and
+  message. Answers must cite retrieved sources, meet `AI_ANSWER_MIN_CONFIDENCE` (0.7) and contain only
+  numbers present in the cited records or the question. Refusals and provider errors become `human`
+  candidates. Generated text is labelled `candidate_kind=generated`, `requires_review=true`: Go must never
+  auto-send it.
+- **Offline demo router.** `AI_FAKE_ROUTER=keyword` (default unset) routes with a deterministic,
+  diacritics-insensitive Vietnamese keyword router (`hexta_ai/routing/keyword.py`, router `deterministic`,
+  model `keyword-v1`): unique exact trigger → `script`; staff/complaint/refund/order-problem words → `human`
+  (`customer_requested_staff`); product/price/stock/size/shipping/policy words → `answer`; very short or
+  vague messages → `clarify`; otherwise the deterministic fallback (`keyword_no_match`) → `human`. It makes
+  no network call and keeps runs simulated. Jev, when enabled with a key, always wins. With the default fake
+  provider an `answer` is an extractive Vietnamese reply built from the best retrieved record (cited, price
+  and stock from its attributes), so a demo shows "AI answer pending review with citations" without paid
+  calls. Offline hashing embeddings (`hashing-768-v2`, diacritic-folded words and bigrams without filler
+  words) give about 0.4–0.6 cosine for matching demo questions and below 0.15 for unrelated ones: use
+  `AI_RAG_MIN_SIMILARITY=0.15` with `AI_EMBEDDING_PROVIDER=fake`; keep the 0.55 default for Gemini.
+- **Clarifying question.** The static clarify text (not model-authored, so no review is required) defaults to
+  Vietnamese and is configurable with `AI_CLARIFY_TEXT` (1–500 characters, no `{`/`}`; invalid values fail
+  startup).
+- **Eval.** `uv run python -m hexta_ai.routing.evaluate` checks the Vietnamese fixture set
+  (`evals/jev_routing_vi.json`) offline; `--replay` scores recorded answers and `--sweep` compares
+  thresholds; `--live --confirm-paid-calls --record FILE` calls the paid API and needs owner approval.
+
+Database prerequisite: the AI migrator is not a superuser in Compose/production, and pgvector is not a
+trusted extension, so a superuser must run `CREATE EXTENSION vector WITH SCHEMA public` on a
+pgvector-capable image before `make migrate svc=ai`. Generating AI migrations needs `AI_DEV_URL` pointing
+to a disposable dev database with `vector` preinstalled in `public` (Atlas Community cannot manage
+extensions and drops it after each diff, so reinstall before every run).
 
 ## Offline and opt-in live smoke
 
@@ -144,5 +204,6 @@ the durable paid-call fence continue to operate above this model abstraction.
 
 The authenticated `/internal/v1/consult` endpoint serves the LangGraph shopping
 consultant. Its model adapter fails closed when a real provider lacks credentials;
-offline use must explicitly select fake. For the
+offline use must explicitly select fake. While the runtime is disabled the consultant never creates a model and
+returns its static fallback reply. For the
 private OpenAI launch configuration, see [real consultation](../../infrastructure/README.demo.md#real-openai-consultation).

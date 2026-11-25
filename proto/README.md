@@ -18,3 +18,5 @@ PATH="$(go env GOPATH)/bin:$PATH" protoc -I proto --go_out=services/api --go_opt
 ```
 
 Add compatible fields with new field numbers; reserve removed names/numbers. Introduce a new package version for breaking changes. The v1 contract supports candidate routing: additive request fields carry authorized history/facts/constraints and an explicit generation opt-in; Run carries provider/model/confidence/input-output usage and an estimated-usage flag. Existing field numbers and RPC signatures are unchanged. Old callers default to no generation. Python/Go bindings must be regenerated together.
+
+2026-11-26 additive changes: `StartRunRequest.allow_knowledge_answer` (12) opts into knowledge-grounded generated answers; `Run` fields 20–28 (`candidate_kind`, `cited_source_ids`, `needs_human`, `handoff_reason`, `requires_review`, `router`, `router_model`, `route_probability`, `router_fallback_reason`) and the `UpsertKnowledge` / `DeleteKnowledge` RPCs. Existing tags and RPCs are unchanged; old callers never receive generated answers.

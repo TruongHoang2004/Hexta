@@ -42,6 +42,8 @@ type ScriptStore interface {
 	PermissionSet(ctx context.Context, tenant, user string) (types.ScriptPermissionSet, *apperrors.Error)
 	SavePermissionSet(ctx context.Context, set types.ScriptPermissionSet, expected int64) *apperrors.Error
 	Audit(ctx context.Context, tenant, actor, action, kind, id string, state any) *apperrors.Error
+	// EnqueueKnowledgeSync records a changed AI knowledge source in the caller's transaction.
+	EnqueueKnowledgeSync(ctx context.Context, tenant, sourceType, sourceID string, at time.Time) *apperrors.Error
 }
 
 type ScriptRepository struct{ *SalesRepository }

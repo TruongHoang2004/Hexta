@@ -2,6 +2,7 @@
 package persistencemap
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
@@ -37,13 +38,34 @@ func SettingsRow(value types.ReplySettings) replymodel.Settings {
 	return replymodel.Settings{TenantID: value.TenantID, ReplyMode: value.Mode, Version: value.Version, UpdatedBy: value.UpdatedBy, UpdatedAt: value.UpdatedAt}
 }
 
+// citations decodes the stored cited source list. Citations only label a proposal for review (they grant
+// nothing), so an unreadable value reads as no citations.
+func citations(value string) []string {
+	var ids []string
+	if value == "" || json.Unmarshal([]byte(value), &ids) != nil || len(ids) == 0 {
+		return nil
+	}
+	return ids
+}
+
+func citationsColumn(ids []string) string {
+	if len(ids) == 0 {
+		return "[]"
+	}
+	data, err := json.Marshal(ids)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
 func Proposal(row replymodel.Proposal) types.ReplyProposal {
 	return types.ReplyProposal{
 		ID: row.ID, TenantID: row.TenantID, ThreadID: row.ThreadID, TurnID: row.TurnID, TriggerMessageID: row.TriggerMessageID,
 		ControlGeneration: row.ControlGeneration, ContextRevision: row.ContextRevision, Status: row.Status,
 		Route: text(row.Route), Source: text(row.Source), ScriptVersionID: text(row.ScriptVersionID), AIRunID: text(row.AIRunID),
 		Text: text(row.Text), Reason: text(row.Reason), RequestedBy: text(row.RequestedBy), DecidedBy: text(row.DecidedBy),
-		SentMessageID: text(row.SentMessageID), Attempts: row.Attempts, AvailableAt: row.AvailableAt, Version: row.Version,
+		SentMessageID: text(row.SentMessageID), CitedSourceIDs: citations(row.CitedSourceIDs), Attempts: row.Attempts, AvailableAt: row.AvailableAt, Version: row.Version,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}
 }
@@ -54,7 +76,7 @@ func ProposalRow(value types.ReplyProposal) replymodel.Proposal {
 		ControlGeneration: value.ControlGeneration, ContextRevision: value.ContextRevision, Status: value.Status,
 		Route: optional(value.Route), Source: optional(value.Source), ScriptVersionID: optional(value.ScriptVersionID), AIRunID: optional(value.AIRunID),
 		Text: optional(value.Text), Reason: optional(value.Reason), RequestedBy: optional(value.RequestedBy), DecidedBy: optional(value.DecidedBy),
-		SentMessageID: optional(value.SentMessageID), Attempts: value.Attempts, AvailableAt: value.AvailableAt, Version: value.Version,
+		SentMessageID: optional(value.SentMessageID), CitedSourceIDs: citationsColumn(value.CitedSourceIDs), Attempts: value.Attempts, AvailableAt: value.AvailableAt, Version: value.Version,
 		CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt,
 	}
 }

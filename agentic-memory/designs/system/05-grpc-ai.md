@@ -11,6 +11,8 @@ All three methods are unary RPCs. StartRun accepts work asynchronously rather th
 | StartRun | StartRunRequest | Current Run after committed acceptance or idempotent lookup |
 | GetRun | RunRequest | Tenant-qualified Run or NOT_FOUND |
 | CancelRun | RunRequest | Durable cancelled state for queued/running work; completed state remains unchanged |
+| UpsertKnowledge | UpsertKnowledgeRequest | Per-document outcome (created/updated/attributes_updated/unchanged/stale); local/unmerged 2026-11-26 |
+| DeleteKnowledge | DeleteKnowledgeRequest | deleted/not_found/stale; tombstone keeps the revision fence; local/unmerged 2026-11-26 |
 
 ### Script message
 
@@ -36,6 +38,7 @@ All three methods are unary RPCs. StartRun accepts work asynchronously rather th
 | 9 | facts | repeated DomainFact (id, text), max 50 |
 | 10 | constraints | repeated string, max 20 |
 | 11 | allow_generation | bool; defaults false for existing callers |
+| 12 | allow_knowledge_answer | bool; opt-in to knowledge-grounded generated answers (always requires_review); local/unmerged |
 
 RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 
@@ -57,6 +60,14 @@ RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 | 16 | confidence | double in [0,1], model score rather than calibrated probability |
 | 17,18 | input_tokens, output_tokens | int64, provider usage or labeled estimate |
 | 19 | usage_estimated | bool, true when usage is locally estimated |
+| 20 | candidate_kind | string script/generated/clarify/handoff (local/unmerged 2026-11-26) |
+| 21 | cited_source_ids | repeated string product:/document:/script:/fact: source keys |
+| 22 | needs_human | bool |
+| 23 | handoff_reason | string in Go vocabulary: customer_requested_staff, insufficient_information, ai_error, business_review |
+| 24 | requires_review | bool; true for model-authored text, Go must not auto-send |
+| 25, 26 | router, router_model | jev/deterministic/provider and its model |
+| 27 | route_probability | double router probability of the chosen option |
+| 28 | router_fallback_reason | safe category, e.g. jev_disabled, jev_timeout, jev_low_probability |
 
 Enum values: 0 UNSPECIFIED, 1 QUEUED, 2 RUNNING, 3 SUCCEEDED, 4 FAILED, 5 CANCELLED. Protobuf scalar defaults are real contract defaults; absent int64 revisions decode as 0 and absent bool active as false. Current Python rejects negative revisions but does not require positive revisions.
 
@@ -146,3 +157,36 @@ GET /health/live reports process and effective provider/simulation mode; GET /he
 ## Explicit schema migration — 2026-10-20
 
 AI startup now checks storage readiness and starts its worker only after a successful explicit Atlas migrations/ai job; RunStore has no migrate method or bundled startup DDL. Durable run/RPC/lease contracts unchanged. Existing compatible rows retained and verified; 27 Python tests passed. See [primary session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md).
+
+## Jev routing and knowledge answers — 2026-11-26, local/unmerged
+
+Owner-decided Jev (TypeSafe System One) router behind `AI_JEV_ENABLED` (default off), typed PII redaction
+before TypeSafe, pgvector knowledge in `ai_runtime` (`knowledge_sources`, `knowledge_chunks`; extension in
+`public`, migrations 20261125223600/20261125223601) with Gemini embeddings, and Claude structured answers
+labelled `generated` + `requires_review`. The run is paid (LLM_CALL_STARTED fence) when the answer model,
+Jev or embeddings are real. Graph adds `retrieve_knowledge` → `answer_candidate`; Jev failure falls back
+to the deterministic matcher, then human. Go adapter mapping: see the integration section below. See
+[design](../2026-11-26_ai-jev-rag_design.md) and
+[session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-jev-rag.md).
+
+## Go integration of knowledge answers — 2026-11-26, local/unmerged
+
+Go sets `allow_knowledge_answer=true` and maps Run fields 20–28. Route `generate` becomes a pending `answer`
+proposal (always reviewed, never auto-sent) whose validated `cited_source_ids` are stored on
+`messaging_reply_proposals` and labelled on the Desk; `clarify` keeps `requires_review`; `human` accepts only the
+AI handoff vocabulary. Go pushes knowledge with `UpsertKnowledge`/`DeleteKnowledge` from the durable
+`knowledge_sync_jobs` outbox (messaging-command job, `ai.run_addr`): products (attributes sku/price/stock,
+revision = newest change in µs), active scripts (`version_id`, revision = script version), knowledge documents
+(revision = version). UNAVAILABLE/RESOURCE_EXHAUSTED retry with the same revision; INVALID_ARGUMENT and
+FAILED_PRECONDITION are recorded as permanent. Offline demo router `AI_FAKE_ROUTER=keyword`; static clarify text
+`AI_CLARIFY_TEXT` (Vietnamese default). See
+[session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md).
+
+Review follow-up (same session, local/unmerged): runtime AI configuration is fail-safe. Owner decision 2026-11-26:
+production AI is off until fully configured (`AI_PROVIDER=disabled` default: exact active scripts or human, no
+router, no paid call); enabling means Claude + Jev + Gemini embeddings together. Missing/partial/invalid provider
+settings select the disabled provider with an `AI disabled: <reason>` log line instead of failing startup; Jev
+enabled without a key and Gemini embeddings without a key are logged and stay off / fall back to hashing; while AI
+is disabled Jev and paid embeddings stay off. Every stock change (inventory create/reserve/release/deduct/adjust)
+enqueues the variant's product in the same transaction (one coalesced job per product). `knowledge-resync` (API
+CLI) re-enqueues all live sources after an embedding model switch; the sync job logs failed/stuck counts.

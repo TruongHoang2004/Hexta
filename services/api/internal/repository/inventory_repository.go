@@ -17,6 +17,8 @@ var (
 	ErrAdjustmentNegativeBalance = stdErrors.New("stock adjustment cannot result in negative available quantity")
 )
 
+// IInventoryRepository changes stock. Every stock change (create, reserve, release, deduct, adjust) also enqueues
+// the variant's product for AI knowledge sync in the same transaction (one coalesced job per product).
 type IInventoryRepository interface {
 	GetByVariantID(ctx context.Context, tenantID, variantID string) (*model.InventoryItem, *errors.Error)
 	GetByID(ctx context.Context, tenantID, id string) (*model.InventoryItem, *errors.Error)
@@ -73,7 +75,12 @@ func (r *InventoryRepository) CreateInventoryItem(ctx context.Context, item *mod
 		item.AvailableQty = item.OnHandQty
 	}
 
-	err := r.db.WithContext(ctx).Create(item).Error
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(item).Error; err != nil {
+			return err
+		}
+		return enqueueVariantProductSync(tx, item.TenantID, item.VariantID, time.Now())
+	})
 	if err != nil {
 		return nil, r.returnError(ctx, err)
 	}
@@ -86,13 +93,14 @@ func (r *InventoryRepository) ReserveStock(ctx context.Context, tenantID, varian
 	}
 
 	var item model.InventoryItem
+	now := time.Now()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.InventoryItem{}).
 			Where("tenant_id = ? AND variant_id = ? AND available_qty >= ?", tenantID, variantID, quantity).
 			Updates(map[string]interface{}{
 				"reserved_qty":  gorm.Expr("reserved_qty + ?", quantity),
 				"available_qty": gorm.Expr("available_qty - ?", quantity),
-				"updated_at":    time.Now(),
+				"updated_at":    now,
 			})
 		if res.Error != nil {
 			return res.Error
@@ -103,6 +111,9 @@ func (r *InventoryRepository) ReserveStock(ctx context.Context, tenantID, varian
 				return checkErr
 			}
 			return ErrInsufficientStock
+		}
+		if err := enqueueVariantProductSync(tx, tenantID, variantID, now); err != nil {
+			return err
 		}
 		return tx.Where("tenant_id = ? AND variant_id = ?", tenantID, variantID).First(&item).Error
 	})
@@ -126,13 +137,14 @@ func (r *InventoryRepository) ReleaseStock(ctx context.Context, tenantID, varian
 	}
 
 	var item model.InventoryItem
+	now := time.Now()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.InventoryItem{}).
 			Where("tenant_id = ? AND variant_id = ? AND reserved_qty >= ?", tenantID, variantID, quantity).
 			Updates(map[string]interface{}{
 				"reserved_qty":  gorm.Expr("reserved_qty - ?", quantity),
 				"available_qty": gorm.Expr("available_qty + ?", quantity),
-				"updated_at":    time.Now(),
+				"updated_at":    now,
 			})
 		if res.Error != nil {
 			return res.Error
@@ -143,6 +155,9 @@ func (r *InventoryRepository) ReleaseStock(ctx context.Context, tenantID, varian
 				return checkErr
 			}
 			return ErrInvalidReservedQuantity
+		}
+		if err := enqueueVariantProductSync(tx, tenantID, variantID, now); err != nil {
+			return err
 		}
 		return tx.Where("tenant_id = ? AND variant_id = ?", tenantID, variantID).First(&item).Error
 	})
@@ -166,13 +181,14 @@ func (r *InventoryRepository) DeductStock(ctx context.Context, tenantID, variant
 	}
 
 	var item model.InventoryItem
+	now := time.Now()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&model.InventoryItem{}).
 			Where("tenant_id = ? AND variant_id = ? AND reserved_qty >= ? AND on_hand_qty >= ?", tenantID, variantID, quantity, quantity).
 			Updates(map[string]interface{}{
 				"on_hand_qty":  gorm.Expr("on_hand_qty - ?", quantity),
 				"reserved_qty": gorm.Expr("reserved_qty - ?", quantity),
-				"updated_at":   time.Now(),
+				"updated_at":   now,
 			})
 		if res.Error != nil {
 			return res.Error
@@ -201,7 +217,10 @@ func (r *InventoryRepository) DeductStock(ctx context.Context, tenantID, variant
 			ReferenceID:   refID,
 			CreatedAt:     time.Now(),
 		}
-		return tx.Create(mv).Error
+		if err := tx.Create(mv).Error; err != nil {
+			return err
+		}
+		return enqueueVariantProductSync(tx, tenantID, variantID, now)
 	})
 
 	if err != nil {
@@ -223,6 +242,7 @@ func (r *InventoryRepository) AdjustStock(ctx context.Context, tenantID, variant
 	}
 
 	var item model.InventoryItem
+	now := time.Now()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var current model.InventoryItem
 		if err := tx.Where("tenant_id = ? AND variant_id = ?", tenantID, variantID).First(&current).Error; err != nil {
@@ -238,7 +258,7 @@ func (r *InventoryRepository) AdjustStock(ctx context.Context, tenantID, variant
 		if err := tx.Model(&current).Updates(map[string]interface{}{
 			"on_hand_qty":   newOnHand,
 			"available_qty": newAvailable,
-			"updated_at":    time.Now(),
+			"updated_at":    now,
 		}).Error; err != nil {
 			return err
 		}
@@ -257,7 +277,10 @@ func (r *InventoryRepository) AdjustStock(ctx context.Context, tenantID, variant
 			Notes:        notes,
 			CreatedAt:    time.Now(),
 		}
-		return tx.Create(mv).Error
+		if err := tx.Create(mv).Error; err != nil {
+			return err
+		}
+		return enqueueVariantProductSync(tx, tenantID, variantID, now)
 	})
 
 	if err != nil {

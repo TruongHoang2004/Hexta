@@ -51,19 +51,37 @@ def test_reject_unknown_input_and_empty_message(client):
                        json={"message": ""}).status_code == 422
 
 
-def test_unsupported_provider_is_rejected(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER", "unsupported_provider")
-    with pytest.raises(RuntimeError, match="Unsupported AI_PROVIDER"):
-        create_app(TOKEN)
-
-
-def test_missing_real_credential_fails_startup(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER", "openai")
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("AI_API_KEY", "")
+@pytest.mark.parametrize("env", [
+    {"AI_PROVIDER": "unsupported_provider"},
+    {"AI_PROVIDER": "openai", "AI_MODEL": "gpt-4o-mini", "OPENAI_API_KEY": "", "AI_API_KEY": ""},
+    {"AI_PROVIDER": "anthropic", "AI_MODEL": "", "ANTHROPIC_API_KEY": "test-only"},
+])
+def test_missing_or_partial_ai_configuration_starts_disabled(monkeypatch, caplog, env):
+    # Fail-safe (owner decision 2026-11-26): no crash and no deploy rollback; AI is disabled with a logged reason.
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv("AI_GRPC_ENABLED", "false")
-    with pytest.raises(RuntimeError, match="requires a server-side API key"):
-        create_app(TOKEN)
+    with caplog.at_level("WARNING"), TestClient(create_app(TOKEN)) as test_client:
+        assert test_client.get("/health/live").json()["provider"] == "disabled"
+        script = {"id": "s1", "trigger": "price", "text": "Please select a product.", "active": True}
+        assert call(test_client, [script]).json()["route"] == "script"
+        result = call(test_client, []).json()
+        assert result["route"] == "human" and result["reason"] == "ai_disabled" and result["text"] is None
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "AI disabled:" in messages and "AI runtime DISABLED" in messages
+    assert "test-only" not in messages
+
+
+def test_disabled_consult_never_creates_a_model(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "disabled")
+    monkeypatch.setenv("AI_GRPC_ENABLED", "false")
+    from unittest.mock import patch
+    with patch("hexta_ai.models.adapter.FakeStructuredChatModel") as fake_model, \
+            TestClient(create_app(TOKEN)) as test_client:
+        response = test_client.post("/internal/v1/consult", headers={"Authorization": f"Bearer {TOKEN}"},
+                                    json={"tenant_id": "t1", "session_id": "s1", "message": "áo polo"})
+        assert response.status_code == 200 and response.json()["message"]
+        fake_model.assert_not_called()  # static fallback reply, no model of any kind
 
 
 def test_weak_internal_token_is_rejected(monkeypatch):

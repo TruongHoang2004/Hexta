@@ -246,6 +246,12 @@ func (s *ScriptService) SaveDraft(ctx context.Context, tenant, actor, id string,
 		if err := r.SaveScript(ctx, updated, script.Version); err != nil {
 			return err
 		}
+		// An active script's name is its knowledge title; its active content is unchanged by a draft.
+		if updated.Status == types.ScriptStatusActive {
+			if err := r.EnqueueKnowledgeSync(ctx, tenant, types.KnowledgeSourceScript, id, now); err != nil {
+				return err
+			}
+		}
 		if err := r.Audit(ctx, tenant, actor, "script.edit", "script", id, map[string]any{"version": updated.Version, "draft": draft.Number}); err != nil {
 			return err
 		}
@@ -289,6 +295,10 @@ func (s *ScriptService) Activate(ctx context.Context, tenant, actor, id, version
 		updated := *script
 		updated.Status, updated.ActiveVersionID, updated.Version, updated.UpdatedAt = types.ScriptStatusActive, version.ID, script.Version+1, now
 		if err := r.SaveScript(ctx, updated, script.Version); err != nil {
+			return err
+		}
+		// The active version becomes bot knowledge (with its version_id) through the durable knowledge sync job.
+		if err := r.EnqueueKnowledgeSync(ctx, tenant, types.KnowledgeSourceScript, id, now); err != nil {
 			return err
 		}
 		if err := r.Audit(ctx, tenant, actor, "script.activate", "script", id, map[string]any{"version": updated.Version, "active_number": version.Number}); err != nil {
@@ -339,6 +349,10 @@ func (s *ScriptService) transition(ctx context.Context, tenant, actor, id string
 		}
 		updated.Version, updated.UpdatedAt = script.Version+1, now
 		if err := r.SaveScript(ctx, updated, script.Version); err != nil {
+			return err
+		}
+		// A deactivated or archived script leaves the bot's knowledge through the knowledge sync job.
+		if err := r.EnqueueKnowledgeSync(ctx, tenant, types.KnowledgeSourceScript, id, now); err != nil {
 			return err
 		}
 		if err := r.Audit(ctx, tenant, actor, action, "script", id, map[string]any{"version": updated.Version, "status": updated.Status}); err != nil {

@@ -11,6 +11,7 @@ def preview_request(request: pb.StartRunRequest) -> PreviewRequest:
         history=[{"role": h.role, "text": h.text} for h in request.history],
         facts=[{"id": f.id, "text": f.text} for f in request.facts],
         constraints=list(request.constraints), allow_generation=request.allow_generation,
+        allow_knowledge_answer=request.allow_knowledge_answer, tenant_id=request.tenant_id or None,
         context_revision=request.context_revision, control_generation=request.control_generation,
     )
 
@@ -31,6 +32,16 @@ def completed_run(run: pb.Run, result) -> pb.Run:
     candidate.input_tokens = result.usage.input_tokens
     candidate.output_tokens = result.usage.output_tokens
     candidate.usage_estimated = result.usage.estimated
+    candidate.candidate_kind = result.candidate_kind
+    del candidate.cited_source_ids[:]
+    candidate.cited_source_ids.extend(result.cited_source_ids)
+    candidate.needs_human = result.needs_human
+    candidate.handoff_reason = result.handoff_reason
+    candidate.requires_review = result.requires_review
+    candidate.router = result.router
+    candidate.router_model = result.router_model
+    candidate.route_probability = result.route_probability
+    candidate.router_fallback_reason = result.router_fallback_reason
     candidate.error_code = ""
     candidate.status = pb.RUN_STATUS_SUCCEEDED
     return candidate

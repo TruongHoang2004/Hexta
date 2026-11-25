@@ -17,19 +17,23 @@ log = logging.getLogger(__name__)
 
 
 class DurableAIService(AIService):
-    def __init__(self, token, store: RunStore, runner=run_graph, provider=None):
-        super().__init__(token, runner, provider=provider)
+    def __init__(self, token, store: RunStore, runner=run_graph, provider=None, knowledge=None):
+        super().__init__(token, runner, provider=provider, knowledge=knowledge)
         self.store = store
         self.worker = None
 
     async def start(self):
         await self.store.ping()  # Atlas must apply schema changes before service startup.
+        if self.knowledge is not None:
+            await self.knowledge.ping()
         self.worker = asyncio.create_task(self.work())
 
     async def ready(self):
         if self.worker is None or self.worker.done():
             raise RuntimeError("AI worker is unavailable")
         await self.store.ping()
+        if self.knowledge is not None:
+            await self.knowledge.ping()
 
     async def submit(self, request, preview, context):
         # A committed insert precedes acknowledgement; no in-memory fallback on outage.

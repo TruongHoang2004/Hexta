@@ -35,6 +35,8 @@ type ISalesRepository interface {
 	SaveOutboxEvent(context.Context, *model.DomainEvent) *apperrors.Error
 	// SessionTurnOpen share-locks a conversation session (turn) for linking a new draft order to it.
 	SessionTurnOpen(context.Context, string, string) (bool, *apperrors.Error)
+	// EnqueueKnowledgeSync records a changed AI knowledge source in the caller's transaction.
+	EnqueueKnowledgeSync(ctx context.Context, tenant, sourceType, sourceID string, at time.Time) *apperrors.Error
 }
 
 type SalesRepository struct{ db *gorm.DB }

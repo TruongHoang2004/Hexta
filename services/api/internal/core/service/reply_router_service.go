@@ -47,7 +47,8 @@ const (
 //  3. a handoff (or an AI failure) moves the turn to WAITING_STAFF with a reason.
 //
 // A candidate becomes a proposal tied to the turn, its control generation and its source. In auto_send mode Go
-// sends an eligible candidate (autoSendEligible: script answers and clarifying questions, never AI-written answers)
+// sends an eligible candidate (autoSendEligible: script answers and static clarifying questions, never AI-written
+// answers or anything marked requires_review)
 // itself through the outbound intent pipeline, but only while the turn is still BOT_ACTIVE at the same control
 // generation and context revision; otherwise the job is superseded. A proposal left pending on a BOT_ACTIVE turn
 // marks the turn ReviewPending (waiting for staff, no expiry). While the reply mode is off no script read or AI call
@@ -201,18 +202,67 @@ func aiCandidate(job types.ReplyProposal, run types.AIRun, versions []types.Acti
 			}
 		}
 	case "generate":
+		// AI-written text (a knowledge-grounded or legacy fact answer) always waits for staff review, whatever the
+		// run's own labels say; its cited sources are kept for the reviewer.
 		if textOK {
-			return &types.ReplyCandidate{Route: types.RouteAnswer, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason)}
+			return &types.ReplyCandidate{Route: types.RouteAnswer, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason),
+				CitedSourceIDs: safeCitations(run.CitedSourceIDs), RequiresReview: true}
 		}
 	case "clarify":
+		// A model-written clarifying question carries requires_review (or candidate_kind generated) and is then never
+		// sent automatically; the AI service's static clarifying question may be.
 		if textOK {
-			return &types.ReplyCandidate{Route: types.RouteClarify, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason)}
+			return &types.ReplyCandidate{Route: types.RouteClarify, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason),
+				CitedSourceIDs: safeCitations(run.CitedSourceIDs), RequiresReview: run.RequiresReview || run.CandidateKind == "generated"}
 		}
+	case "human":
+		// The AI may suggest one of its handoff categories; anything else reads as insufficient information.
+		reason := "insufficient_information"
+		if aiHandoffReasons[run.HandoffReason] {
+			reason = run.HandoffReason
+		}
+		candidate := handoffCandidate(reason, safeReason(run.Reason))
+		candidate.AIRunID = job.ID
+		return candidate
 	}
 	candidate := handoffCandidate("insufficient_information", safeReason(run.Reason))
 	candidate.AIRunID = job.ID
 	return candidate
 }
+
+// aiHandoffReasons are the handoff categories the AI service may propose (a subset of the turn's
+// needs_human_reason check: staff_handoff and bot_off are Go-owned).
+var aiHandoffReasons = map[string]bool{"customer_requested_staff": true, "insufficient_information": true, "ai_error": true, "business_review": true}
+
+// replyCitationLimit is the AI contract's cited source cap.
+const replyCitationLimit = 20
+
+// safeCitations keeps well-formed, distinct cited source IDs (kind:id with a known kind and an identifier-only id).
+// Citations only label a proposal for review; they never authorize anything.
+func safeCitations(values []string) []string {
+	var result []string
+	seen := map[string]bool{}
+	for _, value := range values {
+		kind, id, ok := strings.Cut(value, ":")
+		if !ok || seen[value] || len(result) == replyCitationLimit || !citationKinds[kind] || id == "" || len(id) > 100 {
+			continue
+		}
+		valid := true
+		for _, r := range id {
+			if !(r == '_' || r == '-' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+var citationKinds = map[string]bool{types.KnowledgeSourceProduct: true, types.KnowledgeSourceDocument: true, types.KnowledgeSourceScript: true, "fact": true}
 
 func handoffCandidate(handoffReason, reason string) *types.ReplyCandidate {
 	return &types.ReplyCandidate{Route: types.RouteHandoff, HandoffReason: handoffReason, Reason: reason}
@@ -268,10 +318,12 @@ func (s *ReplyRouterService) aiRequest(ctx context.Context, job types.ReplyPropo
 	if len(body) > 8000 {
 		body = body[:8000]
 	}
-	// Generation stays opted in; the AI service only generates text grounded in supplied facts, and no business
-	// facts are supplied yet (OPEN), so today the AI path yields a clarifying question or a handoff.
+	// Generation and knowledge answers are opted in: the AI service answers only from the tenant knowledge Go pushed
+	// (products, active scripts, knowledge documents) and every such answer comes back requiring review, so it is
+	// always a pending proposal for staff (autoSendEligible).
 	return types.AIRunRequest{TenantID: job.TenantID, RunID: job.ID, TurnID: job.TurnID, ContextRevision: job.ContextRevision,
-		ControlGeneration: job.ControlGeneration, Message: string(body), Scripts: scripts, History: history, AllowGeneration: true}, nil
+		ControlGeneration: job.ControlGeneration, Message: string(body), Scripts: scripts, History: history, AllowGeneration: true,
+		AllowKnowledgeAnswer: true}, nil
 }
 
 // scheduleNextPoll keeps a job whose AI run is still in progress and schedules the next poll.
@@ -294,6 +346,10 @@ func (s *ReplyRouterService) scheduleNextPoll(ctx context.Context, job types.Rep
 // question may be sent automatically. An AI-written answer always becomes a pending proposal for staff review, in
 // every mode. Whether a newly activated script needs a test step first (PRD Q5.2) is OPEN; add that rule here.
 func autoSendEligible(candidate types.ReplyCandidate) bool {
+	if candidate.RequiresReview {
+		// Model-authored text (a generated answer or a model-written clarifying question) is never sent automatically.
+		return false
+	}
 	return candidate.Route == types.RouteScript || candidate.Route == types.RouteClarify
 }
 
@@ -322,18 +378,25 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 			return err
 		}
 		now := s.now()
-		decided = true
 		p.Version++
 		p.UpdatedAt = now
-		if candidate != nil {
-			p.Route, p.Source, p.ScriptVersionID, p.AIRunID, p.Text, p.Reason = candidate.Route, candidate.Source, candidate.ScriptVersionID, candidate.AIRunID, candidate.Text, candidate.Reason
-		}
 		person := p.RequestedBy != ""
 		state := turn.HandlingState()
 		fenced := p.Stale(*turn) || turn.ContextRevision != p.ContextRevision
 		botOff := !settings.BotOn()
+		if candidate == nil && !fenced && !botOff {
+			// route() saw the bot off and made no decision, but the owner turned it on again before this commit: the
+			// job is still current, so it is requeued for an immediate fresh decision instead of being dropped.
+			p.AvailableAt = now
+			return r.SaveProposal(ctx, *p)
+		}
+		decided = true
+		if candidate != nil {
+			p.Route, p.Source, p.ScriptVersionID, p.AIRunID, p.Text, p.Reason = candidate.Route, candidate.Source, candidate.ScriptVersionID, candidate.AIRunID, candidate.Text, candidate.Reason
+			p.CitedSourceIDs = candidate.CitedSourceIDs
+		}
 		switch {
-		case fenced || (candidate == nil && !botOff):
+		case fenced:
 			// Control or context changed while the job waited: the output belongs to an old basis.
 			supersede(p, "")
 		case botOff && state == "BOT_ACTIVE" && !person:
@@ -411,7 +474,7 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 // reason when set.
 func supersede(p *types.ReplyProposal, reason string) {
 	p.Status = types.ProposalSuperseded
-	p.Text, p.Source, p.ScriptVersionID = "", "", ""
+	p.Text, p.Source, p.ScriptVersionID, p.CitedSourceIDs = "", "", "", nil
 	if reason != "" {
 		p.Reason = reason
 	}

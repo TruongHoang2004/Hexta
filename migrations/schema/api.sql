@@ -861,6 +861,8 @@ CREATE TABLE "messaging_reply_proposals" (
   "sent_message_id" uuid NULL,
   "attempts" integer NOT NULL DEFAULT 0,
   "available_at" timestamptz NOT NULL,
+  -- Knowledge sources an AI answer cites (product:<id>, document:<id>, script:<id>, fact:<id>), for staff review.
+  "cited_source_ids" jsonb NOT NULL DEFAULT '[]',
   "version" bigint NOT NULL,
   "created_at" timestamptz NOT NULL,
   "updated_at" timestamptz NOT NULL,
@@ -879,7 +881,8 @@ CREATE TABLE "messaging_reply_proposals" (
   CONSTRAINT "messaging_reply_proposals_text_check" CHECK ((char_length(text) >= 1) AND (char_length(text) <= 2000)),
   CONSTRAINT "messaging_reply_proposals_generation_check" CHECK (control_generation > 0),
   CONSTRAINT "messaging_reply_proposals_revision_check" CHECK (context_revision > 0),
-  CONSTRAINT "messaging_reply_proposals_version_check" CHECK (version > 0)
+  CONSTRAINT "messaging_reply_proposals_version_check" CHECK (version > 0),
+  CONSTRAINT "messaging_reply_proposals_citations_check" CHECK ((jsonb_typeof(cited_source_ids) = 'array'::text) AND (jsonb_array_length(cited_source_ids) <= 20))
 );
 -- Router work queue: routing jobs that are due, oldest first.
 CREATE INDEX "idx_messaging_reply_proposals_routing" ON "messaging_reply_proposals" ("available_at") WHERE ((status)::text = 'routing'::text);
@@ -887,3 +890,50 @@ CREATE INDEX "idx_messaging_reply_proposals_routing" ON "messaging_reply_proposa
 CREATE INDEX "idx_messaging_reply_proposals_turn" ON "messaging_reply_proposals" ("tenant_id", "turn_id", "id" DESC);
 -- At most one live (routing or pending) proposal per turn; a newer customer message supersedes the older one.
 CREATE UNIQUE INDEX "idx_messaging_reply_proposals_one_live" ON "messaging_reply_proposals" ("tenant_id", "turn_id") WHERE ((status)::text = ANY ((ARRAY['routing'::character varying, 'pending'::character varying])::text[]));
+-- Owner-managed business knowledge documents (FAQ, policies) the bot may answer from. Every member reads them; only
+-- the tenant owner changes them. A deleted document stays as a tombstone (deleted_at) with a newer version, so the
+-- AI knowledge removal carries a revision newer than every earlier upsert.
+CREATE TABLE "knowledge_documents" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "title" character varying(200) NOT NULL,
+  "body" text NOT NULL,
+  "version" bigint NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  "deleted_at" timestamptz NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "knowledge_documents_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "knowledge_documents_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "knowledge_documents_title_check" CHECK ((char_length((title)::text) >= 1) AND (char_length((title)::text) <= 200)),
+  CONSTRAINT "knowledge_documents_body_check" CHECK ((char_length(body) >= 1) AND (char_length(body) <= 20000)),
+  CONSTRAINT "knowledge_documents_version_check" CHECK (version > 0)
+);
+-- Live documents of a tenant, newest change first.
+CREATE INDEX "idx_knowledge_documents_tenant_updated" ON "knowledge_documents" ("tenant_id", "updated_at" DESC, "id") WHERE (deleted_at IS NULL);
+-- Durable AI knowledge sync queue (transactional outbox): one row per knowledge source, written in the same
+-- transaction as the product, script or document change. The sync job reads the source's current state after
+-- commit and pushes it to the AI service; fence advances on every enqueue and lease so a stale attempt cannot
+-- finish a newer change. revision is the last revision the AI service accepted.
+CREATE TABLE "knowledge_sync_jobs" (
+  "tenant_id" character varying(36) NOT NULL,
+  "source_type" character varying(16) NOT NULL,
+  "source_id" character varying(36) NOT NULL,
+  "state" character varying(16) NOT NULL,
+  "attempts" integer NOT NULL DEFAULT 0,
+  "fence" bigint NOT NULL,
+  "available_at" timestamptz NOT NULL,
+  "last_error" character varying(64) NULL,
+  "revision" bigint NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("tenant_id", "source_type", "source_id"),
+  CONSTRAINT "knowledge_sync_jobs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "knowledge_sync_jobs_source_type_check" CHECK ((source_type)::text = ANY ((ARRAY['product'::character varying, 'document'::character varying, 'script'::character varying])::text[])),
+  CONSTRAINT "knowledge_sync_jobs_state_check" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'done'::character varying, 'failed'::character varying])::text[])),
+  CONSTRAINT "knowledge_sync_jobs_attempts_check" CHECK (attempts >= 0),
+  CONSTRAINT "knowledge_sync_jobs_fence_check" CHECK (fence > 0)
+);
+-- Sync work queue: due jobs, oldest first.
+CREATE INDEX "idx_knowledge_sync_jobs_due" ON "knowledge_sync_jobs" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));
