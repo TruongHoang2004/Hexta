@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	stderrors "errors"
+	"strings"
 	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
@@ -115,7 +116,7 @@ func (r *MessagingRepository) Proposal(ctx context.Context, tenant, id string, l
 func (r *MessagingRepository) SaveProposal(ctx context.Context, value types.ReplyProposal) *apperrors.Error {
 	row := replymap.ProposalRow(value)
 	result := r.db.WithContext(ctx).Model(&replymodel.Proposal{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).
-		Select("status", "route", "source", "script_version_id", "ai_run_id", "text", "reason", "decided_by", "sent_message_id", "attempts", "available_at", "version", "updated_at").
+		Select("status", "route", "source", "script_version_id", "ai_run_id", "text", "reason", "decided_by", "sent_message_id", "cited_source_ids", "attempts", "available_at", "version", "updated_at").
 		Updates(&row)
 	if result.Error != nil {
 		return salesDBError(ctx, result.Error)
@@ -257,7 +258,48 @@ func (r *MessagingRepository) LiveProposals(ctx context.Context, tenant, turn st
 	for i, row := range rows {
 		result[i] = replymap.ProposalView(row)
 	}
+	if err := r.labelCitations(ctx, tenant, result); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// labelCitations resolves the current names of cited products, knowledge documents and scripts with one bounded,
+// tenant-scoped query per kind. A source that no longer exists keeps an empty label.
+func (r *MessagingRepository) labelCitations(ctx context.Context, tenant string, views []types.ProposalView) *apperrors.Error {
+	ids := map[string][]string{}
+	for _, view := range views {
+		for _, cited := range view.Proposal.CitedSourceIDs {
+			if kind, id, ok := strings.Cut(cited, ":"); ok {
+				ids[kind] = append(ids[kind], id)
+			}
+		}
+	}
+	queries := map[string]string{
+		types.KnowledgeSourceProduct:  "SELECT id, name AS label FROM products WHERE tenant_id = ? AND id IN ?",
+		types.KnowledgeSourceDocument: "SELECT id, title AS label FROM knowledge_documents WHERE tenant_id = ? AND id IN ? AND deleted_at IS NULL",
+		types.KnowledgeSourceScript:   "SELECT id, name AS label FROM scripts WHERE tenant_id = ? AND id IN ?",
+	}
+	labels := map[string]string{}
+	for kind, query := range queries {
+		if len(ids[kind]) == 0 {
+			continue
+		}
+		var rows []struct{ ID, Label string }
+		if err := r.db.WithContext(ctx).Raw(query, tenant, ids[kind]).Scan(&rows).Error; err != nil {
+			return salesDBError(ctx, err)
+		}
+		for _, row := range rows {
+			labels[kind+":"+row.ID] = row.Label
+		}
+	}
+	for i := range views {
+		for _, cited := range views[i].Proposal.CitedSourceIDs {
+			kind, _, _ := strings.Cut(cited, ":")
+			views[i].Citations = append(views[i].Citations, types.ProposalCitation{SourceID: cited, Kind: kind, Label: labels[cited]})
+		}
+	}
+	return nil
 }
 
 var (

@@ -31,11 +31,13 @@ type Proposal struct {
 	RequestedBy       *string
 	DecidedBy         *string
 	SentMessageID     *string
-	Attempts          int
-	AvailableAt       time.Time
-	Version           int64
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// CitedSourceIDs is a JSON string array (jsonb).
+	CitedSourceIDs string `gorm:"column:cited_source_ids"`
+	Attempts       int
+	AvailableAt    time.Time
+	Version        int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (Proposal) TableName() string { return "messaging_reply_proposals" }

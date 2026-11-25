@@ -23,6 +23,8 @@ type fakeScriptStore struct {
 	scripts  map[string]types.Script
 	versions map[string]types.ScriptVersion
 	audits   []string
+	// synced lists knowledge sync enqueues ("type:id") in commit order; rolled back with the transaction.
+	synced []string
 }
 
 func newFakeScriptStore() *fakeScriptStore {
@@ -52,6 +54,7 @@ func (f *fakeScriptStore) snapshot() *fakeScriptStore {
 		c.versions[k] = v
 	}
 	c.audits = append([]string{}, f.audits...)
+	c.synced = append([]string{}, f.synced...)
 	return c
 }
 
@@ -225,6 +228,11 @@ func (f *fakeScriptStore) SavePermissionSet(ctx context.Context, set types.Scrip
 
 func (f *fakeScriptStore) Audit(_ context.Context, _, _, action, _, _ string, _ any) *apperrors.Error {
 	f.audits = append(f.audits, action)
+	return nil
+}
+
+func (f *fakeScriptStore) EnqueueKnowledgeSync(_ context.Context, _, sourceType, sourceID string, _ time.Time) *apperrors.Error {
+	f.synced = append(f.synced, sourceType+":"+sourceID)
 	return nil
 }
 
@@ -460,6 +468,40 @@ func TestScriptDeactivateAndArchiveKeepHistory(t *testing.T) {
 	requireScriptStatus(t, err, http.StatusConflict)
 	_, err = f.service.Archive(ctx, f.tenant, f.owner, script.ID, archived.Version)
 	requireScriptStatus(t, err, http.StatusConflict)
+}
+
+func TestScriptLifecycleEnqueuesKnowledgeSync(t *testing.T) {
+	f := newScriptFixture(t)
+	ctx := context.Background()
+	script := f.create(t)
+	key := types.KnowledgeSourceScript + ":" + script.ID
+	if len(f.store.synced) != 0 {
+		t.Fatalf("an inactive script is not bot knowledge: %v", f.store.synced)
+	}
+	// An inactive script's draft edit is not knowledge either.
+	edited, err := f.service.SaveDraft(ctx, f.tenant, f.owner, script.ID, types.ScriptDraftInput{Name: "Shirt", Content: types.ScriptContent{Triggers: []string{"shirt"}, Answer: "200k"}, ExpectedVersion: script.Version})
+	if err != nil || len(f.store.synced) != 0 {
+		t.Fatalf("draft of an inactive script enqueued sync: %v %v", f.store.synced, err)
+	}
+	active, err := f.service.Activate(ctx, f.tenant, f.owner, script.ID, draftOf(t, edited).ID, edited.Version)
+	if err != nil || len(f.store.synced) != 1 || f.store.synced[0] != key {
+		t.Fatalf("activation must enqueue the script: %v %v", f.store.synced, err)
+	}
+	renamed, err := f.service.SaveDraft(ctx, f.tenant, f.owner, script.ID, types.ScriptDraftInput{Name: "Shirt v2", Content: types.ScriptContent{Triggers: []string{"shirt"}, Answer: "190k"}, ExpectedVersion: active.Version})
+	if err != nil || len(f.store.synced) != 2 {
+		t.Fatalf("an active script's rename must refresh its title: %v %v", f.store.synced, err)
+	}
+	inactive, err := f.service.Deactivate(ctx, f.tenant, f.owner, script.ID, renamed.Version)
+	if err != nil || len(f.store.synced) != 3 {
+		t.Fatalf("deactivation must enqueue removal: %v %v", f.store.synced, err)
+	}
+	// A rejected transition rolls the enqueue back with the transaction.
+	if _, err := f.service.Deactivate(ctx, f.tenant, f.owner, script.ID, inactive.Version); err == nil || len(f.store.synced) != 3 {
+		t.Fatalf("failed transition must not enqueue: %v %v", f.store.synced, err)
+	}
+	if _, err := f.service.Archive(ctx, f.tenant, f.owner, script.ID, inactive.Version); err != nil || len(f.store.synced) != 4 {
+		t.Fatalf("archive must enqueue removal: %v %v", f.store.synced, err)
+	}
 }
 
 func TestScriptStaleExpectedVersionConflicts(t *testing.T) {

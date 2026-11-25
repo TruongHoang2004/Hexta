@@ -1,4 +1,4 @@
-h1:gWylcAEbM7IclDwhNb3qC19Yq+LgJNMdGxA7zWKDfbg=
+h1:wB5yL0XdeAqOnskW/tUTmabPmE3+qvZATpVXjPvczm8=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -28,3 +28,5 @@ h1:gWylcAEbM7IclDwhNb3qC19Yq+LgJNMdGxA7zWKDfbg=
 20261126900000_conversation_sessions.sql h1:vLteydDTxWuR9rGPkAAVaPePcf46W41x1Rf8na7u9qM=
 20261126900100_backfill_conversation_sessions.sql h1:YcK5K/H0clQy0x1sm7GcUDDIu+uPfTgkBDrjS4aEuNI=
 20261126900200_conversation_sessions_close_cause.sql h1:MEtRay6ituEocHP9zMQkpmqynh2gXSNIrJarVVdHAhA=
+20261127100000_knowledge_documents_and_sync.sql h1:JMX2Ui617O5mXiqOVF/UGn72XKQeH+f0boXMo+jv5/o=
+20261127100001_backfill_knowledge_sync.sql h1:vt3O9tK05PmMeaB4xoLFasw5oHkSDyPG9Ua/sOn4P+U=

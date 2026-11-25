@@ -111,9 +111,65 @@ func (c *RunClient) CancelRun(ctx context.Context, tenant, runID string) error {
 	return nil
 }
 
+// UpsertKnowledge pushes one authorized knowledge source. The AI service is idempotent per (source, revision), so a
+// retry with the same revision is safe.
+func (c *RunClient) UpsertKnowledge(ctx context.Context, tenant string, document types.KnowledgeUpsert) (string, error) {
+	if c.client == nil {
+		return "", types.ErrAIUnavailable
+	}
+	call, cancel := c.call(ctx)
+	defer cancel()
+	response, err := c.client.UpsertKnowledge(call, &aiv1.UpsertKnowledgeRequest{TenantId: tenant, Documents: []*aiv1.KnowledgeDocument{{
+		SourceType: document.SourceType, SourceId: document.SourceID, SourceRevision: document.Revision,
+		Title: document.Title, Body: document.Body, Attributes: document.Attributes,
+	}}})
+	if err != nil {
+		return "", knowledgeError(err)
+	}
+	if results := response.GetResults(); len(results) == 1 {
+		return safeOutcome(results[0].GetOutcome()), nil
+	}
+	return "", types.ErrKnowledgeRetryable
+}
+
+// DeleteKnowledge removes a source at revision (a tombstone fences older upserts).
+func (c *RunClient) DeleteKnowledge(ctx context.Context, tenant, sourceType, sourceID string, revision int64) (string, error) {
+	if c.client == nil {
+		return "", types.ErrAIUnavailable
+	}
+	call, cancel := c.call(ctx)
+	defer cancel()
+	response, err := c.client.DeleteKnowledge(call, &aiv1.DeleteKnowledgeRequest{TenantId: tenant, SourceType: sourceType, SourceId: sourceID, SourceRevision: revision})
+	if err != nil {
+		return "", knowledgeError(err)
+	}
+	return safeOutcome(response.GetOutcome()), nil
+}
+
+// knowledgeError keeps only the gRPC status category: INVALID_ARGUMENT and FAILED_PRECONDITION are permanent for
+// this revision; everything else (UNAVAILABLE, RESOURCE_EXHAUSTED, deadline, transport, auth) is retried later.
+func knowledgeError(err error) error {
+	switch status.Code(err) {
+	case codes.InvalidArgument:
+		return &types.KnowledgeRejectedError{Code: "invalid_argument"}
+	case codes.FailedPrecondition:
+		return &types.KnowledgeRejectedError{Code: "failed_precondition"}
+	}
+	return types.ErrKnowledgeRetryable
+}
+
+func safeOutcome(value string) string {
+	switch value {
+	case "created", "updated", "attributes_updated", "unchanged", "stale", "deleted", "not_found":
+		return value
+	}
+	return "unknown"
+}
+
 func startRunRequest(input types.AIRunRequest) *aiv1.StartRunRequest {
 	request := &aiv1.StartRunRequest{TenantId: input.TenantID, RunId: input.RunID, TurnId: input.TurnID, ContextRevision: input.ContextRevision,
-		ControlGeneration: input.ControlGeneration, Message: input.Message, AllowGeneration: input.AllowGeneration}
+		ControlGeneration: input.ControlGeneration, Message: input.Message, AllowGeneration: input.AllowGeneration,
+		AllowKnowledgeAnswer: input.AllowKnowledgeAnswer}
 	for _, script := range input.Scripts {
 		request.Scripts = append(request.Scripts, &aiv1.Script{Id: script.ID, Trigger: script.Trigger, Text: script.Text, Active: true})
 	}
@@ -125,7 +181,10 @@ func startRunRequest(input types.AIRunRequest) *aiv1.StartRunRequest {
 
 func runResult(run *aiv1.Run) types.AIRun {
 	result := types.AIRun{RunID: run.GetRunId(), Route: run.GetRoute(), Text: run.GetText(), ScriptID: run.GetScriptId(), Reason: run.GetReason(),
-		ErrorCode: run.GetErrorCode(), ContextRevision: run.GetContextRevision(), ControlGeneration: run.GetControlGeneration()}
+		ErrorCode: run.GetErrorCode(), ContextRevision: run.GetContextRevision(), ControlGeneration: run.GetControlGeneration(),
+		CandidateKind: run.GetCandidateKind(), CitedSourceIDs: append([]string(nil), run.GetCitedSourceIds()...), NeedsHuman: run.GetNeedsHuman(),
+		HandoffReason: run.GetHandoffReason(), RequiresReview: run.GetRequiresReview(), Router: run.GetRouter(), RouterModel: run.GetRouterModel(),
+		RouteProbability: run.GetRouteProbability(), RouterFallbackReason: run.GetRouterFallbackReason()}
 	switch run.GetStatus() {
 	case aiv1.RunStatus_RUN_STATUS_QUEUED:
 		result.Status = types.AIRunQueued

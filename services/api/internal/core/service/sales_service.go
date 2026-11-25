@@ -6,6 +6,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/order"
 	"net/mail"
 	"strings"
+	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -186,6 +187,10 @@ func (s *SalesService) SaveProduct(ctx context.Context, tenant, actor, id string
 		if err := r.SaveProduct(ctx, row, create); err != nil {
 			return err
 		}
+		// The bot's product knowledge follows the catalog through the durable knowledge sync job.
+		if err := r.EnqueueKnowledgeSync(ctx, tenant, types.KnowledgeSourceProduct, row.ID, time.Now().UTC()); err != nil {
+			return err
+		}
 		return r.Audit(ctx, tenant, actor, "product.saved", "product", row.ID, row)
 	})
 	return row, err
@@ -198,6 +203,10 @@ func (s *SalesService) ArchiveProduct(ctx context.Context, tenant, actor, id str
 		}
 		row.Status = model.ProductStatusArchived
 		if err := r.SaveProduct(ctx, row, false); err != nil {
+			return err
+		}
+		// An archived product is removed from the bot's knowledge by the knowledge sync job.
+		if err := r.EnqueueKnowledgeSync(ctx, tenant, types.KnowledgeSourceProduct, id, time.Now().UTC()); err != nil {
 			return err
 		}
 		return r.Audit(ctx, tenant, actor, "product.archived", "product", id, row)

@@ -66,7 +66,7 @@ func (s *fakeAIServer) CancelRun(ctx context.Context, req *aiv1.RunRequest) (*ai
 	return &aiv1.Run{RunId: req.RunId, Status: aiv1.RunStatus_RUN_STATUS_CANCELLED}, nil
 }
 
-func bufClient(t *testing.T, server *fakeAIServer, token string) *RunClient {
+func bufClient(t *testing.T, server aiv1.AIServiceServer, token string) *RunClient {
 	t.Helper()
 	listener := bufconn.Listen(1 << 20)
 	srv := grpc.NewServer()

@@ -81,10 +81,12 @@ type ReplyProposal struct {
 	Status, Route, Source, ScriptVersionID, AIRunID  string
 	Text, Reason, RequestedBy, DecidedBy             string
 	SentMessageID                                    string
-	Attempts                                         int
-	AvailableAt                                      time.Time
-	Version                                          int64
-	CreatedAt, UpdatedAt                             time.Time
+	// CitedSourceIDs are the knowledge sources of an AI answer (empty for scripts and handoffs).
+	CitedSourceIDs       []string
+	Attempts             int
+	AvailableAt          time.Time
+	Version              int64
+	CreatedAt, UpdatedAt time.Time
 }
 
 // Stale reports whether the turn's control changed (or it closed) since the proposal was created. A stale proposal
@@ -103,6 +105,14 @@ type ProposalView struct {
 	// ScriptName and ScriptVersion label a script source; empty when the source is AI or the script is unknown.
 	ScriptName    string
 	ScriptVersion int64
+	// Citations label the proposal's cited knowledge sources for staff review.
+	Citations []ProposalCitation
+}
+
+// ProposalCitation is one cited knowledge source: Kind is product, document, script or fact; Label is the source's
+// current name (empty when it no longer exists or is a fact).
+type ProposalCitation struct {
+	SourceID, Kind, Label string
 }
 
 // ProposalSendInput sends a pending proposal as-is (empty Text) or edited.
@@ -117,6 +127,10 @@ type ReplyCandidate struct {
 	HandoffReason string
 	// Reason is a safe decision category kept on the proposal for review.
 	Reason string
+	// CitedSourceIDs are the validated knowledge sources an AI answer relies on, shown to staff with the proposal.
+	CitedSourceIDs []string
+	// RequiresReview marks model-authored text that must wait for staff (never auto-sent).
+	RequiresReview bool
 }
 
 // AI run contract (transport-neutral mirror of the internal gRPC run).
@@ -142,12 +156,27 @@ type AIRunRequest struct {
 	Scripts                            []AIScript
 	History                            []AIHistoryItem
 	AllowGeneration                    bool
+	// AllowKnowledgeAnswer opts into knowledge-grounded answers; they always come back with RequiresReview.
+	AllowKnowledgeAnswer bool
 }
 
 // AIRun is the AI service's run state. Every field is untrusted candidate data.
 type AIRun struct {
 	RunID, Status, Route, Text, ScriptID, Reason, ErrorCode string
 	ContextRevision, ControlGeneration                      int64
+	// CandidateKind is script, generated, clarify or handoff (empty from older AI services).
+	CandidateKind string
+	// CitedSourceIDs are the knowledge sources the candidate relies on (product:<id>, document:<id>, script:<id>,
+	// fact:<id>).
+	CitedSourceIDs []string
+	NeedsHuman     bool
+	// HandoffReason is the AI's suggested handoff category; Go accepts only reasons it knows.
+	HandoffReason string
+	// RequiresReview marks model-authored text: it is never sent automatically.
+	RequiresReview bool
+	// Router metadata for review and diagnostics only (jev, deterministic, provider).
+	Router, RouterModel, RouterFallbackReason string
+	RouteProbability                          float64
 }
 
 // ErrAIUnavailable means no AI service is configured; the router then hands the conversation to staff.

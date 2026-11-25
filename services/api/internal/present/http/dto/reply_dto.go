@@ -35,8 +35,19 @@ type ReplyProposal struct {
 	ControlGeneration int64  `json:"control_generation"`
 	Stale             bool   `json:"stale"`
 	// RequestedBy is set when a person asked for this proposal (regenerate).
-	RequestedBy string    `json:"requested_by,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	RequestedBy string `json:"requested_by,omitempty"`
+	// Citations are the knowledge records an AI-written answer relies on. Such an answer (route answer, source ai)
+	// always waits for staff review.
+	Citations []ProposalCitation `json:"citations,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+}
+
+// ProposalCitation is one knowledge source cited by an AI answer. label is the source's current name (product
+// name, document title or script name); it is empty when the source no longer exists or kind is fact.
+type ProposalCitation struct {
+	SourceID string `json:"source_id"`
+	Kind     string `json:"kind" enums:"product,document,script,fact"`
+	Label    string `json:"label,omitempty"`
 }
 
 // SendProposalRequest sends a pending proposal: omit text to send it as-is, or pass the edited text. Retrying with
