@@ -131,7 +131,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/google/login": {
             "get": {
-                "description": "Redirects to Google consent screen with secure CSRF state",
+                "description": "Redirects to Google consent screen with secure CSRF state, or back to the frontend login with an error when Google login is unavailable",
                 "tags": [
                     "Auth"
                 ],
@@ -1355,7 +1355,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "all, mine, unassigned, needs_human or bot",
+                        "description": "all (includes closed turns), mine, unassigned, needs_human, waiting or bot (open turns only)",
                         "name": "filter",
                         "in": "query"
                     }
@@ -1393,6 +1393,64 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/conversations/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Tenant-wide Desk notification state for polling. Requires current active tenant membership.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messaging"
+                ],
+                "summary": "Count conversations waiting for staff",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/errors.ErrorResponse"
                         }
@@ -2613,6 +2671,89 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingMessage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tenants/{tenantID}/turns/{id}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Only the assigned sale under staff control can resolve. Restarts the 24-hour inactivity window and keeps staff control; nothing returns to the bot. 409 when the turn changed, is closed or does not need a person.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messaging"
+                ],
+                "summary": "Mark a conversation's needs-human flag resolved",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Turn ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Command",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingCommandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingTurn"
                         }
                     },
                     "400": {
@@ -4150,6 +4291,15 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSummary": {
+            "type": "object",
+            "properties": {
+                "waiting_staff_count": {
+                    "description": "WaitingStaffCount is the number of open conversations waiting for staff (unassigned, staff control).",
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingThread": {
             "type": "object",
             "properties": {
@@ -4180,6 +4330,10 @@ const docTemplate = `{
                 "assignee_id": {
                     "type": "string"
                 },
+                "closed_at": {
+                    "description": "ClosedAt is set on a closed turn (24-hour inactivity expiry); a new customer message opens a new turn.",
+                    "type": "string"
+                },
                 "context_revision": {
                     "type": "integer"
                 },
@@ -4203,6 +4357,10 @@ const docTemplate = `{
                 },
                 "needs_human": {
                     "type": "boolean"
+                },
+                "needs_human_reason": {
+                    "description": "NeedsHumanReason is the handoff reason code behind needs_human; omitted when none was given.",
+                    "type": "string"
                 },
                 "thread_id": {
                     "type": "string"
@@ -5246,6 +5404,15 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingPage"
+                },
+                "meta": {}
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingSummary": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSummary"
                 },
                 "meta": {}
             }

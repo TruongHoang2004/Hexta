@@ -483,14 +483,21 @@ CREATE TABLE "messaging_turns" (
  "control_generation" bigint NOT NULL CHECK ("control_generation" > 0),
  "version" bigint NOT NULL CHECK ("version" > 0),
  "last_activity_at" timestamptz NOT NULL,
+ -- Handoff reason that raised needs_human; NULL when the flag was set without one (new turn, owner unassignment).
+ "needs_human_reason" character varying(32) NULL CHECK ("needs_human_reason" IN ('customer_requested_staff', 'insufficient_information', 'ai_error', 'business_review', 'staff_handoff')),
+ -- Set when the turn closes (24-hour inactivity expiry); a closed turn is never reopened.
+ "closed_at" timestamptz NULL,
+ CONSTRAINT "messaging_turns_closed_at_check" CHECK (("lifecycle" = 'closed') = ("closed_at" IS NOT NULL)),
  UNIQUE ("tenant_id", "id"),
  UNIQUE ("tenant_id", "thread_id", "id"),
  FOREIGN KEY ("tenant_id", "thread_id") REFERENCES "messaging_threads" ("tenant_id", "id")
 );
 CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_id", "thread_id") WHERE "lifecycle" = 'open';
 CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
+-- Turn expiry scan: open turns that are not flagged for a person, oldest activity first.
+CREATE INDEX "idx_messaging_turn_expiry" ON "messaging_turns" ("last_activity_at") WHERE "lifecycle" = 'open' AND "needs_human" = false;
 -- Conversation read model (CQRS). Projected from messaging.conversation.changed events; never written by commands.
--- Only conversations with an open turn appear. Rebuildable from messaging_threads and messaging_turns.
+-- One row per thread with its latest turn (open, or the most recently closed). Rebuildable from messaging_threads and messaging_turns.
 CREATE TABLE "messaging_conversation_views" (
  "tenant_id" character varying(36) NOT NULL REFERENCES "tenants" ("id"),
  "thread_id" uuid NOT NULL,
@@ -509,10 +516,13 @@ CREATE TABLE "messaging_conversation_views" (
  "control_generation" bigint NOT NULL,
  "turn_version" bigint NOT NULL,
  "last_activity_at" timestamptz NOT NULL,
+ "needs_human_reason" character varying(32) NULL,
  PRIMARY KEY ("tenant_id", "thread_id")
 );
 CREATE INDEX "idx_messaging_conversation_views_list" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC);
 CREATE INDEX "idx_messaging_conversation_views_assignee" ON "messaging_conversation_views" ("tenant_id", "assignee_id", "thread_id" DESC);
+-- Desk waiting-for-staff count and filter.
+CREATE INDEX "idx_messaging_conversation_views_waiting" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC) WHERE "lifecycle" = 'open' AND "control" = 'sales' AND "assignee_id" IS NULL;
 CREATE TABLE "messaging_messages" (
  "id" uuid NOT NULL PRIMARY KEY,
  "tenant_id" character varying(36) NOT NULL,

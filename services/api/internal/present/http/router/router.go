@@ -95,6 +95,7 @@ func RegisterRoutes(
 	resources.POST("/work-items/:id/complete", workflows.Complete)
 
 	resources.GET("/conversations", messagingQuery.List)
+	resources.GET("/conversations/summary", messagingQuery.Summary)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
 	registerMessagingCommandRoutes(resources, messagingCommands.Handle)
 

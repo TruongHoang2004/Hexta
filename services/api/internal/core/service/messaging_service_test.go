@@ -372,13 +372,16 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 		t.Fatal("waiting queue silently resumed bot", err)
 	}
 	turn = detail.Conversation.Turn
-	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
-	if err != nil || turn.NeedsHuman || turn.HandlingState() != "STAFF_ACTIVE" {
-		t.Fatal("claim did not clear queue flag", err)
+	if !turn.NeedsHuman || turn.NeedsHumanReason != "customer_requested_staff" {
+		t.Fatal("handoff did not record needs-human with its reason")
 	}
-	page, err = s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
+	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || !turn.NeedsHuman || turn.NeedsHumanReason != "customer_requested_staff" || turn.HandlingState() != "STAFF_ACTIVE" {
+		t.Fatal("claim must keep the needs-human flag for the assigned sale to resolve", err)
+	}
+	page, err = s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "waiting"})
 	if err != nil || len(page.Items) != 0 {
-		t.Fatal("claimed work still in queue", err)
+		t.Fatal("claimed work still in waiting queue", err)
 	}
 	turn, err = s.Command(ctx, f.tenant, f.owner, turn.ID, "assign", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil || turn.HandlingState() != "WAITING_STAFF" {

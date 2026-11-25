@@ -15,7 +15,7 @@ func TestMessagingComposition(t *testing.T) {
 }
 
 func TestMessagingCommandProcessComposition(t *testing.T) {
-	if err := fx.ValidateApp(BuildService(), BuildRepository(), BuildController(), BuildValidator(), BuildMiddleware(), MessagingCommandRouterModule, BuildCache(), fx.Supply(&gorm.DB{}, zap.NewNop().Sugar()), fx.NopLogger); err != nil {
+	if err := fx.ValidateApp(BuildService(), BuildRepository(), BuildController(), BuildValidator(), BuildMiddleware(), MessagingCommandRouterModule, BuildTurnExpiry(), BuildCache(), fx.Supply(&gorm.DB{}, zap.NewNop().Sugar()), fx.NopLogger); err != nil {
 		t.Fatalf("command process graph is not wired: %v", err)
 	}
 }

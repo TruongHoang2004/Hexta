@@ -21,8 +21,8 @@ func commandRouteEngine(handle func(string) gin.HandlerFunc) *gin.Engine {
 func TestMessagingCommandRoutesAreAllWrites(t *testing.T) {
 	engine := commandRouteEngine((&MessagingCommandGateway{}).Handle)
 	routes := engine.Routes()
-	if len(routes) != 7 {
-		t.Fatalf("want 7 command routes, got %d", len(routes))
+	if len(routes) != 8 {
+		t.Fatalf("want 8 command routes, got %d", len(routes))
 	}
 	for _, route := range routes {
 		if route.Method != http.MethodPost {

@@ -45,7 +45,7 @@ func (ctrl *MessagingQueryController) query(c *gin.Context) (types.MessagingQuer
 // @Param tenantID path string true "Tenant ID"
 // @Param cursor query string false "UUID cursor"
 // @Param limit query int false "Page size (1-100, default 20)"
-// @Param filter query string false "all, mine, unassigned, needs_human or bot"
+// @Param filter query string false "all (includes closed turns), mine, unassigned, needs_human, waiting or bot (open turns only)"
 // @Success 200 {object} response.Response[dto.MessagingPage]
 // @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
 // @Router /api/v1/tenants/{tenantID}/conversations [get]
@@ -61,6 +61,29 @@ func (ctrl *MessagingQueryController) List(c *gin.Context) {
 		return
 	}
 	ctrl.Success(c, httpmap.Page(result))
+}
+
+// Summary
+// @Summary Count conversations waiting for staff
+// @Description Tenant-wide Desk notification state for polling. Requires current active tenant membership.
+// @Tags Messaging
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Success 200 {object} response.Response[dto.MessagingSummary]
+// @Failure 400,401,403,404 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/conversations/summary [get]
+func (ctrl *MessagingQueryController) Summary(c *gin.Context) {
+	if !ctrl.messagingResourceIDs(c) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.Summary(c.Request.Context(), tenant, actor)
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Summary(result))
 }
 
 // Detail
