@@ -73,8 +73,9 @@ func (c *RunClient) StartRun(ctx context.Context, input types.AIRunRequest) (typ
 	defer cancel()
 	run, err := c.client.StartRun(call, startRunRequest(input))
 	if status.Code(err) == codes.AlreadyExists {
-		// The same run ID was accepted with an earlier snapshot; read that run instead of creating another.
-		return c.GetRun(ctx, input.TenantID, input.RunID)
+		// The AI service reports ALREADY_EXISTS only when the run ID is stored with different input (a resend of the
+		// same input returns the stored run). That run does not answer this request, so it is never read back.
+		return types.AIRun{}, types.ErrAIRunConflict
 	}
 	if err != nil {
 		return types.AIRun{}, errRunFailed
@@ -89,6 +90,9 @@ func (c *RunClient) GetRun(ctx context.Context, tenant, runID string) (types.AIR
 	call, cancel := c.call(ctx)
 	defer cancel()
 	run, err := c.client.GetRun(call, &aiv1.RunRequest{TenantId: tenant, RunId: runID})
+	if status.Code(err) == codes.NotFound {
+		return types.AIRun{}, types.ErrAIRunNotFound
+	}
 	if err != nil {
 		return types.AIRun{}, errRunFailed
 	}

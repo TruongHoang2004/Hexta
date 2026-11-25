@@ -136,3 +136,11 @@ type AIRun struct {
 
 // ErrAIUnavailable means no AI service is configured; the router then hands the conversation to staff.
 var ErrAIUnavailable = errors.New("AI service is not configured")
+
+// ErrAIRunNotFound means the AI service holds no run with this ID: StartRun never reached it (or was lost before
+// commit). StartRun is idempotent on the run ID, so the router may issue it again.
+var ErrAIRunNotFound = errors.New("AI run not found")
+
+// ErrAIRunConflict means the AI service already holds this run ID with different input. The router must not read
+// that run as its answer; it hands the turn to staff.
+var ErrAIRunConflict = errors.New("AI run ID was accepted with different input")

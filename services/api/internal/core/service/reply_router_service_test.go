@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -20,7 +21,9 @@ import (
 type fakeAI struct {
 	mu        sync.Mutex
 	err       error
-	pending   int // GetRun/StartRun report running this many more times
+	startErrs []error // consumed by successive StartRun calls before err applies; such a call never reaches the AI
+	accepted  bool    // a StartRun committed the run; until then GetRun reports the run as not found
+	pending   int     // GetRun/StartRun report running this many more times
 	run       types.AIRun
 	started   []types.AIRunRequest
 	polled    int
@@ -45,9 +48,15 @@ func (f *fakeAI) StartRun(_ context.Context, req types.AIRunRequest) (types.AIRu
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.started = append(f.started, req)
+	if len(f.startErrs) > 0 {
+		err := f.startErrs[0]
+		f.startErrs = f.startErrs[1:]
+		return types.AIRun{}, err
+	}
 	if f.err != nil {
 		return types.AIRun{}, f.err
 	}
+	f.accepted = true
 	return f.result(req), nil
 }
 
@@ -57,6 +66,9 @@ func (f *fakeAI) GetRun(_ context.Context, _, runID string) (types.AIRun, error)
 	f.polled++
 	if f.err != nil {
 		return types.AIRun{}, f.err
+	}
+	if !f.accepted {
+		return types.AIRun{}, types.ErrAIRunNotFound
 	}
 	return f.result(f.started[len(f.started)-1]), nil
 }
@@ -300,6 +312,53 @@ func TestRouterPollsAcceptedAIRunWithoutBlocking(t *testing.T) {
 	}
 	if rows = b.proposals(t, turn.ID); rows[0].Status != types.ProposalPending {
 		t.Fatal(rows[0])
+	}
+}
+
+func TestRouterRestartsAIRunThatNeverReachedTheService(t *testing.T) {
+	b := newBotFixture(t, types.ReplyModeSuggest)
+	// The first StartRun fails in transport before the AI service stores the run.
+	b.ai.startErrs = []error{errors.New("AI run request failed")}
+	b.ai.run = types.AIRun{Route: "clarify", Text: "Bạn cần gì ạ?"}
+	message := b.customer(t, "c1", "alo")
+	if b.route(t) != 0 {
+		t.Fatal("a transient StartRun failure must wait for a retry, not decide")
+	}
+	turn := b.detail(t, message.ThreadID).Conversation.Turn
+	if rows := b.proposals(t, turn.ID); rows[0].Status != types.ProposalRouting || rows[0].Attempts != 1 {
+		t.Fatal("the job must stay routing for the next attempt", rows[0])
+	}
+	// The next attempt finds no run (NOT_FOUND) and starts it again with the same run ID.
+	b.router.now = func() time.Time { return time.Now().UTC().Add(time.Minute) }
+	if b.route(t) != 1 || b.ai.polled != 1 || len(b.ai.started) != 2 {
+		t.Fatalf("a missing run must be started again: polled=%d started=%d", b.ai.polled, len(b.ai.started))
+	}
+	rows := b.proposals(t, turn.ID)
+	if b.ai.started[0].RunID != rows[0].ID || b.ai.started[1].RunID != rows[0].ID {
+		t.Fatal("a restarted run must keep the job's run ID")
+	}
+	if rows[0].Status != types.ProposalPending || deref(rows[0].Route) != types.RouteClarify {
+		t.Fatal("the restarted run's candidate must be proposed", rows[0])
+	}
+	if after := b.detail(t, message.ThreadID).Conversation.Turn; after.HandlingState() != "BOT_ACTIVE" {
+		t.Fatal("a recovered run must not hand the turn off", after)
+	}
+}
+
+func TestRouterHandsOffWhenRunIDHoldsDifferentInput(t *testing.T) {
+	b := newBotFixture(t, types.ReplyModeAutoSend)
+	b.ai.err = types.ErrAIRunConflict
+	message := b.customer(t, "c1", "alo")
+	if b.route(t) != 1 || b.ai.polled != 0 {
+		t.Fatal("a run conflict must be decided without reading the conflicting run")
+	}
+	detail := b.detail(t, message.ThreadID)
+	rows := b.proposals(t, detail.Conversation.Turn.ID)
+	if rows[0].Status != types.ProposalHandedOff || deref(rows[0].Reason) != "ai_run_conflict" || deref(rows[0].Text) != "" {
+		t.Fatal("a run conflict must hand off with a sanitized reason", rows[0])
+	}
+	if turn := detail.Conversation.Turn; turn.HandlingState() != "WAITING_STAFF" || turn.NeedsHumanReason != "ai_error" || len(outbound(detail)) != 0 {
+		t.Fatal("a run conflict must move the turn to staff without sending", turn)
 	}
 }
 

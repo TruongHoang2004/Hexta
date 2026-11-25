@@ -136,18 +136,24 @@ func (s *ReplyRouterService) askAI(ctx context.Context, job types.ReplyProposal,
 	last := job.Attempts+1 >= replyAIMaxAttempts
 	var run types.AIRun
 	var callErr error
-	if job.Attempts == 0 {
+	if job.Attempts > 0 {
+		run, callErr = s.ai.GetRun(ctx, job.TenantID, job.ID)
+	}
+	// The first attempt starts the run. A later attempt starts it again when the AI service has no such run, i.e. an
+	// earlier StartRun failed before the service committed it; StartRun is idempotent on the run ID (the job ID).
+	if job.Attempts == 0 || errors.Is(callErr, types.ErrAIRunNotFound) {
 		request, err := s.aiRequest(ctx, job, message, versions)
 		if err != nil {
 			return nil, false, err
 		}
 		run, callErr = s.ai.StartRun(ctx, request)
-	} else {
-		run, callErr = s.ai.GetRun(ctx, job.TenantID, job.ID)
 	}
 	switch {
 	case errors.Is(callErr, types.ErrAIUnavailable):
 		return handoffCandidate("ai_error", "ai_unavailable"), false, nil
+	case errors.Is(callErr, types.ErrAIRunConflict):
+		// The run ID is held with different input: that run belongs to another basis and is never used.
+		return handoffCandidate("ai_error", "ai_run_conflict"), false, nil
 	case callErr != nil && last:
 		return handoffCandidate("ai_error", "ai_unreachable"), false, nil
 	case callErr != nil:

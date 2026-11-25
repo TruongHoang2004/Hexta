@@ -24,6 +24,8 @@ type fakeAIServer struct {
 	aiv1.UnimplementedAIServiceServer
 	started  []*aiv1.StartRunRequest
 	conflict bool
+	missing  bool
+	polled   int
 	status   aiv1.RunStatus
 }
 
@@ -49,6 +51,10 @@ func (s *fakeAIServer) StartRun(ctx context.Context, req *aiv1.StartRunRequest) 
 func (s *fakeAIServer) GetRun(ctx context.Context, req *aiv1.RunRequest) (*aiv1.Run, error) {
 	if err := s.auth(ctx); err != nil {
 		return nil, err
+	}
+	s.polled++
+	if s.missing {
+		return nil, status.Error(codes.NotFound, "Run not found")
 	}
 	return &aiv1.Run{TenantId: req.TenantId, RunId: req.RunId, Status: s.status, Route: "clarify", Text: "Bạn hỏi mẫu nào?", ContextRevision: 2, ControlGeneration: 1}, nil
 }
@@ -92,11 +98,21 @@ func TestRunClientMapsContractAndAuthenticates(t *testing.T) {
 	if err != nil || run.Status != types.AIRunSucceeded || run.Route != "clarify" || run.ContextRevision != 2 {
 		t.Fatal(run, err)
 	}
-	// A run ID accepted with an earlier snapshot is read back instead of failing.
+	// ALREADY_EXISTS means the run ID holds different input: a conflict, never a read of that other run.
 	server.conflict = true
-	if run, err = client.StartRun(ctx, types.AIRunRequest{TenantID: "t1", RunID: "r1", Message: "alo"}); err != nil || run.Status != types.AIRunSucceeded {
-		t.Fatal("ALREADY_EXISTS must fall back to GetRun", run, err)
+	polled := server.polled
+	if run, err = client.StartRun(ctx, types.AIRunRequest{TenantID: "t1", RunID: "r1", Message: "alo"}); !errors.Is(err, types.ErrAIRunConflict) || run.Status != "" {
+		t.Fatal("ALREADY_EXISTS must map to a run conflict", run, err)
 	}
+	if server.polled != polled {
+		t.Fatal("a conflicting run must not be read back")
+	}
+	// NOT_FOUND is distinguishable so the router can start the run again.
+	server.missing = true
+	if _, err = client.GetRun(ctx, "t1", "r1"); !errors.Is(err, types.ErrAIRunNotFound) {
+		t.Fatal("NOT_FOUND must map to run not found", err)
+	}
+	server.missing = false
 	if err := client.CancelRun(ctx, "t1", "r1"); err != nil {
 		t.Fatal(err)
 	}
