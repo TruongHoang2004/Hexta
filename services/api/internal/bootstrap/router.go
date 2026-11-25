@@ -23,6 +23,7 @@ var RouterModule = fx.Options(
 
 	fx.Provide(router.NewMessagingCommandGateway),
 	fx.Invoke(router.RegisterRoutes),
+	fx.Invoke(router.RegisterOrderCaseRoutes),
 )
 
 // MessagingCommandRouterModule serves only conversation writes; used by cmd/messaging-command.

@@ -16,6 +16,7 @@ func BuildRepository() fx.Option {
 		fx.Annotate(repository.NewChannelRepository, fx.As(new(repository.ChannelStore))),
 		repository.NewBaseRepository,
 		fx.Annotate(repository.NewSalesRepository, fx.As(new(repository.ISalesRepository))),
+		fx.Annotate(repository.NewOrderCaseRepository, fx.As(new(repository.OrderCaseStore))),
 		fx.Annotate(repository.NewIdentityRepository, fx.As(new(repository.IIdentityRepository))),
 		// Session validity is an auth decision and must stay DB-authoritative (SEC-001, CACHE-002, CACHE-009).
 		fx.Annotate(repository.NewSessionDBRepository, fx.As(new(repository.ISessionRepository))),
