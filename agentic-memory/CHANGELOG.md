@@ -1,5 +1,13 @@
 # Consolidated Project Changelog
 
+## 2026-11-26 — Jev routing, pgvector knowledge and Claude answers (in review, AI service)
+
+- Python AI routes with Jev (TypeSafe System One, `jev-1.14.0`, flag `AI_JEV_ENABLED`, default off) after typed PII redaction; failures fall back to the deterministic matcher, then human.
+- New additive gRPC: `UpsertKnowledge`/`DeleteKnowledge`, `StartRunRequest.allow_knowledge_answer`, Run fields 20–28 (`candidate_kind`, `requires_review`, citations, handoff reason, router metadata). Old callers keep old semantics.
+- `ai_runtime.knowledge_sources`/`knowledge_chunks` with pgvector (migrations 20261126950000/950001; extension in `public`, needs a pgvector image and superuser-created extension). Gemini embeddings via LangChain.
+- Claude (`claude-sonnet-5-5` default) structured, cited answers labelled `generated` + `requires_review`; refusals/errors hand off. New dependency `typesafe-sdk` 0.7.5.
+- Go adapter and infrastructure images are follow-ups. Details: [session](epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-jev-rag.md).
+
 ## 2026-11-26 — Overview counts exception cases (in review, integrate/mvp5-6)
 
 - `GET /tenants/{id}/overview` adds `exceptions` (in-progress and finalized cancellation/return cases of the order cohort, `cancelled_order_value`) and `pending_cases` (open cases awaiting the owner, capped at 50). Additive JSON; no migration.
