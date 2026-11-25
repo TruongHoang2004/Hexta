@@ -341,8 +341,9 @@ def build_graph(provider: BaseAIProvider, *, router=None, knowledge=None, simula
 
     def request_human(state):
         decision = state["decision"]
-        reason = decision.reason or (
-            "no_unique_active_script_fake_model_only" if provider.simulated else "human_review_required")
+        reason = decision.reason or ("ai_disabled" if provider.name == "disabled" else
+                                     "no_unique_active_script_fake_model_only" if provider.simulated else
+                                     "human_review_required")
         return {"result": result(state, "human", reason), "steps": [*state["steps"], "request_human"]}
 
     def validate_output(state):

@@ -1,5 +1,6 @@
 """Internal candidate preview and durable gRPC runtime. No customer channel access."""
 
+import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -16,7 +17,9 @@ from hexta_ai.knowledge.service import knowledge_from_env
 from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
 from hexta_ai.routing import router_from_env
 from hexta_ai.schemas.consultant import ConsultantRequest, ConsultantResponse
-from hexta_ai.graph_consultant import consultant_graph
+from hexta_ai.graph_consultant import consultant_graph, create_consultant_graph
+
+log = logging.getLogger(__name__)
 
 
 _FROM_ENV = object()
@@ -38,11 +41,19 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
     token = internal_token if internal_token is not None else os.getenv("AI_INTERNAL_TOKEN", "")
     if len(token) < 24:
         raise RuntimeError("AI_INTERNAL_TOKEN must contain at least 24 characters")
+    # Fail-safe (owner decision 2026-11-26): missing or partial AI settings disable AI with a logged reason instead
+    # of failing startup. Disabled AI also keeps Jev and paid embeddings off, so nothing is billed.
     selected = provider if provider is not None else provider_from_env()
-    router = router_from_env() if router is _FROM_ENV else router
-    knowledge = knowledge_from_env() if knowledge is _FROM_ENV else knowledge
+    enabled = selected.name != "disabled"
+    router = router_from_env(ai_enabled=enabled) if router is _FROM_ENV else router
+    knowledge = knowledge_from_env(paid_embeddings=enabled) if knowledge is _FROM_ENV else knowledge
     profile = RuntimeProfile(selected, router, knowledge)
     graph = build_graph(selected, router=router, knowledge=knowledge, simulated=profile.simulated)
+    consultant = consultant_graph if enabled else create_consultant_graph(provider="disabled")
+    log.warning("AI runtime %s: provider=%s model=%s router=%s embeddings=%s",
+                "enabled" if enabled else "DISABLED (exact scripts only, everything else to staff)",
+                selected.name, selected.model, getattr(router, "name", "jev" if router else "none"),
+                getattr(getattr(knowledge, "embeddings", None), "model", "none"))
     runtime = {}
 
     async def run(request: PreviewRequest) -> PreviewResult:
@@ -113,7 +124,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
               dependencies=[Depends(authenticate)])
     async def consult(request: ConsultantRequest) -> ConsultantResponse:
         with tracing_context(enabled=False):
-            result = await consultant_graph.ainvoke({"request": request}, {"recursion_limit": 10})
+            result = await consultant.ainvoke({"request": request}, {"recursion_limit": 10})
         return result["final_response"]
 
     return app

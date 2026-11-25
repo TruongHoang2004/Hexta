@@ -1,11 +1,19 @@
-"""Explicit provider selection; real providers fail closed without credentials."""
+"""Explicit provider selection.
 
+`get_provider` is strict and raises without credentials. `provider_from_env` is the runtime entry and fails safe:
+a missing, partial or invalid configuration selects the disabled provider (exact active scripts, everything else to
+staff) and logs why, so a deploy without AI settings starts instead of crashing and rolling back.
+"""
+
+import logging
 import os
 
 from pydantic import BaseModel, Field, SecretStr, ValidationError
 
 from hexta_ai.providers.base import BaseAIProvider
-from hexta_ai.providers.fake import FakeProvider
+from hexta_ai.providers.fake import DisabledProvider, FakeProvider
+
+log = logging.getLogger(__name__)
 
 
 class ProviderConfig(BaseModel):
@@ -18,9 +26,17 @@ class ProviderConfig(BaseModel):
     confidence_threshold: float = Field(default=0.8, ge=0.5, le=1)
 
 
+# Recommended models (documentation and examples). Real providers need AI_MODEL set explicitly.
 DEFAULT_MODELS = {"fake": "deterministic", "gemini": "gemini-2.5-flash",
                   "openai": "gpt-4o-mini", "anthropic": "claude-sonnet-5-5"}
 KEYS = {"gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+# A model left over from another provider (for example AI_MODEL=gpt-4o-mini with anthropic) is a partial edit.
+MODEL_PREFIXES = {"gemini": "gemini-", "anthropic": "claude-"}
+PROVIDERS = ("disabled", *DEFAULT_MODELS)
+
+
+class AIConfigError(Exception):
+    """Why AI stays disabled. Messages name settings only, never their values."""
 
 
 def get_provider(provider_name: str, config: ProviderConfig) -> BaseAIProvider:
@@ -34,14 +50,26 @@ def get_provider(provider_name: str, config: ProviderConfig) -> BaseAIProvider:
     return LangChainProvider(provider_name, config)
 
 
-def provider_from_env() -> BaseAIProvider:
+def configured_provider() -> BaseAIProvider:
+    """Strict environment selection; raises AIConfigError for a missing, partial or invalid configuration."""
     name = os.getenv("AI_PROVIDER", "fake").strip().lower()
+    if name == "disabled":
+        return DisabledProvider()
     if name not in DEFAULT_MODELS:
-        raise RuntimeError("Unsupported AI_PROVIDER")
+        raise AIConfigError("AI_PROVIDER must be one of " + ", ".join(PROVIDERS))
+    if name == "fake":
+        return FakeProvider()
+    model = os.getenv("AI_MODEL", "").strip()
+    if not model:
+        raise AIConfigError(f"AI_PROVIDER={name} needs AI_MODEL")
+    if not model.startswith(MODEL_PREFIXES.get(name, "")):
+        raise AIConfigError(f"AI_MODEL is not a {name} model (edit AI_PROVIDER and AI_MODEL together)")
+    key = os.getenv(KEYS[name]) or os.getenv("AI_API_KEY", "")
+    if not key.strip():
+        raise AIConfigError(f"AI_PROVIDER={name} needs {KEYS[name]}")
     try:
         config = ProviderConfig(
-            api_key=os.getenv(KEYS.get(name, "AI_API_KEY")) or os.getenv("AI_API_KEY", ""),
-            model=os.getenv("AI_MODEL") or DEFAULT_MODELS[name],
+            api_key=key, model=model,
             timeout=os.getenv("AI_TIMEOUT", "20"),
             max_output_tokens=os.getenv("AI_MAX_TOKENS", "2048"),
             max_input_tokens=os.getenv("AI_MAX_INPUT_TOKENS", "16000"),
@@ -49,5 +77,16 @@ def provider_from_env() -> BaseAIProvider:
             confidence_threshold=os.getenv("AI_CONFIDENCE_THRESHOLD", "0.8"),
         )
     except ValidationError:
-        raise RuntimeError("Invalid AI provider configuration") from None
+        raise AIConfigError("invalid AI_MODEL, AI_TIMEOUT, AI_MAX_TOKENS, AI_MAX_INPUT_TOKENS, AI_TEMPERATURE or "
+                            "AI_CONFIDENCE_THRESHOLD") from None
     return get_provider(name, config)
+
+
+def provider_from_env() -> BaseAIProvider:
+    """Fail-safe runtime selection: any configuration error disables AI with one startup error line."""
+    try:
+        return configured_provider()
+    except AIConfigError as error:
+        log.error("AI disabled: %s. Bot replies use exact active scripts only; every other message is handed "
+                  "to staff. Set AI_PROVIDER, AI_MODEL and the provider key together to enable AI.", error)
+        return DisabledProvider(reason="misconfigured")

@@ -80,13 +80,23 @@ def test_refusals_are_a_distinct_safe_category(name, value):
     asyncio.run(scenario())
 
 
-def test_claude_is_the_default_anthropic_model(monkeypatch):
+def test_claude_needs_explicit_model_and_key(monkeypatch):
     from hexta_ai.providers.factory import DEFAULT_MODELS
     assert DEFAULT_MODELS["anthropic"] == "claude-sonnet-5-5"
     monkeypatch.setenv("AI_PROVIDER", "anthropic")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-only")
-    monkeypatch.delenv("AI_MODEL", raising=False)
     with patch("hexta_ai.providers.langchain.LangChainProvider") as constructor:
+        monkeypatch.delenv("AI_MODEL", raising=False)
+        assert provider_from_env().name == "disabled"
+        # A model left from another provider (old .env) is a partial edit, not a Claude model.
+        monkeypatch.setenv("AI_MODEL", "gpt-4o-mini")
+        assert provider_from_env().name == "disabled"
+        monkeypatch.setenv("AI_MODEL", "claude-sonnet-5-5")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+        monkeypatch.setenv("AI_API_KEY", "")
+        assert provider_from_env().name == "disabled"
+        constructor.assert_not_called()
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-only")
         provider_from_env()
         assert constructor.call_args.args[1].model == "claude-sonnet-5-5"
 
@@ -127,3 +137,19 @@ def test_embedding_factory_defaults_fake_and_requires_key(monkeypatch):
     monkeypatch.delenv("AI_EMBEDDING_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="require"):
         embeddings_from_env()
+
+
+def test_runtime_embeddings_fail_safe_to_hashing(monkeypatch, caplog):
+    from hexta_ai.knowledge.embeddings import GeminiEmbeddings, HashingEmbeddings
+    from hexta_ai.knowledge.service import safe_embeddings_from_env
+    monkeypatch.setenv("AI_EMBEDDING_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.delenv("AI_EMBEDDING_API_KEY", raising=False)
+    with caplog.at_level("WARNING"):
+        assert isinstance(safe_embeddings_from_env(), HashingEmbeddings)  # misconfigured: logged, no crash
+        monkeypatch.setenv("GEMINI_API_KEY", "test-only")
+        assert isinstance(safe_embeddings_from_env(paid_allowed=False), HashingEmbeddings)  # AI disabled
+    messages = " ".join(r.getMessage() for r in caplog.records)
+    assert "misconfiguration" in messages and "AI is disabled" in messages and "test-only" not in messages
+    with patch("langchain_google_genai.GoogleGenerativeAIEmbeddings"):
+        assert isinstance(safe_embeddings_from_env(), GeminiEmbeddings)

@@ -40,15 +40,22 @@ Existing process environment takes precedence. Select one provider:
 
 | AI_PROVIDER | Credential (preferred over AI_API_KEY) | AI_MODEL example |
 | --- | --- | --- |
+| disabled | None | (none) |
 | fake | None | deterministic |
 | gemini | GEMINI_API_KEY | gemini-2.5-flash |
 | openai | OPENAI_API_KEY | gpt-4o-mini |
-| anthropic | ANTHROPIC_API_KEY | claude-haiku-4-5 |
+| anthropic | ANTHROPIC_API_KEY | claude-sonnet-5-5 |
 
-Set `AI_MODEL` for the selected provider; these are configurable examples, not a
-claim that every model supports structured output. A missing key for a real provider
-fails startup; offline use must explicitly select fake. Health identifies the
-effective provider. Invalid keys fail calls safely without cross-provider failover.
+Set `AI_MODEL` explicitly for a real provider; these are configurable examples, not a
+claim that every model supports structured output. `disabled` (the production default) proposes only a unique
+exact match of an active script and hands everything else to staff, with no router and no paid call. Startup is
+fail-safe (owner decision 2026-11-26): a real provider without its key or `AI_MODEL`, a model of another provider
+family (`anthropic` needs `claude-*`, `gemini` needs `gemini-*`), invalid numeric settings or an unknown
+`AI_PROVIDER` select `disabled` and log `AI disabled: <reason>` instead of failing startup. While AI is disabled,
+Jev and Gemini embeddings stay off too; `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY` and Gemini embeddings
+without a key are logged as errors and fall back to Jev off / offline hashing. One `AI runtime …` line reports
+the effective provider, model, router and embedding model; health identifies the effective provider. Invalid keys
+fail calls safely without cross-provider failover.
 `AI_TIMEOUT` defaults to 20 seconds (1–30); `AI_MAX_TOKENS` to 2048 (64–8192);
 `AI_MAX_INPUT_TOKENS` to a conservative UTF-8 byte-based token estimate of 16000 (256–64000).
 `AI_TEMPERATURE` defaults to 0.7 for Gemini/OpenAI; the Anthropic integration
@@ -97,7 +104,9 @@ Design: [agentic-memory/designs/2026-11-26_ai-jev-rag_design.md](../../agentic-m
   (pgvector >= 0.8.0, extension in schema `public`). `AI_EMBEDDING_PROVIDER=fake` (default, offline
   hashing) or `gemini` (`AI_EMBEDDING_MODEL`, default `gemini-embedding-001`, via langchain-google-genai).
   Retrieval is tenant- and embedding-model-filtered top-k (`AI_RAG_TOP_K`), similarity floor
-  (`AI_RAG_MIN_SIMILARITY`) and context budget (`AI_RAG_MAX_CONTEXT_TOKENS`).
+  (`AI_RAG_MIN_SIMILARITY`) and context budget (`AI_RAG_MAX_CONTEXT_TOKENS`). Chunks stored under another
+  embedding model are ignored until Go re-sends the source; after switching models run the API's
+  `knowledge-resync` command (`make knowledge-resync all=1`, production: README.deploy.md "AI settings").
 - **Answers.** The answer route needs the caller's `allow_knowledge_answer`. Claude (default
   `claude-sonnet-5-5`; any configured provider works) returns structured `kind/text/cited_source_ids/
   confidence/needs_human`, with a stable cache-marked system prompt followed by knowledge, conversation and
@@ -195,5 +204,6 @@ the durable paid-call fence continue to operate above this model abstraction.
 
 The authenticated `/internal/v1/consult` endpoint serves the LangGraph shopping
 consultant. Its model adapter fails closed when a real provider lacks credentials;
-offline use must explicitly select fake. For the
+offline use must explicitly select fake. While the runtime is disabled the consultant never creates a model and
+returns its static fallback reply. For the
 private OpenAI launch configuration, see [real consultation](../../infrastructure/README.demo.md#real-openai-consultation).

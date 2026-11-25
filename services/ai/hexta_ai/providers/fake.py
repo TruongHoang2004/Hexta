@@ -2,7 +2,7 @@
 
 import re
 
-from hexta_ai.providers.base import BaseAIProvider, Candidate, Classification, GroundedAnswer, Usage
+from hexta_ai.providers.base import BaseAIProvider, Candidate, Classification, GroundedAnswer, ProviderError, Usage
 from hexta_ai.routing.decision import exact_script_match
 
 # Upper bound for the quoted part of the best record; whole sentences only, so no number is ever cut in half.
@@ -71,3 +71,24 @@ class FakeProvider(BaseAIProvider):
         best = knowledge[0]
         return GroundedAnswer(kind="answer", text=compose_answer(best), cited_source_ids=[best["id"]],
                               confidence=0.9, needs_human=False), Usage()
+
+
+class DisabledProvider(BaseAIProvider):
+    """AI switched off (the production default until the owner configures it): a unique exact match of an active
+    script is still proposed, every other message is handed to staff. No model, no network, nothing billed; the
+    runtime pairs it with no router, so the knowledge answer path is never reached."""
+
+    name = "disabled"
+    model = "none"
+
+    def __init__(self, reason: str = "disabled"):
+        # "disabled" when AI_PROVIDER=disabled, "misconfigured" when the factory fell back after a config error.
+        self.reason = reason
+
+    async def classify(self, context):
+        script_id = exact_script_match(context["message"], context["scripts"])
+        return Classification(route="script" if script_id else "human", script_id=script_id,
+                              confidence=1 if script_id else 0), Usage()
+
+    async def generate_candidate(self, context):
+        raise ProviderError("LLM_PROVIDER_ERROR")

@@ -96,7 +96,7 @@ def test_env_flag_defaults_off_and_requires_key(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     assert jev_router_from_env() is None
     monkeypatch.setenv("AI_JEV_ENABLED", "true")
-    assert jev_router_from_env() is None  # no key, stays off
+    assert jev_router_from_env() is None  # no key: misconfiguration, logged, stays off
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-only-key")
     monkeypatch.setenv("AI_JEV_MIN_PROBABILITY", "0.75")
     router = jev_router_from_env()
@@ -186,3 +186,21 @@ def test_sdk_timeout_and_malformed_response():
             await router.close()
     assert asyncio.run(scenario(slow, timeout=1, total_timeout=1)) == "jev_timeout"
     assert asyncio.run(scenario(lambda r: httpx2.Response(200, json={"model": "x"}))) == "jev_invalid_output"
+
+
+def test_jev_misconfiguration_is_logged_and_never_fails_startup(monkeypatch, caplog):
+    from hexta_ai.routing import router_from_env
+    monkeypatch.delenv("AI_FAKE_ROUTER", raising=False)
+    monkeypatch.setenv("AI_JEV_ENABLED", "true")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "")
+    with caplog.at_level("WARNING"):
+        assert router_from_env() is None
+        monkeypatch.setenv("TYPESAFE_API_KEY", "test-only-key")
+        assert router_from_env(ai_enabled=False) is None  # AI disabled: no paid routing either
+        monkeypatch.setenv("AI_JEV_NOUL_YES", "secret-invalid")
+        assert router_from_env() is None
+    messages = [r for r in caplog.records]
+    assert any(r.levelname == "ERROR" and "TYPESAFE_API_KEY is empty" in r.getMessage() for r in messages)
+    assert any("AI is disabled" in r.getMessage() for r in messages)
+    assert any(r.levelname == "ERROR" and "invalid AI_JEV_" in r.getMessage() for r in messages)
+    assert not any("test-only-key" in r.getMessage() or "secret-invalid" in r.getMessage() for r in messages)

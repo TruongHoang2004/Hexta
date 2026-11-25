@@ -248,6 +248,16 @@ class JevRouter:
             await closer()
 
 
-def jev_router_from_env() -> JevRouter | None:
+def jev_router_from_env(*, allowed: bool = True) -> JevRouter | None:
+    """Jev only when enabled with a key and while AI is enabled (allowed). AI_JEV_ENABLED=true without
+    TYPESAFE_API_KEY is a misconfiguration: it is logged as an error and Jev stays off (fail-safe, no crash)."""
     config = jev_config_from_env()
-    return JevRouter(config) if config.active else None
+    if not config.enabled:
+        return None
+    if not config.active:
+        log.error("Jev router off: AI_JEV_ENABLED=true but TYPESAFE_API_KEY is empty (misconfiguration)")
+        return None
+    if not allowed:
+        log.warning("Jev router off: AI is disabled, so no paid routing call is made")
+        return None
+    return JevRouter(config)

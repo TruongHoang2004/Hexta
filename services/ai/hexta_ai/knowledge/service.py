@@ -1,11 +1,14 @@
 """Idempotent knowledge ingest and tenant-isolated retrieval for grounded answers."""
 
+import logging
 import os
 
 from pydantic import BaseModel, Field, ValidationError
 
 from hexta_ai.knowledge.models import KnowledgeInput, KnowledgeItem, document_chunks
 from hexta_ai.knowledge.store import KnowledgeStore, Retry
+
+log = logging.getLogger(__name__)
 
 
 def estimate_tokens(text: str) -> int:
@@ -121,11 +124,28 @@ class KnowledgeService:
         await self.embeddings.close()
 
 
-def knowledge_from_env() -> KnowledgeService | None:
-    """Knowledge needs the AI database; without AI_DATABASE_URL retrieval/ingest are unavailable."""
-    from hexta_ai.knowledge.embeddings import embeddings_from_env
+def safe_embeddings_from_env(*, paid_allowed: bool = True):
+    """Embeddings for the runtime, failing safe to the offline hashing model: while AI is disabled (no paid call) or
+    when the real model is misconfigured (logged as an error). Chunks embedded with another model are ignored by
+    retrieval until the knowledge re-sync command re-embeds them."""
+    from hexta_ai.knowledge.embeddings import HashingEmbeddings, embeddings_from_env
 
+    requested = os.getenv("AI_EMBEDDING_PROVIDER", "fake").strip().lower() or "fake"
+    if requested != "fake" and not paid_allowed:
+        log.warning("Knowledge embeddings use the offline hashing model: AI is disabled, so AI_EMBEDDING_PROVIDER "
+                    "is ignored")
+        return HashingEmbeddings()
+    try:
+        return embeddings_from_env()
+    except RuntimeError as error:
+        log.error("Knowledge embeddings use the offline hashing model: %s (misconfiguration)", error)
+        return HashingEmbeddings()
+
+
+def knowledge_from_env(*, paid_embeddings: bool = True) -> KnowledgeService | None:
+    """Knowledge needs the AI database; without AI_DATABASE_URL retrieval/ingest are unavailable."""
     dsn = os.getenv("AI_DATABASE_URL", "").strip()
     if not dsn:
         return None
-    return KnowledgeService(KnowledgeStore(dsn), embeddings_from_env(), rag_config_from_env())
+    return KnowledgeService(KnowledgeStore(dsn), safe_embeddings_from_env(paid_allowed=paid_embeddings),
+                            rag_config_from_env())
