@@ -90,3 +90,54 @@ export interface OrderCheck {
   label: string;
   hint?: string;
 }
+
+export type OrderCaseType = "cancellation" | "return";
+export type OrderCaseStatus = "open" | "sent_back" | "finalized";
+export type OrderCaseAction = "opened" | "updated" | "sent_back" | "finalized";
+
+/** Returned quantity of one original order line; never above `original_quantity`. */
+export interface OrderCaseLine {
+  order_item_id: string;
+  original_quantity: number;
+  quantity: number;
+}
+export interface OrderCaseEvent {
+  id: string;
+  version: number;
+  actor_id: string;
+  action: OrderCaseAction;
+  status: OrderCaseStatus;
+  note: string;
+  lines: OrderCaseLine[];
+  created_at: string;
+}
+/** Cancellation/return case of a confirmed order; the original order is never changed by it. */
+export interface OrderCase {
+  id: string;
+  order_id: string;
+  type: OrderCaseType;
+  status: OrderCaseStatus;
+  handler_id: string;
+  opened_by: string;
+  progress_note: string;
+  finalized_by: string | null;
+  finalized_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  lines: OrderCaseLine[];
+  events: OrderCaseEvent[];
+}
+export interface OrderCaseUpdateInput {
+  version: number;
+  note: string;
+  handler_id?: string;
+  lines: { order_item_id: string; quantity: number }[];
+}
+
+/** Editable case fields; quantities are input strings keyed by order item ID. */
+export interface OrderCaseForm {
+  note: string;
+  handler: string;
+  quantities: Record<string, string>;
+}
