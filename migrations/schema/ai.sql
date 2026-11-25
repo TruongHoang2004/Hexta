@@ -1,8 +1,8 @@
--- pgvector for the knowledge store (history: migration 20261126950000_enable_pgvector). Atlas Community rejects a
+-- pgvector for the knowledge store (history: migration 20261125223600_enable_pgvector). Atlas Community rejects a
 -- plain CREATE EXTENSION in desired SQL ("extensions are available to logged-in users only") and drops the
 -- extension from its dev database when it cleans up after a diff, so the desired schema recreates it on every
 -- run inside a DO block. The AI dev database must therefore be a disposable pgvector image (atlas.hcl default:
--- docker+postgres://_/pgvector/pgvector:0.8.1-pg17/dev) whose login may create extensions.
+-- docker+postgres://_/pgvector/pgvector:0.8.1-pg17-bookworm/dev) whose login may create extensions.
 DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public; END $$;
 CREATE SCHEMA IF NOT EXISTS ai_runtime;
 CREATE TABLE ai_runtime.runs (
@@ -24,7 +24,7 @@ CREATE TABLE ai_runtime.runs (
 CREATE INDEX runs_queue ON ai_runtime.runs(status, lease_until, created_at);
 
 -- Tenant knowledge for grounded answers (RAG). Requires the pgvector extension (>= 0.8.0) in schema public,
--- created by migration 20261126950000_enable_pgvector (and by the DO block above in the Atlas dev database).
+-- created by migration 20261125223600_enable_pgvector (and by the DO block above in the Atlas dev database).
 -- One row per source; also the revision fence (deleted rows are tombstones) for out-of-order ingest.
 CREATE TABLE ai_runtime.knowledge_sources (
     tenant_id text NOT NULL,
