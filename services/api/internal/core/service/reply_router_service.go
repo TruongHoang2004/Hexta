@@ -1,0 +1,421 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+)
+
+// IReplyAIClient is the internal AI run capability (Python AIService over gRPC). Every returned field is untrusted
+// candidate data; Go applies all business gates.
+type IReplyAIClient interface {
+	StartRun(context.Context, types.AIRunRequest) (types.AIRun, error)
+	GetRun(context.Context, string, string) (types.AIRun, error)
+	CancelRun(context.Context, string, string) error
+}
+
+// ReplyScriptSource is the active script read the router uses (ScriptService.ActiveScriptVersions).
+type ReplyScriptSource interface {
+	ActiveScriptVersions(context.Context, string) ([]types.ActiveScriptVersion, *apperrors.Error)
+}
+
+const (
+	// ReplyRouterBatch bounds one scan of due routing jobs.
+	ReplyRouterBatch = 20
+	// replyAIPollDelay is how long a job waits before polling an accepted AI run again.
+	replyAIPollDelay = 2 * time.Second
+	// replyAIMaxAttempts bounds polling (~80 s) beyond the AI service's 65 s execution budget.
+	replyAIMaxAttempts = 40
+	// replyHistoryLimit is the AI contract's history cap.
+	replyHistoryLimit = 20
+	// replyAIScriptLimit is the AI contract's script snapshot cap.
+	replyAIScriptLimit = 50
+	// replyTextLimit is the channel text limit; longer candidates are not proposed.
+	replyTextLimit = 2000
+)
+
+// ReplyRouterService routes each customer message of a BOT_ACTIVE turn (MVP 5 FR-5.2):
+//
+//  1. an active script whose trigger matches (MatchScript, deterministic) gives the script answer;
+//  2. otherwise the AI service is asked for a candidate: an answer, a clarifying question, or a handoff;
+//  3. a handoff (or an AI failure) moves the turn to WAITING_STAFF with a reason.
+//
+// A candidate becomes a proposal tied to the turn, its control generation and its source. In auto_send mode Go
+// sends an eligible candidate itself through the outbound intent pipeline, but only while the turn is still
+// BOT_ACTIVE at the same control generation and context revision; otherwise the job is superseded. Jobs are
+// durable rows processed after commit, so no transaction spans the script read or the AI call, and the decision
+// is rechecked under the thread lock before anything is written.
+type ReplyRouterService struct {
+	store   repository.ReplyRouterStore
+	scripts ReplyScriptSource
+	ai      IReplyAIClient
+	now     func() time.Time
+}
+
+func NewReplyRouterService(store repository.ReplyRouterStore, scripts ReplyScriptSource, ai IReplyAIClient) *ReplyRouterService {
+	return &ReplyRouterService{store: store, scripts: scripts, ai: ai, now: func() time.Time { return time.Now().UTC() }}
+}
+
+// RouteDue processes one batch of due routing jobs and reports how many were seen and how many reached a decision.
+func (s *ReplyRouterService) RouteDue(ctx context.Context) (seen, decided int, failure *apperrors.Error) {
+	refs, err := s.store.RoutingDue(ctx, s.now(), ReplyRouterBatch)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, ref := range refs {
+		if ctx.Err() != nil {
+			break
+		}
+		ok, err := s.route(ctx, ref)
+		if err != nil {
+			// One failed job must not block the rest; it stays due and is retried on the next run.
+			if failure == nil {
+				failure = err
+			}
+			continue
+		}
+		if ok {
+			decided++
+		}
+	}
+	return len(refs), decided, failure
+}
+
+func (s *ReplyRouterService) route(ctx context.Context, ref types.ProposalRef) (bool, *apperrors.Error) {
+	job, err := s.store.Proposal(ctx, ref.TenantID, ref.ProposalID, false)
+	if err != nil {
+		return false, err
+	}
+	if job.Status != types.ProposalRouting {
+		return false, nil
+	}
+	turn, err := s.store.Turn(ctx, job.TenantID, job.TurnID)
+	if err != nil {
+		return false, err
+	}
+	// A fenced job needs no script read or AI call; apply records it as superseded.
+	if job.Stale(*turn) || turn.ContextRevision != job.ContextRevision {
+		return s.apply(ctx, *job, nil)
+	}
+	message, err := s.store.Message(ctx, job.TenantID, job.TriggerMessageID)
+	if err != nil {
+		return false, err
+	}
+	candidate, wait, err := s.decide(ctx, *job, *message)
+	if err != nil {
+		return false, err
+	}
+	if wait {
+		return false, s.scheduleNextPoll(ctx, *job)
+	}
+	return s.apply(ctx, *job, candidate)
+}
+
+// decide chooses the router branch. wait=true means an accepted AI run is still in progress.
+func (s *ReplyRouterService) decide(ctx context.Context, job types.ReplyProposal, message types.MessagingMessage) (*types.ReplyCandidate, bool, *apperrors.Error) {
+	if message.ContentType == types.ContentUnsupportedMedia || strings.TrimSpace(message.Body) == "" {
+		return handoffCandidate("insufficient_information", "unsupported_media"), false, nil
+	}
+	versions, err := s.scripts.ActiveScriptVersions(ctx, job.TenantID)
+	if err != nil {
+		return nil, false, err
+	}
+	if version, ok := MatchScript(message.Body, versions); ok {
+		return &types.ReplyCandidate{Route: types.RouteScript, Source: types.SourceScript, ScriptVersionID: version.VersionID, Text: version.Content.Answer, Reason: "script_trigger_match"}, false, nil
+	}
+	return s.askAI(ctx, job, message, versions)
+}
+
+func (s *ReplyRouterService) askAI(ctx context.Context, job types.ReplyProposal, message types.MessagingMessage, versions []types.ActiveScriptVersion) (*types.ReplyCandidate, bool, *apperrors.Error) {
+	last := job.Attempts+1 >= replyAIMaxAttempts
+	var run types.AIRun
+	var callErr error
+	if job.Attempts == 0 {
+		request, err := s.aiRequest(ctx, job, message, versions)
+		if err != nil {
+			return nil, false, err
+		}
+		run, callErr = s.ai.StartRun(ctx, request)
+	} else {
+		run, callErr = s.ai.GetRun(ctx, job.TenantID, job.ID)
+	}
+	switch {
+	case errors.Is(callErr, types.ErrAIUnavailable):
+		return handoffCandidate("ai_error", "ai_unavailable"), false, nil
+	case callErr != nil && last:
+		return handoffCandidate("ai_error", "ai_unreachable"), false, nil
+	case callErr != nil:
+		return nil, true, nil
+	}
+	switch run.Status {
+	case types.AIRunQueued, types.AIRunRunning:
+		if !last {
+			return nil, true, nil
+		}
+		// Best effort: the durable cancel revokes publication; a provider call may already have cost money.
+		_ = s.ai.CancelRun(ctx, job.TenantID, job.ID)
+		return handoffCandidate("ai_error", "ai_timeout"), false, nil
+	case types.AIRunSucceeded:
+	default:
+		return handoffCandidate("ai_error", "ai_failed"), false, nil
+	}
+	return aiCandidate(job, run, versions), false, nil
+}
+
+// aiCandidate turns an untrusted AI run into a router decision. Script choices must name a currently active
+// version and always use Go's stored content; free text must be within the channel limit.
+func aiCandidate(job types.ReplyProposal, run types.AIRun, versions []types.ActiveScriptVersion) *types.ReplyCandidate {
+	if run.ContextRevision != job.ContextRevision || run.ControlGeneration != job.ControlGeneration {
+		return handoffCandidate("ai_error", "ai_basis_mismatch")
+	}
+	text := strings.TrimSpace(run.Text)
+	textOK := text != "" && utf8.ValidString(text) && utf8.RuneCountInString(text) <= replyTextLimit
+	switch run.Route {
+	case "script":
+		for _, version := range versions {
+			if version.VersionID == run.ScriptID {
+				return &types.ReplyCandidate{Route: types.RouteScript, Source: types.SourceScript, ScriptVersionID: version.VersionID, AIRunID: job.ID, Text: version.Content.Answer, Reason: "ai_selected_script"}
+			}
+		}
+	case "generate":
+		if textOK {
+			return &types.ReplyCandidate{Route: types.RouteAnswer, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason)}
+		}
+	case "clarify":
+		if textOK {
+			return &types.ReplyCandidate{Route: types.RouteClarify, Source: types.SourceAI, AIRunID: job.ID, Text: text, Reason: safeReason(run.Reason)}
+		}
+	}
+	candidate := handoffCandidate("insufficient_information", safeReason(run.Reason))
+	candidate.AIRunID = job.ID
+	return candidate
+}
+
+func handoffCandidate(handoffReason, reason string) *types.ReplyCandidate {
+	return &types.ReplyCandidate{Route: types.RouteHandoff, HandoffReason: handoffReason, Reason: reason}
+}
+
+// safeReason keeps an AI decision category only when it is a short identifier.
+func safeReason(value string) string {
+	if value == "" || len(value) > 64 {
+		return "ai_decision"
+	}
+	for _, r := range value {
+		if !(r == '_' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9') {
+			return "ai_decision"
+		}
+	}
+	return value
+}
+
+func (s *ReplyRouterService) aiRequest(ctx context.Context, job types.ReplyProposal, message types.MessagingMessage, versions []types.ActiveScriptVersion) (types.AIRunRequest, *apperrors.Error) {
+	previous, err := s.store.RecentMessages(ctx, job.TenantID, job.TurnID, message.ID, replyHistoryLimit)
+	if err != nil {
+		return types.AIRunRequest{}, err
+	}
+	history := make([]types.AIHistoryItem, 0, len(previous))
+	for _, item := range previous {
+		text := []rune(strings.TrimSpace(item.Body))
+		if len(text) == 0 {
+			continue
+		}
+		if len(text) > replyTextLimit {
+			text = text[:replyTextLimit]
+		}
+		role := "assistant"
+		if item.Direction == "inbound" {
+			role = "user"
+		}
+		history = append(history, types.AIHistoryItem{Role: role, Text: string(text)})
+	}
+	// The active scripts are the authorized snapshot for the OPEN model-based script evaluation: the AI service
+	// may pick one (route script), and Go then uses that version's stored content.
+	scripts := make([]types.AIScript, 0, min(len(versions), replyAIScriptLimit))
+	for _, version := range versions {
+		if len(scripts) == replyAIScriptLimit {
+			break
+		}
+		trigger := []rune(strings.Join(version.Content.Triggers, ", "))
+		if len(trigger) > 200 {
+			trigger = trigger[:200]
+		}
+		scripts = append(scripts, types.AIScript{ID: version.VersionID, Trigger: string(trigger), Text: version.Content.Answer})
+	}
+	body := []rune(message.Body)
+	if len(body) > 8000 {
+		body = body[:8000]
+	}
+	// Generation stays opted in; the AI service only generates text grounded in supplied facts, and no business
+	// facts are supplied yet (OPEN), so today the AI path yields a clarifying question or a handoff.
+	return types.AIRunRequest{TenantID: job.TenantID, RunID: job.ID, TurnID: job.TurnID, ContextRevision: job.ContextRevision,
+		ControlGeneration: job.ControlGeneration, Message: string(body), Scripts: scripts, History: history, AllowGeneration: true}, nil
+}
+
+// scheduleNextPoll keeps a job whose AI run is still in progress and schedules the next poll.
+func (s *ReplyRouterService) scheduleNextPoll(ctx context.Context, job types.ReplyProposal) *apperrors.Error {
+	return s.store.Within(ctx, func(r repository.MessagingStore) *apperrors.Error {
+		current, err := r.Proposal(ctx, job.TenantID, job.ID, true)
+		if err != nil || current.Status != types.ProposalRouting || current.Version != job.Version {
+			return err
+		}
+		now := s.now()
+		current.Attempts++
+		current.AvailableAt, current.UpdatedAt = now.Add(replyAIPollDelay), now
+		current.Version++
+		return r.SaveProposal(ctx, *current)
+	})
+}
+
+// autoSendEligible is the auto_send gate for a candidate. Today every routed candidate (active script answer, AI
+// answer, AI clarifying question) is eligible. Whether a newly activated script needs a test step first (PRD
+// Q5.2) is OPEN; add that rule here.
+func autoSendEligible(candidate types.ReplyCandidate) bool {
+	return candidate.Route == types.RouteScript || candidate.Route == types.RouteAnswer || candidate.Route == types.RouteClarify
+}
+
+// apply records the decision under the thread lock after rechecking the job and the turn. A nil candidate means
+// the job was already fenced when it was picked up.
+func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal, candidate *types.ReplyCandidate) (bool, *apperrors.Error) {
+	decided := false
+	err := s.store.Within(ctx, func(r repository.MessagingStore) *apperrors.Error {
+		thread, err := r.Thread(ctx, job.TenantID, job.ThreadID, true)
+		if err != nil {
+			return err
+		}
+		p, err := r.Proposal(ctx, job.TenantID, job.ID, true)
+		if err != nil {
+			return err
+		}
+		if p.Status != types.ProposalRouting || p.Version != job.Version {
+			return nil
+		}
+		turn, err := r.Turn(ctx, job.TenantID, job.TurnID)
+		if err != nil {
+			return err
+		}
+		now := s.now()
+		decided = true
+		p.Version++
+		p.UpdatedAt = now
+		if candidate != nil {
+			p.Route, p.Source, p.ScriptVersionID, p.AIRunID, p.Text, p.Reason = candidate.Route, candidate.Source, candidate.ScriptVersionID, candidate.AIRunID, candidate.Text, candidate.Reason
+		}
+		person := p.RequestedBy != ""
+		state := turn.HandlingState()
+		switch {
+		case candidate == nil || p.Stale(*turn) || turn.ContextRevision != p.ContextRevision:
+			// Control or context changed while the job waited: the output belongs to an old basis.
+			p.Status = types.ProposalSuperseded
+			p.Text, p.Source, p.ScriptVersionID = "", "", ""
+		case candidate.Route == types.RouteHandoff && state == "BOT_ACTIVE" && !person:
+			cancelled, err := r.CancelPendingBotSends(ctx, job.TenantID, turn.ID, now)
+			if err != nil {
+				return err
+			}
+			before := turn.HandlingState()
+			applyHandoff(turn, candidate.HandoffReason)
+			turn.ControlGeneration++
+			turn.Version++
+			if err := r.SaveTurn(ctx, *turn, false); err != nil {
+				return err
+			}
+			p.Status = types.ProposalHandedOff
+			if err := r.Audit(ctx, job.TenantID, types.BotActorID, "messaging.handoff", "messaging_turn", turn.ID, map[string]any{
+				"version": turn.Version, "control_generation": turn.ControlGeneration, "before": before, "after": turn.HandlingState(),
+				"reason": candidate.HandoffReason, "router_reason": candidate.Reason, "proposal_id": p.ID, "cancelled_bot_sends": cancelled,
+			}); err != nil {
+				return err
+			}
+		case candidate.Route == types.RouteHandoff:
+			// A person asked for a proposal (staff already involved): nothing to propose, control unchanged.
+			p.Status = types.ProposalNoCandidate
+		case state == "BOT_ACTIVE" || (state == "STAFF_ACTIVE" && person):
+			p.Status = types.ProposalPending
+			if state == "BOT_ACTIVE" && !person && autoSendEligible(*candidate) {
+				settings, err := r.ReplySettings(ctx, job.TenantID, false)
+				if err != nil {
+					return err
+				}
+				if settings.Mode == types.ReplyModeAutoSend {
+					sent, reason, err := s.autoSend(ctx, r, *thread, turn, *p, now)
+					if err != nil {
+						return err
+					}
+					if sent != nil {
+						p.Status, p.SentMessageID, p.DecidedBy = types.ProposalAutoSent, sent.ID, types.BotActorID
+					} else {
+						p.Reason = reason
+					}
+				}
+			}
+		default:
+			p.Status = types.ProposalSuperseded
+			p.Text, p.Source, p.ScriptVersionID = "", "", ""
+		}
+		return r.SaveProposal(ctx, *p)
+	})
+	if err != nil {
+		return false, err
+	}
+	return decided, nil
+}
+
+// autoSend sends a proposal as the bot. The caller holds the thread lock and has verified BOT_ACTIVE at the
+// proposal's generation and revision. A real-channel conversation whose connection is not active is left as a
+// pending proposal (reason returned) instead of failing.
+func (s *ReplyRouterService) autoSend(ctx context.Context, r repository.MessagingStore, thread types.MessagingThread, turn *types.MessagingTurn, p types.ReplyProposal, now time.Time) (*types.MessagingMessage, string, *apperrors.Error) {
+	hash := messagingHash(struct{ Actor, Turn, Proposal, Text string }{types.BotActorID, turn.ID, p.ID, p.Text})
+	message, intentID, reason, err := recordProposalReply(ctx, r, thread, turn, types.BotActorID, p.Text, p.ID, hash, now)
+	if err != nil || message == nil {
+		return nil, reason, err
+	}
+	if err := r.Audit(ctx, turn.TenantID, types.BotActorID, "messaging.bot_auto_send", "messaging_turn", turn.ID, map[string]any{
+		"proposal_id": p.ID, "message_id": message.ID, "intent_id": intentID, "route": p.Route, "source": p.Source,
+		"script_version_id": p.ScriptVersionID, "ai_run_id": p.AIRunID, "control_generation": turn.ControlGeneration,
+	}); err != nil {
+		return nil, "", err
+	}
+	return message, "", nil
+}
+
+// recordProposalReply writes a proposal's reply on the turn: a real channel thread gets a pending delivery intent
+// (activity counts only once the connector confirms it), a simulator thread a simulated message (a confirmed send).
+// It advances the turn's version and context revision and saves the turn and thread. message is nil with a reason
+// when the channel connection cannot send.
+func recordProposalReply(ctx context.Context, r repository.MessagingStore, thread types.MessagingThread, turn *types.MessagingTurn, actor, text, key, hash string, now time.Time) (message *types.MessagingMessage, intentID, reason string, failure *apperrors.Error) {
+	if thread.ConnectionID != "" {
+		conn, err := r.SendConnection(ctx, thread.TenantID, thread.ConnectionID)
+		if err != nil {
+			return nil, "", "", err
+		}
+		if conn.Status != types.ChannelStatusActive || !conn.Enabled {
+			return nil, "", "channel_unavailable", nil
+		}
+		message, intentID, failure = enqueueChannelReply(ctx, r, *conn, thread, turn.ID, actor, text, key, hash, now)
+		if failure != nil {
+			return nil, "", "", failure
+		}
+	} else {
+		message = &types.MessagingMessage{ID: messagingID(), TenantID: thread.TenantID, ThreadID: thread.ID, TurnID: turn.ID, Direction: "outbound", ActorID: actor, Body: text, RequestKey: key, RequestHash: hash, Status: "simulated", CreatedAt: now}
+		if err := r.InsertMessage(ctx, *message); err != nil {
+			return nil, "", "", err
+		}
+		turn.LastActivityAt = now
+	}
+	turn.Version++
+	turn.ContextRevision++
+	if err := r.SaveTurn(ctx, *turn, false); err != nil {
+		return nil, "", "", err
+	}
+	thread.UpdatedAt = now
+	if err := r.SaveThread(ctx, thread); err != nil {
+		return nil, "", "", err
+	}
+	return message, intentID, "", nil
+}

@@ -22,6 +22,9 @@ func registerMessagingCommandRoutes(resources *gin.RouterGroup, handle func(stri
 		{"/turns/:id/resolve", "Resolve"},
 		{"/turns/:id/send-simulation", "Send"},
 		{"/turns/:id/messages", "SendChannel"},
+		{"/turns/:id/proposals/:proposalID/send", "SendProposal"},
+		{"/turns/:id/proposals/:proposalID/discard", "DiscardProposal"},
+		{"/turns/:id/regenerate-proposal", "RegenerateProposal"},
 	} {
 		resources.POST(route.path, handle(route.name))
 	}
@@ -48,6 +51,12 @@ func RegisterMessagingCommandRoutes(params Params, health *controller.HealthCont
 			return commands.Resolve
 		case "Send":
 			return commands.Send
+		case "SendProposal":
+			return commands.SendProposal
+		case "DiscardProposal":
+			return commands.DiscardProposal
+		case "RegenerateProposal":
+			return commands.RegenerateProposal
 		default:
 			return commands.SendChannel
 		}

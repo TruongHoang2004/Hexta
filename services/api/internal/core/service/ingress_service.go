@@ -53,9 +53,15 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 		}
 		// Placement uses the source event time: a delayed or replayed message older than the closed turn's
 		// activity is kept as history on that turn and neither reopens it nor manufactures a new one.
-		switch types.InboundPlacement(turn, e.SourceAt, time.Now().UTC()) {
+		placement := types.InboundPlacement(turn, e.SourceAt, time.Now().UTC())
+		switch placement {
 		case types.InboundNewTurn:
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: types.TurnOpen, Control: "sales", NeedsHuman: true, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+			settings, err := tx.ReplySettings(ctx, e.TenantID, false)
+			if err != nil {
+				return err
+			}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: types.TurnOpen, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+			newTurnHandling(turn, settings)
 			if err = tx.SaveTurn(ctx, *turn, true); err != nil {
 				return err
 			}
@@ -74,6 +80,12 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 		message.RequestKey, message.RequestHash, message.Status, message.DeliveryStatus, message.CreatedAt = uuid.NewSHA1(uuid.NameSpaceOID, []byte(e.Identity())).String(), events.Hash(e.Text), "received", types.DeliveryReceived, e.SourceAt
 		if err = tx.InsertMessage(ctx, message); err != nil {
 			return err
+		}
+		// A live customer message on a bot-handled turn is routed after commit; history never is.
+		if placement != types.InboundHistory {
+			if _, err = enqueueBotRouting(ctx, tx, *turn, message, "", time.Now().UTC()); err != nil {
+				return err
+			}
 		}
 		if e.OccurredAt.After(thread.UpdatedAt) {
 			thread.UpdatedAt = e.OccurredAt

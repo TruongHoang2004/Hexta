@@ -78,7 +78,17 @@ func (s *MessagingQueryService) Detail(ctx context.Context, tenant, actor, id st
 		}
 		result.Conversation = types.MessagingConversation{Thread: *thread, Turn: turn}
 		result.Messages, result.NextCursor, err = r.Messages(ctx, tenant, id, input)
-		return err
+		if err != nil || turn == nil {
+			return err
+		}
+		if result.Proposals, err = r.LiveProposals(ctx, tenant, turn.ID); err != nil {
+			return err
+		}
+		// Staleness is derived from current control: a proposal from another control generation cannot be sent.
+		for i := range result.Proposals {
+			result.Proposals[i].Stale = result.Proposals[i].Proposal.Stale(*turn)
+		}
+		return nil
 	})
 	return result, err
 }

@@ -21,6 +21,7 @@ func RegisterRoutes(
 	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
 	scripts *controller.ScriptController,
+	replySettings *controller.ReplySettingsController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
@@ -120,6 +121,10 @@ func RegisterRoutes(
 	resources.GET("/script-permissions/me", scripts.MyScriptPermissions)
 	resources.POST("/script-permissions/:userID/grant", scripts.GrantScriptPermission)
 	resources.POST("/script-permissions/:userID/revoke", scripts.RevokeScriptPermission)
+
+	// Bot reply mode (MVP 5 FR-5.1); every member reads it, only the owner changes it.
+	resources.GET("/settings/reply-mode", replySettings.GetReplyMode)
+	resources.PUT("/settings/reply-mode", replySettings.UpdateReplyMode)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
