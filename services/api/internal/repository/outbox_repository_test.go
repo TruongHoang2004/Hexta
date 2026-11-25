@@ -60,3 +60,19 @@ func TestOutboxLeaseFencingBackoffAndExhaustion(t *testing.T) {
 	require.NoError(t, db.First(&exhausted, "id = ?", exhausted.ID).Error)
 	require.Equal(t, model.DomainEventStateFailed, exhausted.State)
 }
+
+func TestOutboxNeverClaimsCancelledEvents(t *testing.T) {
+	db := testutil.Database(t)
+	repo := NewOutboxRepository(db)
+	ctx := context.Background()
+	// A cancelled event is a stored state of its own, distinct from relay give-up, and is never relayed.
+	cancelled := model.DomainEvent{ID: uuid.NewString(), TenantID: "tenant", EventType: model.DomainEventOutboundIntent, AggregateID: "intent", Payload: `{}`, State: model.DomainEventStateCancelled, Attempts: outboxMaxAttempts}
+	require.NoError(t, db.Create(&cancelled).Error)
+	claimed, failure := repo.ClaimEvent(ctx)
+	require.Nil(t, failure)
+	require.Nil(t, claimed)
+	require.NoError(t, db.First(&cancelled, "id = ?", cancelled.ID).Error)
+	require.Equal(t, model.DomainEventStateCancelled, cancelled.State)
+	// Unknown states are still rejected by the schema.
+	require.Error(t, db.Create(&model.DomainEvent{ID: uuid.NewString(), TenantID: "tenant", EventType: model.DomainEventOutboundIntent, AggregateID: "intent", Payload: `{}`, State: "withdrawn"}).Error)
+}

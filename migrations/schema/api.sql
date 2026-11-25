@@ -661,7 +661,7 @@ CREATE TABLE "domain_events" (
   "created_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
   "published_at" timestamptz NULL,
   PRIMARY KEY ("id"),
-  CONSTRAINT "chk_domain_events_state" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'published'::character varying, 'failed'::character varying])::text[]))
+  CONSTRAINT "chk_domain_events_state" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'published'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[]))
 );
 -- Create index "idx_domain_events_pending" to table: "domain_events"
 CREATE INDEX "idx_domain_events_pending" ON "domain_events" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));

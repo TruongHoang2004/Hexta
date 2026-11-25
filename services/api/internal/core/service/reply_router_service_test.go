@@ -512,7 +512,7 @@ func TestAutoSendChannelIntentIsCancelledByTakeoverUntilDispatched(t *testing.T)
 	intent, msg := intentOf(turn)
 	var event model.DomainEvent
 	f.db.Where("aggregate_id = ?", intent.ID).First(&event)
-	if intent.Status != types.IntentCancelled || msg.DeliveryStatus != types.DeliveryFailed || deref(msg.DeliveryErrorReason) != types.DeliveryCancelledReason || event.State != "failed" {
+	if intent.Status != types.IntentCancelled || msg.DeliveryStatus != types.DeliveryFailed || deref(msg.DeliveryErrorReason) != types.DeliveryCancelledReason || event.State != model.DomainEventStateCancelled {
 		t.Fatalf("takeover must cancel the undispatched bot send: %+v %+v %s", intent, msg, event.State)
 	}
 

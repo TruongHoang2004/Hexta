@@ -165,9 +165,10 @@ func (r *MessagingRepository) RecentMessages(ctx context.Context, tenant, turn, 
 
 // CancelPendingBotSends cancels the turn's automatic (bot-authored) sends that have not been dispatched: the intent
 // is still pending and its outbox event was never handed to the relay. Such a send provably never reached the
-// connector, so its message is marked failed/cancelled. A send whose event is already leased or published is
-// dispatched and is left to be reconciled from the connector's outcome. Lock order: thread (held by the caller),
-// outbound intents, outbox events; the caller saves the turn afterwards.
+// connector: its outbox event becomes cancelled (distinct from a relay give-up, which is failed) and its message
+// failed/cancelled. A send whose event is already leased or published is dispatched and is left to be reconciled
+// from the connector's outcome. Lock order: thread (held by the caller), outbound intents, outbox events; the
+// caller saves the turn afterwards.
 func (r *MessagingRepository) CancelPendingBotSends(ctx context.Context, tenant, turn string, now time.Time) (int, *apperrors.Error) {
 	db := r.db.WithContext(ctx)
 	var ids []string
@@ -179,8 +180,8 @@ WHERE i.tenant_id = ? AND m.turn_id = ? AND m.actor_id = ? AND i.status = ? ORDE
 		return 0, nil
 	}
 	var undispatched []string
-	if err := db.Raw(`UPDATE domain_events SET state = 'failed' WHERE event_type = ? AND aggregate_id IN ? AND state = 'pending' RETURNING aggregate_id`,
-		model.DomainEventOutboundIntent, ids).Scan(&undispatched).Error; err != nil {
+	if err := db.Raw(`UPDATE domain_events SET state = ? WHERE event_type = ? AND aggregate_id IN ? AND state = ? RETURNING aggregate_id`,
+		model.DomainEventStateCancelled, model.DomainEventOutboundIntent, ids, model.DomainEventStatePending).Scan(&undispatched).Error; err != nil {
 		return 0, salesDBError(ctx, err)
 	}
 	if len(undispatched) == 0 {
