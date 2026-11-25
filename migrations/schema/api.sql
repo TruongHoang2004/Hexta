@@ -649,3 +649,72 @@ CREATE TABLE "domain_events" (
 );
 -- Create index "idx_domain_events_pending" to table: "domain_events"
 CREATE INDEX "idx_domain_events_pending" ON "domain_events" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));
+-- Bot reply scripts (MVP 5). A script has at most one active version pointer; versions are never deleted so
+-- proposals can keep their source version. A version's content is frozen from its first activation (published_at).
+CREATE TABLE "scripts" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "name" character varying(120) NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "active_version_id" character varying(36) NULL,
+  "version" bigint NOT NULL,
+  "create_hash" character varying(64) NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  "archived_at" timestamptz NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "scripts_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "scripts_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "scripts_status_check" CHECK ((status)::text = ANY ((ARRAY['inactive'::character varying, 'active'::character varying, 'archived'::character varying])::text[])),
+  CONSTRAINT "scripts_active_pointer_check" CHECK (((status)::text = 'active'::text) = (active_version_id IS NOT NULL)),
+  CONSTRAINT "scripts_archived_check" CHECK (((status)::text = 'archived'::text) = (archived_at IS NOT NULL)),
+  CONSTRAINT "scripts_version_check" CHECK (version > 0)
+);
+-- Create index "idx_scripts_tenant_updated" to table: "scripts"
+CREATE INDEX "idx_scripts_tenant_updated" ON "scripts" ("tenant_id", "updated_at" DESC, "id");
+-- Create "script_versions" table
+CREATE TABLE "script_versions" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "script_id" character varying(36) NOT NULL,
+  "number" bigint NOT NULL,
+  "triggers" jsonb NOT NULL,
+  "answer" text NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  "published_at" timestamptz NULL,
+  "published_by" character varying(255) NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "script_versions_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "script_versions_tenant_id_script_id_id_key" UNIQUE ("tenant_id", "script_id", "id"),
+  CONSTRAINT "idx_script_version_number" UNIQUE ("tenant_id", "script_id", "number"),
+  CONSTRAINT "script_versions_tenant_id_script_id_fkey" FOREIGN KEY ("tenant_id", "script_id") REFERENCES "scripts" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "script_versions_number_check" CHECK (number > 0),
+  CONSTRAINT "script_versions_triggers_check" CHECK (jsonb_typeof(triggers) = 'array'::text),
+  CONSTRAINT "script_versions_answer_check" CHECK ((char_length(answer) >= 1) AND (char_length(answer) <= 2000)),
+  CONSTRAINT "script_versions_published_check" CHECK ((published_at IS NULL) = (published_by IS NULL))
+);
+-- At most one unpublished draft per script.
+CREATE UNIQUE INDEX "idx_script_versions_one_draft" ON "script_versions" ("tenant_id", "script_id") WHERE (published_at IS NULL);
+-- The active pointer must name a version of the same script in the same tenant.
+ALTER TABLE "scripts" ADD CONSTRAINT "scripts_active_version_fkey" FOREIGN KEY ("tenant_id", "id", "active_version_id") REFERENCES "script_versions" ("tenant_id", "script_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+-- Per-member delegated script permissions; the tenant owner implicitly holds all four and has no row. Removing a
+-- membership removes its grants.
+CREATE TABLE "script_member_permissions" (
+  "tenant_id" character varying(36) NOT NULL,
+  "user_id" character varying(255) NOT NULL,
+  "can_create" boolean NOT NULL DEFAULT false,
+  "can_edit" boolean NOT NULL DEFAULT false,
+  "can_activate" boolean NOT NULL DEFAULT false,
+  "can_archive" boolean NOT NULL DEFAULT false,
+  "version" bigint NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY ("tenant_id", "user_id"),
+  CONSTRAINT "script_member_permissions_member_fkey" FOREIGN KEY ("tenant_id", "user_id") REFERENCES "tenant_members" ("tenant_id", "user_id") ON UPDATE NO ACTION ON DELETE CASCADE,
+  CONSTRAINT "script_member_permissions_version_check" CHECK (version > 0)
+);
