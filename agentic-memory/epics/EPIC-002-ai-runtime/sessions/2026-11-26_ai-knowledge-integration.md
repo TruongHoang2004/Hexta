@@ -65,7 +65,7 @@ IMPLEMENTED (local/unmerged):
   `messaging-command` gets `AI_RUN_ADDR=ai:50051` and `AI_INTERNAL_TOKEN` in demo and prod. Prod AI defaults
   anthropic/claude-sonnet-5-5 plus pass-through of Jev and embedding settings. Rollout runbook:
   [README.deploy.md §10a](../../../../infrastructure/README.deploy.md); demo notes in README.demo.md.
-- **Atlas AI dev database**: default `docker+postgres://_/pgvector/pgvector:0.8.1-pg17/dev`. Atlas Community
+- **Atlas AI dev database**: default `docker+postgres://_/pgvector/pgvector:0.8.1-pg17/dev` (pinned to `-bookworm` in the follow-up below). Atlas Community
   rejects `CREATE EXTENSION` in desired SQL and drops the extension from the dev database after each diff (a
   persistent dev DB with a pre-created extension works once, then fails with `type "public.vector" does not
   exist`). The desired `ai.sql` therefore starts with `DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS vector … END $$`;
@@ -108,4 +108,100 @@ reservations do not enqueue a product sync (stock refreshes on the next product 
 - Browser acceptance of Settings › Tài liệu and the Desk citations; demo runtime check of the offline answer path.
 - Follow-ups: stock-only changes enqueue; a resync command after switching embedding models; RAG answers without
   Jev (provider classifier never routes to `answer`).
+- Not done until merged into main and verified.
+## Review follow-up — 2026-11-26 (independent review: OWNER_REVIEW_REQUIRED)
+
+The remaining-work list above is superseded by this section; the earlier text is kept as history.
+
+Owner decisions 2026-11-26 (DECIDED): production AI is OFF until fully configured (default config never calls a
+paid model; bot uses exact scripts only, everything else goes to staff); enabling turns on Claude + Jev + Gemini
+embeddings together; partial config is fail-safe (AI disabled with a log line, never a crash that rolls back a
+deploy; `AI_JEV_ENABLED=true` without `TYPESAFE_API_KEY` is logged as an error and Jev stays off). Stock changes sync
+to AI knowledge immediately. This replaces the earlier production default `anthropic`/`claude-sonnet-5-5`.
+
+IMPLEMENTED (local/unmerged), per finding:
+
+- **B1 collation guard.** `compose.prod.yml` one-shot `postgres-collation-guard` (pgvector image, root, no
+  network, volume read-only); `postgres` depends on it (`service_completed_successfully`). Passes only for an empty
+  volume or `$PGDATA/HEXTA_GLIBC_COLLATION_OK`; `prod/init-db.sh` writes the marker on a fresh glibc initdb; the
+  failure message names section 10a. Compose v5.6 replaces the old postgres container before running the guard,
+  so a blocked deploy means downtime until the agent's automatic rollback (rehearsed), never a glibc start.
+  Inverse check: an Alpine-era compose cannot be guarded by Compose, so §10a/§9 document it and
+  `scripts/deploy-agent.sh` (`musl_downgrade`) refuses to deploy or auto-roll back to a commit without the guard
+  while the volume carries the marker (effective from the first agent run after this release is checked out).
+- **B2 runbook (§10a).** Explicit `X`/`HEXTA_IMAGE_TAG=sha-$X` and checkout of commit X; preflight `mkdir -p
+  ~/hexta-backups`, `docker pull`, TCP superuser login check (+ password realignment), disk check; empty-target
+  volume copy; REINDEX DATABASE + SYSTEM of every database (template0 opened temporarily) in an isolated
+  `--network none` container; `REFRESH COLLATION VERSION` only where `datcollversion IS NOT NULL`; amcheck
+  `bt_index_check(…, heapallindexed)` over every valid B-tree index then `DROP EXTENSION amcheck`; marker; manual
+  deploy and `state/deployed` before resuming the timer. Rollback: dump, `down`, `docker volume rm`, previous
+  release `up --no-start postgres` recreates the empty volume, copy into it (refuses non-empty), start. Owner told
+  to edit both `AI_PROVIDER` and `AI_MODEL`. README.demo.md and infrastructure/README.md: REINDEX loop for old
+  Alpine demo/legacy volumes (snippet run in a disposable container).
+- **I5.** `pgvector/pgvector:0.8.1-pg17-bookworm` (verified: `docker manifest inspect` multi-arch index; pulled
+  image is Debian 12.13, glibc 2.36, PostgreSQL 17.8) in compose prod/demo/legacy/connector fixture, backend CI,
+  atlas.hcl and `migrations/schema/ai.sql`.
+- **I1 redaction.** House number + 1–4 street words of any case/diacritics before an administrative unit
+  (`12 Nguyễn Huệ, Q1`, `123 nguyễn trãi quận 5`, `88 Đồng Khởi Quận 1`, `25 le loi q1`), unless a quantity/verb word
+  is among them (`mua 2 cái về quận 7` keeps `2 cái`); `số 5, đường số 7`; phones glued to a phone keyword
+  (`sđt0912345678`) or followed by letters (`0912345678nha`); 9-digit mobiles without 0 (`912345678`) unless
+  dotted, after an order/code context or followed by a money unit. Negative tests: prices, quantities, order
+  codes (`DH0912345678`, `mã đơn 912345678`, `#ORD-2026-912345678`, `SP0912345678`).
+- **AI fail-safe.** `DisabledProvider` (`disabled`/`none`, exact script or human, reason `ai_disabled`);
+  `provider_from_env` returns it on any `AIConfigError` (missing key or `AI_MODEL`, model of another family,
+  invalid numbers, unknown provider) with an error log; real providers now need explicit `AI_MODEL`.
+  `router_from_env(ai_enabled=…)` and `knowledge_from_env(paid_embeddings=…)` keep Jev and Gemini off while AI is
+  disabled; Jev without key / invalid Jev settings / Gemini without key are logged and fall back. One startup line
+  `AI runtime enabled|DISABLED: provider=… model=… router=… embeddings=…`. Consult endpoint uses a disabled
+  consultant graph (static fallback, no model). Prod compose and `prod/.env.example` default `AI_PROVIDER=disabled`,
+  empty `AI_MODEL`; README.deploy.md "AI settings" lists the exact enable set; misleading "re-embeds on next sync"
+  comment replaced (re-sync command).
+- **Stock sync.** `InventoryRepository` create/reserve/release/deduct/adjust enqueue the variant's product in the
+  same transaction through the shared coalescing upsert (`knowledgeSyncCoalesce`: one row per product, fence+1);
+  revision stays the newest product/variant/inventory `updated_at` (µs).
+- **I4 re-sync.** `services/api/cmd/knowledge-resync` (`-tenant`, `-all-tenants`, `-status`; `API_DATABASE_URL`),
+  built into the api image; `make knowledge-resync tenant=…|all=1|status=1`; repository
+  `EnqueueKnowledgeResync` (active products, active scripts, live documents; failed jobs revived).
+- **Minor.** `knowledge-document-form.tsx` uses `@hexta/ui` `Input`. Failed/stuck (≥ 5 attempts) knowledge sync
+  counts: `KnowledgeSyncStatus`, logged by the messaging-command worker every 10 min when non-zero, printed by
+  `knowledge-resync`. Attempts are not capped (backoff already capped at 600 s). AI migrations renamed
+  `20261126950000/950001` (invalid hour 95) → `20261125223600/223601` and rehashed (never applied outside disposable
+  DBs); API `20261127100000/100001` kept: valid timestamps already after every existing API version (a valid
+  timestamp after the existing pseudo-version 20261126900200 must be on 2026-11-27).
+
+### Rehearsals (real containers, Compose v5.6.0, disposable projects; all removed afterwards)
+
+| Case | Result |
+| --- | --- |
+| (a) fresh empty volume | guard `empty data volume (fresh install)`, postgres healthy, marker written by init-db.sh, `vector 0.8.1`; restart: guard `marker present` |
+| (b) Alpine 3.23 volume (`datcollversion` NULL, 7200-row text-PK probe), new compose `up -d --wait --remove-orphans` | exit 1, `REFUSING TO START POSTGRES … section 10a`; pgvector container only `Created`, never started; old compose `up` (agent rollback) → `postgres:17.7-alpine3.23` healthy, data intact |
+| (c) §10a runbook on that volume | before REINDEX amcheck: `item order invariant violated for index "coll_probe_name"`; after REINDEX of 5 databases amcheck OK (hexta 167, others 164 indexes); marker; compose start: guard passes, `postgres-extensions` exit 0, amcheck via compose 167 OK, index lookup finds the row, 7200 rows |
+| Rollback of the switch | dump, `down`, volume rm, old `up --no-start`, copy into empty volume (copy into non-empty refused, exit 1), Alpine healthy, musl amcheck 167 OK |
+| deploy-agent `musl_downgrade` | old release + marked volume REFUSED; guarded release allowed; unmarked musl volume allowed; no volume allowed and none created |
+
+### Verification (this follow-up)
+
+| Scope | Command | Result |
+| --- | --- | --- |
+| Go format | `sh scripts/check-gofmt.sh` | PASS |
+| Go build / vet | `go build` and `go vet ./services/api/... ./packages/shared/...` | PASS |
+| Go tests + DB | `API_TEST_DATABASE_URL=<disposable :55439> go test -race -count=1 ./services/api/... ./packages/shared/...` | PASS (24 packages), incl. new `TestStockChangesEnqueueOneCoalescedProductSync`, `TestKnowledgeResyncAndStatusAgainstPostgres` |
+| Re-sync CLI | disposable API DB, all API migrations, `make knowledge-resync status=1|all=1|tenant=…`, no flags | counts printed; 1 source enqueued; usage error exit 1 |
+| AI offline | `cd services/ai && uv run pytest -q` | 260 passed, 11 skipped |
+| AI + pgvector DB | disposable `pgvector/pgvector:0.8.1-pg17-bookworm` initialised by prod `init-db.sh`, AI migrations applied as non-superuser `hexta_ai`, `AI_TEST_DATABASE_URL=<superuser> uv run pytest -q` | 271 passed |
+| AI startup (partial config) | uvicorn with `anthropic` and no model/key, Jev on without key, Gemini without key | ready (`provider=disabled`); `AI disabled: AI_PROVIDER=anthropic needs AI_MODEL…`, `Jev router off: …`, `AI runtime DISABLED …` |
+| Atlas | `make migrate-hash svc=ai`, `make migrate-validate`; `atlas migrate diff ci_schema_check --env api` / `--env ai` | PASS; both synced |
+| Proto / Swagger | no proto or HTTP contract change in this follow-up; `go test ./services/api/docs/...` inside the Go run | unchanged; PASS |
+| Web | `pnpm --filter web lint`, `pnpm --filter web exec tsc --noEmit`, `pnpm --filter web build` | PASS |
+| Compose | `config -q` (dummy env) for prod, prod+shared-edge, prod+build, demo, demo+mock, demo test profile, legacy docker-compose.yml, connector fixture | PASS (demo+ai-live unchanged, needs a private token: NOT_RUN) |
+| Instructions | `python3 scripts/check-agent-instructions.py` | PASS (0 errors) |
+| Live Claude / Jev / Gemini, server rollout, deploy agent on a server | — | NOT_RUN |
+
+### Remaining owner actions and handoff
+
+- Merge the release only with the §10a maintenance window (pause timer, backup off-server, manual switch).
+  Existing `.env`: set `AI_PROVIDER=disabled` and empty `AI_MODEL` (or the full enable set), never only one of them.
+- To enable AI: the seven settings in README.deploy.md "AI settings", then `knowledge-resync -all-tenants`.
+- Browser acceptance of Settings › Tài liệu and Desk citations; demo runtime check of the offline answer path.
+- Follow-up: RAG answers without Jev (provider classifier never routes to `answer`).
 - Not done until merged into main and verified.

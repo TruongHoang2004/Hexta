@@ -162,7 +162,7 @@ AI startup now checks storage readiness and starts its worker only after a succe
 
 Owner-decided Jev (TypeSafe System One) router behind `AI_JEV_ENABLED` (default off), typed PII redaction
 before TypeSafe, pgvector knowledge in `ai_runtime` (`knowledge_sources`, `knowledge_chunks`; extension in
-`public`, migrations 20261126950000/20261126950001) with Gemini embeddings, and Claude structured answers
+`public`, migrations 20261125223600/20261125223601) with Gemini embeddings, and Claude structured answers
 labelled `generated` + `requires_review`. The run is paid (LLM_CALL_STARTED fence) when the answer model,
 Jev or embeddings are real. Graph adds `retrieve_knowledge` → `answer_candidate`; Jev failure falls back
 to the deterministic matcher, then human. Go adapter mapping: see the integration section below. See
@@ -181,3 +181,12 @@ revision = newest change in µs), active scripts (`version_id`, revision = scrip
 FAILED_PRECONDITION are recorded as permanent. Offline demo router `AI_FAKE_ROUTER=keyword`; static clarify text
 `AI_CLARIFY_TEXT` (Vietnamese default). See
 [session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md).
+
+Review follow-up (same session, local/unmerged): runtime AI configuration is fail-safe. Owner decision 2026-11-26:
+production AI is off until fully configured (`AI_PROVIDER=disabled` default: exact active scripts or human, no
+router, no paid call); enabling means Claude + Jev + Gemini embeddings together. Missing/partial/invalid provider
+settings select the disabled provider with an `AI disabled: <reason>` log line instead of failing startup; Jev
+enabled without a key and Gemini embeddings without a key are logged and stay off / fall back to hashing; while AI
+is disabled Jev and paid embeddings stay off. Every stock change (inventory create/reserve/release/deduct/adjust)
+enqueues the variant's product in the same transaction (one coalesced job per product). `knowledge-resync` (API
+CLI) re-enqueues all live sources after an embedding model switch; the sync job logs failed/stuck counts.

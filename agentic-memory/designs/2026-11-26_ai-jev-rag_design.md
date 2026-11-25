@@ -160,14 +160,14 @@ source with `ON DELETE CASCADE`, `content text`, `token_estimate integer > 0`,
 
 Migrations (`migrations/ai`):
 
-1. `20261126950000_enable_pgvector.sql` — created with `atlas migrate new`, authored SQL:
+1. `20261125223600_enable_pgvector.sql` — created with `atlas migrate new`, authored SQL:
    `CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public` and a guard that the extension is in
    `public` with version ≥ 0.8.0 (iterative HNSW scans). Atlas Community cannot diff extensions
    ("extensions are available to logged-in users only"), and a dev database must have a clean
    `ai_runtime`, so the extension lives in `public` (database-wide object) instead of
    `ai_runtime`. pgvector is not a trusted extension: when the AI login is not a superuser, a
    superuser must create it first (owner follow-up); `IF NOT EXISTS` then makes the job a no-op.
-2. `20261126950001_knowledge_store.sql` — generated with `atlas migrate diff --env ai` against a
+2. `20261125223601_knowledge_store.sql` — generated with `atlas migrate diff --env ai` against a
    disposable pgvector dev database (`AI_DEV_URL`) that has `vector` preinstalled in `public`.
 
 Existing `runs` rows are untouched. Rollback: drop both tables (data is re-pushable from Go);
@@ -257,4 +257,7 @@ owner). Offline demo: `AI_FAKE_ROUTER=keyword`; static clarify text is Vietnames
 - Clarify text: Vietnamese default and `AI_CLARIFY_TEXT` IMPLEMENTED (2026-11-26 integration); exact wording is the owner's to confirm.
 - Business documents: minimal owner-managed `knowledge_documents` CRUD and Settings › Tài liệu IMPLEMENTED (2026-11-26 integration).
 - pgvector image, superuser extension creation, Atlas dev image and CI image: DECIDED and IMPLEMENTED in code (2026-11-26 integration); production rollout pending (README.deploy.md §10a).
+- Production AI default (owner decision 2026-11-26, supersedes the Claude production default): AI off
+  (`AI_PROVIDER=disabled`) until the owner sets Claude + Jev + Gemini embeddings together; misconfiguration
+  disables AI with a log line instead of failing startup. Image pinned to `pgvector/pgvector:0.8.1-pg17-bookworm`.
 - Live Vietnamese evaluation of Jev needs owner approval and a key.
