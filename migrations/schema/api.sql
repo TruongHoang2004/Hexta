@@ -166,6 +166,9 @@ CREATE INDEX "idx_orders_payment_status" ON "orders" ("payment_status");
 CREATE INDEX "idx_orders_source" ON "orders" ("source");
 -- Create index "idx_orders_status" to table: "orders"
 CREATE INDEX "idx_orders_status" ON "orders" ("status");
+-- Create index "idx_orders_tenant_created" to table: "orders"
+-- Owner overview period filter: tenant equality plus a created_at range (PRD MVP 6, FR-6.4).
+CREATE INDEX "idx_orders_tenant_created" ON "orders" ("tenant_id", "created_at");
 -- Create index "idx_orders_tenant_id" to table: "orders"
 CREATE INDEX "idx_orders_tenant_id" ON "orders" ("tenant_id");
 -- Create index "idx_orders_tenant_identity" to table: "orders"

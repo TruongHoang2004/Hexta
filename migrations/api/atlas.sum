@@ -1,4 +1,4 @@
-h1:JCfqjcqszSwTBLldgZ+RUWrvySu6JftOUFrecdB+up8=
+h1:F5Xdz9QuTE+9+CsliECMoTkCkwf+cy6yxJO6aQOXKXQ=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -18,3 +18,4 @@ h1:JCfqjcqszSwTBLldgZ+RUWrvySu6JftOUFrecdB+up8=
 20261116020138_telegram_bot_connection.sql h1:i82UqI2HUJwY/BwNGz0zeLzzkTbEukpnHK+F9N9V9M8=
 20261122052820_messaging_conversation_views.sql h1:pUwbigHr8yz2monzLFn727+lsZ+6m20Ueafgt2Nfglk=
 20261122052827_backfill_messaging_conversation_views.sql h1:ZaYuorD2DANLZjDbc2HTRWvBXYLoLbnYCEtCZryjdL4=
+20261126500000_orders_tenant_created.sql h1:Zcs00Aeja8N96a6vIEVYbWqh8bg/RWYQBxeZMtyde3Y=
