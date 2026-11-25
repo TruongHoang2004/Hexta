@@ -143,7 +143,16 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 		t.Fatal("bad session close contract", closed)
 	}
 	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":6,"outcome":"consulted"}`, 409)
-	request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":6,"outcome":"order_placed"}`, 200)
+	// The note bound applies after trimming, like the service: 1000 runes with surrounding spaces are accepted.
+	note := strings.Repeat("ư", 1000)
+	var edited dto.MessagingTurn
+	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":6,"outcome":"order_placed","note":"  `+note+`  "}`, 200), &edited); err != nil {
+		t.Fatal(err)
+	}
+	if edited.Note != note {
+		t.Fatal("the stored note must be trimmed")
+	}
+	request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":7,"outcome":"order_placed","note":"  `+note+`x  "}`, 400)
 	request("GET", "/conversations/not-a-uuid/sessions", "sale", "", 400)
 	request("GET", "/conversations/"+message.ThreadID+"/sessions?limit=0", "sale", "", 400)
 	var sessions dto.MessagingSessionPage

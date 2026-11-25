@@ -29,6 +29,10 @@ func (ctrl *MessagingCommandController) bind(c *gin.Context, input any) bool {
 		ctrl.ErrorData(c, apperrors.ErrBadRequest(c.Request.Context()).SetDetail("invalid JSON request"))
 		return false
 	}
+	// Requests whose service trims input normalize first, so validation bounds apply to the stored value.
+	if normalizer, ok := input.(interface{ Normalize() }); ok {
+		normalizer.Normalize()
+	}
 	if err := ctrl.ValidateRequest(c.Request.Context(), input); err != nil {
 		ctrl.ErrorData(c, err)
 		return false

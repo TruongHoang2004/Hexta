@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type MessagingQuery struct {
 	Cursor string `form:"cursor" validate:"omitempty,uuid"`
@@ -72,6 +75,11 @@ type MessagingSessionRequest struct {
 	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
 	Outcome         string `json:"outcome" validate:"required,oneof=order_placed consulted price_inquiry complaint no_response other" enums:"order_placed,consulted,price_inquiry,complaint,no_response,other"`
 	Note            string `json:"note" validate:"max=1000"`
+}
+
+// Normalize trims the note before validation, matching the service, so its length bound applies to the stored text.
+func (r *MessagingSessionRequest) Normalize() {
+	r.Note = strings.TrimSpace(r.Note)
 }
 
 // MessagingSessionQuery pages a conversation's sessions.
