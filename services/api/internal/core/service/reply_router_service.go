@@ -367,8 +367,14 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 					}
 				}
 				if !active {
-					// The source answer is no longer authorized: record the proposal as superseded, never sendable.
+					// The source answer is no longer authorized: the proposal is never sendable, and the customer's
+					// message would otherwise sit unanswered on a bot-handled turn nobody watches, so hand it to
+					// staff (the same reason as an AI-selected script that no longer exists).
 					supersede(p, "script_inactive")
+					p.Status, p.Route = types.ProposalHandedOff, types.RouteHandoff
+					if err := botHandoff(ctx, r, turn, "insufficient_information", map[string]any{"router_reason": "script_inactive", "proposal_id": p.ID}, now); err != nil {
+						return err
+					}
 				} else {
 					sent, reason, err := s.autoSend(ctx, r, *thread, turn, *p, now)
 					if err != nil {
