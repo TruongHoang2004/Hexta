@@ -275,6 +275,48 @@ func TestSessionReplayNeverResurrectsClosedSession(t *testing.T) {
 	}
 }
 
+// A snapshot written before session fields existed, replayed at the same turn version, must not erase the
+// closed_at/close_cause/outcome that the migration backfilled into the view; a newer turn still replaces them.
+func TestPreSessionSnapshotReplayKeepsBackfilledSessionFields(t *testing.T) {
+	f, s, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	if _, err := s.CloseSession(ctx, f.tenant, f.owner, turn.ID, closeInput(turn.Version)); err != nil {
+		t.Fatal(err)
+	}
+	views := repository.NewMessagingRepository(f.db).ConversationViews()
+	if err := views.Rebuild(ctx, f.tenant); err != nil {
+		t.Fatal(err)
+	}
+	events := conversationEvents(t, f.db, f.tenant)
+	var legacy messaging.ConversationChanged
+	if err := json.Unmarshal([]byte(events[len(events)-1].Payload), &legacy); err != nil {
+		t.Fatal(err)
+	}
+	legacy.ClosedAt, legacy.CloseCause, legacy.Outcome = nil, "", ""
+	if err := views.Apply(ctx, f.tenant, legacy); err != nil {
+		t.Fatal(err)
+	}
+	load := func() messagingmodel.ConversationView {
+		t.Helper()
+		var view messagingmodel.ConversationView
+		if err := f.db.Where("tenant_id = ? AND thread_id = ?", f.tenant, message.ThreadID).First(&view).Error; err != nil {
+			t.Fatal(err)
+		}
+		return view
+	}
+	if view := load(); view.TurnVersion != legacy.TurnVersion || view.ClosedAt == nil || deref(view.CloseCause) != types.TurnCloseManual || deref(view.Outcome) != "consulted" {
+		t.Fatal("a pre-session snapshot replay erased the backfilled session fields", view)
+	}
+	next := legacy
+	next.TurnID, next.TurnVersion, next.Lifecycle = uuid.Must(uuid.NewV7()).String(), 1, types.TurnOpen
+	if err := views.Apply(ctx, f.tenant, next); err != nil {
+		t.Fatal(err)
+	}
+	if view := load(); view.TurnID != next.TurnID || view.ClosedAt != nil || view.CloseCause != nil || view.Outcome != nil {
+		t.Fatal("a newer turn must replace the previous session fields", view)
+	}
+}
+
 func TestSessionListPaginationAndTenantIsolation(t *testing.T) {
 	f, s, message, first := messagingFixture(t)
 	ctx := context.Background()

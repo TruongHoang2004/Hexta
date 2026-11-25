@@ -26,6 +26,8 @@ func NewConversationViewRepository(db *gorm.DB) *ConversationViewRepository {
 // overwrites a newer row, while an identical snapshot is re-applied idempotently. Within one turn activity time never
 // moves back, because a confirmed send advances it without a new turn version. A closed turn's snapshot carries a
 // higher version than any of its open snapshots, so a replayed open snapshot never resurrects a closed session.
+// Within one turn the session fields (closed_at, close_cause, outcome) are only ever set, never cleared, so a
+// snapshot written before those fields existed (replayed at the same turn version) keeps the backfilled values.
 func (r *ConversationViewRepository) Apply(ctx context.Context, tenant string, e messaging.ConversationChanged) *apperrors.Error {
 	err := r.db.WithContext(ctx).Exec(`
 INSERT INTO messaging_conversation_views (tenant_id, thread_id, external_key, display_name, thread_created_at, thread_updated_at,
@@ -38,7 +40,12 @@ ON CONFLICT (tenant_id, thread_id) DO UPDATE SET
   turn_id = EXCLUDED.turn_id, lifecycle = EXCLUDED.lifecycle, control = EXCLUDED.control, assignee_id = EXCLUDED.assignee_id,
   needs_human = EXCLUDED.needs_human, needs_human_reason = EXCLUDED.needs_human_reason, context_revision = EXCLUDED.context_revision,
   control_generation = EXCLUDED.control_generation, turn_version = EXCLUDED.turn_version, review_pending = EXCLUDED.review_pending,
-  closed_at = EXCLUDED.closed_at, close_cause = EXCLUDED.close_cause, outcome = EXCLUDED.outcome,
+  closed_at = CASE WHEN messaging_conversation_views.turn_id = EXCLUDED.turn_id
+    THEN COALESCE(EXCLUDED.closed_at, messaging_conversation_views.closed_at) ELSE EXCLUDED.closed_at END,
+  close_cause = CASE WHEN messaging_conversation_views.turn_id = EXCLUDED.turn_id
+    THEN COALESCE(EXCLUDED.close_cause, messaging_conversation_views.close_cause) ELSE EXCLUDED.close_cause END,
+  outcome = CASE WHEN messaging_conversation_views.turn_id = EXCLUDED.turn_id
+    THEN COALESCE(EXCLUDED.outcome, messaging_conversation_views.outcome) ELSE EXCLUDED.outcome END,
   last_activity_at = CASE WHEN messaging_conversation_views.turn_id = EXCLUDED.turn_id
     THEN GREATEST(messaging_conversation_views.last_activity_at, EXCLUDED.last_activity_at) ELSE EXCLUDED.last_activity_at END
 WHERE messaging_conversation_views.turn_id < EXCLUDED.turn_id
