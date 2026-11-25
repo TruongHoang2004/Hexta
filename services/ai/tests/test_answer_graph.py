@@ -210,4 +210,6 @@ def test_fake_provider_answers_offline_from_knowledge():
     result, _ = run(FakeProvider())
     assert result.route == "generate" and result.cited_source_ids == ["product:polo"]
     # The fake answer quotes the record, so the tenant hotline stays and nothing is invented.
-    assert result.text.startswith("Áo Polo Dry-Fit")
+    assert result.text == ("Dạ, về Áo Polo Dry-Fit ạ: Áo Polo Dry-Fit, chất liệu co giãn. Hotline 0912 345 678. "
+                           "Giá: 299.000đ. Tồn kho: 15 sản phẩm. Anh/chị cần shop hỗ trợ thêm gì không ạ?")
+    assert result.requires_review and result.candidate_kind == "generated" and result.reason == "knowledge_answer"

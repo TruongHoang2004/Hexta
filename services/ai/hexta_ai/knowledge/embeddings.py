@@ -28,16 +28,29 @@ def normalize(vector: list[float]) -> list[float]:
     return [v / norm for v in vector]
 
 
+def fold(text: str) -> str:
+    """Lowercase Vietnamese text without diacritics ("Đổi trả" -> "doi tra"), for offline matching."""
+    decomposed = unicodedata.normalize("NFD", text.casefold().replace("đ", "d"))
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+
+
+# Question and filler words that carry no topic; dropping them keeps short questions close to their record.
+STOPWORDS = frozenset("""a ah a oi ad admin ban bao nhieu bn cho co con cua da duoc gi giup hay hoi khong ko k la
+lam may minh mot nao nay nhe nhi oi roi shop thi toi tu va voi vay ve vs khi the nhu nao""".split())
+
+
 class HashingEmbeddings:
-    """Offline, deterministic bag-of-words/bigram hashing. Similar wording yields similar vectors; no network."""
+    """Offline, deterministic hashing of diacritic-folded topic words and bigrams. Similar wording yields similar
+    vectors with or without Vietnamese diacritics; no network. Bump `model` whenever the vector function changes so
+    stored chunks are re-embedded."""
 
     name = "fake"
-    model = "hashing-768"
+    model = "hashing-768-v2"
     simulated = True
 
     @staticmethod
     def _vector(text: str) -> list[float]:
-        words = re.findall(r"\w+", unicodedata.normalize("NFC", text).casefold())
+        words = [w for w in re.findall(r"\w+", fold(unicodedata.normalize("NFC", text))) if w not in STOPWORDS]
         features = words + [f"{a} {b}" for a, b in zip(words, words[1:])]
         vector = [0.0] * DIMENSIONS
         for feature in features or ["<empty>"]:

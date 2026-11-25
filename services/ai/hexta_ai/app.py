@@ -14,7 +14,7 @@ from hexta_ai.rpc import start_server
 from hexta_ai.graph import PreviewRequest, PreviewResult, build_graph
 from hexta_ai.knowledge.service import knowledge_from_env
 from hexta_ai.providers import BaseAIProvider, ProviderError, provider_from_env
-from hexta_ai.routing.jev import jev_router_from_env
+from hexta_ai.routing import router_from_env
 from hexta_ai.schemas.consultant import ConsultantRequest, ConsultantResponse
 from hexta_ai.graph_consultant import consultant_graph
 
@@ -23,12 +23,14 @@ _FROM_ENV = object()
 
 
 class RuntimeProfile:
-    """Identity checked by durable recovery: paid when the answer model, Jev or embeddings are real."""
+    """Identity checked by durable recovery: paid when the answer model, Jev or embeddings are real. An offline
+    router (AI_FAKE_ROUTER) is simulated and keeps the profile simulated."""
 
     def __init__(self, provider, router, knowledge):
         self.name = provider.name
         self.model = provider.model
-        self.simulated = provider.simulated and router is None and (knowledge is None or knowledge.simulated)
+        self.simulated = (provider.simulated and (router is None or getattr(router, "simulated", False))
+                          and (knowledge is None or knowledge.simulated))
 
 
 def create_app(internal_token: str | None = None, provider: BaseAIProvider | None = None, *,
@@ -37,7 +39,7 @@ def create_app(internal_token: str | None = None, provider: BaseAIProvider | Non
     if len(token) < 24:
         raise RuntimeError("AI_INTERNAL_TOKEN must contain at least 24 characters")
     selected = provider if provider is not None else provider_from_env()
-    router = jev_router_from_env() if router is _FROM_ENV else router
+    router = router_from_env() if router is _FROM_ENV else router
     knowledge = knowledge_from_env() if knowledge is _FROM_ENV else knowledge
     profile = RuntimeProfile(selected, router, knowledge)
     graph = build_graph(selected, router=router, knowledge=knowledge, simulated=profile.simulated)

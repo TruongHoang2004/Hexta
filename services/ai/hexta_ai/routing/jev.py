@@ -170,6 +170,8 @@ def _noul(response, name) -> float:
 class JevRouter:
     name = "jev"
     simulated = False
+    # Fallback reason recorded when Jev answers below the configured thresholds.
+    uncertain_reason = "jev_low_probability"
 
     def __init__(self, config: JevConfig, client: SystemOneClient | None = None):
         if not config.active:

@@ -105,6 +105,20 @@ Design: [agentic-memory/designs/2026-11-26_ai-jev-rag_design.md](../../agentic-m
   numbers present in the cited records or the question. Refusals and provider errors become `human`
   candidates. Generated text is labelled `candidate_kind=generated`, `requires_review=true`: Go must never
   auto-send it.
+- **Offline demo router.** `AI_FAKE_ROUTER=keyword` (default unset) routes with a deterministic,
+  diacritics-insensitive Vietnamese keyword router (`hexta_ai/routing/keyword.py`, router `deterministic`,
+  model `keyword-v1`): unique exact trigger → `script`; staff/complaint/refund/order-problem words → `human`
+  (`customer_requested_staff`); product/price/stock/size/shipping/policy words → `answer`; very short or
+  vague messages → `clarify`; otherwise the deterministic fallback (`keyword_no_match`) → `human`. It makes
+  no network call and keeps runs simulated. Jev, when enabled with a key, always wins. With the default fake
+  provider an `answer` is an extractive Vietnamese reply built from the best retrieved record (cited, price
+  and stock from its attributes), so a demo shows "AI answer pending review with citations" without paid
+  calls. Offline hashing embeddings (`hashing-768-v2`, diacritic-folded words and bigrams without filler
+  words) give about 0.4–0.6 cosine for matching demo questions and below 0.15 for unrelated ones: use
+  `AI_RAG_MIN_SIMILARITY=0.15` with `AI_EMBEDDING_PROVIDER=fake`; keep the 0.55 default for Gemini.
+- **Clarifying question.** The static clarify text (not model-authored, so no review is required) defaults to
+  Vietnamese and is configurable with `AI_CLARIFY_TEXT` (1–500 characters, no `{`/`}`; invalid values fail
+  startup).
 - **Eval.** `uv run python -m hexta_ai.routing.evaluate` checks the Vietnamese fixture set
   (`evals/jev_routing_vi.json`) offline; `--replay` scores recorded answers and `--sweep` compares
   thresholds; `--live --confirm-paid-calls --record FILE` calls the paid API and needs owner approval.

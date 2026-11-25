@@ -32,6 +32,24 @@ def answer_min_confidence_from_env() -> float:
     return value
 
 
+# Static clarifying question (not model-authored, so it needs no review; Go may auto-send it). AI_CLARIFY_TEXT
+# overrides it per deployment.
+DEFAULT_CLARIFY_TEXT = ("Dạ, anh/chị đang quan tâm sản phẩm hoặc dịch vụ nào ạ? Anh/chị nói rõ thêm giúp shop "
+                        "để shop hỗ trợ chính xác nhé.")
+
+
+def checked_clarify_text(value: str) -> str:
+    value = sanitize(value)
+    if not value or len(value) > 500 or "{" in value or "}" in value:
+        raise RuntimeError("Invalid AI_CLARIFY_TEXT")
+    return value
+
+
+def clarify_text_from_env() -> str:
+    value = os.getenv("AI_CLARIFY_TEXT", "")
+    return checked_clarify_text(value) if value.strip() else DEFAULT_CLARIFY_TEXT
+
+
 def sanitize(text: str) -> str:
     return "".join(c for c in text if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf", "Cs")).strip()
 
@@ -142,10 +160,12 @@ def add_usage(first: Usage, second: Usage) -> Usage:
 
 
 def build_graph(provider: BaseAIProvider, *, router=None, knowledge=None, simulated: bool | None = None,
-                answer_min_confidence: float | None = None):
-    """router: optional JevRouter (None = Jev disabled). knowledge: optional KnowledgeService."""
+                answer_min_confidence: float | None = None, clarify_text: str | None = None):
+    """router: optional primary router (JevRouter or the offline KeywordRouter; None = provider classifier).
+    knowledge: optional KnowledgeService."""
     run_simulated = provider.simulated if simulated is None else simulated
     min_confidence = answer_min_confidence_from_env() if answer_min_confidence is None else answer_min_confidence
+    clarification = clarify_text_from_env() if clarify_text is None else checked_clarify_text(clarify_text)
 
     def validate_input(state):
         # Revalidate even when an internal caller bypassed normal Pydantic creation.
@@ -188,7 +208,7 @@ def build_graph(provider: BaseAIProvider, *, router=None, knowledge=None, simula
         history = [h.model_dump() for h in request.history]
         try:
             decision = await router.route(request.message, scripts, history)
-            reason = "jev_low_probability"
+            reason = getattr(router, "uncertain_reason", "jev_low_probability")
         except JevUnavailable as error:
             decision, reason = None, error.code
         if decision is None:
@@ -316,8 +336,7 @@ def build_graph(provider: BaseAIProvider, *, router=None, knowledge=None, simula
         return {"result": output.model_copy(update={"usage": total}), "usage": total, "steps": steps}
 
     def ask_clarification(state):
-        return {"result": result(state, "clarify", state["decision"].reason or "needs_clarification",
-                                 "Could you clarify which product or service you mean?"),
+        return {"result": result(state, "clarify", state["decision"].reason or "needs_clarification", clarification),
                 "steps": [*state["steps"], "ask_clarification"]}
 
     def request_human(state):
