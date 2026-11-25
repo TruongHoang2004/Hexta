@@ -42,6 +42,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
 		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingQueryController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.ScriptController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+	router.RegisterOrderCaseRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine)}, &controller.OrderCaseController{}, auth, &middleware.TenantMiddleware{})
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -151,6 +152,20 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				require.Contains(t, success.Properties, "data", "script responses must use the response envelope")
 				failure := resolveSchema(t, spec, op.Responses["403"].Schema)
 				require.Contains(t, failure.Properties, "detail")
+			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"get", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"put", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case/send-back"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case/finalize"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing order case operation %s %s", endpoint.method, endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route])
+				require.Contains(t, resolveSchema(t, spec, op.Responses["200"].Schema).Properties, "data")
+				require.Contains(t, resolveSchema(t, spec, op.Responses["403"].Schema).Properties, "detail")
 			}
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")

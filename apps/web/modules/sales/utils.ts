@@ -1,6 +1,19 @@
 import type { ChipTone } from "@/components/primitives";
 import type { Translate } from "@/lib/i18n/translate";
-import type { CatalogRow, Customer, DraftInput, Order, OrderCheck, OrderLine, OrderListFilter, OrderListView, Product } from "./types";
+import type {
+  CatalogRow,
+  Customer,
+  DraftInput,
+  Order,
+  OrderCase,
+  OrderCaseForm,
+  OrderCaseUpdateInput,
+  OrderCheck,
+  OrderLine,
+  OrderListFilter,
+  OrderListView,
+  Product,
+} from "./types";
 
 const knownStatuses = ["draft", "confirmed", "processing", "fulfilled", "cancelled", "returned"] as const;
 type KnownStatus = (typeof knownStatuses)[number];
@@ -148,4 +161,40 @@ export function orderChecks(
     },
     { key: "address", passed: !delivery || address.trim() !== "", label: t("orders.checklist.address") },
   ];
+}
+
+/** Editable case fields from the saved case; a line without a return shows an empty quantity. */
+export function caseFormFrom(value: OrderCase): OrderCaseForm {
+  const quantities: Record<string, string> = {};
+  for (const line of value.lines) quantities[line.order_item_id] = String(line.quantity);
+  return { note: value.progress_note, handler: value.handler_id, quantities };
+}
+
+/**
+ * Per-line client errors mirroring the API rule: a whole number from 0 up to the original quantity.
+ * The value is the original quantity a line exceeds, or 0 for an invalid number.
+ */
+export function returnQuantityErrors(order: Order, form: OrderCaseForm): Record<string, number> {
+  const errors: Record<string, number> = {};
+  for (const item of order.items) {
+    const raw = (form.quantities[item.id] ?? "").trim();
+    if (raw === "") continue;
+    const quantity = Number(raw);
+    if (!Number.isInteger(quantity) || quantity < 0) errors[item.id] = 0;
+    else if (quantity > item.quantity) errors[item.id] = item.quantity;
+  }
+  return errors;
+}
+
+/** Update body; blank or zero quantities are omitted so the line is not returned. */
+export function caseUpdateInput(value: OrderCase, order: Order, form: OrderCaseForm): OrderCaseUpdateInput {
+  const lines = order.items
+    .map((item) => ({ order_item_id: item.id, quantity: Number((form.quantities[item.id] ?? "").trim() || 0) }))
+    .filter((line) => line.quantity > 0);
+  return {
+    version: value.version,
+    note: form.note,
+    lines: value.type === "return" ? lines : [],
+    ...(form.handler && form.handler !== value.handler_id ? { handler_id: form.handler } : {}),
+  };
 }

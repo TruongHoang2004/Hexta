@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useOrderEditor, type OrderEditorOptions } from "../../hooks/use-order-editor";
 import type { Customer, Product } from "../../types";
 import { orderChecks } from "../../utils";
+import { OrderCasePanel } from "../order-case/order-case-panel";
 import { OrderChecklist } from "./order-checklist";
 import { OrderDraftForm } from "./order-draft-form";
 import { OrderEditorHeader } from "./order-editor-header";
@@ -20,7 +21,7 @@ interface Props extends Omit<OrderEditorOptions, "tenantID"> {
   members: TenantMember[];
 }
 
-/** Edit, claim and confirm one draft order; confirmed or others' drafts are read-only. */
+/** Edit, claim and confirm one draft order; confirmed or others' drafts are read-only. Confirmed orders show their case panel. */
 export function OrderEditor({ customers, products, members, ...options }: Props) {
   const { tenant, isOwner } = useWorkspace();
   const userID = useAuthStore((state) => state.user?.id);
@@ -82,6 +83,15 @@ export function OrderEditor({ customers, products, members, ...options }: Props)
       </div>
       {order && (
         <OrderSavedSummary order={order} dirty={dirty} busy={busy} onReload={() => void editor.reload(true)} />
+      )}
+      {order?.status === "confirmed" && (
+        <OrderCasePanel
+          order={order}
+          products={products}
+          members={members}
+          dirty={dirty}
+          setDirty={options.setDirty}
+        />
       )}
     </section>
   );
