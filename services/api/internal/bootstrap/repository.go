@@ -10,6 +10,7 @@ func BuildRepository() fx.Option {
 		fx.Annotate(repository.NewAICatalogRepository, fx.As(new(repository.IAICatalogRepository))),
 		repository.NewTenantOnboardingRepository,
 		repository.NewWorkflowRepository,
+		fx.Annotate(repository.NewOverviewRepository, fx.As(new(repository.OverviewStore))),
 		repository.NewMessagingRepository,
 		func(r *repository.MessagingRepository) repository.MessagingStore { return r },
 		func(r *repository.MessagingRepository) repository.MessagingQueryStore { return r },

@@ -17,6 +17,7 @@ func RegisterRoutes(
 	tenantController *controller.TenantController,
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
+	overview *controller.OverviewController,
 	messagingQuery *controller.MessagingQueryController,
 	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
@@ -94,6 +95,9 @@ func RegisterRoutes(
 	resources.POST("/work-items/:id/accept", workflows.Accept)
 	resources.POST("/work-items/:id/assign", workflows.Assign)
 	resources.POST("/work-items/:id/complete", workflows.Complete)
+
+	// Read-only owner overview; the service enforces owner identity (PRD MVP 6 rule 3).
+	resources.GET("/overview", overview.Overview)
 
 	resources.GET("/conversations", messagingQuery.List)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)

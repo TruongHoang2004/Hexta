@@ -13,6 +13,7 @@ func BuildController() fx.Option {
 		fx.Provide(controller.NewSalesController),
 		fx.Provide(controller.NewOrderCaseController),
 		fx.Provide(controller.NewWorkflowController),
+		fx.Provide(controller.NewOverviewController),
 		fx.Provide(controller.NewMessagingQueryController),
 		fx.Provide(controller.NewMessagingCommandController),
 		fx.Provide(controller.NewChannelController),

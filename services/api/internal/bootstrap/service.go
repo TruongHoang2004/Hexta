@@ -19,6 +19,7 @@ func BuildService() fx.Option {
 		service.NewSalesService,
 		service.NewOrderCaseService,
 		service.NewWorkflowService,
+		service.NewOverviewService,
 		service.NewMessagingQueryService,
 		service.NewMessagingCommandService,
 		service.NewChannelService,
