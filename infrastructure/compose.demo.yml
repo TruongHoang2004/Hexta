@@ -1,8 +1,9 @@
 # Standalone local dependencies; does not load the root .env or existing volumes.
 name: hexta-demo
 services:
+  # pgvector build of PostgreSQL 17 (owner decision 2026-11-26): the AI knowledge store needs the vector extension.
   postgres:
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17
     environment:
       POSTGRES_DB: hexta_demo
       POSTGRES_USER: hexta_demo
@@ -70,7 +71,7 @@ services:
         do kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t"
         --partitions 3 --replication-factor 1 || exit 1; done
   db-init:
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17
     depends_on:
       postgres:
         condition: service_healthy
@@ -207,6 +208,9 @@ services:
       JWT_ACCESS_TOKEN_SECRET: ${LOCAL_JWT_ACCESS_SECRET:?Set LOCAL_JWT_ACCESS_SECRET}
       JWT_REFRESH_TOKEN_SECRET: ${LOCAL_JWT_REFRESH_SECRET:?Set LOCAL_JWT_REFRESH_SECRET}
       CONNECTOR_MANAGEMENT_TOKEN: ${LOCAL_CONNECTOR_MANAGEMENT_TOKEN:?Set LOCAL_CONNECTOR_MANAGEMENT_TOKEN}
+      # The reply router and knowledge sync call the AI service over gRPC (ai.run_addr in local/api.yaml).
+      AI_RUN_ADDR: ai:50051
+      AI_INTERNAL_TOKEN: ${DEMO_AI_INTERNAL_TOKEN:?Set DEMO_AI_INTERNAL_TOKEN to a random local service token}
     volumes:
       - ./local/api.yaml:/app/config/config.yaml:ro
     healthcheck:
@@ -272,6 +276,11 @@ services:
       AI_DATABASE_URL: postgresql://hexta_ai:local-ai-only@postgres:5432/hexta_demo?sslmode=disable
       AI_PROVIDER: fake
       AI_INTERNAL_TOKEN: ${DEMO_AI_INTERNAL_TOKEN:?Set DEMO_AI_INTERNAL_TOKEN to a random local service token}
+      # Offline demo of grounded answers without paid calls: deterministic keyword router, hashing embeddings and
+      # the fake provider's extractive answer. Answers still come back requires_review and wait for staff.
+      AI_FAKE_ROUTER: keyword
+      AI_EMBEDDING_PROVIDER: fake
+      AI_RAG_MIN_SIMILARITY: "0.15"
       LANGSMITH_TRACING: "false"
     ports:
       - "127.0.0.1:58000:8000"
@@ -289,7 +298,7 @@ services:
       - no-new-privileges:true
   test-postgres:
     profiles: ["test"]
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17
     environment:
       POSTGRES_USER: ai_test
       POSTGRES_PASSWORD: test-only

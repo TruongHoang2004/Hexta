@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17
     container_name: hexta_postgres
     restart: always
     logging:

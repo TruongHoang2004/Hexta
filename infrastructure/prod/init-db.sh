@@ -14,6 +14,9 @@ CREATE DATABASE hexta OWNER hexta_api;
 ALTER SCHEMA public OWNER TO hexta_api;
 CREATE SCHEMA ai_runtime AUTHORIZATION hexta_ai;
 CREATE SCHEMA atlas_ai_revisions AUTHORIZATION hexta_ai;
+-- pgvector (AI knowledge store) is not a trusted extension: the superuser creates it so the hexta_ai migrator
+-- (non-superuser) succeeds. Existing volumes get it from the postgres-extensions job in compose.prod.yml.
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 REVOKE CONNECT ON DATABASE hexta FROM PUBLIC;
 GRANT CONNECT ON DATABASE hexta TO hexta_api, hexta_ai;
 

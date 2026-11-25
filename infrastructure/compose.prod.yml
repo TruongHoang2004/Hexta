@@ -43,8 +43,10 @@ services:
     mem_limit: 256m
     logging: *logging
 
+  # pgvector build of PostgreSQL 17 (owner decision 2026-11-26) for the AI knowledge store. Swapping the image on an
+  # existing data volume needs the rollout steps in README.deploy.md (backup, collation check, REINDEX).
   postgres:
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -133,8 +135,26 @@ services:
       API_DATABASE_URL: postgres://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
     command: ["apply"]
 
+  # Superuser one-shot: pgvector is not a trusted extension, so the non-superuser AI migrator cannot create it.
+  # init-db.sh covers a new volume; this idempotent job covers an existing one. It never touches application tables.
+  postgres-extensions:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    entrypoint: ["psql", "-h", "postgres", "-U", "postgres", "-d", "hexta", "-v", "ON_ERROR_STOP=1", "-c", "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public"]
+    logging: *logging
+
   migrate-ai:
     <<: *migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-extensions:
+        condition: service_completed_successfully
     environment:
       MIGRATE_TARGET: ai
       AI_DATABASE_URL: postgres://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
@@ -165,6 +185,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN}
+      # The reply router and knowledge sync call the AI service over gRPC (ai.run_addr in prod/api.yaml).
+      AI_RUN_ADDR: ai:50051
       CONNECTOR_MANAGEMENT_TOKEN: ${CONNECTOR_MANAGEMENT_TOKEN:?Set CONNECTOR_MANAGEMENT_TOKEN}
       META_APP_ID: ${META_APP_ID:-}
     volumes:
@@ -232,11 +254,18 @@ services:
     environment:
       AI_DATABASE_URL: postgresql://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN}
-      AI_PROVIDER: ${AI_PROVIDER:-fake}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      # Production default (owner decision 2026-11-26): Claude answers. The service fails closed at startup without
+      # ANTHROPIC_API_KEY; conversations are then handed to staff.
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      AI_MODEL: ${AI_MODEL:-claude-sonnet-5-5}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Jev routing (TypeSafe) stays off until enabled with a key; embeddings default to the offline hashing model.
+      AI_JEV_ENABLED: ${AI_JEV_ENABLED:-false}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-fake}
+      AI_RAG_MIN_SIMILARITY: ${AI_RAG_MIN_SIMILARITY:-0.55}
       LANGSMITH_TRACING: "false"
     healthcheck:
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
