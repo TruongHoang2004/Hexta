@@ -33,7 +33,7 @@ export function ThreadProposal({
     <ProposalCard
       proposal={proposal}
       mode={mode}
-      access={proposalAccess(turn, userID, owner)}
+      access={proposalAccess(turn, userID, owner, mode === "off")}
       assigneeName={assigneeName}
       busy={actions.busy}
       error={actions.error}

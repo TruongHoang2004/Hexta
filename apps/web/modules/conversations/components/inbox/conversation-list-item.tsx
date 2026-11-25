@@ -38,6 +38,9 @@ export function ConversationListItem({
           {row.turn?.needs_human && row.turn.lifecycle === "open" && (
             <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>
           )}
+          {row.turn?.review_pending && row.turn.lifecycle === "open" && (
+            <StatusChip tone="warning">{t("desk.reviewPending")}</StatusChip>
+          )}
         </span>
         <span className="text-xs text-muted">
           {assigneeName || t("desk.unassigned")}

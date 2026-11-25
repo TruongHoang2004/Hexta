@@ -89,6 +89,7 @@ export const vi = {
       CLOSED: "Lượt đã đóng",
     },
     needsHuman: "Cần người",
+    reviewPending: "Đề xuất chờ duyệt",
     needsHumanPanel: {
       title: "Cần người xử lý",
       reason: "Lý do: {reason}.",
@@ -157,6 +158,7 @@ export const vi = {
       ai_error: "Lỗi AI",
       business_review: "Cần chủ doanh nghiệp xem xét",
       staff_handoff: "Nhân viên bàn giao",
+      bot_off: "Bot đã tắt",
     },
     sender: {
       customer: "Khách",
@@ -900,6 +902,11 @@ export const vi = {
     legend: "Chọn chế độ",
     current: "Đang dùng",
     modes: {
+      off: {
+        name: "Tắt",
+        body: "Bot không chạy. Mọi hội thoại mới đều chờ nhân viên trả lời; không gọi AI, không có đề xuất.",
+        fit: "Mặc định cho mọi doanh nghiệp. Phù hợp khi chưa sẵn sàng dùng bot.",
+      },
       suggest: {
         name: "Gợi ý",
         body: "Bot soạn câu trả lời, nhân viên duyệt rồi mới gửi. Không gì đến tay khách nếu chưa có người bấm Gửi.",
@@ -907,19 +914,24 @@ export const vi = {
       },
       auto_send: {
         name: "Tự động gửi",
-        body: "Bot tự gửi câu trả lời từ kịch bản đã kích hoạt hoặc AI khi đủ điều kiện. Câu hỏi không chắc chắn vẫn chuyển cho nhân viên.",
+        body: "Bot tự gửi câu trả lời từ kịch bản đang kích hoạt và câu hỏi lại khách khi chưa rõ. Câu trả lời do AI tự viết luôn chờ nhân viên duyệt rồi mới gửi. Câu hỏi không chắc chắn vẫn chuyển cho nhân viên.",
         fit: "Phù hợp khi kịch bản đã ổn định.",
       },
     },
     flow: {
       title: "Bot xử lý mỗi tin nhắn thế nào",
       script: "Kịch bản khớp → dùng kịch bản",
-      ai: "AI trả lời được → câu trả lời AI",
+      ai: "AI trả lời được → câu trả lời AI (luôn chờ nhân viên duyệt)",
       clarify: "Chưa rõ → hỏi lại khách",
       handoff: "Cần người → chờ nhân viên",
       note: "Không phải tin nào cũng gọi mô hình AI: kịch bản đang kích hoạt khớp sẽ được dùng trước.",
     },
     confirm: {
+      off: {
+        title: "Tắt bot?",
+        body: "Từ bây giờ hội thoại mới chờ nhân viên. Hội thoại đang “Bot xử lý” giữ nguyên, nhưng khi khách nhắn tiếp sẽ chuyển sang chờ nhân viên. Các đề xuất đang chờ duyệt vẫn giữ để nhân viên gửi hoặc bỏ.",
+        action: "Tắt bot",
+      },
       suggest: {
         title: "Chuyển sang Gợi ý?",
         body: "Từ bây giờ bot chỉ đề xuất câu trả lời, nhân viên gửi. Các tin bot đã gửi không bị ảnh hưởng.",
@@ -927,12 +939,11 @@ export const vi = {
       },
       auto_send: {
         title: "Chuyển sang Tự động gửi?",
-        body: "Từ bây giờ bot sẽ tự gửi câu trả lời đủ điều kiện cho khách trong các hội thoại “Bot xử lý”. Các đề xuất đang chờ duyệt vẫn giữ nguyên, không tự gửi.",
+        body: "Từ bây giờ bot sẽ tự gửi câu trả lời từ kịch bản và câu hỏi lại khách trong các hội thoại “Bot xử lý”. Câu trả lời do AI tự viết vẫn chờ nhân viên duyệt. Các đề xuất đang chờ duyệt vẫn giữ nguyên, không tự gửi.",
         action: "Bật Tự động gửi",
       },
       enables: "Lưu cũng sẽ bật bot: hội thoại mới bắt đầu ở trạng thái Bot xử lý thay vì chờ nhân viên.",
     },
-    notConfigured: "Bot chưa được bật: hội thoại mới đang chờ nhân viên. Chọn một chế độ để bật bot.",
     ownerOnly: "Chỉ chủ doanh nghiệp mới đổi được chế độ trả lời.",
     saved: "Đã đặt chế độ trả lời: {mode}.",
     conflict: "Chế độ trả lời vừa được đổi ở nơi khác. Tải lại để xem.",
