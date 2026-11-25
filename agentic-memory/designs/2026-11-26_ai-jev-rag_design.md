@@ -241,11 +241,20 @@ Recorded in the session report: map the new `Run` fields, set `allow_knowledge_a
 `requires_review` / `generated` candidates from auto-send, map `handoff_reason`, and push
 product/script/document knowledge through `UpsertKnowledge` / `DeleteKnowledge` from a durable job.
 
+### 8.1 Integration status (2026-11-26, local/unmerged)
+
+IMPLEMENTED in [the integration session](../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md):
+Go maps Run fields 20–28 and sets `allow_knowledge_answer`; generated answers are pending proposals with stored,
+validated citations; `requires_review` is never auto-sent. Knowledge ingest goes through the durable Go
+`knowledge_sync_jobs` outbox and a `messaging-command` job (products, active scripts, owner-managed knowledge
+documents). pgvector image, superuser extension creation and the Atlas AI dev image are in place (DECIDED by the
+owner). Offline demo: `AI_FAKE_ROUTER=keyword`; static clarify text is Vietnamese (`AI_CLARIFY_TEXT`).
+
 ## 9. Open questions
 
 - Confirm the fallback reading: Jev disabled keeps the existing classifier; Jev failure uses only
   the deterministic matcher.
-- Clarify text is still the static English sentence; Vietnamese wording/configuration is OPEN.
-- Business documents have no Go table yet; their owner-entry UI/API is OPEN.
-- pgvector image, superuser extension creation, Atlas dev image and CI image are owner follow-ups.
+- Clarify text: Vietnamese default and `AI_CLARIFY_TEXT` IMPLEMENTED (2026-11-26 integration); exact wording is the owner's to confirm.
+- Business documents: minimal owner-managed `knowledge_documents` CRUD and Settings › Tài liệu IMPLEMENTED (2026-11-26 integration).
+- pgvector image, superuser extension creation, Atlas dev image and CI image: DECIDED and IMPLEMENTED in code (2026-11-26 integration); production rollout pending (README.deploy.md §10a).
 - Live Vietnamese evaluation of Jev needs owner approval and a key.

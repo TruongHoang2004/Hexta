@@ -102,7 +102,7 @@ done
 sed -i 's|^ACME_EMAIL=.*|ACME_EMAIL=<your email>|' .env
 ```
 
-Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key, `META_APP_ID`, and `DEPLOY_NOTIFY_TELEGRAM_TOKEN` / `DEPLOY_NOTIFY_TELEGRAM_CHAT_ID` for deploy notifications. Use hex values for passwords because they are embedded in database URLs.
+Then edit `.env` for the optional settings: `GOOGLE_CLIENT_*`, `AI_PROVIDER` plus its key (default `anthropic` / `claude-sonnet-5-5`, which needs `ANTHROPIC_API_KEY`; set `AI_PROVIDER=fake` to keep the bot offline), `META_APP_ID`, and `DEPLOY_NOTIFY_TELEGRAM_TOKEN` / `DEPLOY_NOTIFY_TELEGRAM_CHAT_ID` for deploy notifications. Use hex values for passwords because they are embedded in database URLs.
 
 Connector secret files (the connector runs as uid 10001):
 
@@ -197,6 +197,68 @@ crontab -e
 3. Run `./scripts/prod.sh up -d --wait`.
 
 Kafka holds only in-flight events. The connector and API keep their durable outboxes in Postgres, so a lost Kafka volume is recreated by `kafka-topics` and the outboxes republish pending events.
+
+## 10a. One-time switch to the pgvector Postgres image
+
+The release that introduces AI knowledge answers changes `postgres` from `postgres:17.7-alpine3.23` (musl) to
+`pgvector/pgvector:0.8.1-pg17` (Debian, glibc) and adds the `postgres-extensions` job (`CREATE EXTENSION vector`
+as the superuser, before `migrate-ai`). Both images are PostgreSQL 17, so the data directory is reused as is, but
+**text sort order changes between musl and glibc**: every B-tree index on `text`/`varchar` columns (including the
+`varchar(36)` IDs used as primary keys) must be rebuilt before the applications write again, or lookups and unique
+checks can silently fail. Do not let the deploy agent perform this switch unattended.
+
+Before merging that release PR:
+
+1. Put the new AI settings in `infrastructure/prod/.env`: `ANTHROPIC_API_KEY` (the default is now
+   `AI_PROVIDER=anthropic`, `AI_MODEL=claude-sonnet-5-5`; without a key the `ai` service fails closed and
+   `up --wait` fails, which triggers an automatic rollback). Set `AI_PROVIDER=fake` explicitly to keep the bot
+   offline instead. Optional: `AI_JEV_ENABLED=true` + `TYPESAFE_API_KEY`, `AI_EMBEDDING_PROVIDER=gemini` +
+   `GEMINI_API_KEY`.
+2. Pause automatic deploys: `sudo systemctl stop hexta-deploy.timer` (wait for a running deploy to finish:
+   `systemctl status hexta-deploy`).
+
+Maintenance window (writers stopped, a few minutes of downtime):
+
+```sh
+cd /opt/hexta
+# 1. Stop every writer; keep postgres running for the dump.
+./scripts/prod.sh stop caddy web api messaging-command ingress connector ai
+# 2. Logical backup, verified, then copied off the server.
+./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > ~/hexta-backups/pre-pgvector-$(date +%F-%H%M).sql.gz
+gunzip -t ~/hexta-backups/pre-pgvector-*.sql.gz && ls -lh ~/hexta-backups/pre-pgvector-*.sql.gz
+# 3. File-level copy of the stopped volume for a fast rollback (needs free disk about the size of the volume).
+./scripts/prod.sh stop postgres
+docker volume create hexta-prod_postgres_data_alpine17
+docker run --rm -v hexta-prod_postgres_data:/from:ro -v hexta-prod_postgres_data_alpine17:/to alpine:3.20 cp -a /from/. /to/
+# 4. Check out the release commit and start only postgres on the new image.
+git fetch origin && git checkout --detach <release commit>
+. infrastructure/prod/release.env && export HEXTA_IMAGE_TAG
+./scripts/prod.sh up -d --wait postgres
+# 5. Record the collation, rebuild every index of every database, refresh the recorded collation version.
+./scripts/prod.sh exec -T postgres psql -U postgres -Atc "SELECT datname, datcollate, datcollversion FROM pg_database"
+for db in hexta hexta_connector postgres template1; do
+  ./scripts/prod.sh exec -T postgres psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -c "REINDEX DATABASE $db" -c "ALTER DATABASE $db REFRESH COLLATION VERSION"
+done
+# 6. Start the stack: postgres-extensions creates vector, then migrate-api / migrate-ai run.
+./scripts/prod.sh up -d --wait --remove-orphans
+./scripts/prod.sh exec -T postgres psql -U postgres -d hexta -Atc "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'"
+echo "$HEXTA_IMAGE_TAG" > infrastructure/prod/state/deployed
+sudo systemctl start hexta-deploy.timer
+```
+
+A `REINDEX` failure on a unique index means duplicate rows were written under a mismatched order; stop and
+restore (below) instead of deleting rows. `datcollate` `C`/`POSIX` databases are not affected by the libc change
+but are reindexed anyway.
+
+Verify: section 6 health checks; `SELECT state, count(*) FROM knowledge_sync_jobs GROUP BY 1` in `hexta` drains
+from `pending` to `done` (migration 20261127100001 enqueues every active product and script once; `failed` rows
+carry a reason in `last_error`).
+
+Rollback: `./scripts/prod.sh down` (never `-v`), copy `hexta-prod_postgres_data_alpine17` back into
+`hexta-prod_postgres_data` the same way as step 3, check out the previous release commit and start it. The new
+tables and the `vector` extension are additive; the previous code ignores them. Alternatively restore the
+`pre-pgvector` dump into an empty volume as in section 10. Delete `hexta-prod_postgres_data_alpine17` only after
+the new release has run cleanly for a while.
 
 ## 11. Operations
 

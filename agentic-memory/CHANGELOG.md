@@ -1,5 +1,13 @@
 # Consolidated Project Changelog
 
+## 2026-11-26 — Knowledge answers wired end to end (in review)
+
+- Go maps the AI Run grounded-answer fields: AI answers stay pending for staff review with cited sources stored on the proposal and labelled on the Desk; `requires_review` candidates are never auto-sent; AI handoff reasons accepted only from the AI vocabulary. Router requeues a job when the bot is turned back on during routing.
+- Durable `knowledge_sync_jobs` outbox (migrations 20261127100000/100001, backfill of active products and scripts) and a `messaging-command` job push products, active scripts and new owner-managed knowledge documents (`/tenants/{id}/knowledge-documents`, Settings › Tài liệu) to the AI knowledge store.
+- pgvector image `pgvector/pgvector:0.8.1-pg17` in every Compose file and CI, superuser `CREATE EXTENSION vector` (init scripts + prod `postgres-extensions` job), Atlas AI dev image; `messaging-command` gets `AI_RUN_ADDR`/`AI_INTERNAL_TOKEN`. Production defaults to Claude (`anthropic`, `claude-sonnet-5-5`); rollout runbook in README.deploy.md §10a.
+- Offline demo: `AI_FAKE_ROUTER=keyword`, extractive fake answers with citations, diacritic-folding hashing embeddings; Vietnamese clarify text (`AI_CLARIFY_TEXT`).
+- Details: [session](epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md).
+
 ## 2026-11-26 — Jev routing, pgvector knowledge and Claude answers (in review, AI service)
 
 - Python AI routes with Jev (TypeSafe System One, `jev-1.14.0`, flag `AI_JEV_ENABLED`, default off) after typed PII redaction; failures fall back to the deterministic matcher, then human.

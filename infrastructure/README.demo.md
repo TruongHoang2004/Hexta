@@ -67,6 +67,26 @@ Run all AI tests, including an isolated real PostgreSQL integration database:
 
 The test database uses ephemeral tmpfs and separate credentials; tests never truncate the application database. For optional host development: `cd services/ai && uv sync --frozen && uv run pytest` runs offline tests, skipping the explicit-DSN integration test. See `services/ai/README.md` for host gRPC smoke/codegen.
 
+## Offline AI answers with citations (bot demo)
+
+The demo `ai` service runs without provider keys: `AI_FAKE_ROUTER=keyword` (deterministic Vietnamese keyword
+router), `AI_EMBEDDING_PROVIDER=fake` (hashing embeddings, `AI_RAG_MIN_SIMILARITY=0.15`) and the fake provider's
+extractive answer. `messaging-command` reaches it through `AI_RUN_ADDR=ai:50051`, and its knowledge sync job pushes
+products, active scripts and Settings › Tài liệu documents to the AI knowledge store a few seconds after each change.
+
+1. Settings › Reply mode: choose `suggest` or `auto_send`. Add a product (Sales › Products) or a document
+   (Settings › Tài liệu, owner only) and wait until its sync badge shows the bot can use it.
+2. Simulate a customer message such as `áo thun basic giá bao nhiêu` or `đổi trả trong bao lâu`.
+3. The Desk shows an AI answer proposal with its sources ("Nguồn: …") that stays pending for staff review in
+   every mode; vague messages (`alo`) get the Vietnamese clarifying question, staff requests hand off.
+
+No paid call is made; answers are labelled `requires_review` and are never sent automatically.
+
+Postgres now uses `pgvector/pgvector:0.8.1-pg17` (glibc) instead of the alpine image. An existing `hexta-demo`
+volume keeps working, but rebuild its text indexes once after the switch:
+`./scripts/local.sh exec -T postgres psql -U hexta_demo -d hexta_demo -c 'REINDEX DATABASE hexta_demo'` (repeat for
+`hexta_connector`), or reset the local data with `make reset`. `db-init` creates the `vector` extension.
+
 ## Logs, rebuild, stop and data
 
 ```sh

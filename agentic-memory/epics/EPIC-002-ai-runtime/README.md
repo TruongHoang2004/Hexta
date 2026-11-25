@@ -44,6 +44,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
+- [2026-11-26_ai-knowledge-integration](sessions/2026-11-26_ai-knowledge-integration.md) — in-review; Go adapter (citations, review gate, AI handoff reasons), knowledge sync outbox + knowledge documents, router toggle race fix, pgvector images everywhere, offline keyword router and Vietnamese clarify; Go race + DB, 233 AI tests with pgvector; live providers and prod rollout open.
 - [2026-11-26_ai-jev-rag](sessions/2026-11-26_ai-jev-rag.md) — in-review; Jev router, typed redaction, pgvector knowledge RPCs and Claude grounded answers (Python side); 212 tests with disposable pgvector DB; Go adapter, infra image and live evaluation open.
 
 - [2026-11-03_shopping-consultant](sessions/2026-11-03_shopping-consultant.md) — [PR #62](https://github.com/TruongHoang2004/Hexta/pull/62) Go SSE/web integration plus owner-review variant/checkout/URL fixes; fixture/build checks pass; live Python consult endpoint and browser acceptance remain open.

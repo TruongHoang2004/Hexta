@@ -165,6 +165,19 @@ before TypeSafe, pgvector knowledge in `ai_runtime` (`knowledge_sources`, `knowl
 `public`, migrations 20261126950000/20261126950001) with Gemini embeddings, and Claude structured answers
 labelled `generated` + `requires_review`. The run is paid (LLM_CALL_STARTED fence) when the answer model,
 Jev or embeddings are real. Graph adds `retrieve_knowledge` → `answer_candidate`; Jev failure falls back
-to the deterministic matcher, then human. Go adapter mapping is a pending follow-up. See
+to the deterministic matcher, then human. Go adapter mapping: see the integration section below. See
 [design](../2026-11-26_ai-jev-rag_design.md) and
 [session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-jev-rag.md).
+
+## Go integration of knowledge answers — 2026-11-26, local/unmerged
+
+Go sets `allow_knowledge_answer=true` and maps Run fields 20–28. Route `generate` becomes a pending `answer`
+proposal (always reviewed, never auto-sent) whose validated `cited_source_ids` are stored on
+`messaging_reply_proposals` and labelled on the Desk; `clarify` keeps `requires_review`; `human` accepts only the
+AI handoff vocabulary. Go pushes knowledge with `UpsertKnowledge`/`DeleteKnowledge` from the durable
+`knowledge_sync_jobs` outbox (messaging-command job, `ai.run_addr`): products (attributes sku/price/stock,
+revision = newest change in µs), active scripts (`version_id`, revision = script version), knowledge documents
+(revision = version). UNAVAILABLE/RESOURCE_EXHAUSTED retry with the same revision; INVALID_ARGUMENT and
+FAILED_PRECONDITION are recorded as permanent. Offline demo router `AI_FAKE_ROUTER=keyword`; static clarify text
+`AI_CLARIFY_TEXT` (Vietnamese default). See
+[session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md).
