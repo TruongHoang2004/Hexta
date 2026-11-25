@@ -31,3 +31,20 @@ func WorkRows(rows []overviewmodel.WorkRow) []types.OverviewWorkRow {
 	}
 	return result
 }
+
+func CaseTotals(rows []overviewmodel.CaseTotalRow) []types.OverviewCaseTotal {
+	result := make([]types.OverviewCaseTotal, len(rows))
+	for i, row := range rows {
+		result[i] = types.OverviewCaseTotal{OrderStatus: row.OrderStatus, CaseType: row.CaseType, CaseStatus: row.CaseStatus, Count: row.Count, Value: row.Value}
+	}
+	return result
+}
+
+// PendingCases uses the case's last change as the waiting start, in UTC.
+func PendingCases(rows []overviewmodel.PendingCaseRow) []types.OverviewPendingCase {
+	result := make([]types.OverviewPendingCase, len(rows))
+	for i, row := range rows {
+		result[i] = types.OverviewPendingCase{CaseID: row.CaseID, OrderID: row.OrderID, OrderNumber: row.OrderNumber, CaseType: row.CaseType, HandlerID: row.HandlerID, WaitingSince: row.UpdatedAt.UTC()}
+	}
+	return result
+}

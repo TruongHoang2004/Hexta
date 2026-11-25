@@ -3,11 +3,11 @@
 import { useT } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { useMoney } from "@/modules/sales";
-import type { Overview } from "../types";
+import type { Overview, OverviewCaseCounts } from "../types";
 import { StatTile } from "./stat-tile";
 
-/** Statuses shown as tiles; other non-empty buckets are listed under the tiles. */
-const tileStatuses = ["draft", "confirmed", "cancelled", "returned"];
+/** Statuses shown as tiles; other non-empty buckets (including legacy cancelled/returned) are listed under the tiles. */
+const tileStatuses = ["draft", "confirmed"];
 
 const statusLabels: Record<string, MessageKey> = {
   draft: "orders.status.draft",
@@ -19,13 +19,20 @@ const statusLabels: Record<string, MessageKey> = {
   other: "orders.status.other",
 };
 
-/** Order counts by status plus order value (explicitly not revenue). */
-export function OrderStatTiles({ orders }: { orders: Overview["orders"] }) {
+interface Props {
+  orders: Overview["orders"];
+  exceptions: Overview["exceptions"];
+}
+
+/** Order counts by status, cancellation/return cases by stage, and order value (explicitly not revenue). */
+export function OrderStatTiles({ orders, exceptions }: Props) {
   const t = useT();
   const money = useMoney();
   // A status added to the API later still shows, under its raw name, until it gets a label.
   const label = (status: string) => (statusLabels[status] ? t(statusLabels[status]) : status);
   const count = (status: string) => orders.by_status.find((bucket) => bucket.status === status)?.count ?? 0;
+  const split = (counts: OverviewCaseCounts) =>
+    t("overview.orders.exceptionsSplit", { cancellation: counts.cancellation, return: counts.return });
   const more = orders.by_status.filter((bucket) => !tileStatuses.includes(bucket.status) && bucket.count > 0);
   return (
     <section aria-labelledby="overview-orders" className="space-y-3">
@@ -36,6 +43,16 @@ export function OrderStatTiles({ orders }: { orders: Overview["orders"] }) {
         {tileStatuses.map((status) => (
           <StatTile key={status} label={label(status)} value={String(count(status))} />
         ))}
+        <StatTile
+          label={t("overview.orders.exceptionsInProgress")}
+          value={String(exceptions.in_progress.total)}
+          note={split(exceptions.in_progress)}
+        />
+        <StatTile
+          label={t("overview.orders.exceptionsFinalized")}
+          value={String(exceptions.finalized.total)}
+          note={split(exceptions.finalized)}
+        />
         <StatTile label={t("overview.orders.value")} value={money(orders.order_value)} note={t("overview.orders.valueNote")} />
       </div>
       {more.length > 0 && (

@@ -46,6 +46,15 @@ func (s *overviewStoreStub) OrderStatusTotals(_ context.Context, _ string, filte
 	s.filter = filter
 	return []types.OverviewOrderStatusTotal{{Status: "confirmed", Count: 1, Value: decimal.RequireFromString("1500.50")}}, nil
 }
+func (s *overviewStoreStub) CaseTotals(context.Context, string, types.OverviewFilter) ([]types.OverviewCaseTotal, *apperrors.Error) {
+	return []types.OverviewCaseTotal{
+		{OrderStatus: "confirmed", CaseType: types.OrderCaseTypeCancellation, CaseStatus: types.OrderCaseStatusFinalized, Count: 1, Value: decimal.RequireFromString("500.25")},
+		{OrderStatus: "confirmed", CaseType: types.OrderCaseTypeReturn, CaseStatus: types.OrderCaseStatusOpen, Count: 2, Value: decimal.NewFromInt(10)},
+	}, nil
+}
+func (s *overviewStoreStub) PendingCases(context.Context, string, types.OverviewFilter, int) ([]types.OverviewPendingCase, int64, *apperrors.Error) {
+	return []types.OverviewPendingCase{{CaseID: "case-1", OrderID: "order-1", OrderNumber: "A-1", CaseType: types.OrderCaseTypeReturn, HandlerID: "sale", WaitingSince: time.Date(2026, 11, 26, 5, 0, 0, 0, time.UTC)}}, 2, nil
+}
 func (s *overviewStoreStub) WorkCounts(context.Context, string, types.OverviewFilter, int) (types.OverviewWork, *apperrors.Error) {
 	return types.OverviewWork{BySteps: []types.OverviewStepCount{}}, nil
 }
@@ -118,16 +127,45 @@ func TestOverviewHTTPContract(t *testing.T) {
 				ThresholdHours int               `json:"threshold_hours"`
 				Items          []json.RawMessage `json:"items"`
 			} `json:"stuck"`
+			Exceptions struct {
+				InProgress struct {
+					Total, Cancellation, Return int64
+				} `json:"in_progress"`
+				Finalized struct {
+					Total, Cancellation, Return int64
+				} `json:"finalized"`
+				CancelledOrderValue string `json:"cancelled_order_value"`
+			} `json:"exceptions"`
+			PendingCases struct {
+				Total int64 `json:"total"`
+				Items []struct {
+					CaseID       string `json:"case_id"`
+					OrderID      string `json:"order_id"`
+					OrderNumber  string `json:"order_number"`
+					CaseType     string `json:"case_type"`
+					HandlerID    string `json:"handler_id"`
+					WaitingSince string `json:"waiting_since"`
+				} `json:"items"`
+			} `json:"pending_cases"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
 	d := body.Data
-	if d.Filters.From != "2026-10-31T17:00:00Z" || d.Orders.OrderValue != "1500.5" || len(d.Orders.ByStatus) != 7 || d.Stuck.ThresholdHours != 48 {
+	// 1500.50 confirmed less the 500.25 order whose cancellation is finalized.
+	if d.Filters.From != "2026-10-31T17:00:00Z" || d.Orders.OrderValue != "1000.25" || len(d.Orders.ByStatus) != 7 || d.Stuck.ThresholdHours != 48 {
 		t.Fatalf("unexpected body: %s", res.Body.String())
 	}
 	if d.Work.BySteps == nil || d.Stuck.Items == nil {
 		t.Fatalf("lists must serialize as [] rather than null: %s", res.Body.String())
+	}
+	e := d.Exceptions
+	if e.InProgress.Total != 2 || e.InProgress.Return != 2 || e.Finalized.Total != 1 || e.Finalized.Cancellation != 1 || e.CancelledOrderValue != "500.25" {
+		t.Fatalf("unexpected exceptions: %s", res.Body.String())
+	}
+	p := d.PendingCases
+	if p.Total != 2 || len(p.Items) != 1 || p.Items[0].OrderID != "order-1" || p.Items[0].CaseType != "return" || p.Items[0].HandlerID != "sale" || p.Items[0].WaitingSince != "2026-11-26T05:00:00Z" {
+		t.Fatalf("unexpected pending cases: %s", res.Body.String())
 	}
 }

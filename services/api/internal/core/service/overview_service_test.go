@@ -42,6 +42,14 @@ func (f *fakeOverviewStore) OrderStatusTotals(_ context.Context, _ string, filte
 	f.dataRead, f.filter = true, filter
 	return f.totals, nil
 }
+func (f *fakeOverviewStore) CaseTotals(context.Context, string, types.OverviewFilter) ([]types.OverviewCaseTotal, *apperrors.Error) {
+	f.dataRead = true
+	return nil, nil
+}
+func (f *fakeOverviewStore) PendingCases(context.Context, string, types.OverviewFilter, int) ([]types.OverviewPendingCase, int64, *apperrors.Error) {
+	f.dataRead = true
+	return []types.OverviewPendingCase{}, 0, nil
+}
 func (f *fakeOverviewStore) WorkCounts(context.Context, string, types.OverviewFilter, int) (types.OverviewWork, *apperrors.Error) {
 	f.dataRead = true
 	return types.OverviewWork{BySteps: []types.OverviewStepCount{}}, nil
@@ -158,6 +166,31 @@ func TestOverviewStuckReasons(t *testing.T) {
 	}
 }
 
+func TestOverviewExceptionsSplitStagesAndCancelledValue(t *testing.T) {
+	result := overviewExceptions([]types.OverviewCaseTotal{
+		{OrderStatus: "confirmed", CaseType: "cancellation", CaseStatus: "open", Count: 2, Value: decimal.NewFromInt(20)},
+		{OrderStatus: "confirmed", CaseType: "return", CaseStatus: "sent_back", Count: 1, Value: decimal.NewFromInt(30)},
+		{OrderStatus: "confirmed", CaseType: "cancellation", CaseStatus: "finalized", Count: 3, Value: decimal.RequireFromString("300.25")},
+		{OrderStatus: "fulfilled", CaseType: "cancellation", CaseStatus: "finalized", Count: 1, Value: decimal.NewFromInt(5)},
+		// A draft never counted as order value, so nothing is deducted for it.
+		{OrderStatus: "draft", CaseType: "cancellation", CaseStatus: "finalized", Count: 1, Value: decimal.NewFromInt(1000)},
+		// Finalized returns never reduce order value.
+		{OrderStatus: "confirmed", CaseType: "return", CaseStatus: "finalized", Count: 4, Value: decimal.NewFromInt(400)},
+	})
+	if result.InProgress != (types.OverviewCaseCounts{Total: 3, Cancellation: 2, Return: 1}) {
+		t.Fatalf("in progress: %+v", result.InProgress)
+	}
+	if result.Finalized != (types.OverviewCaseCounts{Total: 9, Cancellation: 5, Return: 4}) {
+		t.Fatalf("finalized: %+v", result.Finalized)
+	}
+	if !result.CancelledOrderValue.Equal(decimal.RequireFromString("305.25")) {
+		t.Fatalf("cancelled order value %s", result.CancelledOrderValue)
+	}
+	if empty := overviewExceptions(nil); !empty.CancelledOrderValue.IsZero() || empty.InProgress.Total != 0 || empty.Finalized.Total != 0 {
+		t.Fatal("no cases must report zero counts and zero value")
+	}
+}
+
 // overviewDBFixture seeds two tenants with fixed timestamps relative to base; see TestOverviewDatabase.
 type overviewDBFixture struct {
 	salesFixture
@@ -208,6 +241,27 @@ func overviewDBTestFixture(t *testing.T) overviewDBFixture {
 	order(f.tenant, "O6", "confirmed", &sale, base.Add(-5*day), 1000, false)
 	order(f.tenant, "O7", "confirmed", &sale, base.Add(2*day), 7000, true)
 	order(f.other, "B1", "confirmed", &owner, base.Add(2*day), 999, false)
+
+	// Exception cases never change order status. O2 return is open (waiting for the owner), O3 cancellation is
+	// finalized (left out of order value), O6 cancellation was sent back, the deleted O7 and the other tenant's
+	// B1 carry open cases that must not leak into this tenant's period.
+	orderCase := func(tenant, orderKey, caseType, status, handler string, updated time.Time) {
+		var finalizedBy *string
+		var finalizedAt *time.Time
+		if status == types.OrderCaseStatusFinalized {
+			finalizedBy, finalizedAt = &owner, &updated
+		}
+		if err := f.db.Exec(`INSERT INTO order_cases(id,tenant_id,order_id,case_type,status,handler_id,opened_by,finalized_by,finalized_at,version,created_at,updated_at)
+ VALUES (?,?,?,?,?,?,?,?,?,1,?,?)`, uuid.NewString(), tenant, orders[orderKey], caseType, status, handler, handler, finalizedBy, finalizedAt, updated, updated).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := o.now
+	orderCase(f.tenant, "O2", types.OrderCaseTypeReturn, types.OrderCaseStatusOpen, sale, now.Add(-5*time.Hour))
+	orderCase(f.tenant, "O3", types.OrderCaseTypeCancellation, types.OrderCaseStatusFinalized, peer, now.Add(-2*time.Hour))
+	orderCase(f.tenant, "O6", types.OrderCaseTypeCancellation, types.OrderCaseStatusSentBack, sale, now.Add(-30*time.Hour))
+	orderCase(f.tenant, "O7", types.OrderCaseTypeReturn, types.OrderCaseStatusOpen, sale, now.Add(-90*time.Hour))
+	orderCase(f.other, "B1", types.OrderCaseTypeReturn, types.OrderCaseStatusOpen, owner, now.Add(-1*time.Hour))
 
 	workflows := NewWorkflowService(repository.NewWorkflowRepository(f.db))
 	definition, err := workflows.Publish(ctx, f.tenant, f.owner, "", uuid.NewString(), types.WorkflowInput{Name: "Delivery", Steps: []types.WorkflowStepInput{{Name: "Prepare", HandoffMode: "acceptance"}, {Name: "Pack", HandoffMode: "direct"}, {Name: "Ship", HandoffMode: "direct"}}})
@@ -267,11 +321,26 @@ func TestOverviewDatabase(t *testing.T) {
 
 	t.Run("period", func(t *testing.T) {
 		r := read(o.tenant, o.owner, types.OverviewFilter{From: &from, To: &to})
-		if !r.HasActivity || r.Orders.Total != 5 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(500)) {
+		// O2 200 + O3 300 confirmed, less O3 whose cancellation is finalized.
+		if !r.HasActivity || r.Orders.Total != 5 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(200)) {
 			t.Fatalf("orders: total %d value %s", r.Orders.Total, r.Orders.OrderValue)
 		}
 		if overviewBucket(t, r, "draft").Count != 1 || overviewBucket(t, r, "confirmed").Count != 2 || overviewBucket(t, r, "cancelled").Count != 1 || overviewBucket(t, r, OverviewOrderStatusOther).Count != 1 {
 			t.Fatal("unexpected order buckets; soft-deleted and out-of-period orders must be excluded")
+		}
+		if !overviewBucket(t, r, "confirmed").Value.Equal(decimal.NewFromInt(500)) {
+			t.Fatal("status buckets keep stored totals; cases never change order status")
+		}
+		e := r.Exceptions
+		if e.InProgress != (types.OverviewCaseCounts{Total: 1, Return: 1}) || e.Finalized != (types.OverviewCaseCounts{Total: 1, Cancellation: 1}) || !e.CancelledOrderValue.Equal(decimal.NewFromInt(300)) {
+			t.Fatalf("unexpected exceptions: %+v", e)
+		}
+		p := r.PendingCases
+		if p.Total != 1 || len(p.Items) != 1 || p.Items[0].OrderNumber != "O2" || p.Items[0].CaseType != types.OrderCaseTypeReturn || p.Items[0].HandlerID != o.sale {
+			t.Fatalf("unexpected pending cases: %+v", p)
+		}
+		if p.Items[0].WaitingSince.Location() != time.UTC || !p.Items[0].WaitingSince.Equal(o.now.Add(-5*time.Hour)) {
+			t.Fatal("a pending case waits since its last change, in UTC")
 		}
 		w := r.Work
 		if w.Total != 4 || w.Active != 2 || w.Waiting != 1 || w.Completed != 1 || w.Unassigned != 1 || len(w.BySteps) != 3 {
@@ -301,6 +370,9 @@ func TestOverviewDatabase(t *testing.T) {
 		if r.Orders.Total != 3 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(200)) || r.Work.Total != 2 || r.Work.Unassigned != 0 {
 			t.Fatalf("employee filter: orders %d value %s work %d", r.Orders.Total, r.Orders.OrderValue, r.Work.Total)
 		}
+		if r.Exceptions.InProgress.Return != 1 || r.Exceptions.Finalized.Total != 0 || r.PendingCases.Total != 1 {
+			t.Fatalf("cases follow the order's sale: %+v %+v", r.Exceptions, r.PendingCases)
+		}
 		if got := overviewStuckIDs(r); len(got) != 1 || got[0] != "O2:Prepare:waiting_too_long" {
 			t.Fatalf("employee stuck rows follow current responsibility, not recipient: %v", got)
 		}
@@ -309,22 +381,30 @@ func TestOverviewDatabase(t *testing.T) {
 		if r.Work.Total != 1 || r.Work.Completed != 1 || r.Stuck.Total != 0 {
 			t.Fatal("a nominated recipient must not be credited with waiting work")
 		}
+		if r.Exceptions.Finalized.Cancellation != 1 || !r.Orders.OrderValue.IsZero() || r.PendingCases.Total != 0 {
+			t.Fatalf("peer's only confirmed order is cancelled: value %s %+v", r.Orders.OrderValue, r.Exceptions)
+		}
 	})
 
 	t.Run("all time", func(t *testing.T) {
 		r := read(o.tenant, o.owner, types.OverviewFilter{})
-		if r.Orders.Total != 6 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(1500)) || r.Work.Total != 5 {
+		if r.Orders.Total != 6 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(1200)) || r.Work.Total != 5 {
 			t.Fatalf("all time: orders %d value %s work %d", r.Orders.Total, r.Orders.OrderValue, r.Work.Total)
 		}
 		if got := overviewStuckIDs(r); len(got) != 3 || got[0] != "O6:Prepare:waiting_too_long" {
 			t.Fatalf("all time stuck rows, longest waiting first: %v", got)
+		}
+		// O6 was sent back to its handler: in progress, but not waiting for the owner. The deleted O7 is excluded.
+		if r.Exceptions.InProgress != (types.OverviewCaseCounts{Total: 2, Cancellation: 1, Return: 1}) || r.PendingCases.Total != 1 || r.PendingCases.Items[0].OrderNumber != "O2" {
+			t.Fatalf("all time cases: %+v %+v", r.Exceptions, r.PendingCases)
 		}
 	})
 
 	t.Run("no data in period", func(t *testing.T) {
 		later, end := o.now, o.now.Add(24*time.Hour)
 		r := read(o.tenant, o.owner, types.OverviewFilter{From: &later, To: &end})
-		if !r.HasActivity || r.Orders.Total != 0 || r.Work.Total != 0 || len(r.Work.BySteps) != 0 || len(r.Stuck.Items) != 0 || len(r.Orders.ByStatus) != len(overviewOrderStatuses)+1 {
+		if !r.HasActivity || r.Orders.Total != 0 || r.Work.Total != 0 || len(r.Work.BySteps) != 0 || len(r.Stuck.Items) != 0 || len(r.Orders.ByStatus) != len(overviewOrderStatuses)+1 ||
+			r.Exceptions.InProgress.Total != 0 || r.Exceptions.Finalized.Total != 0 || r.PendingCases.Items == nil || r.PendingCases.Total != 0 {
 			t.Fatalf("empty period must keep zero buckets and empty lists: %+v", r)
 		}
 	})
@@ -333,6 +413,9 @@ func TestOverviewDatabase(t *testing.T) {
 		r := read(o.other, o.owner, types.OverviewFilter{})
 		if !r.HasActivity || r.Orders.Total != 1 || !r.Orders.OrderValue.Equal(decimal.NewFromInt(999)) || r.Work.Total != 0 || r.Stuck.Total != 0 {
 			t.Fatalf("other tenant must see only its own rows: %+v", r.Orders)
+		}
+		if r.Exceptions.InProgress.Total != 1 || r.Exceptions.Finalized.Total != 0 || r.PendingCases.Total != 1 || r.PendingCases.Items[0].OrderNumber != "B1" {
+			t.Fatalf("other tenant must see only its own cases: %+v %+v", r.Exceptions, r.PendingCases)
 		}
 		r = read(o.empty, o.owner, types.OverviewFilter{})
 		if r.HasActivity || r.Orders.Total != 0 || r.Work.Total != 0 || r.Stuck.Items == nil || r.Work.BySteps == nil {

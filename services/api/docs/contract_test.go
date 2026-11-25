@@ -19,6 +19,8 @@ type schema struct {
 	Ref        string            `json:"$ref"`
 	Properties map[string]schema `json:"properties"`
 	Items      *schema           `json:"items"`
+	// AllOf holds the single reference swag emits for a documented struct field.
+	AllOf []schema `json:"allOf"`
 }
 type operation struct {
 	Parameters []struct {
@@ -171,11 +173,32 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 			require.True(t, exists, "missing owner overview operation")
 			require.True(t, registered["GET /api/v1/tenants/:tenantID/overview"])
 			overviewData := resolveSchema(t, spec, resolveSchema(t, spec, overview.Responses["200"].Schema).Properties["data"])
-			for _, field := range []string{"filters", "has_activity", "orders", "work", "stuck"} {
+			for _, field := range []string{"filters", "has_activity", "orders", "exceptions", "work", "stuck", "pending_cases"} {
 				require.Contains(t, overviewData.Properties, field)
 			}
 			_, namesRevenue := resolveSchema(t, spec, overviewData.Properties["orders"]).Properties["revenue"]
 			require.False(t, namesRevenue, "order totals are order value, never revenue")
+			// Exceptions come from order cases (cases never change order status) and carry no refund amount.
+			exceptions := resolveSchema(t, spec, overviewData.Properties["exceptions"])
+			for _, field := range []string{"in_progress", "finalized", "cancelled_order_value"} {
+				require.Contains(t, exceptions.Properties, field)
+			}
+			for _, forbidden := range []string{"revenue", "refund", "refunded_amount"} {
+				_, exists := exceptions.Properties[forbidden]
+				require.False(t, exists, "exceptions must not report %s", forbidden)
+			}
+			for _, stage := range []string{"in_progress", "finalized"} {
+				counts := resolveSchema(t, spec, exceptions.Properties[stage])
+				for _, field := range []string{"total", "cancellation", "return"} {
+					require.Contains(t, counts.Properties, field)
+				}
+			}
+			pendingCases := resolveSchema(t, spec, overviewData.Properties["pending_cases"])
+			require.Contains(t, pendingCases.Properties, "total")
+			pendingCase := resolveSchema(t, spec, *pendingCases.Properties["items"].Items)
+			for _, field := range []string{"case_id", "order_id", "order_number", "case_type", "handler_id", "waiting_since"} {
+				require.Contains(t, pendingCase.Properties, field)
+			}
 			require.Contains(t, resolveSchema(t, spec, overview.Responses["403"].Schema).Properties, "detail")
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")
@@ -188,6 +211,9 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 
 func resolveSchema(t *testing.T, spec specification, value schema) schema {
 	t.Helper()
+	if value.Ref == "" && len(value.AllOf) == 1 {
+		value = value.AllOf[0]
+	}
 	if value.Ref == "" {
 		return value
 	}

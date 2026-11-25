@@ -29,7 +29,8 @@ type OverviewOrderBucket struct {
 }
 
 // OverviewOrders summarizes the order cohort. OrderValue is the summed total of orders whose status
-// counts toward order value; it is never revenue (no payment, refund or cost is considered).
+// counts toward order value, less orders whose cancellation case is finalized; it is never revenue (no
+// payment, refund or cost is considered). ByStatus buckets keep the stored totals unchanged.
 type OverviewOrders struct {
 	Total      int64
 	OrderValue decimal.Decimal
@@ -86,12 +87,58 @@ type OverviewStuck struct {
 	Items          []OverviewStuckItem
 }
 
+// OverviewCaseTotal is the order cohort's exception cases grouped as stored: by the original order
+// status, case type and case status, with the summed original order totals.
+type OverviewCaseTotal struct {
+	OrderStatus string
+	CaseType    string
+	CaseStatus  string
+	Count       int64
+	Value       decimal.Decimal
+}
+
+// OverviewCaseCounts counts exception cases by type; Total is their sum.
+type OverviewCaseCounts struct {
+	Total        int64
+	Cancellation int64
+	Return       int64
+}
+
+// OverviewExceptions summarizes the cancellation/return cases of the order cohort. Cases never change the
+// order's status, so they are reported here and not as order status buckets.
+type OverviewExceptions struct {
+	// InProgress counts cases not yet finalized (open or sent back to the handler).
+	InProgress OverviewCaseCounts
+	Finalized  OverviewCaseCounts
+	// CancelledOrderValue is the total of value-counting orders whose cancellation case is finalized;
+	// it is left out of OverviewOrders.OrderValue. Return cases never change order value.
+	CancelledOrderValue decimal.Decimal
+}
+
+// OverviewPendingCase is an exception case waiting for the owner to finalize or send it back.
+type OverviewPendingCase struct {
+	CaseID       string
+	OrderID      string
+	OrderNumber  string
+	CaseType     string
+	HandlerID    string
+	WaitingSince time.Time
+}
+
+// OverviewPendingCases lists open cases of the order cohort, longest waiting first, with the full total.
+type OverviewPendingCases struct {
+	Total int64
+	Items []OverviewPendingCase
+}
+
 // OverviewResult is the read-only owner overview for one tenant snapshot.
 type OverviewResult struct {
 	Filter OverviewFilter
 	// HasActivity is true when the tenant has any order or work item at all, ignoring filters.
-	HasActivity bool
-	Orders      OverviewOrders
-	Work        OverviewWork
-	Stuck       OverviewStuck
+	HasActivity  bool
+	Orders       OverviewOrders
+	Exceptions   OverviewExceptions
+	Work         OverviewWork
+	Stuck        OverviewStuck
+	PendingCases OverviewPendingCases
 }

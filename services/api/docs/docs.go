@@ -2510,7 +2510,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Read-only and owner-only. Counts orders and work created in the half-open interval [from, to) (all time when both are omitted). employee_id narrows orders to their assigned sale and work to its current responsible member. Order value sums confirmed, processing and fulfilled order totals; it is not revenue. The stuck list holds open work that is unassigned or unchanged for longer than threshold_hours, longest waiting first, capped at 50 rows with the full total.",
+                "description": "Read-only and owner-only. Counts orders and work created in the half-open interval [from, to) (all time when both are omitted). employee_id narrows orders to their assigned sale and work to its current responsible member. Order value sums confirmed, processing and fulfilled order totals, less orders whose cancellation case is finalized; it is not revenue. exceptions counts the cancellation/return cases of those orders (in progress = open or sent back; finalized); cases do not change order status buckets. The stuck list holds open work that is unassigned or unchanged for longer than threshold_hours, longest waiting first, capped at 50 rows with the full total. pending_cases lists open cases of those orders waiting for the owner's decision, longest waiting first, capped at 50 rows with the full total.",
                 "produces": [
                     "application/json"
                 ],
@@ -5911,6 +5911,40 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewCaseCountsResponse": {
+            "type": "object",
+            "properties": {
+                "cancellation": {
+                    "type": "integer"
+                },
+                "return": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewExceptionsResponse": {
+            "type": "object",
+            "properties": {
+                "cancelled_order_value": {
+                    "description": "CancelledOrderValue is the total of confirmed, processing and fulfilled orders whose cancellation case\nis finalized; it is left out of orders.order_value. Nothing is refunded.",
+                    "type": "string"
+                },
+                "finalized": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewCaseCountsResponse"
+                },
+                "in_progress": {
+                    "description": "InProgress counts cases that are open or sent back to the handler.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewCaseCountsResponse"
+                        }
+                    ]
+                }
+            }
+        },
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewFiltersResponse": {
             "type": "object",
             "properties": {
@@ -5950,8 +5984,50 @@ const docTemplate = `{
                     }
                 },
                 "order_value": {
-                    "description": "OrderValue sums totals of confirmed, processing and fulfilled orders. It is not revenue.",
+                    "description": "OrderValue sums totals of confirmed, processing and fulfilled orders, less orders whose cancellation\ncase is finalized (exceptions.cancelled_order_value). It is not revenue.",
                     "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewPendingCaseResponse": {
+            "type": "object",
+            "properties": {
+                "case_id": {
+                    "type": "string"
+                },
+                "case_type": {
+                    "type": "string",
+                    "enum": [
+                        "cancellation",
+                        "return"
+                    ]
+                },
+                "handler_id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "waiting_since": {
+                    "description": "WaitingSince is the case's last change (opened or updated by the handler).",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewPendingCasesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewPendingCaseResponse"
+                    }
                 },
                 "total": {
                     "type": "integer"
@@ -5961,6 +6037,9 @@ const docTemplate = `{
         "github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewResponse": {
             "type": "object",
             "properties": {
+                "exceptions": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewExceptionsResponse"
+                },
                 "filters": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewFiltersResponse"
                 },
@@ -5970,6 +6049,9 @@ const docTemplate = `{
                 },
                 "orders": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewOrdersResponse"
+                },
+                "pending_cases": {
+                    "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewPendingCasesResponse"
                 },
                 "stuck": {
                     "$ref": "#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.OverviewStuckResponse"

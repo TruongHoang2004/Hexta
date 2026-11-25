@@ -49,3 +49,22 @@ type WorkRow struct {
 	RecipientID   *string
 	UpdatedAt     time.Time
 }
+
+// CaseTotalRow is one GROUP BY (order status, case type, case status) row of the cohort's cases.
+type CaseTotalRow struct {
+	OrderStatus string
+	CaseType    string
+	CaseStatus  string
+	Count       int64
+	Value       decimal.Decimal
+}
+
+// PendingCaseRow is one open case joined to its order.
+type PendingCaseRow struct {
+	CaseID      string
+	OrderID     string
+	OrderNumber string
+	CaseType    string
+	HandlerID   string
+	UpdatedAt   time.Time
+}

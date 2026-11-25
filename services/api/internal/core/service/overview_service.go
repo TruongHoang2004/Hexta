@@ -18,6 +18,8 @@ const (
 	OverviewStuckAfter = 48 * time.Hour
 	// overviewStuckLimit bounds the waiting/stuck rows; the response still reports the full total.
 	overviewStuckLimit = 50
+	// overviewPendingCaseLimit bounds the cases-awaiting-owner rows; the response still reports the full total.
+	overviewPendingCaseLimit = 50
 	// overviewStepLimit bounds (workflow version, step) groups; cohort totals are counted separately.
 	overviewStepLimit = 300
 
@@ -38,7 +40,8 @@ var overviewOrderStatuses = []string{
 }
 
 // overviewValueStatuses count toward order value: committed orders that were not cancelled or returned.
-// Drafts are not yet orders. Order value is a sum of order totals, never revenue.
+// Drafts are not yet orders. Order value is a sum of order totals, never revenue. Orders whose cancellation
+// case is finalized are deducted afterwards (see overviewExceptions); their status stays as stored.
 var overviewValueStatuses = map[string]bool{
 	string(model.OrderStatusConfirmed):  true,
 	string(model.OrderStatusProcessing): true,
@@ -113,6 +116,15 @@ func (s *OverviewService) Overview(ctx context.Context, tenant, actor string, fi
 			return err
 		}
 		result.Orders = overviewOrders(totals)
+		cases, err := r.CaseTotals(ctx, tenant, filter)
+		if err != nil {
+			return err
+		}
+		result.Exceptions = overviewExceptions(cases)
+		// Implementation decision 2026-11-26, pending owner confirmation: an order whose cancellation case is
+		// finalized no longer counts as order value. Status buckets keep their stored totals; return cases are
+		// not deducted (Hexta records no refunds).
+		result.Orders.OrderValue = result.Orders.OrderValue.Sub(result.Exceptions.CancelledOrderValue)
 		if result.Work, err = r.WorkCounts(ctx, tenant, filter, overviewStepLimit); err != nil {
 			return err
 		}
@@ -121,6 +133,11 @@ func (s *OverviewService) Overview(ctx context.Context, tenant, actor string, fi
 			return err
 		}
 		result.Stuck = overviewStuck(rows, total)
+		pending, pendingTotal, err := r.PendingCases(ctx, tenant, filter, overviewPendingCaseLimit)
+		if err != nil {
+			return err
+		}
+		result.PendingCases = types.OverviewPendingCases{Total: pendingTotal, Items: pending}
 		return nil
 	})
 	if err != nil {
@@ -152,6 +169,36 @@ func overviewOrders(totals []types.OverviewOrderStatusTotal) types.OverviewOrder
 		bucket.Value = bucket.Value.Add(row.Value)
 	}
 	result.ByStatus = append(result.ByStatus, other)
+	return result
+}
+
+// overviewExceptions splits cases into in progress (open, sent back) and finalized by type, and sums the
+// value of finalized cancellations on value-counting orders so it can be left out of order value.
+func overviewExceptions(totals []types.OverviewCaseTotal) types.OverviewExceptions {
+	result := types.OverviewExceptions{CancelledOrderValue: decimal.Zero}
+	for _, row := range totals {
+		var counts *types.OverviewCaseCounts
+		switch row.CaseStatus {
+		case types.OrderCaseStatusOpen, types.OrderCaseStatusSentBack:
+			counts = &result.InProgress
+		case types.OrderCaseStatusFinalized:
+			counts = &result.Finalized
+		default:
+			continue
+		}
+		switch row.CaseType {
+		case types.OrderCaseTypeCancellation:
+			counts.Cancellation += row.Count
+		case types.OrderCaseTypeReturn:
+			counts.Return += row.Count
+		default:
+			continue
+		}
+		counts.Total += row.Count
+		if row.CaseType == types.OrderCaseTypeCancellation && row.CaseStatus == types.OrderCaseStatusFinalized && overviewValueStatuses[row.OrderStatus] {
+			result.CancelledOrderValue = result.CancelledOrderValue.Add(row.Value)
+		}
+	}
 	return result
 }
 

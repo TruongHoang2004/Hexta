@@ -25,7 +25,7 @@ func NewOverviewController(validate *validator.Validate, overview *service.Overv
 
 // Overview
 // @Summary Read the tenant owner overview
-// @Description Read-only and owner-only. Counts orders and work created in the half-open interval [from, to) (all time when both are omitted). employee_id narrows orders to their assigned sale and work to its current responsible member. Order value sums confirmed, processing and fulfilled order totals; it is not revenue. The stuck list holds open work that is unassigned or unchanged for longer than threshold_hours, longest waiting first, capped at 50 rows with the full total.
+// @Description Read-only and owner-only. Counts orders and work created in the half-open interval [from, to) (all time when both are omitted). employee_id narrows orders to their assigned sale and work to its current responsible member. Order value sums confirmed, processing and fulfilled order totals, less orders whose cancellation case is finalized; it is not revenue. exceptions counts the cancellation/return cases of those orders (in progress = open or sent back; finalized); cases do not change order status buckets. The stuck list holds open work that is unassigned or unchanged for longer than threshold_hours, longest waiting first, capped at 50 rows with the full total. pending_cases lists open cases of those orders waiting for the owner's decision, longest waiting first, capped at 50 rows with the full total.
 // @Tags Overview
 // @Produce json
 // @Security BearerAuth

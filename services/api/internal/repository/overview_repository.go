@@ -20,6 +20,8 @@ type OverviewStore interface {
 	IsMember(ctx context.Context, tenant, user string) (bool, *apperrors.Error)
 	HasActivity(ctx context.Context, tenant string) (bool, *apperrors.Error)
 	OrderStatusTotals(ctx context.Context, tenant string, filter types.OverviewFilter) ([]types.OverviewOrderStatusTotal, *apperrors.Error)
+	CaseTotals(ctx context.Context, tenant string, filter types.OverviewFilter) ([]types.OverviewCaseTotal, *apperrors.Error)
+	PendingCases(ctx context.Context, tenant string, filter types.OverviewFilter, limit int) ([]types.OverviewPendingCase, int64, *apperrors.Error)
 	WorkCounts(ctx context.Context, tenant string, filter types.OverviewFilter, stepLimit int) (types.OverviewWork, *apperrors.Error)
 	OpenWork(ctx context.Context, tenant string, filter types.OverviewFilter, idleBefore time.Time, limit int) ([]types.OverviewWorkRow, int64, *apperrors.Error)
 }
@@ -123,6 +125,43 @@ func (r *OverviewRepository) OrderStatusTotals(ctx context.Context, tenant strin
 		return nil, overviewDBError(ctx)
 	}
 	return persistencemap.OrderStatusTotals(rows), nil
+}
+
+// orderCases joins the order cohort to its exception cases. A case is unique per (tenant, order), so the join
+// never duplicates an order, and the tenant is matched on both sides.
+func orderCases(q *gorm.DB) *gorm.DB {
+	return q.Joins("JOIN order_cases c ON c.tenant_id = orders.tenant_id AND c.order_id = orders.id")
+}
+
+// CaseTotals groups the cohort's cases as stored so the service decides stages and order value.
+func (r *OverviewRepository) CaseTotals(ctx context.Context, tenant string, filter types.OverviewFilter) ([]types.OverviewCaseTotal, *apperrors.Error) {
+	rows := []overviewmodel.CaseTotalRow{}
+	err := orderCases(r.orderCohort(ctx, tenant, filter)).
+		Select("orders.status AS order_status, c.case_type AS case_type, c.status AS case_status, count(*) AS count, COALESCE(sum(orders.total_amount), 0) AS value").
+		Group("orders.status, c.case_type, c.status").Order("orders.status, c.case_type, c.status").Scan(&rows).Error
+	if err != nil {
+		return nil, overviewDBError(ctx)
+	}
+	return persistencemap.CaseTotals(rows), nil
+}
+
+// PendingCases lists the cohort's open cases (waiting for the owner's decision), longest unchanged first.
+func (r *OverviewRepository) PendingCases(ctx context.Context, tenant string, filter types.OverviewFilter, limit int) ([]types.OverviewPendingCase, int64, *apperrors.Error) {
+	open := func() *gorm.DB {
+		return orderCases(r.orderCohort(ctx, tenant, filter)).Where("c.status = ?", types.OrderCaseStatusOpen)
+	}
+	var total int64
+	if err := open().Count(&total).Error; err != nil {
+		return nil, 0, overviewDBError(ctx)
+	}
+	rows := []overviewmodel.PendingCaseRow{}
+	err := open().Select(`c.id AS case_id, orders.id AS order_id, orders.order_number AS order_number,
+ c.case_type AS case_type, c.handler_id AS handler_id, c.updated_at AS updated_at`).
+		Order("c.updated_at ASC, c.id ASC").Limit(limit).Scan(&rows).Error
+	if err != nil {
+		return nil, 0, overviewDBError(ctx)
+	}
+	return persistencemap.PendingCases(rows), total, nil
 }
 
 func (r *OverviewRepository) WorkCounts(ctx context.Context, tenant string, filter types.OverviewFilter, stepLimit int) (types.OverviewWork, *apperrors.Error) {

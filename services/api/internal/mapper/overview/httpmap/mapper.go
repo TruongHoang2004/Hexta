@@ -14,6 +14,12 @@ func Overview(value types.OverviewResult) dto.OverviewResponse {
 		Orders:      dto.OverviewOrdersResponse{Total: value.Orders.Total, OrderValue: value.Orders.OrderValue, ByStatus: make([]dto.OverviewOrderBucketResponse, len(value.Orders.ByStatus))},
 		Work:        dto.OverviewWorkResponse{Total: value.Work.Total, Active: value.Work.Active, Waiting: value.Work.Waiting, Completed: value.Work.Completed, Unassigned: value.Work.Unassigned, BySteps: make([]dto.OverviewStepResponse, len(value.Work.BySteps))},
 		Stuck:       dto.OverviewStuckResponse{ThresholdHours: value.Stuck.ThresholdHours, Total: value.Stuck.Total, Items: make([]dto.OverviewStuckItemResponse, len(value.Stuck.Items))},
+		Exceptions: dto.OverviewExceptionsResponse{
+			InProgress:          caseCounts(value.Exceptions.InProgress),
+			Finalized:           caseCounts(value.Exceptions.Finalized),
+			CancelledOrderValue: value.Exceptions.CancelledOrderValue,
+		},
+		PendingCases: dto.OverviewPendingCasesResponse{Total: value.PendingCases.Total, Items: make([]dto.OverviewPendingCaseResponse, len(value.PendingCases.Items))},
 	}
 	for i, b := range value.Orders.ByStatus {
 		result.Orders.ByStatus[i] = dto.OverviewOrderBucketResponse{Status: b.Status, Count: b.Count, OrderValue: b.Value}
@@ -24,5 +30,12 @@ func Overview(value types.OverviewResult) dto.OverviewResponse {
 	for i, item := range value.Stuck.Items {
 		result.Stuck.Items[i] = dto.OverviewStuckItemResponse{WorkItemID: item.WorkItemID, OrderID: item.OrderID, OrderNumber: item.OrderNumber, WorkflowName: item.WorkflowName, StepOrdinal: item.StepOrdinal, StepName: item.StepName, State: item.State, ResponsibleID: item.Responsible, RecipientID: item.Recipient, Reason: item.Reason, WaitingSince: item.WaitingSince}
 	}
+	for i, item := range value.PendingCases.Items {
+		result.PendingCases.Items[i] = dto.OverviewPendingCaseResponse{CaseID: item.CaseID, OrderID: item.OrderID, OrderNumber: item.OrderNumber, CaseType: item.CaseType, HandlerID: item.HandlerID, WaitingSince: item.WaitingSince}
+	}
 	return result
+}
+
+func caseCounts(value types.OverviewCaseCounts) dto.OverviewCaseCountsResponse {
+	return dto.OverviewCaseCountsResponse{Total: value.Total, Cancellation: value.Cancellation, Return: value.Return}
 }

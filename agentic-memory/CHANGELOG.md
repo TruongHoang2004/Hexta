@@ -1,5 +1,12 @@
 # Consolidated Project Changelog
 
+## 2026-11-26 — Overview counts exception cases (in review, integrate/mvp5-6)
+
+- `GET /tenants/{id}/overview` adds `exceptions` (in-progress and finalized cancellation/return cases of the order cohort, `cancelled_order_value`) and `pending_cases` (open cases awaiting the owner, capped at 50). Additive JSON; no migration.
+- Order value now excludes orders whose cancellation case is finalized (returns unchanged; status buckets unchanged) — implementation decision pending owner confirmation.
+- Web Overview shows "Đang huỷ / trả" and "Đã chốt huỷ / trả" tiles and lists pending cases in the stuck table; Orders page opens `?order=<id>`.
+- Details: [session](epics/EPIC-007-orders-workflows/sessions/2026-11-26_overview-exceptions.md).
+
 ## 2026-11-22 — Event contracts in code (in review, PR #93)
 
 - `packages/shared/events`: one file per event (`MessageReceived`, `ConversationChanged`, `SendRequested`, `SendCompleted`, `HealthChanged`, `OrderConfirmed`) on the unchanged topics, one event type per topic; `catalog` maps events to topics. Order/conversation topics keep their envelope.

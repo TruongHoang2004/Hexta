@@ -30,6 +30,8 @@ updated: 2026-11-03
 
 ## Evidence and next handoff
 
+- [2026-11-26 overview exceptions](sessions/2026-11-26_overview-exceptions.md), branch `integrate/mvp5-6`, in-review: overview reads cancellation/return cases (`exceptions`, `pending_cases`); finalized cancellations leave order value (owner to confirm). Go/web checks pass; browser acceptance not run.
+
 - [2026-11-21 web wireframe rollout](sessions/2026-11-21_web-wireframe-rollout.md), local branch `feat/web-shell-i18n`, in-progress: phase 1 of the MVP 1–4 UI rollout (vi/en i18n, localized errors with support code, primitives, grouped role-aware shell). Lint/build pass; signed-in browser acceptance not run.
 
 - [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md), [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: tenant-membership middleware, composite tenant FKs for order items/variants and an order.confirmed outbox event in the confirmation transaction.

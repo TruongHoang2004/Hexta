@@ -37,11 +37,11 @@ export function OverviewContent({ data, loadedAt, tenantID, person }: Props) {
   }
   return (
     <div className="space-y-5">
-      <OrderStatTiles orders={data.orders} />
+      <OrderStatTiles orders={data.orders} exceptions={data.exceptions} />
       <div className="grid gap-5 lg:grid-cols-3">
         <WorkByStepCard work={data.work} />
         <div className="min-w-0 lg:col-span-2">
-          <StuckWorkTable stuck={data.stuck} tenantID={tenantID} person={person} now={loadedAt} />
+          <StuckWorkTable stuck={data.stuck} pending={data.pending_cases} tenantID={tenantID} person={person} now={loadedAt} />
         </div>
       </div>
     </div>
