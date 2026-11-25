@@ -464,11 +464,16 @@ func TestAutoSendSkipsScriptDeactivatedOrArchivedAfterRouting(t *testing.T) {
 				t.Fatal("a script that is no longer active must not be sent automatically")
 			}
 			rows := b.proposals(t, detail.Conversation.Turn.ID)
-			if p := rows[0]; p.Status != types.ProposalSuperseded || deref(p.Reason) != "script_inactive" || deref(p.Text) != "" || deref(p.ScriptVersionID) != "" {
-				t.Fatalf("the proposal must be superseded, not sendable: %+v", p)
+			if p := rows[0]; p.Status != types.ProposalHandedOff || deref(p.Reason) != "script_inactive" || deref(p.Text) != "" || deref(p.ScriptVersionID) != "" {
+				t.Fatalf("the proposal must end handed off, not sendable: %+v", p)
 			}
-			if len(detail.Proposals) != 0 || detail.Conversation.Turn.HandlingState() != "BOT_ACTIVE" {
-				t.Fatal("no live proposal remains and control is unchanged", detail.Proposals)
+			// Regression: the customer's message must not sit unanswered on a bot-handled turn nobody watches.
+			turn := detail.Conversation.Turn
+			if len(detail.Proposals) != 0 || turn.HandlingState() != "WAITING_STAFF" || turn.NeedsHumanReason != "insufficient_information" || turn.ReviewPending {
+				t.Fatalf("the turn must be handed to staff with no live proposal: %+v %+v", turn, detail.Proposals)
+			}
+			if b.route(t) != 0 || len(outbound(b.detail(t, message.ThreadID))) != 0 {
+				t.Fatal("nothing may be sent after the handoff")
 			}
 		})
 	}
