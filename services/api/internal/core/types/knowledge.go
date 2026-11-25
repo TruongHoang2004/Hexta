@@ -106,3 +106,13 @@ func (e *KnowledgeRejectedError) Error() string { return "AI knowledge ingest re
 // ErrKnowledgeRetryable means the AI service could not take the change now (UNAVAILABLE, RESOURCE_EXHAUSTED,
 // timeouts, transport); the job retries later with the same revision.
 var ErrKnowledgeRetryable = errors.New("AI knowledge ingest temporarily unavailable")
+
+// KnowledgeSyncStuckAttempts is the attempt count from which a still-retrying job is reported as stuck.
+const KnowledgeSyncStuckAttempts = 5
+
+// KnowledgeSyncStatus counts knowledge sync jobs for operators: Failed jobs were rejected by the AI service (they
+// stay failed until the source changes or a re-sync), Stuck jobs keep retrying (at least
+// KnowledgeSyncStuckAttempts attempts), Pending jobs are due or waiting for a retry.
+type KnowledgeSyncStatus struct {
+	Pending, Stuck, Failed, Done int64
+}

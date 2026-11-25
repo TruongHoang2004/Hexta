@@ -24,6 +24,10 @@ type fakeSyncStore struct {
 	failCode                  string
 }
 
+func (f *fakeSyncStore) KnowledgeSyncStatus(context.Context) (types.KnowledgeSyncStatus, *apperrors.Error) {
+	return types.KnowledgeSyncStatus{}, nil
+}
+
 func (f *fakeSyncStore) ClaimKnowledgeJob(context.Context) (*types.KnowledgeJob, *apperrors.Error) {
 	job := f.job
 	f.job = nil

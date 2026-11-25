@@ -42,6 +42,11 @@ func NewKnowledgeSyncService(store repository.KnowledgeSyncStore, ai IKnowledgeA
 	return &KnowledgeSyncService{store: store, ai: ai}
 }
 
+// Status counts sync jobs by outcome (failed, stuck retrying, pending, done) for operator logs.
+func (s *KnowledgeSyncService) Status(ctx context.Context) (types.KnowledgeSyncStatus, *apperrors.Error) {
+	return s.store.KnowledgeSyncStatus(ctx)
+}
+
 // SyncOne processes the next due job. It reports whether a job was claimed, so callers can drain without waiting.
 func (s *KnowledgeSyncService) SyncOne(ctx context.Context) (bool, *apperrors.Error) {
 	job, err := s.store.ClaimKnowledgeJob(ctx)

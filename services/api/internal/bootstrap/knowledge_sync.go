@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -15,6 +16,8 @@ const (
 	knowledgeSyncInterval = 2 * time.Second
 	// knowledgeSyncDrain bounds one drain so a burst of changes cannot starve shutdown.
 	knowledgeSyncDrain = 50
+	// knowledgeSyncReportInterval spaces the operator log line about failed or stuck knowledge sync jobs.
+	knowledgeSyncReportInterval = 10 * time.Minute
 )
 
 // BuildKnowledgeSync runs the AI knowledge sync job in the messaging command process, next to the reply router
@@ -55,7 +58,12 @@ func registerKnowledgeSync(lc fx.Lifecycle, sync *service.KnowledgeSyncService, 
 
 // runKnowledgeSync drains due jobs, then waits. Failures are logged without payloads; the job keeps its retry schedule.
 func runKnowledgeSync(ctx context.Context, sync *service.KnowledgeSyncService, logger *zap.SugaredLogger) {
+	var reported time.Time
 	for {
+		if time.Since(reported) >= knowledgeSyncReportInterval {
+			reported = time.Now()
+			reportKnowledgeSync(ctx, sync, logger)
+		}
 		for i := 0; i < knowledgeSyncDrain && ctx.Err() == nil; i++ {
 			claimed, err := sync.SyncOne(ctx)
 			if err != nil && ctx.Err() == nil {
@@ -70,5 +78,18 @@ func runKnowledgeSync(ctx context.Context, sync *service.KnowledgeSyncService, l
 			return
 		case <-time.After(knowledgeSyncInterval):
 		}
+	}
+}
+
+// reportKnowledgeSync logs counts only (never tenants, sources or payloads). Failed jobs need a source change or the
+// knowledge-resync command; stuck jobs usually mean the AI service or its embedding model is unavailable.
+func reportKnowledgeSync(ctx context.Context, sync *service.KnowledgeSyncService, logger *zap.SugaredLogger) {
+	status, err := sync.Status(ctx)
+	if err != nil {
+		return
+	}
+	if status.Failed > 0 || status.Stuck > 0 {
+		logger.Warnw("Knowledge sync jobs need attention", "failed", status.Failed, "stuck", status.Stuck,
+			"pending", status.Pending, "done", status.Done, "stuck_attempts", types.KnowledgeSyncStuckAttempts)
 	}
 }

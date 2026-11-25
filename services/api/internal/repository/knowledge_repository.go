@@ -49,19 +49,32 @@ type KnowledgeSyncStore interface {
 	KnowledgeProduct(ctx context.Context, tenant, id string) (*types.KnowledgeProduct, *apperrors.Error)
 	KnowledgeScript(ctx context.Context, tenant, id string) (*types.KnowledgeScript, *apperrors.Error)
 	KnowledgeDocument(ctx context.Context, tenant, id string) (*types.KnowledgeDocument, *apperrors.Error)
+	// KnowledgeSyncStatus counts jobs by outcome across tenants, for operator logs (no identifiers).
+	KnowledgeSyncStatus(ctx context.Context) (types.KnowledgeSyncStatus, *apperrors.Error)
 }
 
-// EnqueueKnowledgeSync records in the caller's transaction that a knowledge source changed (transactional outbox):
-// the job becomes due now and a lease held on an older state can no longer finish it.
+// knowledgeSyncCoalesce keeps one job per source: a new change makes the existing job pending and due now, and
+// advances its fence so a lease held on an older state can no longer finish it. The worker reads the current state
+// (and its revision) after commit, so coalesced changes are synced once at the newest revision.
+const knowledgeSyncCoalesce = ` ON CONFLICT (tenant_id, source_type, source_id) DO UPDATE SET state='pending', attempts=0,
+	fence=knowledge_sync_jobs.fence+1, available_at=EXCLUDED.available_at, last_error=NULL, updated_at=EXCLUDED.updated_at`
+
+// EnqueueKnowledgeSync records in the caller's transaction that a knowledge source changed (transactional outbox).
 func (r *SalesRepository) EnqueueKnowledgeSync(ctx context.Context, tenant, sourceType, sourceID string, at time.Time) *apperrors.Error {
 	err := r.db.WithContext(ctx).Exec(`INSERT INTO knowledge_sync_jobs (tenant_id, source_type, source_id, state, attempts, fence, available_at, updated_at)
-		VALUES (?, ?, ?, 'pending', 0, 1, ?, ?)
-		ON CONFLICT (tenant_id, source_type, source_id) DO UPDATE SET state='pending', attempts=0, fence=knowledge_sync_jobs.fence+1,
-			available_at=EXCLUDED.available_at, last_error=NULL, updated_at=EXCLUDED.updated_at`, tenant, sourceType, sourceID, at, at).Error
+		VALUES (?, ?, ?, 'pending', 0, 1, ?, ?)`+knowledgeSyncCoalesce, tenant, sourceType, sourceID, at, at).Error
 	if err != nil {
 		return salesDBError(ctx, err)
 	}
 	return nil
+}
+
+// enqueueVariantProductSync records, in the caller's transaction, that the stock of a variant changed: its product's
+// knowledge (the "stock" attribute) must be synced. Same tenant only; no job when the variant does not exist.
+func enqueueVariantProductSync(tx *gorm.DB, tenant, variantID string, at time.Time) error {
+	return tx.Exec(`INSERT INTO knowledge_sync_jobs (tenant_id, source_type, source_id, state, attempts, fence, available_at, updated_at)
+		SELECT v.tenant_id, ?, v.product_id, 'pending', 0, 1, ?, ? FROM product_variants v WHERE v.tenant_id = ? AND v.id = ?`+
+		knowledgeSyncCoalesce, types.KnowledgeSourceProduct, at, at, tenant, variantID).Error
 }
 
 // KnowledgeRepository stores knowledge documents and runs the knowledge sync queue.
@@ -250,6 +263,49 @@ func (r *KnowledgeRepository) KnowledgeDocument(ctx context.Context, tenant, id 
 	}
 	value := persistencemap.Document(rows[0])
 	return &value, nil
+}
+
+func (r *KnowledgeRepository) KnowledgeSyncStatus(ctx context.Context) (types.KnowledgeSyncStatus, *apperrors.Error) {
+	var status types.KnowledgeSyncStatus
+	err := r.db.WithContext(ctx).Raw(`SELECT
+			count(*) FILTER (WHERE state IN ('pending','leased') AND attempts < ?) AS pending,
+			count(*) FILTER (WHERE state IN ('pending','leased') AND attempts >= ?) AS stuck,
+			count(*) FILTER (WHERE state = 'failed') AS failed,
+			count(*) FILTER (WHERE state = 'done') AS done
+		FROM knowledge_sync_jobs`, types.KnowledgeSyncStuckAttempts, types.KnowledgeSyncStuckAttempts).Scan(&status).Error
+	if err != nil {
+		return status, knowledgeJobError(ctx)
+	}
+	return status, nil
+}
+
+// EnqueueKnowledgeResync enqueues every live knowledge source (active products, active scripts, knowledge documents)
+// of one tenant, or of every tenant when tenant is empty, in one transaction. Used after switching the embedding
+// model: the AI service re-embeds a source whose stored chunks carry another model. Existing jobs coalesce (failed
+// ones become pending again). It reports how many sources were enqueued.
+func (r *KnowledgeRepository) EnqueueKnowledgeResync(ctx context.Context, tenant string, at time.Time) (int64, *apperrors.Error) {
+	sources := []struct{ kind, query string }{
+		{types.KnowledgeSourceProduct, `SELECT tenant_id, id FROM products WHERE status = 'active' AND deleted_at IS NULL`},
+		{types.KnowledgeSourceScript, `SELECT tenant_id, id FROM scripts WHERE status = 'active'`},
+		{types.KnowledgeSourceDocument, `SELECT tenant_id, id FROM knowledge_documents WHERE deleted_at IS NULL`},
+	}
+	var total int64
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, source := range sources {
+			result := tx.Exec(`INSERT INTO knowledge_sync_jobs (tenant_id, source_type, source_id, state, attempts, fence, available_at, updated_at)
+				SELECT s.tenant_id, ?, s.id, 'pending', 0, 1, ?, ? FROM (`+source.query+`) s WHERE ? = '' OR s.tenant_id = ?`+
+				knowledgeSyncCoalesce, source.kind, at, at, tenant, tenant)
+			if result.Error != nil {
+				return result.Error
+			}
+			total += result.RowsAffected
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, knowledgeJobError(ctx)
+	}
+	return total, nil
 }
 
 var (
