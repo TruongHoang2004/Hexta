@@ -2,6 +2,7 @@ package httpmap
 
 import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+	replymap "github.com/TruongHoang2004/Hexta/services/api/internal/mapper/reply/httpmap"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/present/http/dto"
 )
 
@@ -44,7 +45,7 @@ func Page(value types.MessagingPage) dto.MessagingPage {
 	return result
 }
 func Detail(value types.MessagingDetail) dto.MessagingDetail {
-	result := dto.MessagingDetail{Conversation: Conversation(value.Conversation), Messages: make([]dto.MessagingMessage, len(value.Messages)), NextCursor: value.NextCursor}
+	result := dto.MessagingDetail{Conversation: Conversation(value.Conversation), Messages: make([]dto.MessagingMessage, len(value.Messages)), NextCursor: value.NextCursor, Proposals: replymap.Proposals(value.Proposals)}
 	for i, row := range value.Messages {
 		result.Messages[i] = Message(row)
 	}

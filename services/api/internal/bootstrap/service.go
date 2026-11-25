@@ -25,6 +25,7 @@ func BuildService() fx.Option {
 		service.NewChannelService,
 		newChannelSettings,
 		service.NewScriptService,
+		service.NewReplySettingsService,
 		// Member emails are display data for the script permission screen, read from the DB repository.
 		func(r *repository.TenantRepository) service.ScriptMemberDirectory { return r },
 		fx.Annotate(

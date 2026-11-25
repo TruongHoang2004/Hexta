@@ -109,6 +109,29 @@ export function threadAccess(args: {
   };
 }
 
+export interface ProposalAccess {
+  /** The viewer may send the proposal (UI gating only; the API authorizes the send). */
+  canSend: boolean;
+  /** Sending from bot handling claims the conversation for the viewer. */
+  claimsOnSend: boolean;
+  canDiscard: boolean;
+  canRegenerate: boolean;
+}
+
+/** What the viewer may do with a bot proposal, mirroring the API rules. */
+export function proposalAccess(turn: MessagingTurn | null | undefined, userID: string | undefined, owner: boolean): ProposalAccess {
+  const open = turn?.lifecycle === "open";
+  const assigned = !!userID && turn?.assignee_id === userID;
+  const bot = open && turn?.handling_state === "BOT_ACTIVE";
+  const staffMine = open && turn?.handling_state === "STAFF_ACTIVE" && assigned;
+  return {
+    canSend: bot || staffMine,
+    claimsOnSend: bot,
+    canDiscard: open && (owner || assigned || !turn?.assignee_id),
+    canRegenerate: bot || staffMine,
+  };
+}
+
 /** Hands a draft to the checkout page. Throws when session storage is unavailable. */
 export function saveCheckoutDraft(tenantID: string, draft: ConsultDraft) {
   sessionStorage.setItem(checkoutKey(tenantID), JSON.stringify(draft));

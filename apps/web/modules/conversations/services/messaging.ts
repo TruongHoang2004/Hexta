@@ -45,10 +45,31 @@ export interface MessagingMessage {
   delivery_status: "received" | "sending" | "sent" | "failed" | "unknown";
   delivery_error_reason: string;
 }
+/** A bot reply proposal. `stale` means conversation control changed after it was created: it can never be sent. */
+export interface ReplyProposal {
+  id: string;
+  turn_id: string;
+  /** routing: the bot is still preparing it (no text yet); pending: waiting for a sale. */
+  status: "routing" | "pending" | "sent" | "auto_sent" | "discarded" | "superseded" | "handed_off" | "no_candidate";
+  route?: "script" | "answer" | "clarify" | "handoff";
+  source?: "script" | "ai";
+  script_version_id?: string;
+  script_name?: string;
+  script_version?: number;
+  ai_run_id?: string;
+  text?: string;
+  reason?: string;
+  control_generation: number;
+  stale: boolean;
+  requested_by?: string;
+  created_at: string;
+}
 export interface MessagingDetail {
   conversation: Conversation;
   messages: MessagingMessage[];
   next_cursor: string;
+  /** Live bot proposals of the latest turn (at most one). */
+  proposals?: ReplyProposal[];
 }
 export interface MessagingPage {
   items: Conversation[];
@@ -77,6 +98,8 @@ export interface ChannelSendInput {
   expected_version: number;
   context_revision: number;
 }
+/** Actor recorded on messages the bot sent itself (auto_send). */
+export const botActorID = "system:bot";
 const base = (tenant: string) => `/api/v1/tenants/${tenant}`;
 export const messaging = {
   async list(
@@ -146,6 +169,32 @@ export const messaging = {
     const result = await sdk.client.post<{ data: MessagingMessage }>(
       `${base(tenant)}/turns/${turn}/messages`,
       input,
+    );
+    return result.data.data;
+  },
+  /** Sends a proposal as-is (no text) or edited; retry with the same client_message_id to replay. */
+  async sendProposal(
+    tenant: string,
+    turn: string,
+    proposal: string,
+    input: { client_message_id: string; text?: string },
+  ): Promise<MessagingMessage> {
+    const result = await sdk.client.post<{ data: MessagingMessage }>(
+      `${base(tenant)}/turns/${turn}/proposals/${proposal}/send`,
+      input,
+    );
+    return result.data.data;
+  },
+  async discardProposal(tenant: string, turn: string, proposal: string): Promise<ReplyProposal> {
+    const result = await sdk.client.post<{ data: ReplyProposal }>(
+      `${base(tenant)}/turns/${turn}/proposals/${proposal}/discard`,
+    );
+    return result.data.data;
+  },
+  /** Asks the bot for a new proposal at the current conversation control. */
+  async regenerateProposal(tenant: string, turn: string): Promise<ReplyProposal> {
+    const result = await sdk.client.post<{ data: ReplyProposal }>(
+      `${base(tenant)}/turns/${turn}/regenerate-proposal`,
     );
     return result.data.data;
   },

@@ -43,7 +43,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.OverviewController{}, &controller.MessagingQueryController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.ScriptController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.OverviewController{}, &controller.MessagingQueryController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.ScriptController{}, &controller.ReplySettingsController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
 	router.RegisterOrderCaseRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine)}, &controller.OrderCaseController{}, auth, &middleware.TenantMiddleware{})
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {

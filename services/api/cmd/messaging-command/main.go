@@ -1,5 +1,5 @@
 // Command messaging-command serves the conversation write side (claim, assign, handoff, resolve, replies, simulator
-// input) and runs the 24-hour turn expiry job.
+// input, bot proposal send/discard/regenerate) and runs the 24-hour turn expiry job and the bot reply router.
 // The public API forwards those routes here and keeps serving reads; both share the API database.
 package main
 
@@ -50,6 +50,8 @@ func main() {
 		bootstrap.MessagingCommandRouterModule,
 		// Conversation writes live here, so the 24-hour turn expiry job does too.
 		bootstrap.BuildTurnExpiry(),
+		// The bot reply router turns customer messages on bot-handled turns into proposals or bot sends.
+		bootstrap.BuildReplyRouter(),
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), gracefulTimeout)

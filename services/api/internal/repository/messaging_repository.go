@@ -11,6 +11,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"time"
 )
 
 type MessagingStore interface {
@@ -30,6 +31,15 @@ type MessagingStore interface {
 	BindThreadChannel(context.Context, string, string, string, string) *apperrors.Error
 	SendConnection(context.Context, string, string) (*types.ChannelConnection, *apperrors.Error)
 	InsertOutbound(context.Context, types.OutboundIntent, types.OutboundAttempt, *model.DomainEvent) *apperrors.Error
+	// Bot reply routing and proposals (MVP 5). See reply_repository.go.
+	ReplySettings(context.Context, string, bool) (types.ReplySettings, *apperrors.Error)
+	InsertRouting(context.Context, types.ReplyProposal) *apperrors.Error
+	Proposal(context.Context, string, string, bool) (*types.ReplyProposal, *apperrors.Error)
+	SaveProposal(context.Context, types.ReplyProposal) *apperrors.Error
+	Message(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
+	LatestInbound(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
+	RecentMessages(context.Context, string, string, string, int) ([]types.MessagingMessage, *apperrors.Error)
+	CancelPendingBotSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
 }
 type MessagingRepository struct {
 	*SalesRepository

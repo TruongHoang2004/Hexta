@@ -14,6 +14,7 @@ func BuildRepository() fx.Option {
 		repository.NewMessagingRepository,
 		func(r *repository.MessagingRepository) repository.MessagingStore { return r },
 		func(r *repository.MessagingRepository) repository.MessagingQueryStore { return r },
+		func(r *repository.MessagingRepository) repository.ReplySettingsStore { return r },
 		fx.Annotate(repository.NewChannelRepository, fx.As(new(repository.ChannelStore))),
 		fx.Annotate(repository.NewScriptRepository, fx.As(new(repository.ScriptStore))),
 		repository.NewBaseRepository,

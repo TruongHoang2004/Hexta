@@ -78,6 +78,8 @@ type MessagingDetail struct {
 	Conversation MessagingConversation
 	Messages     []MessagingMessage
 	NextCursor   string
+	// Proposals are the latest turn's live bot reply proposals (routing or pending) with derived staleness.
+	Proposals []ProposalView
 }
 type MessagingPage struct {
 	Items      []MessagingConversation

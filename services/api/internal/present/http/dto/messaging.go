@@ -98,4 +98,6 @@ type MessagingDetail struct {
 	Conversation MessagingConversation `json:"conversation"`
 	Messages     []MessagingMessage    `json:"messages"`
 	NextCursor   string                `json:"next_cursor"`
+	// Proposals are the latest turn's live bot reply proposals (at most one routing or pending proposal).
+	Proposals []ReplyProposal `json:"proposals"`
 }
