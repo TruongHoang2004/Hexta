@@ -6776,7 +6776,15 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "handling_state": {
-                    "type": "string"
+                    "description": "HandlingState is who handles an open turn; CLOSED once the turn (session) is closed.",
+                    "type": "string",
+                    "enum": [
+                        "BOT_ACTIVE",
+                        "WAITING_STAFF",
+                        "STAFF_ACTIVE",
+                        "UNKNOWN",
+                        "CLOSED"
+                    ]
                 },
                 "id": {
                     "type": "string"

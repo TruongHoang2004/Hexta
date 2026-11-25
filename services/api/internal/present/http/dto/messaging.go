@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type MessagingQuery struct {
 	Cursor string `form:"cursor" validate:"omitempty,uuid"`
@@ -37,11 +40,12 @@ type MessagingThread struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 type MessagingTurn struct {
-	ID            string  `json:"id"`
-	ThreadID      string  `json:"thread_id"`
-	Lifecycle     string  `json:"lifecycle"`
-	Control       string  `json:"control"`
-	HandlingState string  `json:"handling_state"`
+	ID        string `json:"id"`
+	ThreadID  string `json:"thread_id"`
+	Lifecycle string `json:"lifecycle"`
+	Control   string `json:"control"`
+	// HandlingState is who handles an open turn; CLOSED once the turn (session) is closed.
+	HandlingState string  `json:"handling_state" enums:"BOT_ACTIVE,WAITING_STAFF,STAFF_ACTIVE,UNKNOWN,CLOSED"`
 	AssigneeID    *string `json:"assignee_id"`
 	NeedsHuman    bool    `json:"needs_human"`
 	// NeedsHumanReason is the handoff reason code behind needs_human; omitted when none was given.
@@ -72,6 +76,11 @@ type MessagingSessionRequest struct {
 	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
 	Outcome         string `json:"outcome" validate:"required,oneof=order_placed consulted price_inquiry complaint no_response other" enums:"order_placed,consulted,price_inquiry,complaint,no_response,other"`
 	Note            string `json:"note" validate:"max=1000"`
+}
+
+// Normalize trims the note before validation, matching the service, so its length bound applies to the stored text.
+func (r *MessagingSessionRequest) Normalize() {
+	r.Note = strings.TrimSpace(r.Note)
 }
 
 // MessagingSessionQuery pages a conversation's sessions.

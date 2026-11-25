@@ -116,6 +116,22 @@ func TestSalesIncompleteDraftAndConfirmation(t *testing.T) {
 	if confirmed.Status != model.OrderStatusConfirmed || !confirmed.TotalAmount.IsZero() {
 		t.Fatal("explicit zero must be confirmable")
 	}
+	// The returned order and its audit carry the persisted post-confirmation timestamp, not the draft's.
+	var stored model.Order
+	if err := f.db.Where("tenant_id = ? AND id = ?", f.tenant, draft.ID).First(&stored).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !confirmed.UpdatedAt.Equal(stored.UpdatedAt) || !confirmed.UpdatedAt.After(draft.UpdatedAt) {
+		t.Fatalf("confirm returned updated_at %v, stored %v (draft %v)", confirmed.UpdatedAt, stored.UpdatedAt, draft.UpdatedAt)
+	}
+	var audit model.AuditLog
+	if err := f.db.Where("action = ? AND entity_id = ?", "order.confirmed", draft.ID).First(&audit).Error; err != nil {
+		t.Fatal(err)
+	}
+	var audited model.Order
+	if err := json.Unmarshal([]byte(audit.AfterState), &audited); err != nil || !audited.UpdatedAt.Equal(stored.UpdatedAt) {
+		t.Fatalf("confirmation audit carries a stale updated_at %v, stored %v", audited.UpdatedAt, stored.UpdatedAt)
+	}
 	_, err = f.service.Confirm(ctx, f.tenant, f.sale, draft.ID, draft.Version)
 	requireSalesStatus(t, err, 409)
 	// Only the committed confirmation leaves an outbox event; rejected attempts roll theirs back.

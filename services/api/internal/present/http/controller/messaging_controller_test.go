@@ -139,18 +139,27 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5,"outcome":"consulted","note":"Sizes"}`, 200), &closed); err != nil {
 		t.Fatal(err)
 	}
-	if closed.Lifecycle != "closed" || closed.CloseCause != "closed_manually" || closed.Outcome != "consulted" || closed.Note != "Sizes" || closed.ClosedBy != "owner" {
+	if closed.Lifecycle != "closed" || closed.HandlingState != "CLOSED" || closed.CloseCause != "closed_manually" || closed.Outcome != "consulted" || closed.Note != "Sizes" || closed.ClosedBy != "owner" {
 		t.Fatal("bad session close contract", closed)
 	}
 	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":6,"outcome":"consulted"}`, 409)
-	request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":6,"outcome":"order_placed"}`, 200)
+	// The note bound applies after trimming, like the service: 1000 runes with surrounding spaces are accepted.
+	note := strings.Repeat("ư", 1000)
+	var edited dto.MessagingTurn
+	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":6,"outcome":"order_placed","note":"  `+note+`  "}`, 200), &edited); err != nil {
+		t.Fatal(err)
+	}
+	if edited.Note != note {
+		t.Fatal("the stored note must be trimmed")
+	}
+	request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":7,"outcome":"order_placed","note":"  `+note+`x  "}`, 400)
 	request("GET", "/conversations/not-a-uuid/sessions", "sale", "", 400)
 	request("GET", "/conversations/"+message.ThreadID+"/sessions?limit=0", "sale", "", 400)
 	var sessions dto.MessagingSessionPage
 	if err := json.Unmarshal(request("GET", "/conversations/"+message.ThreadID+"/sessions", "sale", "", 200), &sessions); err != nil {
 		t.Fatal(err)
 	}
-	if len(sessions.Items) != 1 || sessions.Items[0].Turn.Outcome != "order_placed" || sessions.Items[0].MessageCount != 2 || sessions.Items[0].FirstMessageID != message.ID || sessions.Items[0].Orders == nil {
+	if len(sessions.Items) != 1 || sessions.Items[0].Turn.HandlingState != "CLOSED" || sessions.Items[0].Turn.Outcome != "order_placed" || sessions.Items[0].MessageCount != 2 || sessions.Items[0].FirstMessageID != message.ID || sessions.Items[0].Orders == nil {
 		t.Fatal("bad session list contract", sessions)
 	}
 	request("POST", "/simulator/messages", "sale", `{"external_key":"a","display_name":"A","body":"`+strings.Repeat("a", 33000)+`","request_key":"`+uuid.NewString()+`"}`, 400)

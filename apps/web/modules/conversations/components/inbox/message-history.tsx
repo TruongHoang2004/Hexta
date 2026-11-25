@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useEffect, useEffectEvent, useRef } from "react";
 import { secondaryClass } from "@/components/primitives";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { ChannelPlatform } from "@/modules/settings";
 import type { MessagingDetail, MessagingSession } from "../../services/messaging";
+import type { SessionFocus } from "../../hooks/use-session-jump";
 import { sessionCause, sessionOutcome, sessionRange } from "../../utils";
 import { MessageBubble } from "./message-bubble";
 import { TurnDivider } from "./turn-divider";
@@ -15,7 +16,7 @@ export const sessionAnchorID = (turnID: string) => `session-start-${turnID}`;
 /**
  * Messages oldest-first, with a button to page in older ones. A divider starts each session (turn) with its time
  * range and outcome, and marks the end of a closed current session. `focus` scrolls to a session's start once its
- * first message is loaded.
+ * first message is loaded, then `onFocused` clears it so later loads (polls, older pages) do not scroll back.
  */
 export function MessageHistory({
   detail,
@@ -23,6 +24,7 @@ export function MessageHistory({
   platform,
   busy,
   focus,
+  onFocused,
   onLoadOlder,
 }: {
   detail: MessagingDetail;
@@ -31,7 +33,9 @@ export function MessageHistory({
   platform: ChannelPlatform | null;
   busy: boolean;
   /** Session to scroll to; `key` changes on every jump request. */
-  focus: { turnID: string; key: number } | null;
+  focus: SessionFocus | null;
+  /** Called once the history has scrolled to `focus`. */
+  onFocused: () => void;
   onLoadOlder: () => void;
 }) {
   const t = useT();
@@ -41,12 +45,14 @@ export function MessageHistory({
   const latest = detail.conversation.turn;
   const latestSession = latest ? sessions.get(latest.id) : undefined;
 
+  const focused = useEffectEvent(() => onFocused());
   useEffect(() => {
     if (!focus) return;
     const anchor = list.current?.querySelector<HTMLElement>(`#${CSS.escape(sessionAnchorID(focus.turnID))}`);
     if (anchor) {
       anchor.scrollIntoView({ block: "start", behavior: "smooth" });
       anchor.focus({ preventScroll: true });
+      focused();
     }
   }, [focus, detail.messages]);
 

@@ -232,6 +232,15 @@ func (r *SalesRepository) SaveOrder(ctx context.Context, row *model.Order, expec
 	if result.RowsAffected != 1 {
 		return apperrors.ErrConflict(ctx, "order", "changed; reload before saving")
 	}
+	// GORM stamps updated_at on the Model target, not on row: read back the persisted value so the caller's
+	// response, audit and events carry the timestamp that was actually stored.
+	var stamps []time.Time
+	if err := r.db.WithContext(ctx).Model(&model.Order{}).Where("tenant_id = ? AND id = ?", row.TenantID, row.ID).Pluck("updated_at", &stamps).Error; err != nil {
+		return salesDBError(ctx, err)
+	}
+	if len(stamps) == 1 {
+		row.UpdatedAt = stamps[0]
+	}
 	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND order_id = ?", row.TenantID, row.ID).Delete(&model.OrderItem{}).Error; err != nil {
 		return salesDBError(ctx, err)
 	}

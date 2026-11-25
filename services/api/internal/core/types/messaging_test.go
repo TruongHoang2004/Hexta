@@ -33,6 +33,18 @@ func TestMessagingNeedsHumanKeepsStaffControl(t *testing.T) {
 	}
 }
 
+// A closed turn keeps its last control fields, so clients are told CLOSED rather than a stale handler.
+func TestMessagingClosedTurnReportsClosedHandlingState(t *testing.T) {
+	actor := "sale"
+	closed := MessagingTurn{Lifecycle: TurnClosed, Control: "sales", AssigneeID: &actor}
+	if closed.HandlingState() != "STAFF_ACTIVE" || closed.ReportedHandlingState() != HandlingClosed {
+		t.Fatalf("closed turn reported as %s (control projection %s)", closed.ReportedHandlingState(), closed.HandlingState())
+	}
+	if open := (MessagingTurn{Lifecycle: TurnOpen, Control: "system"}); open.ReportedHandlingState() != "BOT_ACTIVE" {
+		t.Fatalf("open turn reported as %s", open.ReportedHandlingState())
+	}
+}
+
 func TestMessagingTurnExpiryEligibility(t *testing.T) {
 	now := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
 	due := now.Add(-TurnInactivityWindow)

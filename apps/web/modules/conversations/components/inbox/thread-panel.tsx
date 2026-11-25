@@ -8,6 +8,7 @@ import { platformLabel, type ChannelConnection } from "@/modules/settings";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useReplyMode } from "../../hooks/use-reply-mode";
 import { useReplySender } from "../../hooks/use-reply-sender";
+import { useSessionJump } from "../../hooks/use-session-jump";
 import { useSessions } from "../../hooks/use-sessions";
 import { useThread } from "../../hooks/use-thread";
 import type { HandoffReason, ThreadCommand } from "../../types";
@@ -81,7 +82,7 @@ export function ThreadPanel({
     },
   });
   const sessionMap = useMemo(() => new Map(sessions.items.map((row) => [row.turn.id, row])), [sessions.items]);
-  const [focus, setFocus] = useState<{ turnID: string; key: number } | null>(null);
+  const jump = useSessionJump(thread);
   const busy = thread.busy || sender.busy;
   const commandsDisabled = busy || sender.uncertain;
   const error = thread.error || sender.error;
@@ -127,7 +128,8 @@ export function ThreadPanel({
                 sessions={sessionMap}
                 platform={platform}
                 busy={busy}
-                focus={focus}
+                focus={jump.focus}
+                onFocused={jump.clearFocus}
                 onLoadOlder={() => void thread.loadOlder()}
               />
             )
@@ -174,11 +176,7 @@ export function ThreadPanel({
           owner={owner}
           disabled={commandsDisabled}
           memberName={memberName}
-          onJump={(session) =>
-            void thread.loadUntil(session.first_message_id).then((loaded) => {
-              if (loaded) setFocus({ turnID: session.turn.id, key: Date.now() });
-            })
-          }
+          onJump={jump.jump}
         />
         {turn?.needs_human && turn.lifecycle === "open" && (
           <NeedsHumanPanel
