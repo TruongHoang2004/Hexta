@@ -128,6 +128,7 @@ export function ThreadPanel({
                 platform={platform}
                 busy={busy}
                 focus={focus}
+                onFocused={() => setFocus(null)}
                 onLoadOlder={() => void thread.loadOlder()}
               />
             )
