@@ -203,6 +203,17 @@ WHERE i.tenant_id = ? AND m.turn_id = ? AND m.actor_id = ? AND i.status = ? ORDE
 	return len(undispatched), nil
 }
 
+// ScriptVersionActive reports whether the version is still its script's active version, share-locking the script
+// row so a concurrent deactivate/archive (which locks it for update) waits until this transaction ends.
+func (r *MessagingRepository) ScriptVersionActive(ctx context.Context, tenant, version string) (bool, *apperrors.Error) {
+	var ids []string
+	if err := r.db.WithContext(ctx).Raw(`SELECT id FROM scripts WHERE tenant_id = ? AND active_version_id = ? AND status = ? FOR SHARE`,
+		tenant, version, types.ScriptStatusActive).Scan(&ids).Error; err != nil {
+		return false, salesDBError(ctx, err)
+	}
+	return len(ids) == 1, nil
+}
+
 func (r *MessagingRepository) RoutingDue(ctx context.Context, now time.Time, limit int) ([]types.ProposalRef, *apperrors.Error) {
 	rows := []replymodel.Proposal{}
 	if err := r.db.WithContext(ctx).Select("tenant_id", "thread_id", "id").Where("status = ? AND available_at <= ?", types.ProposalRouting, now).

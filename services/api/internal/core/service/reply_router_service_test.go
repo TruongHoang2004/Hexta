@@ -9,6 +9,7 @@ import (
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
+	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -403,6 +404,60 @@ func TestAutoSendSendsOnlyWhileEligible(t *testing.T) {
 	rows = b.proposals(t, turn.ID)
 	if last := rows[len(rows)-1]; last.Status != types.ProposalPending || deref(last.RequestedBy) != b.peer || len(outbound(b.detail(t, third.ThreadID))) != 1 {
 		t.Fatal("a regenerated proposal must wait for a sale", rows)
+	}
+}
+
+// changingScripts reads the active scripts, then runs change: the script lifecycle moves after the router read it.
+type changingScripts struct {
+	ReplyScriptSource
+	change func()
+}
+
+func (c changingScripts) ActiveScriptVersions(ctx context.Context, tenant string) ([]types.ActiveScriptVersion, *apperrors.Error) {
+	versions, err := c.ReplyScriptSource.ActiveScriptVersions(ctx, tenant)
+	if err == nil && c.change != nil {
+		c.change()
+	}
+	return versions, err
+}
+
+func TestAutoSendSkipsScriptDeactivatedOrArchivedAfterRouting(t *testing.T) {
+	for _, transition := range []string{"deactivate", "archive"} {
+		t.Run(transition, func(t *testing.T) {
+			b := newBotFixture(t, types.ReplyModeAutoSend)
+			ctx := context.Background()
+			version := b.activeScript(t, "giá áo", "Dạ áo giá 200k ạ")
+			b.router.scripts = changingScripts{ReplyScriptSource: b.scripts, change: func() {
+				script, err := b.scripts.Get(ctx, b.tenant, b.owner, version.ScriptID)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if transition == "deactivate" {
+					_, err = b.scripts.Deactivate(ctx, b.tenant, b.owner, script.ID, script.Version)
+				} else {
+					_, err = b.scripts.Archive(ctx, b.tenant, b.owner, script.ID, script.Version)
+				}
+				if err != nil {
+					t.Error(err)
+				}
+			}}
+			message := b.customer(t, "c1", "giá áo")
+			if b.route(t) != 1 || len(b.ai.started) != 0 {
+				t.Fatal("the script hit must be decided without the AI")
+			}
+			detail := b.detail(t, message.ThreadID)
+			if len(outbound(detail)) != 0 {
+				t.Fatal("a script that is no longer active must not be sent automatically")
+			}
+			rows := b.proposals(t, detail.Conversation.Turn.ID)
+			if p := rows[0]; p.Status != types.ProposalSuperseded || deref(p.Reason) != "script_inactive" || deref(p.Text) != "" || deref(p.ScriptVersionID) != "" {
+				t.Fatalf("the proposal must be superseded, not sendable: %+v", p)
+			}
+			if len(detail.Proposals) != 0 || detail.Conversation.Turn.HandlingState() != "BOT_ACTIVE" {
+				t.Fatal("no live proposal remains and control is unchanged", detail.Proposals)
+			}
+		})
 	}
 }
 

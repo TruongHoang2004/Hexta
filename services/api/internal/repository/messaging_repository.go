@@ -40,6 +40,7 @@ type MessagingStore interface {
 	LatestInbound(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
 	RecentMessages(context.Context, string, string, string, int) ([]types.MessagingMessage, *apperrors.Error)
 	CancelPendingBotSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
+	ScriptVersionActive(context.Context, string, string) (bool, *apperrors.Error)
 }
 type MessagingRepository struct {
 	*SalesRepository

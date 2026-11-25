@@ -348,7 +348,21 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 				if err != nil {
 					return err
 				}
-				if settings.Mode == types.ReplyModeAutoSend {
+				active := true
+				if settings.Mode == types.ReplyModeAutoSend && p.Source == types.SourceScript {
+					// The script may have been deactivated or archived after the router read it; only a version
+					// that is still active may be sent automatically.
+					if active, err = r.ScriptVersionActive(ctx, job.TenantID, p.ScriptVersionID); err != nil {
+						return err
+					}
+				}
+				switch {
+				case settings.Mode != types.ReplyModeAutoSend:
+				case !active:
+					// The source answer is no longer authorized: record the proposal as superseded, never sendable.
+					p.Status, p.Reason = types.ProposalSuperseded, "script_inactive"
+					p.Text, p.Source, p.ScriptVersionID = "", "", ""
+				default:
 					sent, reason, err := s.autoSend(ctx, r, *thread, turn, *p, now)
 					if err != nil {
 						return err
