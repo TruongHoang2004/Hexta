@@ -8,9 +8,11 @@ import { useT } from "@/lib/i18n/provider";
 import { useChannelConnections } from "../../hooks/use-channel-connections";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
+import { useWaitingCount } from "../../hooks/use-waiting-count";
 import { ConversationList } from "./conversation-list";
 import { InboundSimulator } from "./inbound-simulator";
 import { ThreadPanel } from "./thread-panel";
+import { WaitingStaffButton } from "./waiting-staff-button";
 
 /** The desk: conversation list, selected conversation and the inbound simulator. */
 export function InboxScreen() {
@@ -23,6 +25,7 @@ export function InboxScreen() {
   const list = useInboxConversations(tenantID, refresh);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
+  const waitingCount = useWaitingCount(tenantID, refresh);
   const reloadList = () => setRefresh((v) => v + 1);
   if (!tenant) return null;
   return (
@@ -32,9 +35,19 @@ export function InboxScreen() {
           <h1 className="text-2xl font-semibold">{t("desk.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
         </div>
-        <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
-          {t("desk.refresh")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <WaitingStaffButton
+            count={waitingCount}
+            active={list.filter === "waiting"}
+            onOpen={() => {
+              list.setFilter("waiting");
+              reloadList();
+            }}
+          />
+          <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
+            {t("desk.refresh")}
+          </button>
+        </div>
       </div>
       <p role="note" className="rounded-lg border border-border bg-surface p-3 text-sm text-muted">
         {t("desk.notice")}
@@ -46,6 +59,7 @@ export function InboxScreen() {
           owner={isOwner}
           members={members}
           list={list}
+          waitingCount={waitingCount}
           error={list.error || membersError}
           selected={selected}
           onSelect={setSelected}
