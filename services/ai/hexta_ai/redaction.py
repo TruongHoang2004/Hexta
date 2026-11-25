@@ -1,8 +1,10 @@
 """Typed PII redaction applied before customer text leaves for a third-party router.
 
 Heuristic defense in depth for Vietnamese chat text, not a completeness guarantee: phone numbers
-(+84/84/0 prefixes, spaced, dotted or dashed), emails and best-effort street addresses become typed
-placeholders. Prices such as ``1.250.000đ`` are not phone numbers and stay intact.
+(+84/84/0 prefixes, spaced, dotted or dashed, glued to a phone keyword or a trailing word, and 9-digit
+mobiles written without the leading 0), emails and best-effort street addresses become typed
+placeholders. Prices such as ``1.250.000đ``, quantities such as ``2 cái`` and order codes such as
+``DH0912345678`` or ``mã đơn 912345678`` stay intact.
 """
 
 import re
@@ -13,8 +15,17 @@ EMAIL = "[EMAIL]"
 ADDRESS = "[ADDRESS]"
 
 _EMAIL = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}(?![\w-])")
+# A phone may be glued to a preceding phone keyword ("sđt0912345678"); any other letter before it (an order code
+# such as "DH0912345678") keeps it. Letters may follow ("0912345678nha"), digits may not.
+_PHONE_KEYWORDS = ("sdt", "sđt", "dt", "đt", "zalo", "tel", "phone", "hotline", "lh", "goi", "gọi", "call", "số", "so")
+_PHONE_START = "(?:(?<![\\w+])|" + "|".join(f"(?i:(?<={k}))" for k in _PHONE_KEYWORDS) + ")"
 # A candidate run of digits with optional single separators; validated by digit count below.
-_PHONE = re.compile(r"(?<![\w+])(?:\(?\+84\)?|\(?84\)?|0)[\s.\-]?(?:\d[\s.\-]?){7,10}\d(?!\w)")
+_PHONE = re.compile(_PHONE_START + r"(?:\(?\+84\)?|\(?84\)?|0)[\s.\-]?(?:\d[\s.\-]?){7,10}\d(?!\d)")
+# Mobile written without its leading 0 ("912345678", "912 345 678"): 9 digits starting 3/5/7/8/9, never dotted (a
+# dotted run is a price) and never in an order/price context (checked by _is_bare_mobile).
+_PHONE9 = re.compile(_PHONE_START.replace("(?<![\\w+])", "(?<![\\w+#.,/-])") + r"[35789]\d{2} ?\d{3} ?\d{3}(?![\d.,/-])")
+_ORDER_CONTEXT = re.compile(r"(?<!\w)(?i:mã|ma|đơn|don|order|code|id|#|số đơn|so don|sku)\s*[:#]?\s*$")
+_MONEY_AFTER = re.compile(r"(?i:\s*(?:đ|₫|vnđ|vnd|đồng|dong|k|tr|triệu|trieu|nghìn|nghin|ngàn|ngan)(?!\w))")
 
 # Uppercase Vietnamese letters only (the À-Ỹ range also contains lowercase letters).
 _UPPER = "A-Z" + "".join(sorted({c for c in map(chr, range(0xC0, 0x1EFA)) if c.isupper() and c.isalpha()}))
@@ -25,13 +36,29 @@ _ADMIN_SHORT = r"(?:tp\.?|p\.|q\.|phuong|quan|huyen|xa)"
 _NAME = rf"[{_UPPER}\d]{_WORD}*(?:\s+[{_UPPER}\d]{_WORD}*){{0,4}}"
 _HOUSE = r"(?:(?i:số)\s*(?:(?i:nhà)\s*)?)?\d{1,5}[A-Za-z]?(?:[/\-]\d{1,4}[A-Za-z]?)*"
 
+# An administrative unit right after a street: "Quận 5", "phường Bến Nghé", "quan 5", "q.1", "Q1".
+_ADMIN_AHEAD = rf"(?:(?i:{_ADMIN_ACCENTED})\s+\S|(?i:{_ADMIN_SHORT})\s*\d|[qpQP]\d{{1,2}}(?!\w))"
+_LETTERS = rf"[^\W\d_]{_WORD}*"
+# Words that make "<number> <words> quận 7" a quantity or an instruction ("2 cái về quận 7"), not a house number.
+_NOT_STREET = frozenset("""cái cai chiếc chiec đôi bộ hộp hop gói sp sản phẩm size áo ao quần cặp đơn don về ve tới
+đến ở tại tai giao ship gửi gui cho nha nhé nhe mua lấy lay món mon người nguoi kg ký cuốn ly""".split())
+
+
+def _street_or_keep(match):
+    words = match.group("words").casefold().split()
+    return match.group(0) if any(w in _NOT_STREET for w in words) else ADDRESS
+
+
+# House number + 1-4 street words (any case, with or without diacritics) followed by an administrative unit:
+# 123 Nguyễn Trãi, Quận 5 / 123 nguyễn trãi quận 5 / 88 Đồng Khởi Quận 1 / 12 Nguyễn Huệ, Q1 / 25 le loi q1
+_HOUSE_STREET = re.compile(rf"{_HOUSE}\s+(?P<words>(?:{_LETTERS}\s+){{0,3}}{_LETTERS})(?=\s*,?\s*{_ADMIN_AHEAD})")
+
 _ADDRESS_PATTERNS = [
-    # 12 đường Lê Lợi / 45/6 hẻm 12 / số 5 ngõ 34 Láng Hạ
-    re.compile(rf"{_HOUSE}\s*,?\s*(?i:{_STREET_KEYWORDS})\s+(?:\d+[\w/]*(?:\s+{_NAME})?|{_NAME})"),
+    # 12 đường Lê Lợi / 45/6 hẻm 12 / số 5 ngõ 34 Láng Hạ / số 5, đường số 7
+    re.compile(rf"{_HOUSE}\s*,?\s*(?i:{_STREET_KEYWORDS})\s+(?:(?:(?i:số)\s*)?\d+[\w/]*(?:\s+{_NAME})?|{_NAME})"),
     # ngõ 34 / hẻm 45/6 / kiệt 12
     re.compile(rf"(?i:ngõ|ngách|hẻm|kiệt|hem|ngo|ngach)\s+\d+[\w/]*(?:\s+{_NAME})?"),
-    # 123 Nguyễn Trãi, Quận 5 (house number + capitalized street followed by an administrative unit)
-    re.compile(rf"{_HOUSE}\s+{_NAME}(?=\s*,\s*(?i:{_ADMIN_ACCENTED}|{_ADMIN_SHORT}))"),
+    (_HOUSE_STREET, _street_or_keep),
     # phường Bến Nghé / Quận 7 / TP.HCM / thành phố Hồ Chí Minh
     re.compile(rf"(?i:{_ADMIN_ACCENTED})\s+(?:\d+|{_WORD}+(?:\s+[{_UPPER}]{_WORD}*){{0,3}})"),
     # unaccented or abbreviated units only with a number (quan 7, p.2, q7) or TP.HCM / tp HCM
@@ -42,8 +69,16 @@ _ADDRESS_PATTERNS = [
 _MERGE = re.compile(rf"{re.escape(ADDRESS)}(?:[\s,.\-]+{re.escape(ADDRESS)})+")
 
 
+def _is_bare_mobile(text: str, match) -> bool:
+    """A 9-digit match is a phone unless it reads as an order code or an amount of money."""
+    return not (_ORDER_CONTEXT.search(text[max(0, match.start() - 12):match.start()])
+                or _MONEY_AFTER.match(text, match.end()))
+
+
 def _phone_digits(value: str) -> str | None:
     digits = re.sub(r"\D", "", value)
+    if len(digits) == 9 and digits[0] in "35789":
+        return "0" + digits
     if digits.startswith("84"):
         digits = "0" + digits[2:]
     # Vietnamese mobiles have 10 digits and landlines 11 (0 + 2x area code + subscriber).
@@ -56,6 +91,7 @@ def contact_values(text: str) -> set[str]:
     """Normalized phones/emails present in text (used to allow tenant-provided contacts in answers)."""
     values = {m.group(0).casefold() for m in _EMAIL.finditer(text)}
     values |= {d for m in _PHONE.finditer(text) if (d := _phone_digits(m.group(0)))}
+    values |= {d for m in _PHONE9.finditer(text) if _is_bare_mobile(text, m) and (d := _phone_digits(m.group(0)))}
     return values
 
 
@@ -79,10 +115,15 @@ def redact_pii(text: str, *, addresses: bool = True, keep: set[str] | None = Non
             return match.group(0)
         return PHONE
 
+    def bare_mobile(match):
+        return phone(match) if _is_bare_mobile(match.string, match) else match.group(0)
+
     text = _EMAIL.sub(email, text)
     text = _PHONE.sub(phone, text)
+    text = _PHONE9.sub(bare_mobile, text)
     if addresses:
         for pattern in _ADDRESS_PATTERNS:
-            text = pattern.sub(ADDRESS, text)
+            pattern, replacement = pattern if isinstance(pattern, tuple) else (pattern, ADDRESS)
+            text = pattern.sub(replacement, text)
         text = _MERGE.sub(ADDRESS, text)
     return text
