@@ -18,6 +18,7 @@ export interface NavGroup {
 export const settingsNav: NavItem[] = [
   { path: "settings/members", label: "nav.members" },
   { path: "settings/channels", label: "nav.channels" },
+  { path: "settings/reply-mode", label: "nav.replyMode" },
   { path: "settings/script-permissions", label: "nav.scriptPermissions" },
   { path: "settings/subscription", label: "nav.plan" },
 ];

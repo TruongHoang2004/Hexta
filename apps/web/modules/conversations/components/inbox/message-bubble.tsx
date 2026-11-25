@@ -2,7 +2,7 @@
 
 import { useT } from "@/lib/i18n/provider";
 import { platformLabel, type ChannelPlatform } from "@/modules/settings";
-import type { MessagingMessage } from "../../services/messaging";
+import { botActorID, type MessagingMessage } from "../../services/messaging";
 import { DeliveryStatus } from "./delivery-status";
 import { MessageContent } from "./message-content";
 
@@ -19,7 +19,11 @@ export function MessageBubble({
   const t = useT();
   const channel = platform ? platformLabel[platform] : "";
   const sender =
-    message.status === "received"
+    message.direction === "outbound" && message.actor_id === botActorID
+      ? message.status === "channel"
+        ? t("desk.sender.bot", { channel })
+        : t("desk.sender.botSimulated")
+      : message.status === "received"
       ? `${t("desk.sender.customer")} · ${customerName}`
       : message.status === "channel"
         ? t("desk.sender.sale", { channel })

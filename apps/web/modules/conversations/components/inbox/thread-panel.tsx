@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import { platformLabel, type ChannelConnection } from "@/modules/settings";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useReplyMode } from "../../hooks/use-reply-mode";
 import { useReplySender } from "../../hooks/use-reply-sender";
 import { useThread } from "../../hooks/use-thread";
 import type { HandoffReason, ThreadCommand } from "../../types";
@@ -17,6 +18,7 @@ import { MessageHistory } from "./message-history";
 import { NeedsHumanPanel } from "./needs-human-panel";
 import { ReplyComposer } from "./reply-composer";
 import { ThreadHeader } from "./thread-header";
+import { ThreadProposal } from "./thread-proposal";
 
 /** The selected conversation: header, history, reply box and the customer panel. */
 export function ThreadPanel({
@@ -51,8 +53,10 @@ export function ThreadPanel({
       onChanged();
     },
   });
+  const replyMode = useReplyMode(tenantID);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const turn = detail?.conversation.turn;
+  const proposal = detail?.proposals?.[0] ?? null;
   const access = threadAccess({
     t,
     detail,
@@ -109,6 +113,23 @@ export function ThreadPanel({
                 onLoadOlder={() => void thread.loadOlder()}
               />
             )
+          )}
+          {turn && proposal && (
+            <ThreadProposal
+              key={proposal.id}
+              tenantID={tenantID}
+              turn={turn}
+              proposal={proposal}
+              mode={replyMode.settings?.reply_mode ?? null}
+              userID={userID}
+              owner={owner}
+              assigneeName={turn.assignee_id ? memberName(turn.assignee_id) : ""}
+              onChanged={() => {
+                thread.reload();
+                onChanged();
+              }}
+              onPoll={thread.poll}
+            />
           )}
         </div>
         {detail && (

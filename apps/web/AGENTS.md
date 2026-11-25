@@ -18,7 +18,7 @@ Owner decision 2026-11-21: business code is grouped into domain modules matching
 
 | Module | Owns |
 | --- | --- |
-| `modules/conversations` | inbox (desk), consultant, storefront/checkout simulation |
+| `modules/conversations` | inbox (desk) and its bot proposals, Settings › Reply mode, consultant, storefront/checkout simulation |
 | `modules/sales` | orders, customers, products/catalog |
 | `modules/operations` | work items, workflows |
 | `modules/settings` | members, channels, service plan |

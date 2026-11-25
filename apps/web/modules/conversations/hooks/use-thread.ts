@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useErrorText } from "@/lib/errors";
 import { messaging, type MessagingDetail } from "../services/messaging";
 import type { HandoffReason, ThreadCommand } from "../types";
@@ -22,10 +22,14 @@ export function useThread(args: {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // A background poll re-reads the conversation without the loading state, so history does not flicker.
+  const quiet = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
-      setLoading(true);
+      const background = quiet.current;
+      quiet.current = false;
+      if (!background) setLoading(true);
       setError("");
       try {
         const result = await messaging.detail(tenantID, threadID, "", controller.signal);
@@ -41,6 +45,10 @@ export function useThread(args: {
   }, [tenantID, threadID, refresh, externalRefresh, errorText]);
 
   const reload = () => setRefresh((v) => v + 1);
+  const poll = () => {
+    quiet.current = true;
+    setRefresh((v) => v + 1);
+  };
 
   async function command(action: ThreadCommand, assignee: string | null, reason: HandoffReason) {
     const turn = detail?.conversation.turn;
@@ -85,5 +93,5 @@ export function useThread(args: {
     }
   }
 
-  return { detail, loading, busy, error, reload, command, loadOlder };
+  return { detail, loading, busy, error, reload, poll, command, loadOlder };
 }

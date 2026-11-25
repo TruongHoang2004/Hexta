@@ -24,6 +24,7 @@ export const deliveryReasons = [
   "connection_inactive",
   "connection_paused",
   "connection_disconnected",
+  "cancelled",
 ] as const;
 export type DeliveryReason = (typeof deliveryReasons)[number];
 
