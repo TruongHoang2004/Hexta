@@ -14,6 +14,12 @@ export type HandoffReason = (typeof handoffReasons)[number];
 /** Every needs-human reason with a localized label: staff reasons plus bot_off (a customer wrote while the bot was off). */
 export const needsHumanReasons = [...handoffReasons, "bot_off"] as const;
 
+/** Session outcomes (proposed set; owner decision pending). */
+export const sessionOutcomes = ["order_placed", "consulted", "price_inquiry", "complaint", "no_response", "other"] as const;
+export type SessionOutcome = (typeof sessionOutcomes)[number];
+/** Longest session note the API accepts. */
+export const maxSessionNote = 1000;
+
 /** Delivery failure codes that have a localized explanation. */
 export const deliveryReasons = [
   "window_24h",

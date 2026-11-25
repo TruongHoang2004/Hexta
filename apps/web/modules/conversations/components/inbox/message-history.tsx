@@ -1,31 +1,63 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { secondaryClass } from "@/components/primitives";
-import { useT } from "@/lib/i18n/provider";
+import { useLocale, useT } from "@/lib/i18n/provider";
 import type { ChannelPlatform } from "@/modules/settings";
-import type { MessagingDetail } from "../../services/messaging";
+import type { MessagingDetail, MessagingSession } from "../../services/messaging";
+import { sessionCause, sessionOutcome, sessionRange } from "../../utils";
 import { MessageBubble } from "./message-bubble";
 import { TurnDivider } from "./turn-divider";
 
+/** DOM id of the divider that starts a session in the history. */
+export const sessionAnchorID = (turnID: string) => `session-start-${turnID}`;
+
 /**
- * Messages oldest-first, with a button to page in older ones. A divider marks each turn boundary (turns only close
- * after 24 hours of inactivity) and the end of a closed current turn.
+ * Messages oldest-first, with a button to page in older ones. A divider starts each session (turn) with its time
+ * range and outcome, and marks the end of a closed current session. `focus` scrolls to a session's start once its
+ * first message is loaded.
  */
 export function MessageHistory({
   detail,
+  sessions,
   platform,
   busy,
+  focus,
   onLoadOlder,
 }: {
   detail: MessagingDetail;
+  /** Known sessions by turn ID; dividers fall back to generic text for sessions not loaded yet. */
+  sessions: Map<string, MessagingSession>;
   platform: ChannelPlatform | null;
   busy: boolean;
+  /** Session to scroll to; `key` changes on every jump request. */
+  focus: { turnID: string; key: number } | null;
   onLoadOlder: () => void;
 }) {
   const t = useT();
+  const locale = useLocale();
+  const list = useRef<HTMLOListElement>(null);
   const messages = [...detail.messages].reverse();
-  const closed = detail.conversation.turn?.lifecycle === "closed";
+  const latest = detail.conversation.turn;
+  const latestSession = latest ? sessions.get(latest.id) : undefined;
+
+  useEffect(() => {
+    if (!focus) return;
+    const anchor = list.current?.querySelector<HTMLElement>(`#${CSS.escape(sessionAnchorID(focus.turnID))}`);
+    if (anchor) {
+      anchor.scrollIntoView({ block: "start", behavior: "smooth" });
+      anchor.focus({ preventScroll: true });
+    }
+  }, [focus, detail.messages]);
+
+  function startLabel(session: MessagingSession | undefined) {
+    if (!session) return t("desk.turnDivider.newTurn");
+    const range = t("desk.sessions.dividerOpened", { range: sessionRange(t, session, locale) });
+    return session.turn.lifecycle === "closed"
+      ? `${range} · ${sessionCause(t, session.turn)} · ${sessionOutcome(t, session.turn)}`
+      : range;
+  }
+
   return (
     <>
       {detail.next_cursor && (
@@ -33,20 +65,34 @@ export function MessageHistory({
           {t("desk.loadOlder")}
         </button>
       )}
-      <ol className="max-h-[520px] space-y-3 overflow-y-auto" aria-label={t("desk.history")}>
-        {messages.map((message, index) => (
-          <Fragment key={message.id}>
-            {index > 0 && messages[index - 1].turn_id !== message.turn_id && (
-              <TurnDivider>{t("desk.turnDivider.newTurn")}</TurnDivider>
-            )}
-            <MessageBubble
-              message={message}
-              customerName={detail.conversation.thread.display_name}
-              platform={platform}
-            />
-          </Fragment>
-        ))}
-        {closed && <TurnDivider>{t("desk.turnDivider.closed")}</TurnDivider>}
+      <ol ref={list} className="max-h-[520px] space-y-3 overflow-y-auto" aria-label={t("desk.history")}>
+        {messages.map((message, index) => {
+          const session = sessions.get(message.turn_id);
+          const boundary = index > 0 && messages[index - 1].turn_id !== message.turn_id;
+          // The first loaded message starts a session only when it is that session's first message.
+          const starts = boundary || (index === 0 && !!session && session.first_message_id === message.id);
+          return (
+            <Fragment key={message.id}>
+              {starts && (
+                <TurnDivider id={session?.first_message_id === message.id ? sessionAnchorID(message.turn_id) : undefined}>
+                  {startLabel(session)}
+                </TurnDivider>
+              )}
+              <MessageBubble
+                message={message}
+                customerName={detail.conversation.thread.display_name}
+                platform={platform}
+              />
+            </Fragment>
+          );
+        })}
+        {latest?.lifecycle === "closed" && (
+          <TurnDivider>
+            {latestSession
+              ? t("desk.sessions.dividerClosed", { cause: sessionCause(t, latest), outcome: sessionOutcome(t, latest) })
+              : t("desk.turnDivider.closed")}
+          </TurnDivider>
+        )}
       </ol>
     </>
   );

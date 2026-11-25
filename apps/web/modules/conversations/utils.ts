@@ -1,9 +1,9 @@
 import type { ChipTone } from "@/components/primitives";
 import type { Translate } from "@/lib/i18n/translate";
 import type { ChannelConnection, ChannelPlatform } from "@/modules/settings";
-import type { MessagingDetail, MessagingTurn } from "./services/messaging";
+import type { MessagingDetail, MessagingSession, MessagingTurn } from "./services/messaging";
 import { checkoutKey, type ConsultDraft } from "./services/consultant";
-import { needsHumanReasons } from "./types";
+import { needsHumanReasons, sessionOutcomes } from "./types";
 
 export function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
   return (values as readonly string[]).includes(value);
@@ -164,4 +164,34 @@ export function singleItemDraft(item: {
       },
     ],
   };
+}
+
+/** What the viewer may do with a session. UI gating only: the API authorizes close and outcome edits. */
+export function sessionAccess(turn: MessagingTurn, userID: string | undefined, owner: boolean) {
+  const open = turn.lifecycle === "open";
+  const assignedStaff = !!userID && turn.assignee_id === userID && turn.handling_state === "STAFF_ACTIVE";
+  return {
+    canClose: open && (owner || assignedStaff),
+    canEditOutcome: !open && (owner || (!!userID && turn.last_handler_id === userID)),
+  };
+}
+
+/** "start – end" of a session (end is "now" while it is open). */
+export function sessionRange(t: Translate, session: Pick<MessagingSession, "opened_at" | "turn">, locale?: string): string {
+  const format = (value: string) => new Date(value).toLocaleString(locale);
+  const start = session.opened_at ? format(session.opened_at) : "";
+  return session.turn.closed_at
+    ? t("desk.sessions.range", { start, end: format(session.turn.closed_at) })
+    : t("desk.sessions.ongoing", { start });
+}
+
+/** Localized outcome of a session, or the "no outcome" text. */
+export function sessionOutcome(t: Translate, turn: MessagingTurn): string {
+  const code = turn.outcome ?? "";
+  return isOneOf(sessionOutcomes, code) ? t(`desk.sessions.outcomes.${code}`) : t("desk.sessions.noOutcome");
+}
+
+/** Localized close cause of a closed session. */
+export function sessionCause(t: Translate, turn: MessagingTurn): string {
+  return turn.close_cause === "closed_manually" ? t("desk.sessions.cause.closed_manually") : t("desk.sessions.cause.expired");
 }

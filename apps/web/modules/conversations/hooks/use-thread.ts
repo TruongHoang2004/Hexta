@@ -5,6 +5,9 @@ import { useErrorText } from "@/lib/errors";
 import { messaging, type MessagingDetail } from "../services/messaging";
 import type { HandoffReason, ThreadCommand } from "../types";
 
+/** At most this many history pages (50 messages each) are fetched for one session jump. */
+const maxJumpPages = 40;
+
 /**
  * Loads one conversation with its newest messages, pages older ones and runs turn commands
  * (claim, assign, handoff, return to bot). Reloads when `externalRefresh` changes.
@@ -93,5 +96,35 @@ export function useThread(args: {
     }
   }
 
-  return { detail, loading, busy, error, reload, poll, command, loadOlder };
+  /**
+   * Pages older messages until `messageID` is loaded (or history ends), so the thread can jump to a session's
+   * first message. Bounded so a very long history cannot loop indefinitely. Returns whether it is loaded.
+   */
+  async function loadUntil(messageID: string) {
+    if (!detail || busy) return false;
+    if (detail.messages.some((row) => row.id === messageID)) return true;
+    setBusy(true);
+    setError("");
+    let messages = detail.messages;
+    let cursor = detail.next_cursor;
+    try {
+      for (let page = 0; cursor && page < maxJumpPages && !messages.some((row) => row.id === messageID); page++) {
+        const result = await messaging.detail(tenantID, threadID, cursor);
+        const known = new Set(messages.map((row) => row.id));
+        messages = [...messages, ...result.messages.filter((row) => !known.has(row.id))];
+        cursor = result.next_cursor;
+      }
+      const loaded = messages;
+      const next = cursor;
+      setDetail((current) => (current ? { ...current, messages: loaded, next_cursor: next } : current));
+      return messages.some((row) => row.id === messageID);
+    } catch (err) {
+      setError(errorText(err));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return { detail, loading, busy, error, reload, poll, command, loadOlder, loadUntil };
 }

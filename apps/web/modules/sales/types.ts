@@ -29,6 +29,8 @@ export interface OrderItem {
 export interface Order {
   id: string;
   order_number: string;
+  /** Conversation session the draft was created from in Desk. */
+  messaging_turn_id?: string;
   customer_id?: string;
   employee_id?: string;
   status: string;
@@ -57,6 +59,8 @@ export interface ProductInput {
 }
 export interface DraftInput {
   version: number;
+  /** Conversation session a new draft is created from (Desk); ignored by the API on update. */
+  messaging_turn_id?: string;
   customer_id: string | null;
   employee_id: string | null;
   requires_delivery: boolean;

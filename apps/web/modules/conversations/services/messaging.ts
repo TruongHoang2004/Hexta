@@ -1,4 +1,5 @@
 import { sdk } from "@/lib/sdk";
+import type { SessionOutcome } from "../types";
 
 export interface MessagingTurn {
   id: string;
@@ -14,8 +15,17 @@ export interface MessagingTurn {
   control_generation: number;
   version: number;
   last_activity_at: string;
-  /** Set once the turn closed after 24 hours of inactivity. */
+  /** Set once the turn (session) closed: after 24 hours of inactivity or manually. */
   closed_at?: string;
+  /** How a closed session ended. */
+  close_cause?: "expired" | "closed_manually";
+  /** Member who closed the session manually. */
+  closed_by?: string;
+  /** Session outcome; an expired session has none until the owner or its last handler records one. */
+  outcome?: SessionOutcome;
+  note?: string;
+  /** Last staff member assigned to the session; kept after return to the bot. */
+  last_handler_id?: string;
   /**
    * The bot handles the turn and its proposal waits for staff review: the conversation counts as waiting for staff
    * (and is listed under the waiting filter) and does not expire until the proposal is sent, discarded or superseded.
@@ -75,6 +85,23 @@ export interface MessagingDetail {
   next_cursor: string;
   /** Live bot proposals of the latest turn (at most one). */
   proposals?: ReplyProposal[];
+}
+/** One conversation session (a consultation turn) with its message count and orders created from Desk. */
+export interface MessagingSession {
+  turn: MessagingTurn;
+  opened_at: string;
+  message_count: number;
+  /** Where the session starts in the thread. */
+  first_message_id: string;
+  orders: { id: string; order_number: string; status: string }[];
+}
+export interface MessagingSessionPage {
+  items: MessagingSession[];
+  next_cursor: string;
+}
+export interface SessionInput {
+  outcome: SessionOutcome;
+  note: string;
 }
 export interface MessagingPage {
   items: Conversation[];
@@ -163,6 +190,30 @@ export const messaging = {
         ...(action === "handoff" ? { reason } : {}),
       },
     );
+    return result.data.data;
+  },
+  /** Sessions of a conversation, newest first. */
+  async sessions(tenant: string, thread: string, cursor = "", signal?: AbortSignal): Promise<MessagingSessionPage> {
+    const result = await sdk.client.get<{ data: MessagingSessionPage }>(
+      `${base(tenant)}/conversations/${thread}/sessions`,
+      { params: { cursor, limit: 20 }, signal },
+    );
+    return result.data.data;
+  },
+  /** Closes the open session now (assigned sale under staff control, or the owner). */
+  async closeSession(tenant: string, turn: MessagingTurn, input: SessionInput): Promise<MessagingTurn> {
+    const result = await sdk.client.post<{ data: MessagingTurn }>(`${base(tenant)}/turns/${turn.id}/close`, {
+      expected_version: turn.version,
+      ...input,
+    });
+    return result.data.data;
+  },
+  /** Records or edits a closed session's outcome and note (owner or the session's last handler). */
+  async updateOutcome(tenant: string, turn: MessagingTurn, input: SessionInput): Promise<MessagingTurn> {
+    const result = await sdk.client.post<{ data: MessagingTurn }>(`${base(tenant)}/turns/${turn.id}/outcome`, {
+      expected_version: turn.version,
+      ...input,
+    });
     return result.data.data;
   },
   // Real Facebook reply; retry with the same client_message_id to replay instead of duplicating.
