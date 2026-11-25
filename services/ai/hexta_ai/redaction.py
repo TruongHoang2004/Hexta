@@ -2,9 +2,10 @@
 
 Heuristic defense in depth for Vietnamese chat text, not a completeness guarantee: phone numbers
 (+84/84/0 prefixes, spaced, dotted or dashed, glued to a phone keyword or a trailing word, and 9-digit
-mobiles written without the leading 0), emails and best-effort street addresses become typed
-placeholders. Prices such as ``1.250.000đ``, quantities such as ``2 cái`` and order codes such as
-``DH0912345678`` or ``mã đơn 912345678`` stay intact.
+mobiles written without the leading 0), emails and best-effort street addresses (including ``ấp 3``,
+``kp 5``, ``tổ 7``, ``thôn 2`` and house + street before a known district or city) become typed placeholders.
+Prices such as ``1.250.000đ``, quantities such as ``2 cái`` or ``912345678 cái`` and order codes such as
+``DH0912345678``, ``mã đơn 912345678`` or ``order 0912345678`` stay intact.
 """
 
 import re
@@ -25,12 +26,23 @@ _PHONE = re.compile(_PHONE_START + r"(?:\(?\+84\)?|\(?84\)?|0)[\s.\-]?(?:\d[\s.\
 # dotted run is a price) and never in an order/price context (checked by _is_bare_mobile).
 _PHONE9 = re.compile(_PHONE_START.replace("(?<![\\w+])", "(?<![\\w+#.,/-])") + r"[35789]\d{2} ?\d{3} ?\d{3}(?![\d.,/-])")
 _ORDER_CONTEXT = re.compile(r"(?<!\w)(?i:mã|ma|đơn|don|order|code|id|#|số đơn|so don|sku)\s*[:#]?\s*$")
+# Stricter context for a full 10-11 digit phone shape: only an explicit order word right before it keeps it.
+_ORDER_STRICT = re.compile(r"(?<!\w)(?i:mã đơn(?: hàng)?|ma don(?: hang)?|số đơn|so don|đơn hàng|don hang|"
+                           r"mã vận đơn|ma van don|order(?: id| no\.?| number)?)\s*[:#]?\s*$")
 _MONEY_AFTER = re.compile(r"(?i:\s*(?:đ|₫|vnđ|vnd|đồng|dong|k|tr|triệu|trieu|nghìn|nghin|ngàn|ngan)(?!\w))")
+# A count unit right after a bare 9-digit number makes it a quantity ("tôi muốn 912345678 cái").
+_QUANTITY_AFTER = re.compile(r"(?i:\s*(?:cái|cai|chiếc|chiec|đôi|doi|bộ|bo|hộp|hop|gói|goi|sp|sản phẩm|san pham|"
+                             r"món|mon|cuốn|cuon|ly|kg|ký|cặp|cap)(?!\w))")
 
 # Uppercase Vietnamese letters only (the À-Ỹ range also contains lowercase letters).
 _UPPER = "A-Z" + "".join(sorted({c for c in map(chr, range(0xC0, 0x1EFA)) if c.isupper() and c.isalpha()}))
 _WORD = r"[\wÀ-ỹđĐ]"
 _STREET_KEYWORDS = r"(?:đường|đ\.|phố|ngõ|ngách|hẻm|kiệt|ấp|thôn|khu phố|kp\.?|duong|pho|hem|ngo|ngach)"
+# Small curated list of major cities and Hà Nội / Hồ Chí Minh City districts, so "15B Phan Đình Phùng, Ba Đình"
+# is an address without any unit keyword. Unaccented spellings are derived below.
+_PLACES = """Hà Nội|Hồ Chí Minh|HCM|Sài Gòn|Đà Nẵng|Hải Phòng|Cần Thơ|Biên Hòa|Nha Trang|Huế|Ba Đình|Hoàn Kiếm|
+Hai Bà Trưng|Đống Đa|Tây Hồ|Cầu Giấy|Thanh Xuân|Hoàng Mai|Long Biên|Hà Đông|Nam Từ Liêm|Bắc Từ Liêm|Gia Lâm|
+Đông Anh|Thanh Trì|Bình Thạnh|Phú Nhuận|Gò Vấp|Tân Bình|Tân Phú|Bình Tân|Thủ Đức|Nhà Bè|Bình Chánh|Hóc Môn|Củ Chi"""
 _ADMIN_ACCENTED = r"(?:phường|quận|huyện|xã|thị xã|thị trấn|tỉnh|thành phố)"
 _ADMIN_SHORT = r"(?:tp\.?|p\.|q\.|phuong|quan|huyen|xa)"
 _NAME = rf"[{_UPPER}\d]{_WORD}*(?:\s+[{_UPPER}\d]{_WORD}*){{0,4}}"
@@ -41,7 +53,18 @@ _ADMIN_AHEAD = rf"(?:(?i:{_ADMIN_ACCENTED})\s+\S|(?i:{_ADMIN_SHORT})\s*\d|[qpQP]
 _LETTERS = rf"[^\W\d_]{_WORD}*"
 # Words that make "<number> <words> quận 7" a quantity or an instruction ("2 cái về quận 7"), not a house number.
 _NOT_STREET = frozenset("""cái cai chiếc chiec đôi bộ hộp hop gói sp sản phẩm size áo ao quần cặp đơn don về ve tới
-đến ở tại tai giao ship gửi gui cho nha nhé nhe mua lấy lay món mon người nguoi kg ký cuốn ly""".split())
+đến ở tại tai giao ship gửi gui cho nha nhé nhe mua lấy lay món mon người nguoi kg ký cuốn ly chi nhánh nhanh
+shop kho ngày ngay tiếng tieng giờ gio phút phut km màu mau mẫu loại loai tháng thang""".split())
+
+
+def _fold(text: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c)).replace(
+        "đ", "d").replace("Đ", "D")
+
+
+_PLACE_NAMES = sorted({name for place in _PLACES.split("|") for name in (place.strip(), _fold(place.strip()))},
+                      key=len, reverse=True)
+_PLACE = r"(?i:" + "|".join(re.escape(name).replace(r"\ ", r"\s+") for name in _PLACE_NAMES) + r")(?!\w)"
 
 
 def _street_or_keep(match):
@@ -53,11 +76,24 @@ def _street_or_keep(match):
 # 123 Nguyễn Trãi, Quận 5 / 123 nguyễn trãi quận 5 / 88 Đồng Khởi Quận 1 / 12 Nguyễn Huệ, Q1 / 25 le loi q1
 _HOUSE_STREET = re.compile(rf"{_HOUSE}\s+(?P<words>(?:{_LETTERS}\s+){{0,3}}{_LETTERS})(?=\s*,?\s*{_ADMIN_AHEAD})")
 
+# House number + 1-4 street words + one or more known districts/cities, without any unit keyword:
+# 15B Phan Đình Phùng, Ba Đình, Hà Nội / 22 Hai Bà Trưng Hoàn Kiếm. Never inside a price or a code (299.000 ...).
+_HOUSE_PLACE = re.compile(rf"(?<![\w.,/]){_HOUSE}\s+(?P<words>(?:{_LETTERS}\s+){{0,3}}{_LETTERS})\s*,?\s*"
+                          rf"{_PLACE}(?:\s*,?\s*{_PLACE})*")
+# Standalone hamlet, quarter or residential group with a number: ấp 3 / kp 5 / KP.2 / khu phố 4 / tổ 7 / thôn 2.
+# A count unit after it ("tổ 5 người") keeps it.
+_LOCAL_UNIT = re.compile(rf"(?<!\w)(?:(?i:ấp|thôn|khu phố|khu pho|tổ dân phố|tổ)\s+|(?i:kp)\.?\s*)\d{{1,3}}[A-Za-z]?"
+                         rf"(?!\w)(?!\s+(?i:người|nguoi|cái|cai|chiếc|đôi|bộ|sp|món|bạn|ban)(?!\w))"
+                         rf"(?:\s+[{_UPPER}]{_WORD}*(?:\s+[{_UPPER}]{_WORD}*){{0,2}})?")
+
 _ADDRESS_PATTERNS = [
+    # First, so "tổ 12 khu phố 3" is not split by the house-number pattern below.
+    _LOCAL_UNIT,
     # 12 đường Lê Lợi / 45/6 hẻm 12 / số 5 ngõ 34 Láng Hạ / số 5, đường số 7
     re.compile(rf"{_HOUSE}\s*,?\s*(?i:{_STREET_KEYWORDS})\s+(?:(?:(?i:số)\s*)?\d+[\w/]*(?:\s+{_NAME})?|{_NAME})"),
     # ngõ 34 / hẻm 45/6 / kiệt 12
     re.compile(rf"(?i:ngõ|ngách|hẻm|kiệt|hem|ngo|ngach)\s+\d+[\w/]*(?:\s+{_NAME})?"),
+    (_HOUSE_PLACE, _street_or_keep),
     (_HOUSE_STREET, _street_or_keep),
     # phường Bến Nghé / Quận 7 / TP.HCM / thành phố Hồ Chí Minh
     re.compile(rf"(?i:{_ADMIN_ACCENTED})\s+(?:\d+|{_WORD}+(?:\s+[{_UPPER}]{_WORD}*){{0,3}})"),
@@ -70,9 +106,14 @@ _MERGE = re.compile(rf"{re.escape(ADDRESS)}(?:[\s,.\-]+{re.escape(ADDRESS)})+")
 
 
 def _is_bare_mobile(text: str, match) -> bool:
-    """A 9-digit match is a phone unless it reads as an order code or an amount of money."""
+    """A 9-digit match is a phone unless it reads as an order code, an amount of money or a quantity."""
     return not (_ORDER_CONTEXT.search(text[max(0, match.start() - 12):match.start()])
-                or _MONEY_AFTER.match(text, match.end()))
+                or _MONEY_AFTER.match(text, match.end()) or _QUANTITY_AFTER.match(text, match.end()))
+
+
+def _is_order_code(text: str, match) -> bool:
+    """A full phone shape right after an explicit order word ("order 0912345678", "mã đơn: 0912345678")."""
+    return bool(_ORDER_STRICT.search(text[max(0, match.start() - 16):match.start()]))
 
 
 def _phone_digits(value: str) -> str | None:
@@ -90,7 +131,7 @@ def _phone_digits(value: str) -> str | None:
 def contact_values(text: str) -> set[str]:
     """Normalized phones/emails present in text (used to allow tenant-provided contacts in answers)."""
     values = {m.group(0).casefold() for m in _EMAIL.finditer(text)}
-    values |= {d for m in _PHONE.finditer(text) if (d := _phone_digits(m.group(0)))}
+    values |= {d for m in _PHONE.finditer(text) if not _is_order_code(text, m) and (d := _phone_digits(m.group(0)))}
     values |= {d for m in _PHONE9.finditer(text) if _is_bare_mobile(text, m) and (d := _phone_digits(m.group(0)))}
     return values
 
@@ -115,11 +156,14 @@ def redact_pii(text: str, *, addresses: bool = True, keep: set[str] | None = Non
             return match.group(0)
         return PHONE
 
+    def full_phone(match):
+        return match.group(0) if _is_order_code(match.string, match) else phone(match)
+
     def bare_mobile(match):
         return phone(match) if _is_bare_mobile(match.string, match) else match.group(0)
 
     text = _EMAIL.sub(email, text)
-    text = _PHONE.sub(phone, text)
+    text = _PHONE.sub(full_phone, text)
     text = _PHONE9.sub(bare_mobile, text)
     if addresses:
         for pattern in _ADDRESS_PATTERNS:

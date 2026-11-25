@@ -79,3 +79,54 @@ def test_addresses_can_be_kept_and_known_contacts_allowed():
     # A shop hotline written without the leading 0 is allowed the same way.
     assert redact_pii("hotline 912 345 678", keep=contact_values("Hotline 0912.345.678")) == "hotline 912 345 678"
     assert redact_pii("") == ""
+
+
+@pytest.mark.parametrize("text,expected", [
+    # Standalone hamlet, quarter and residential group with a number.
+    ("ấp 3 giúp em", "[ADDRESS] giúp em"),
+    ("nhà ở kp 5 nha", "nhà ở [ADDRESS] nha"),
+    ("KP.2 Linh Trung", "[ADDRESS]"),
+    ("khu phố 4 phường Linh Trung", "[ADDRESS]"),
+    ("tổ 7 ạ", "[ADDRESS] ạ"),
+    ("thôn 2 Đông Anh", "[ADDRESS]"),
+    ("tổ 12 khu phố 3 phường Linh Trung", "[ADDRESS]"),
+    ("giao tới ấp 3, xã Tân Phú, huyện Củ Chi nha", "giao tới [ADDRESS] nha"),
+    # House + street before a known district or city, without any unit keyword.
+    ("15B Phan Đình Phùng, Ba Đình, Hà Nội", "[ADDRESS]"),
+    ("22 Hai Bà Trưng Hoàn Kiếm", "[ADDRESS]"),
+    ("ship 22 hai ba trung hoan kiem nhé", "ship [ADDRESS] nhé"),
+    ("giao số 10 Trần Phú Hà Đông giúp", "giao [ADDRESS] giúp"),
+    ("12 Hàng Bạc, Hoàn Kiếm", "[ADDRESS]"),
+    ("45 Lê Văn Sỹ Phú Nhuận, HCM", "[ADDRESS]"),
+])
+def test_local_units_and_addresses_before_known_places(text, expected):
+    assert redact_pii(text) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "tổ chức 5 sự kiện", "tổng 5 cái", "thông tin 3 sản phẩm", "tổ 5 người đặt chung", "ấp trứng",
+    "có ship Hà Nội không", "shop ở Hà Nội à", "ship 2 ngày tới Hà Nội", "mua 2 cái về Hà Nội",
+    "giá 299.000 ship Hà Nội", "còn 3 màu Hà Nội", "có 2 chi nhánh Hà Nội",
+])
+def test_local_unit_and_place_lookalikes_are_kept(text):
+    assert redact_pii(text) == text
+
+
+@pytest.mark.parametrize("text", [
+    "order 0912345678", "order #0912345678", "mã đơn: 0912345678", "đơn hàng 0912345678 sao rồi",
+    "order id 0912345678 giao chưa", "tôi muốn 912345678 cái", "lấy 912345678 sp",
+])
+def test_order_codes_and_quantities_shaped_like_phones_are_kept(text):
+    assert redact_pii(text) == text
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("gọi 0912345678 về đơn hàng", "gọi [PHONE] về đơn hàng"),
+    ("sđt 0912345678 order giúp", "sđt [PHONE] order giúp"),
+    ("order xong gọi 0912345678", "order xong gọi [PHONE]"),
+    ("đơn giao 0912345678", "đơn giao [PHONE]"),
+    ("912345678 cho mình", "[PHONE] cho mình"),
+    ("lấy 2 cái, sđt 912345678", "lấy 2 cái, sđt [PHONE]"),
+])
+def test_phones_near_order_or_quantity_words_are_still_redacted(text, expected):
+    assert redact_pii(text) == expected
