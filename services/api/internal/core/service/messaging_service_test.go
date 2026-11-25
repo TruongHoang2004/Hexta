@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -474,5 +475,58 @@ func TestMessagingDeskLegacyUnassignedQueue(t *testing.T) {
 	page, err := s.Conversations(context.Background(), f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
 	if err != nil || len(page.Items) != 1 || page.Items[0].Thread.ID != message.ThreadID || page.Items[0].Turn.HandlingState() != "WAITING_STAFF" {
 		t.Fatal("legacy unassigned staff work disappeared", err)
+	}
+}
+
+// A send confirmation advances last_activity_at without the thread lock or a version bump. A writer that read the
+// turn before the confirmation must not write the older activity back when it saves the turn.
+func TestSendActivityIsNotLostToAnEarlierTurnRead(t *testing.T) {
+	f, _, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	repo := repository.NewMessagingRepository(f.db)
+	delivery := repository.NewDeliveryRepository(f.db)
+	base := turn.LastActivityAt.UTC().Truncate(time.Microsecond)
+	confirmed, earlier, later := base.Add(10*time.Minute), base.Add(5*time.Minute), base.Add(20*time.Minute)
+	stored := func() time.Time {
+		t.Helper()
+		var at time.Time
+		if err := f.db.Raw("SELECT last_activity_at FROM messaging_turns WHERE tenant_id = ? AND id = ?", f.tenant, turn.ID).Scan(&at).Error; err != nil {
+			t.Fatal(err)
+		}
+		return at.UTC()
+	}
+	save := func(at time.Time, interleave func() *apperrors.Error) {
+		t.Helper()
+		if err := repo.Within(ctx, func(r repository.MessagingStore) *apperrors.Error {
+			if _, err := r.Thread(ctx, f.tenant, message.ThreadID, true); err != nil {
+				return err
+			}
+			current, err := r.Turn(ctx, f.tenant, turn.ID)
+			if err != nil {
+				return err
+			}
+			if interleave != nil {
+				if err := interleave(); err != nil {
+					return err
+				}
+			}
+			current.LastActivityAt = at
+			current.Version++
+			return r.SaveTurn(ctx, *current, false)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// The delivery consumer commits a confirmation (its own transaction, not blocked by the thread lock) after the
+	// writer read the turn and before it saves an older activity.
+	save(earlier, func() *apperrors.Error { return delivery.RecordSendActivity(ctx, f.tenant, message.ID, confirmed) })
+	if got := stored(); !got.Equal(confirmed) {
+		t.Fatalf("a stale turn write moved activity backwards: got %s, want %s", got, confirmed)
+	}
+	// A newer activity from the writer still applies.
+	save(later, nil)
+	if got := stored(); !got.Equal(later) {
+		t.Fatalf("a newer activity must be saved: got %s, want %s", got, later)
 	}
 }

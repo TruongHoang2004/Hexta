@@ -150,7 +150,12 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 		}
 		return nil
 	}
-	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).Select("assignee_id", "control", "needs_human", "needs_human_reason", "lifecycle", "context_revision", "control_generation", "version", "last_activity_at", "closed_at").Updates(&row)
+	// last_activity_at only moves forward: the delivery consumer advances it without the thread lock or a version
+	// bump (RecordSendActivity), so a writer holding an earlier read must not write the older value back.
+	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).
+		Updates(map[string]any{"assignee_id": row.AssigneeID, "control": row.Control, "needs_human": row.NeedsHuman, "needs_human_reason": row.NeedsHumanReason,
+			"lifecycle": row.Lifecycle, "context_revision": row.ContextRevision, "control_generation": row.ControlGeneration, "version": row.Version,
+			"last_activity_at": gorm.Expr("GREATEST(last_activity_at, ?)", row.LastActivityAt), "closed_at": row.ClosedAt})
 	if result.Error != nil {
 		return salesDBError(ctx, result.Error)
 	}
