@@ -733,7 +733,7 @@ CREATE TABLE "script_member_permissions" (
   PRIMARY KEY ("tenant_id", "user_id"),
   CONSTRAINT "script_member_permissions_member_fkey" FOREIGN KEY ("tenant_id", "user_id") REFERENCES "tenant_members" ("tenant_id", "user_id") ON UPDATE NO ACTION ON DELETE CASCADE,
   CONSTRAINT "script_member_permissions_version_check" CHECK (version > 0)
-
+);
 -- Order exception cases (MVP 6). At most one case per order; the original order and its lines are never modified.
 -- No refund, payment or stock movement is attached to a case.
 CREATE TABLE "order_cases" (
