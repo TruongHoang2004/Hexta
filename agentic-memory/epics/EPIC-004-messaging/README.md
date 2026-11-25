@@ -52,6 +52,8 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 - [2026-11-03 inbox design](sessions/2026-11-03_inbox-components.md) — [PR #61](https://github.com/TruongHoang2004/Hexta/pull/61), in-review/completed false. Sample UI at `/inbox/preview`; simulator `/inbox` preserved. Verification and next steps are in the session.
 
+- [2026-11-26 conversation sessions](sessions/2026-11-26_conversation-sessions.md) — in-progress/completed false; local branch on top of `integrate/mvp5-6`. Session list, manual close, per-session outcome/note and Desk-linked orders; outcome set awaits owner confirmation.
+
 ## Remaining work and next handoff
 
 Review the bounded simulator/manual inbox, run two-profile browser acceptance and explicitly migrate/rebuild the local application. Follow with turn lifecycle, scripts/proposals and durable outbound/Kafka integration. Existing legacy AI order drafts are not messaging proposals.

@@ -243,7 +243,7 @@ func TestTurnExpiryWaitsForHeldThreadAndConcurrentInstances(t *testing.T) {
 		t.Fatal("locked thread was closed")
 	}
 	// Reopen every turn as due and race four job instances: each turn closes exactly once.
-	if err := f.db.Exec("UPDATE messaging_turns SET lifecycle = 'open', closed_at = NULL WHERE tenant_id = ?", f.tenant).Error; err != nil {
+	if err := f.db.Exec("UPDATE messaging_turns SET lifecycle = 'open', closed_at = NULL, close_cause = NULL WHERE tenant_id = ?", f.tenant).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err := f.db.Where("tenant_id = ? AND action = ?", f.tenant, "messaging.turn_expired").Delete(&model.AuditLog{}).Error; err != nil {

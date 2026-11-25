@@ -102,3 +102,16 @@ Owner decisions for MVP 5 bot replies (PRD `docs/specs/prd/mvp-5-bot-replies.md`
 - **D3 — DECIDED: suggest-mode safety.** A BOT_ACTIVE turn whose live bot proposal is pending counts in the waiting-for-staff count, appears under the Desk `waiting` ("Chờ nhân viên") filter, and is not eligible for the 24-hour expiry while that proposal is pending. Once the proposal is sent, discarded or superseded (or control changes), normal rules resume.
 
 IMPLEMENTED (unmerged, branch `integrate/mvp5-6`): migration `20261126800000_reply_mode_off_and_review_pending` (`off` mode, `bot_off` reason, `messaging_turns.review_pending` with a CHECK that it is only set on open BOT_ACTIVE turns, projected to `messaging_conversation_views.review_pending` through `messaging.conversation.changed`). See the EPIC-004 reply-mode session.
+
+## Conversation sessions — owner 2026-11-26
+
+DECIDED (owner-approved scope):
+
+- **Session = turn.** A customer can have many chat sessions in one conversation; a session is the existing consultation turn (`messaging_turns`), not a parallel concept. It closes after the fixed 24-hour inactivity window (not configurable) and a genuinely new customer message opens a new unassigned turn under the current reply mode. This amends "Turn expiry": manual close is now allowed in addition to expiry.
+- **Manual close.** The assigned sale under staff control, or the owner, can close the current open session before 24 hours. An outcome is required and a short note (at most 1000 characters) is optional; the request carries `expected_version`. Closing follows the expiry semantics: version and control generation bump (proposals become stale, queued router jobs are dropped), unstarted sends are cancelled, history is kept, `needs_human` and `review_pending` are cleared (the audit `messaging.turn_closed_manually` records whether the session was flagged). Other members, closed sessions, stale versions and unassigned bot-handled sessions (unless owner) are refused.
+- **Session list.** The Desk shows a conversation's sessions newest first with time range, close cause (`expired` | `closed_manually`), handler, outcome, note, message count and linked orders; selecting one jumps the thread to its first message. Closed sessions are read-only apart from their outcome.
+- **Per-session data.** Outcome and note per session; expired sessions start without an outcome, which the owner or the session's last handler may record afterwards (no time window). Orders created from Desk during a session are linked to it through a nullable `orders.messaging_turn_id` set only at draft creation; order business rules are unchanged.
+
+PROPOSAL (owner to confirm): the outcome set `order_placed`, `consulted`, `price_inquiry`, `complaint`, `no_response`, `other`. Implementation choices also awaiting confirmation: a draft can link only to an open session; a customer message whose source time falls between the last activity and a manual close opens a new session (it is not folded into the closed one); "last handler" is the last staff assignee and survives return to the bot.
+
+IMPLEMENTED (unmerged): migrations `20261126900000`–`20261126900200`, `GET /conversations/{id}/sessions`, `POST /turns/{id}/close`, `POST /turns/{id}/outcome`. See the EPIC-004 conversation-sessions session.
