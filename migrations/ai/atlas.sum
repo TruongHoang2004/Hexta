@@ -1,2 +1,4 @@
-h1:vT0iUr858dMtFWXFW+Ihj2VSVarl+PyD0lkDShvW+9k=
+h1:rjIuwc9em3b/mMwQRdpI9B1bEjJCdpoWnrHaTZs1aC8=
 20261020100000_durable_runs.sql h1:OIn2jBuncqnDDn7OhE9SdZtkUJ8dSQqES4VuneN+jiI=
+20261126950000_enable_pgvector.sql h1:YSI/7Ry+KGNcrpMGzQbvKo1J6vavO8K6QoiNhfyUcko=
+20261126950001_knowledge_store.sql h1:beyMMjfGAWawURInHYdX9Ib9jk6EYWBMJRy4tDDPPwA=

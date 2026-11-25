@@ -8,6 +8,10 @@ from langsmith import tracing_context
 
 from hexta_ai.providers.base import INSTRUCTIONS, ProviderError, StructuredProvider, Usage
 
+# Provider stop reasons meaning the model declined or was filtered; mapped to a handoff, never retried.
+REFUSALS = {"refusal", "content_filter", "SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION"}
+COMPLETE = {"STOP", "stop", "end_turn", "completed"}
+
 MODEL_PROVIDERS = {"gemini": "google_genai", "openai": "openai", "anthropic": "anthropic"}
 
 
@@ -32,19 +36,28 @@ class LangChainProvider(StructuredProvider):
         else:
             self.chat_model = chat_model
 
-    async def _request(self, schema, payload):
+    def system_message(self, instructions):
+        if self.name == "anthropic":
+            # Stable system prompt first, marked as a cache breakpoint; variable context follows it.
+            return SystemMessage(content=[{"type": "text", "text": instructions,
+                                           "cache_control": {"type": "ephemeral"}}])
+        return SystemMessage(content=instructions)
+
+    async def _request(self, schema, payload, instructions=INSTRUCTIONS):
         structured = self.chat_model.with_structured_output(schema, method="json_schema", include_raw=True)
         with tracing_context(enabled=False):
             response = await structured.ainvoke(
-                [SystemMessage(content=INSTRUCTIONS), HumanMessage(content=payload)],
+                [self.system_message(instructions), HumanMessage(content=payload)],
                 config={"callbacks": []},
             )
+        raw = response.get("raw")
+        metadata = getattr(raw, "response_metadata", None) or {}
+        finish = metadata.get("finish_reason") or metadata.get("stop_reason") or metadata.get("status")
+        if finish in REFUSALS:
+            raise ProviderError("LLM_REFUSAL")
         if response.get("parsing_error") is not None or response.get("parsed") is None:
             raise ProviderError("LLM_INVALID_OUTPUT")
-        raw = response["raw"]
-        metadata = raw.response_metadata
-        finish = metadata.get("finish_reason") or metadata.get("stop_reason") or metadata.get("status")
-        if finish is not None and finish not in ("STOP", "stop", "end_turn", "completed"):
+        if finish is not None and finish not in COMPLETE:
             raise ProviderError("LLM_INVALID_OUTPUT")
         usage = raw.usage_metadata
         return response["parsed"], (

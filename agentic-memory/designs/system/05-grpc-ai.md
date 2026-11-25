@@ -11,6 +11,8 @@ All three methods are unary RPCs. StartRun accepts work asynchronously rather th
 | StartRun | StartRunRequest | Current Run after committed acceptance or idempotent lookup |
 | GetRun | RunRequest | Tenant-qualified Run or NOT_FOUND |
 | CancelRun | RunRequest | Durable cancelled state for queued/running work; completed state remains unchanged |
+| UpsertKnowledge | UpsertKnowledgeRequest | Per-document outcome (created/updated/attributes_updated/unchanged/stale); local/unmerged 2026-11-26 |
+| DeleteKnowledge | DeleteKnowledgeRequest | deleted/not_found/stale; tombstone keeps the revision fence; local/unmerged 2026-11-26 |
 
 ### Script message
 
@@ -36,6 +38,7 @@ All three methods are unary RPCs. StartRun accepts work asynchronously rather th
 | 9 | facts | repeated DomainFact (id, text), max 50 |
 | 10 | constraints | repeated string, max 20 |
 | 11 | allow_generation | bool; defaults false for existing callers |
+| 12 | allow_knowledge_answer | bool; opt-in to knowledge-grounded generated answers (always requires_review); local/unmerged |
 
 RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 
@@ -57,6 +60,14 @@ RunRequest fields: tag 1 tenant_id string, tag 2 run_id string.
 | 16 | confidence | double in [0,1], model score rather than calibrated probability |
 | 17,18 | input_tokens, output_tokens | int64, provider usage or labeled estimate |
 | 19 | usage_estimated | bool, true when usage is locally estimated |
+| 20 | candidate_kind | string script/generated/clarify/handoff (local/unmerged 2026-11-26) |
+| 21 | cited_source_ids | repeated string product:/document:/script:/fact: source keys |
+| 22 | needs_human | bool |
+| 23 | handoff_reason | string in Go vocabulary: customer_requested_staff, insufficient_information, ai_error, business_review |
+| 24 | requires_review | bool; true for model-authored text, Go must not auto-send |
+| 25, 26 | router, router_model | jev/deterministic/provider and its model |
+| 27 | route_probability | double router probability of the chosen option |
+| 28 | router_fallback_reason | safe category, e.g. jev_disabled, jev_timeout, jev_low_probability |
 
 Enum values: 0 UNSPECIFIED, 1 QUEUED, 2 RUNNING, 3 SUCCEEDED, 4 FAILED, 5 CANCELLED. Protobuf scalar defaults are real contract defaults; absent int64 revisions decode as 0 and absent bool active as false. Current Python rejects negative revisions but does not require positive revisions.
 
@@ -146,3 +157,14 @@ GET /health/live reports process and effective provider/simulation mode; GET /he
 ## Explicit schema migration — 2026-10-20
 
 AI startup now checks storage readiness and starts its worker only after a successful explicit Atlas migrations/ai job; RunStore has no migrate method or bundled startup DDL. Durable run/RPC/lease contracts unchanged. Existing compatible rows retained and verified; 27 Python tests passed. See [primary session](../../epics/EPIC-003-local-docker/sessions/2026-10-20_atlas-all-services.md).
+
+## Jev routing and knowledge answers — 2026-11-26, local/unmerged
+
+Owner-decided Jev (TypeSafe System One) router behind `AI_JEV_ENABLED` (default off), typed PII redaction
+before TypeSafe, pgvector knowledge in `ai_runtime` (`knowledge_sources`, `knowledge_chunks`; extension in
+`public`, migrations 20261126950000/20261126950001) with Gemini embeddings, and Claude structured answers
+labelled `generated` + `requires_review`. The run is paid (LLM_CALL_STARTED fence) when the answer model,
+Jev or embeddings are real. Graph adds `retrieve_knowledge` → `answer_candidate`; Jev failure falls back
+to the deterministic matcher, then human. Go adapter mapping is a pending follow-up. See
+[design](../2026-11-26_ai-jev-rag_design.md) and
+[session](../../epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-jev-rag.md).

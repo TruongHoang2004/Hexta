@@ -19,7 +19,7 @@ class ProviderConfig(BaseModel):
 
 
 DEFAULT_MODELS = {"fake": "deterministic", "gemini": "gemini-2.5-flash",
-                  "openai": "gpt-4o-mini", "anthropic": "claude-haiku-4-5"}
+                  "openai": "gpt-4o-mini", "anthropic": "claude-sonnet-5-5"}
 KEYS = {"gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
 

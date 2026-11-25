@@ -8,6 +8,9 @@ service AIService {
   rpc StartRun(StartRunRequest) returns (Run);
   rpc GetRun(RunRequest) returns (Run);
   rpc CancelRun(RunRequest) returns (Run);
+  // Knowledge ingest for grounded answers. Go pushes authorized tenant data; Python stores embeddings only.
+  rpc UpsertKnowledge(UpsertKnowledgeRequest) returns (UpsertKnowledgeResponse);
+  rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
 }
 
 message Script {
@@ -29,6 +32,9 @@ message StartRunRequest {
   repeated DomainFact facts = 9;
   repeated string constraints = 10;
   bool allow_generation = 11;
+  // Opt-in to knowledge-grounded generated answers. They are always proposals that need staff review
+  // (Run.requires_review); callers that do not set this never receive them.
+  bool allow_knowledge_answer = 12;
 }
 
 message ConversationMessage {
@@ -75,4 +81,63 @@ message Run {
   int64 input_tokens = 17;
   int64 output_tokens = 18;
   bool usage_estimated = 19;
+  // script | generated | clarify | handoff; empty for runs that produced no candidate.
+  string candidate_kind = 20;
+  // Knowledge sources the candidate relies on: product:<id>, document:<id>, script:<id>, fact:<id>.
+  repeated string cited_source_ids = 21;
+  bool needs_human = 22;
+  // Handoff category in the Go vocabulary: customer_requested_staff, insufficient_information, ai_error,
+  // business_review. Empty unless route is human.
+  string handoff_reason = 23;
+  // True for model-authored text; Go must never auto-send it.
+  bool requires_review = 24;
+  // jev | deterministic | provider
+  string router = 25;
+  string router_model = 26;
+  // Probability of the router's chosen option, 0 when the router reports none.
+  double route_probability = 27;
+  // Safe category explaining why the primary router was not used (for example jev_disabled, jev_timeout).
+  string router_fallback_reason = 28;
+}
+
+message KnowledgeDocument {
+  // product | document | script
+  string source_type = 1;
+  string source_id = 2;
+  // Monotonic per source (for example the source row version); older revisions are ignored.
+  int64 source_revision = 3;
+  string title = 4;
+  // Embedded text.
+  string body = 5;
+  // Current facts shown to the model but not embedded (price, stock, sku, version_id).
+  map<string, string> attributes = 6;
+}
+
+message UpsertKnowledgeRequest {
+  string tenant_id = 1;
+  repeated KnowledgeDocument documents = 2;
+}
+
+message KnowledgeResult {
+  string source_type = 1;
+  string source_id = 2;
+  // created | updated | attributes_updated | unchanged | stale
+  string outcome = 3;
+  int32 chunk_count = 4;
+}
+
+message UpsertKnowledgeResponse {
+  repeated KnowledgeResult results = 1;
+}
+
+message DeleteKnowledgeRequest {
+  string tenant_id = 1;
+  string source_type = 2;
+  string source_id = 3;
+  int64 source_revision = 4;
+}
+
+message DeleteKnowledgeResponse {
+  // deleted | not_found | stale
+  string outcome = 1;
 }
