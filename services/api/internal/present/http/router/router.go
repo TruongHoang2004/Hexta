@@ -20,6 +20,7 @@ func RegisterRoutes(
 	messagingQuery *controller.MessagingQueryController,
 	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
+	scripts *controller.ScriptController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
@@ -105,6 +106,19 @@ func RegisterRoutes(
 	resources.GET("/channels/telegram/connections", channels.ListTelegramConnections)
 	resources.POST("/channels/telegram/connections", channels.ConnectTelegramBot)
 	resources.PATCH("/channels/telegram/connections/:id", channels.UpdateTelegramConnection)
+
+	// Bot reply scripts (MVP 5); the script service checks membership and the specific script permission.
+	resources.GET("/scripts", scripts.ListScripts)
+	resources.POST("/scripts", scripts.CreateScript)
+	resources.GET("/scripts/:id", scripts.GetScript)
+	resources.PUT("/scripts/:id/draft", scripts.SaveScriptDraft)
+	resources.POST("/scripts/:id/activate", scripts.ActivateScript)
+	resources.POST("/scripts/:id/deactivate", scripts.DeactivateScript)
+	resources.POST("/scripts/:id/archive", scripts.ArchiveScript)
+	resources.GET("/script-permissions", scripts.ListScriptPermissions)
+	resources.GET("/script-permissions/me", scripts.MyScriptPermissions)
+	resources.POST("/script-permissions/:userID/grant", scripts.GrantScriptPermission)
+	resources.POST("/script-permissions/:userID/revoke", scripts.RevokeScriptPermission)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

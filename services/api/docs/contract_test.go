@@ -41,7 +41,7 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingQueryController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingQueryController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.ScriptController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -129,6 +129,28 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 					_, exposesToken := resolveSchema(t, spec, *list.Items).Properties["bot_token"]
 					require.False(t, exposesToken, "channel list responses must never carry provider tokens")
 				}
+			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"get", "/api/v1/tenants/{tenantID}/scripts"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts"},
+				{"get", "/api/v1/tenants/{tenantID}/scripts/{id}"},
+				{"put", "/api/v1/tenants/{tenantID}/scripts/{id}/draft"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/activate"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/deactivate"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/archive"},
+				{"get", "/api/v1/tenants/{tenantID}/script-permissions"},
+				{"get", "/api/v1/tenants/{tenantID}/script-permissions/me"},
+				{"post", "/api/v1/tenants/{tenantID}/script-permissions/{userID}/grant"},
+				{"post", "/api/v1/tenants/{tenantID}/script-permissions/{userID}/revoke"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing script operation %s %s", endpoint.method, endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id", "{userID}", ":userID").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route], "documented script route is not registered: %s", route)
+				success := resolveSchema(t, spec, op.Responses["200"].Schema)
+				require.Contains(t, success.Properties, "data", "script responses must use the response envelope")
+				failure := resolveSchema(t, spec, op.Responses["403"].Schema)
+				require.Contains(t, failure.Properties, "detail")
 			}
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")
