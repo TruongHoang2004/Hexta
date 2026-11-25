@@ -20,6 +20,7 @@ type MessagingStore interface {
 	Thread(context.Context, string, string, bool) (*types.MessagingThread, *apperrors.Error)
 	UpsertThread(context.Context, types.MessagingThread) (*types.MessagingThread, *apperrors.Error)
 	CurrentTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
+	LatestTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
 	Turn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
 	SaveTurn(context.Context, types.MessagingTurn, bool) *apperrors.Error
 	SaveThread(context.Context, types.MessagingThread) *apperrors.Error
@@ -107,6 +108,21 @@ func (r *MessagingRepository) CurrentTurn(ctx context.Context, tenant, thread st
 	value := persistencemap.Turn(row)
 	return &value, nil
 }
+
+// LatestTurn returns the open turn, or else the most recently opened closed turn; nil when the thread has none.
+// Turn IDs are UUIDv7, so ID order is creation order.
+func (r *MessagingRepository) LatestTurn(ctx context.Context, tenant, thread string) (*types.MessagingTurn, *apperrors.Error) {
+	var row messagingmodel.Turn
+	err := r.db.WithContext(ctx).Where("tenant_id = ? AND thread_id = ?", tenant, thread).Order("lifecycle = 'open' DESC, id DESC").First(&row).Error
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, salesDBError(ctx, err)
+	}
+	value := persistencemap.Turn(row)
+	return &value, nil
+}
 func (r *MessagingRepository) Turn(ctx context.Context, tenant, id string) (*types.MessagingTurn, *apperrors.Error) {
 	var row messagingmodel.Turn
 	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND id = ?", tenant, id).First(&row).Error; err != nil {
@@ -124,7 +140,7 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 		}
 		return nil
 	}
-	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).Select("assignee_id", "control", "needs_human", "lifecycle", "context_revision", "control_generation", "version", "last_activity_at").Updates(&row)
+	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).Select("assignee_id", "control", "needs_human", "needs_human_reason", "lifecycle", "context_revision", "control_generation", "version", "last_activity_at", "closed_at").Updates(&row)
 	if result.Error != nil {
 		return salesDBError(ctx, result.Error)
 	}

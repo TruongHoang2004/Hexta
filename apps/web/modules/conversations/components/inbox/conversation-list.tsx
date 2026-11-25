@@ -15,6 +15,7 @@ export function ConversationList({
   owner,
   members,
   list,
+  waitingCount,
   error,
   selected,
   onSelect,
@@ -23,6 +24,8 @@ export function ConversationList({
   owner: boolean;
   members: TenantMember[];
   list: ReturnType<typeof useInboxConversations>;
+  /** Tenant-wide waiting-for-staff count; null while unknown. */
+  waitingCount: number | null;
   error: string;
   selected: string;
   onSelect: (threadID: string) => void;
@@ -31,7 +34,13 @@ export function ConversationList({
   const memberName = useMemberName(members);
   const filters: { value: DeskFilter; label: string }[] = [
     { value: "bot", label: t("desk.filters.bot") },
-    { value: "needs_human", label: t("desk.filters.needs_human") },
+    {
+      value: "waiting",
+      label:
+        waitingCount === null
+          ? t("desk.filters.waiting")
+          : t("desk.filters.waitingCount", { count: waitingCount }),
+    },
     { value: "mine", label: t("desk.filters.mine") },
     { value: "all", label: t("desk.filters.all") },
   ];

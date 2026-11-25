@@ -19,6 +19,7 @@ func registerMessagingCommandRoutes(resources *gin.RouterGroup, handle func(stri
 		{"/turns/:id/assign", "Assign"},
 		{"/turns/:id/handoff", "Handoff"},
 		{"/turns/:id/return-to-bot", "ReturnToBot"},
+		{"/turns/:id/resolve", "Resolve"},
 		{"/turns/:id/send-simulation", "Send"},
 		{"/turns/:id/messages", "SendChannel"},
 	} {
@@ -43,6 +44,8 @@ func RegisterMessagingCommandRoutes(params Params, health *controller.HealthCont
 			return commands.Handoff
 		case "ReturnToBot":
 			return commands.ReturnToBot
+		case "Resolve":
+			return commands.Resolve
 		case "Send":
 			return commands.Send
 		default:

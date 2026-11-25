@@ -4,7 +4,7 @@ import "time"
 
 type MessagingQuery struct {
 	Cursor string `form:"cursor" validate:"omitempty,uuid"`
-	Filter string `form:"filter" validate:"omitempty,oneof=all mine unassigned needs_human bot"`
+	Filter string `form:"filter" validate:"omitempty,oneof=all mine unassigned needs_human waiting bot"`
 	Limit  int    `form:"limit" validate:"min=1,max=100"`
 }
 type MessagingInboundRequest struct {
@@ -37,17 +37,27 @@ type MessagingThread struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 type MessagingTurn struct {
-	ID                string    `json:"id"`
-	ThreadID          string    `json:"thread_id"`
-	Lifecycle         string    `json:"lifecycle"`
-	Control           string    `json:"control"`
-	HandlingState     string    `json:"handling_state"`
-	AssigneeID        *string   `json:"assignee_id"`
-	NeedsHuman        bool      `json:"needs_human"`
+	ID            string  `json:"id"`
+	ThreadID      string  `json:"thread_id"`
+	Lifecycle     string  `json:"lifecycle"`
+	Control       string  `json:"control"`
+	HandlingState string  `json:"handling_state"`
+	AssigneeID    *string `json:"assignee_id"`
+	NeedsHuman    bool    `json:"needs_human"`
+	// NeedsHumanReason is the handoff reason code behind needs_human; omitted when none was given.
+	NeedsHumanReason  string    `json:"needs_human_reason,omitempty"`
 	ContextRevision   int64     `json:"context_revision"`
 	ControlGeneration int64     `json:"control_generation"`
 	Version           int64     `json:"version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
+	// ClosedAt is set on a closed turn (24-hour inactivity expiry); a new customer message opens a new turn.
+	ClosedAt *time.Time `json:"closed_at,omitempty"`
+}
+
+// MessagingSummary is the tenant-wide Desk notification state.
+type MessagingSummary struct {
+	// WaitingStaffCount is the number of open conversations waiting for staff (unassigned, staff control).
+	WaitingStaffCount int64 `json:"waiting_staff_count"`
 }
 
 // SendMessageRequest sends a real-channel reply. Version/context guard against replying to stale context.

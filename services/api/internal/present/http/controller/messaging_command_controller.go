@@ -197,6 +197,33 @@ func (ctrl *MessagingCommandController) ReturnToBot(c *gin.Context) {
 	ctrl.Success(c, httpmap.Turn(*result))
 }
 
+// Resolve
+// @Summary Mark a conversation's needs-human flag resolved
+// @Description Only the assigned sale under staff control can resolve. Restarts the 24-hour inactivity window and keeps staff control; nothing returns to the bot. 409 when the turn changed, is closed or does not need a person.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn ID"
+// @Param request body dto.MessagingCommandRequest true "Command"
+// @Success 200 {object} response.Response[dto.MessagingTurn]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/resolve [post]
+func (ctrl *MessagingCommandController) Resolve(c *gin.Context) {
+	var input dto.MessagingCommandRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.Command(c.Request.Context(), tenant, actor, c.Param("id"), "resolve", types.MessagingCommand{ExpectedVersion: input.ExpectedVersion})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Turn(*result))
+}
+
 // SendChannel
 // @Summary Send a real channel reply (Facebook or Telegram) as the assigned sale
 // @Description Assigned sale under sales control only; the conversation's Page/bot connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, bot_blocked, chat_not_found, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.

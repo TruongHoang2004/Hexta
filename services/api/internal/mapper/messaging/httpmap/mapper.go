@@ -9,7 +9,10 @@ func Thread(value types.MessagingThread) dto.MessagingThread {
 	return dto.MessagingThread{ID: value.ID, DisplayName: value.DisplayName, ExternalKey: value.ExternalKey, ConnectionID: value.ConnectionID, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 }
 func Turn(value types.MessagingTurn) dto.MessagingTurn {
-	return dto.MessagingTurn{ID: value.ID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, HandlingState: value.HandlingState(), AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt}
+	return dto.MessagingTurn{ID: value.ID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, HandlingState: value.HandlingState(), AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, NeedsHumanReason: value.NeedsHumanReason, ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt, ClosedAt: value.ClosedAt}
+}
+func Summary(value types.MessagingSummary) dto.MessagingSummary {
+	return dto.MessagingSummary{WaitingStaffCount: value.WaitingStaff}
 }
 func Message(value types.MessagingMessage) dto.MessagingMessage {
 	result := dto.MessagingMessage{ID: value.ID, ThreadID: value.ThreadID, TurnID: value.TurnID, Direction: value.Direction, ActorID: value.ActorID, Body: value.Body, Status: value.Status, CreatedAt: value.CreatedAt, ContentType: value.ContentType, DeliveryStatus: value.DeliveryStatus, DeliveryErrorReason: value.DeliveryErrorReason}

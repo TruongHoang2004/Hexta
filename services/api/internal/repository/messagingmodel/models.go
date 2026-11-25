@@ -23,10 +23,12 @@ type Turn struct {
 	Control           string
 	AssigneeID        *string
 	NeedsHuman        bool
+	NeedsHumanReason  *string
 	ContextRevision   int64
 	ControlGeneration int64
 	Version           int64
 	LastActivityAt    time.Time
+	ClosedAt          *time.Time
 }
 
 func (Turn) TableName() string { return "messaging_turns" }
@@ -116,7 +118,7 @@ type OutboundAttempt struct {
 
 func (OutboundAttempt) TableName() string { return "outbound_attempts" }
 
-// ConversationView is the read model row for one conversation and its open turn.
+// ConversationView is the read model row for one conversation and its latest turn.
 type ConversationView struct {
 	TenantID          string
 	ThreadID          string
@@ -135,6 +137,7 @@ type ConversationView struct {
 	ControlGeneration int64
 	TurnVersion       int64
 	LastActivityAt    time.Time
+	NeedsHumanReason  *string
 }
 
 func (ConversationView) TableName() string { return "messaging_conversation_views" }

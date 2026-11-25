@@ -70,13 +70,14 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 			result = old
 			return nil
 		}
-		turn, err := r.CurrentTurn(ctx, tenant, thread.ID)
+		turn, err := r.LatestTurn(ctx, tenant, thread.ID)
 		if err != nil {
 			return err
 		}
-		create := turn == nil
+		// Simulated input is always new at processing time, so a closed latest turn opens a new unassigned turn.
+		create := types.InboundPlacement(turn, now, now) != types.InboundAppend
 		if create {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ControlGeneration: 1}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: types.TurnOpen, Control: "sales", NeedsHuman: true, ControlGeneration: 1}
 		}
 		turn.ContextRevision++
 		turn.Version++
@@ -144,6 +145,9 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			return apperrors.ErrConflict(ctx, "turn", "changed; refresh before retrying")
 		}
 		before := *turn
+		// Control-changing commands fence stale AI/output by bumping the control generation; resolve does not
+		// change control.
+		fence := true
 		switch action {
 		case "handoff":
 			if turn.AssigneeID != nil && *turn.AssigneeID != actor && !owner {
@@ -155,6 +159,7 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			turn.AssigneeID = nil
 			turn.Control = "sales"
 			turn.NeedsHuman = true
+			turn.NeedsHumanReason = input.Reason
 		case "return-to-bot":
 			if !owner && (turn.AssigneeID == nil || *turn.AssigneeID != actor) {
 				return apperrors.ErrForbidden(ctx).SetDetail("current assignee or tenant owner required")
@@ -162,24 +167,45 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			if turn.HandlingState() != "STAFF_ACTIVE" && turn.HandlingState() != "WAITING_STAFF" {
 				return apperrors.ErrConflict(ctx, "turn", "not under staff control")
 			}
+			// Explicit, authorized return is the only path back to automation; it clears the escalation.
 			turn.AssigneeID = nil
 			turn.Control = "system"
 			turn.NeedsHuman = false
+			turn.NeedsHumanReason = ""
 		case "claim":
 			if turn.AssigneeID != nil && *turn.AssigneeID != actor {
 				return apperrors.ErrConflict(ctx, "turn", "already assigned")
 			}
+			// needs_human survives the claim: the assigned sale resolves it explicitly.
 			turn.AssigneeID = &actor
 			turn.Control = "sales"
-			turn.NeedsHuman = false
 		case "assign":
 			turn.AssigneeID = input.AssigneeID
 			turn.Control = "sales"
-			turn.NeedsHuman = input.AssigneeID == nil
+			// Unassignment returns the work to the staff queue, which must not expire unattended.
+			if input.AssigneeID == nil {
+				turn.NeedsHuman = true
+			}
+		case "resolve":
+			if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
+				return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale can resolve needs-human")
+			}
+			if !turn.NeedsHuman {
+				return apperrors.ErrConflict(ctx, "turn", "does not need a person")
+			}
+			// Resolving restarts the inactivity window but keeps staff control; nothing returns to the bot.
+			turn.NeedsHuman = false
+			turn.NeedsHumanReason = ""
+			if now := time.Now().UTC(); now.After(turn.LastActivityAt) {
+				turn.LastActivityAt = now
+			}
+			fence = false
 		default:
 			return apperrors.ErrBadRequest(ctx).SetDetail("unsupported conversation command")
 		}
-		turn.ControlGeneration++
+		if fence {
+			turn.ControlGeneration++
+		}
 		turn.Version++
 		if err := r.SaveTurn(ctx, *turn, false); err != nil {
 			return err
@@ -189,7 +215,7 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			"version": turn.Version, "control_generation": turn.ControlGeneration,
 			"before": before.HandlingState(), "after": turn.HandlingState(),
 			"previous_assignee_id": before.AssigneeID, "assignee_id": turn.AssigneeID,
-			"reason": input.Reason,
+			"reason": input.Reason, "needs_human": turn.NeedsHuman, "previous_needs_human_reason": before.NeedsHumanReason,
 		})
 	})
 	return result, err
@@ -248,6 +274,7 @@ func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, ac
 		if err := r.InsertMessage(ctx, *result); err != nil {
 			return err
 		}
+		// A simulated reply has no delivery step, so it is a confirmed send and counts as activity.
 		turn.Version++
 		turn.ContextRevision++
 		turn.LastActivityAt = now
@@ -330,9 +357,10 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 		if err := r.InsertOutbound(ctx, intent, attempt, event); err != nil {
 			return err
 		}
+		// A pending channel send is not activity: the turn's inactivity clock advances only when the connector
+		// confirms it was sent (DeliveryService). Failed and unknown outcomes never count.
 		turn.Version++
 		turn.ContextRevision++
-		turn.LastActivityAt = now
 		if err := r.SaveTurn(ctx, *turn, false); err != nil {
 			return err
 		}

@@ -8,6 +8,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
+	"time"
 )
 
 type IngressService struct{ store repository.IngressStore }
@@ -46,16 +47,20 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 				return err
 			}
 		}
-		turn, err := tx.CurrentTurn(ctx, e.TenantID, thread.ID)
+		turn, err := tx.LatestTurn(ctx, e.TenantID, thread.ID)
 		if err != nil {
 			return err
 		}
-		if turn == nil {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+		// Placement uses the source event time: a delayed or replayed message older than the closed turn's
+		// activity is kept as history on that turn and neither reopens it nor manufactures a new one.
+		switch types.InboundPlacement(turn, e.SourceAt, time.Now().UTC()) {
+		case types.InboundNewTurn:
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: types.TurnOpen, Control: "sales", NeedsHuman: true, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
 			if err = tx.SaveTurn(ctx, *turn, true); err != nil {
 				return err
 			}
-		} else {
+		case types.InboundHistory:
+		default:
 			turn.Version++
 			turn.ContextRevision++
 			if e.SourceAt.After(turn.LastActivityAt) {
