@@ -21,6 +21,7 @@ export const settingsNav: NavItem[] = [
   { path: "settings/members", label: "nav.members" },
   { path: "settings/channels", label: "nav.channels" },
   { path: "settings/reply-mode", label: "nav.replyMode" },
+  { path: "settings/knowledge", label: "nav.knowledge" },
   { path: "settings/script-permissions", label: "nav.scriptPermissions" },
   { path: "settings/subscription", label: "nav.plan" },
 ];

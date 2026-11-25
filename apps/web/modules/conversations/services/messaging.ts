@@ -60,6 +60,12 @@ export interface MessagingMessage {
   delivery_status: "received" | "sending" | "sent" | "failed" | "unknown";
   delivery_error_reason: string;
 }
+/** A knowledge record an AI-written answer relies on; label is empty when the source was removed. */
+export interface ProposalCitation {
+  source_id: string;
+  kind: "product" | "document" | "script" | "fact";
+  label?: string;
+}
 /** A bot reply proposal. `stale` means conversation control changed after it was created: it can never be sent. */
 export interface ReplyProposal {
   id: string;
@@ -77,6 +83,8 @@ export interface ReplyProposal {
   control_generation: number;
   stale: boolean;
   requested_by?: string;
+  /** Knowledge sources of an AI-written answer (route answer, source ai), which always waits for staff review. */
+  citations?: ProposalCitation[];
   created_at: string;
 }
 export interface MessagingDetail {
