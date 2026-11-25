@@ -10,7 +10,19 @@ func Thread(value types.MessagingThread) dto.MessagingThread {
 	return dto.MessagingThread{ID: value.ID, DisplayName: value.DisplayName, ExternalKey: value.ExternalKey, ConnectionID: value.ConnectionID, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 }
 func Turn(value types.MessagingTurn) dto.MessagingTurn {
-	return dto.MessagingTurn{ID: value.ID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, HandlingState: value.HandlingState(), AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, NeedsHumanReason: value.NeedsHumanReason, ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt, ClosedAt: value.ClosedAt}
+	return dto.MessagingTurn{ID: value.ID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, HandlingState: value.HandlingState(), AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, NeedsHumanReason: value.NeedsHumanReason, ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt, ClosedAt: value.ClosedAt,
+		CloseCause: value.CloseCause, ClosedBy: value.ClosedBy, Outcome: value.Outcome, Note: value.Note, LastHandlerID: value.LastHandlerID}
+}
+func Sessions(value types.MessagingSessionPage) dto.MessagingSessionPage {
+	result := dto.MessagingSessionPage{Items: make([]dto.MessagingSession, len(value.Items)), NextCursor: value.NextCursor}
+	for i, row := range value.Items {
+		session := dto.MessagingSession{Turn: Turn(row.Turn), OpenedAt: row.OpenedAt, MessageCount: row.MessageCount, FirstMessageID: row.FirstMessageID, Orders: make([]dto.MessagingSessionOrder, len(row.Orders))}
+		for j, order := range row.Orders {
+			session.Orders[j] = dto.MessagingSessionOrder{ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status}
+		}
+		result.Items[i] = session
+	}
+	return result
 }
 func Summary(value types.MessagingSummary) dto.MessagingSummary {
 	return dto.MessagingSummary{WaitingStaffCount: value.WaitingStaff}

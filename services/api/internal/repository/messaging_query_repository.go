@@ -24,6 +24,8 @@ type MessagingQueryStore interface {
 	Messages(context.Context, string, string, types.MessagingQuery) ([]types.MessagingMessage, string, *apperrors.Error)
 	// LiveProposals returns the turn's routing or pending bot reply proposals with their script source label.
 	LiveProposals(context.Context, string, string) ([]types.ProposalView, *apperrors.Error)
+	// Sessions lists a thread's turns newest first with message statistics and linked orders.
+	Sessions(context.Context, string, string, types.MessagingQuery) (types.MessagingSessionPage, *apperrors.Error)
 }
 
 // ReadWithin runs fn in one read-only transaction so multi-query reads share a snapshot.

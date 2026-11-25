@@ -27,7 +27,7 @@ type TurnExpiryStore interface {
 	// LockPendingIntents locks the turn's outbound intents that still have no outcome.
 	LockPendingIntents(context.Context, string, string) ([]types.OutboundIntent, *apperrors.Error)
 	// CloseTurn closes the turn only if it is still exactly the observed open, unflagged state; false otherwise.
-	CloseTurn(context.Context, types.MessagingTurn, time.Time) (bool, *apperrors.Error)
+	CloseTurn(context.Context, types.MessagingTurn, types.TurnClosure, time.Time) (bool, *apperrors.Error)
 	// CancelIntents cancels pending intents and attempts; their still-sending messages become unknown.
 	CancelIntents(context.Context, string, []string, time.Time) *apperrors.Error
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
@@ -79,15 +79,25 @@ func (r *MessagingRepository) LockPendingIntents(ctx context.Context, tenant, tu
 	return result, nil
 }
 
-func (r *MessagingRepository) CloseTurn(ctx context.Context, turn types.MessagingTurn, now time.Time) (bool, *apperrors.Error) {
+// CloseTurn is the single closing write for expiry and manual close: it bumps the version and control generation
+// (staling proposals and router jobs), clears needs_human, records the cause and keeps the history. It applies only
+// to the exact observed open version; an expiry additionally requires the turn to be unflagged with unchanged
+// activity, because the delivery consumer advances activity without the thread lock or a version bump.
+func (r *MessagingRepository) CloseTurn(ctx context.Context, turn types.MessagingTurn, closure types.TurnClosure, now time.Time) (bool, *apperrors.Error) {
 	closed := turn
 	closed.Lifecycle, closed.ClosedAt = types.TurnClosed, &now
 	closed.Version++
 	closed.ControlGeneration++
+	closed.CloseCause, closed.ClosedBy, closed.Outcome, closed.Note = closure.Cause, closure.ClosedBy, closure.Outcome, closure.Note
 	row := persistencemap.TurnRow(closed)
-	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).
-		Where("tenant_id = ? AND id = ? AND version = ? AND lifecycle = ? AND needs_human = FALSE AND last_activity_at = ?", turn.TenantID, turn.ID, turn.Version, types.TurnOpen, turn.LastActivityAt).
-		Select("lifecycle", "closed_at", "version", "control_generation").Updates(&row)
+	q := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).
+		Where("tenant_id = ? AND id = ? AND version = ? AND lifecycle = ?", turn.TenantID, turn.ID, turn.Version, types.TurnOpen)
+	if closure.Cause == types.TurnCloseExpired {
+		q = q.Where("needs_human = FALSE AND last_activity_at = ?", turn.LastActivityAt)
+	}
+	result := q.Updates(map[string]any{"lifecycle": row.Lifecycle, "closed_at": row.ClosedAt, "version": row.Version, "control_generation": row.ControlGeneration,
+		"needs_human": false, "needs_human_reason": nil, "close_cause": row.CloseCause, "closed_by": row.ClosedBy, "outcome": row.Outcome, "note": row.Note,
+		"last_handler_id": gorm.Expr("COALESCE(assignee_id, last_handler_id)")})
 	if result.Error != nil {
 		return false, salesDBError(ctx, result.Error)
 	}

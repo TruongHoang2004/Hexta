@@ -93,6 +93,29 @@ func (s *MessagingQueryService) Detail(ctx context.Context, tenant, actor, id st
 	return result, err
 }
 
+// Sessions lists a conversation's sessions (turns) newest first with their message count, first message and the
+// orders created from Desk during each one. Every active member may read them, like the conversation itself.
+func (s *MessagingQueryService) Sessions(ctx context.Context, tenant, actor, thread string, input types.MessagingQuery) (types.MessagingSessionPage, *apperrors.Error) {
+	var result types.MessagingSessionPage
+	input.Filter = ""
+	if err := messagingQuery(ctx, input); err != nil {
+		return result, err
+	}
+	if _, err := uuid.Parse(thread); err != nil {
+		return result, apperrors.ErrBadRequest(ctx).SetDetail("valid conversation ID required")
+	}
+	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingQueryStore) *apperrors.Error {
+		// Resolving the thread inside the tenant first keeps another tenant's conversation not found.
+		if _, err := r.Thread(ctx, tenant, thread, false); err != nil {
+			return err
+		}
+		var err *apperrors.Error
+		result, err = r.Sessions(ctx, tenant, thread, input)
+		return err
+	})
+	return result, err
+}
+
 // Summary returns the tenant-wide Desk notification state: conversations waiting for staff. Every member sees the
 // same queue; the count comes from the conversation read model.
 func (s *MessagingQueryService) Summary(ctx context.Context, tenant, actor string) (types.MessagingSummary, *apperrors.Error) {

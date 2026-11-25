@@ -50,8 +50,54 @@ type MessagingTurn struct {
 	ControlGeneration int64     `json:"control_generation"`
 	Version           int64     `json:"version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
-	// ClosedAt is set on a closed turn (24-hour inactivity expiry); a new customer message opens a new turn.
+	// ClosedAt is set on a closed turn (24-hour inactivity expiry or manual close); a new customer message opens a new turn.
 	ClosedAt *time.Time `json:"closed_at,omitempty"`
+	// CloseCause is expired or closed_manually on a closed turn.
+	CloseCause string `json:"close_cause,omitempty" enums:"expired,closed_manually"`
+	// ClosedBy is the member who closed the session manually.
+	ClosedBy string `json:"closed_by,omitempty"`
+	// Outcome and Note describe the session; expired sessions have no outcome until one is recorded.
+	Outcome string `json:"outcome,omitempty" enums:"order_placed,consulted,price_inquiry,complaint,no_response,other"`
+	Note    string `json:"note,omitempty"`
+	// LastHandlerID is the last staff member assigned to the session (kept after return to the bot).
+	LastHandlerID *string `json:"last_handler_id,omitempty"`
+}
+
+// MessagingSessionRequest closes a session manually or edits a closed session's outcome and note.
+type MessagingSessionRequest struct {
+	ExpectedVersion int64  `json:"expected_version" validate:"min=1"`
+	Outcome         string `json:"outcome" validate:"required,oneof=order_placed consulted price_inquiry complaint no_response other" enums:"order_placed,consulted,price_inquiry,complaint,no_response,other"`
+	Note            string `json:"note" validate:"max=1000"`
+}
+
+// MessagingSessionQuery pages a conversation's sessions.
+type MessagingSessionQuery struct {
+	Cursor string `form:"cursor" validate:"omitempty,uuid"`
+	Limit  int    `form:"limit" validate:"min=1,max=100"`
+}
+
+// MessagingSessionOrder is an order created from Desk during the session.
+type MessagingSessionOrder struct {
+	ID          string `json:"id"`
+	OrderNumber string `json:"order_number"`
+	Status      string `json:"status"`
+}
+
+// MessagingSession is one conversation session (turn).
+type MessagingSession struct {
+	Turn MessagingTurn `json:"turn"`
+	// OpenedAt is the time of the session's earliest message.
+	OpenedAt     time.Time `json:"opened_at"`
+	MessageCount int64     `json:"message_count"`
+	// FirstMessageID lets the thread jump to where the session starts.
+	FirstMessageID string                  `json:"first_message_id"`
+	Orders         []MessagingSessionOrder `json:"orders"`
+}
+
+// MessagingSessionPage lists a conversation's sessions newest first.
+type MessagingSessionPage struct {
+	Items      []MessagingSession `json:"items"`
+	NextCursor string             `json:"next_cursor"`
 }
 
 // MessagingSummary is the tenant-wide Desk notification state.

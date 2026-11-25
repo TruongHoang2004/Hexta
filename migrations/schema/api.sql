@@ -150,6 +150,8 @@ CREATE TABLE "orders" (
   "version" bigint NOT NULL DEFAULT 1,
   "requires_delivery" boolean NOT NULL DEFAULT false,
   "delivery_address" text NOT NULL DEFAULT '',
+  -- Conversation session (messaging turn) the order was created from in Desk; NULL for orders made elsewhere.
+  "messaging_turn_id" uuid NULL,
   PRIMARY KEY ("id")
 );
 -- Create index "idx_orders_customer_id" to table: "orders"
@@ -491,9 +493,19 @@ CREATE TABLE "messaging_turns" (
  "last_activity_at" timestamptz NOT NULL,
  -- Handoff reason that raised needs_human; NULL when the flag was set without one (new turn, owner unassignment).
  "needs_human_reason" character varying(32) NULL CHECK ("needs_human_reason" IN ('customer_requested_staff', 'insufficient_information', 'ai_error', 'business_review', 'staff_handoff')),
- -- Set when the turn closes (24-hour inactivity expiry); a closed turn is never reopened.
+ -- Set when the turn closes (24-hour inactivity expiry or manual close); a closed turn is never reopened.
  "closed_at" timestamptz NULL,
+ -- Conversation sessions (a session is a turn): how it closed, who closed it manually, its outcome and note.
+ -- Turns closed before close_cause existed were all expired (20261126900100 backfill).
+ "close_cause" character varying(16) NULL CHECK ("close_cause" IN ('expired', 'closed_manually')),
+ "closed_by" character varying(255) NULL,
+ "outcome" character varying(32) NULL CHECK ("outcome" IN ('order_placed', 'consulted', 'price_inquiry', 'complaint', 'no_response', 'other')),
+ "note" text NULL CHECK (char_length("note") <= 1000),
+ -- Last staff member assigned to the turn; kept after return-to-bot/unassignment so a closed session has a handler.
+ "last_handler_id" character varying(255) NULL,
  CONSTRAINT "messaging_turns_closed_at_check" CHECK (("lifecycle" = 'closed') = ("closed_at" IS NOT NULL)),
+ CONSTRAINT "messaging_turns_close_lifecycle_check" CHECK (("lifecycle" = 'closed') = ("close_cause" IS NOT NULL)),
+ CONSTRAINT "messaging_turns_manual_close_check" CHECK ("close_cause" IS DISTINCT FROM 'closed_manually' OR ("closed_by" IS NOT NULL AND "outcome" IS NOT NULL)),
  UNIQUE ("tenant_id", "id"),
  UNIQUE ("tenant_id", "thread_id", "id"),
  FOREIGN KEY ("tenant_id", "thread_id") REFERENCES "messaging_threads" ("tenant_id", "id")
@@ -502,6 +514,9 @@ CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_
 CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
 -- Turn expiry scan: open turns that are not flagged for a person, oldest activity first.
 CREATE INDEX "idx_messaging_turn_expiry" ON "messaging_turns" ("last_activity_at") WHERE "lifecycle" = 'open' AND "needs_human" = false;
+-- Orders linked to a conversation session; the composite key keeps the link inside the tenant.
+ALTER TABLE "orders" ADD CONSTRAINT "orders_messaging_turn_fkey" FOREIGN KEY ("tenant_id", "messaging_turn_id") REFERENCES "messaging_turns" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+CREATE INDEX "idx_orders_messaging_turn" ON "orders" ("tenant_id", "messaging_turn_id") WHERE "messaging_turn_id" IS NOT NULL;
 -- Conversation read model (CQRS). Projected from messaging.conversation.changed events; never written by commands.
 -- One row per thread with its latest turn (open, or the most recently closed). Rebuildable from messaging_threads and messaging_turns.
 CREATE TABLE "messaging_conversation_views" (
@@ -523,6 +538,9 @@ CREATE TABLE "messaging_conversation_views" (
  "turn_version" bigint NOT NULL,
  "last_activity_at" timestamptz NOT NULL,
  "needs_human_reason" character varying(32) NULL,
+ "closed_at" timestamptz NULL,
+ "close_cause" character varying(16) NULL,
+ "outcome" character varying(32) NULL,
  PRIMARY KEY ("tenant_id", "thread_id")
 );
 CREATE INDEX "idx_messaging_conversation_views_list" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC);
@@ -552,6 +570,8 @@ CREATE TABLE "messaging_messages" (
  FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id")
 );
 CREATE INDEX "idx_messaging_messages_history" ON "messaging_messages" ("tenant_id", "thread_id", "id" DESC);
+-- Session list: message count and first message of each turn.
+CREATE INDEX "idx_messaging_messages_turn" ON "messaging_messages" ("tenant_id", "turn_id", "id");
 
 -- API-owned authority mirror: provisioned by trusted API operator tooling only.
 -- One Page belongs to at most one tenant while not disconnected; disconnected rows are retained for history/FKs.

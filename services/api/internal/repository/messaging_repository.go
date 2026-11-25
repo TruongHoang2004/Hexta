@@ -40,6 +40,10 @@ type MessagingStore interface {
 	LatestInbound(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
 	RecentMessages(context.Context, string, string, string, int) ([]types.MessagingMessage, *apperrors.Error)
 	CancelPendingBotSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
+	// Conversation sessions. See messaging_session_repository.go and messaging_turn_expiry.go.
+	CloseTurn(context.Context, types.MessagingTurn, types.TurnClosure, time.Time) (bool, *apperrors.Error)
+	CancelUndispatchedSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
+	SaveSessionOutcome(context.Context, types.MessagingTurn) *apperrors.Error
 	ScriptVersionActive(context.Context, string, string) (bool, *apperrors.Error)
 }
 type MessagingRepository struct {
@@ -156,7 +160,9 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).
 		Updates(map[string]any{"assignee_id": row.AssigneeID, "control": row.Control, "needs_human": row.NeedsHuman, "needs_human_reason": row.NeedsHumanReason,
 			"lifecycle": row.Lifecycle, "context_revision": row.ContextRevision, "control_generation": row.ControlGeneration, "version": row.Version,
-			"last_activity_at": gorm.Expr("GREATEST(last_activity_at, ?)", row.LastActivityAt), "closed_at": row.ClosedAt})
+			"last_activity_at": gorm.Expr("GREATEST(last_activity_at, ?)", row.LastActivityAt), "closed_at": row.ClosedAt,
+			// Any assignment records the session's handler; unassignment and return-to-bot keep the last one.
+			"last_handler_id": gorm.Expr("COALESCE(CAST(? AS varchar), last_handler_id)", row.AssigneeID)})
 	if result.Error != nil {
 		return salesDBError(ctx, result.Error)
 	}

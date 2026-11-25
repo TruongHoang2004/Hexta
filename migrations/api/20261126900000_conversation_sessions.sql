@@ -1,0 +1,10 @@
+-- Modify "messaging_conversation_views" table
+ALTER TABLE "messaging_conversation_views" ADD COLUMN "closed_at" timestamptz NULL, ADD COLUMN "close_cause" character varying(16) NULL, ADD COLUMN "outcome" character varying(32) NULL;
+-- Create index "idx_messaging_messages_turn" to table: "messaging_messages"
+CREATE INDEX "idx_messaging_messages_turn" ON "messaging_messages" ("tenant_id", "turn_id", "id");
+-- Modify "messaging_turns" table
+ALTER TABLE "messaging_turns" ADD CONSTRAINT "messaging_turns_close_cause_check" CHECK ((close_cause)::text = ANY ((ARRAY['expired'::character varying, 'closed_manually'::character varying])::text[])), ADD CONSTRAINT "messaging_turns_close_lifecycle_check" CHECK ((close_cause IS NULL) OR ((lifecycle)::text = 'closed'::text)), ADD CONSTRAINT "messaging_turns_manual_close_check" CHECK (((close_cause)::text IS DISTINCT FROM 'closed_manually'::text) OR ((closed_by IS NOT NULL) AND (outcome IS NOT NULL))), ADD CONSTRAINT "messaging_turns_note_check" CHECK (char_length(note) <= 1000), ADD CONSTRAINT "messaging_turns_outcome_check" CHECK ((outcome)::text = ANY ((ARRAY['order_placed'::character varying, 'consulted'::character varying, 'price_inquiry'::character varying, 'complaint'::character varying, 'no_response'::character varying, 'other'::character varying])::text[])), ADD COLUMN "close_cause" character varying(16) NULL, ADD COLUMN "closed_by" character varying(255) NULL, ADD COLUMN "outcome" character varying(32) NULL, ADD COLUMN "note" text NULL, ADD COLUMN "last_handler_id" character varying(255) NULL;
+-- Modify "orders" table
+ALTER TABLE "orders" ADD COLUMN "messaging_turn_id" uuid NULL, ADD CONSTRAINT "orders_messaging_turn_fkey" FOREIGN KEY ("tenant_id", "messaging_turn_id") REFERENCES "messaging_turns" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+-- Create index "idx_orders_messaging_turn" to table: "orders"
+CREATE INDEX "idx_orders_messaging_turn" ON "orders" ("tenant_id", "messaging_turn_id") WHERE (messaging_turn_id IS NOT NULL);

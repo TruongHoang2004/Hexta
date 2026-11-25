@@ -33,6 +33,11 @@ type ConversationChanged struct {
 	ControlGeneration int64     `json:"control_generation"`
 	TurnVersion       int64     `json:"turn_version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
+	// Conversation session fields (additive; absent in events written before sessions existed). ClosedAt and
+	// CloseCause (expired | closed_manually) are set on a closed turn; Outcome once a session outcome is recorded.
+	ClosedAt   *time.Time `json:"closed_at,omitempty"`
+	CloseCause string     `json:"close_cause,omitempty"`
+	Outcome    string     `json:"outcome,omitempty"`
 }
 
 // Key orders changes per thread.

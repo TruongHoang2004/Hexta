@@ -19,6 +19,56 @@ type MessagingTurn struct {
 	LastActivityAt                              time.Time
 	// ClosedAt is set once the turn closes; a closed turn is never reopened.
 	ClosedAt *time.Time
+	// CloseCause is TurnCloseExpired or TurnCloseManual on a closed turn; ClosedBy names the manual closer.
+	CloseCause, ClosedBy string
+	// Outcome (one of SessionOutcomes) and Note describe the session; both are empty until recorded.
+	Outcome, Note string
+	// LastHandlerID is the last staff member assigned to the turn; it survives return-to-bot and unassignment.
+	LastHandlerID *string
+}
+
+// A conversation session is a turn: it ends by the fixed 24-hour inactivity expiry or a manual close.
+const (
+	TurnCloseExpired = "expired"
+	TurnCloseManual  = "closed_manually"
+	// MaxSessionNoteRunes bounds a session note.
+	MaxSessionNoteRunes = 1000
+)
+
+// SessionOutcomes is the proposed outcome set for a conversation session (owner decision pending on the exact set).
+var SessionOutcomes = map[string]bool{
+	"order_placed": true, "consulted": true, "price_inquiry": true, "complaint": true, "no_response": true, "other": true,
+}
+
+// TurnClosure describes how a turn closes. Expiry and manual close share one closing write (CloseTurn).
+type TurnClosure struct {
+	Cause, ClosedBy, Outcome, Note string
+}
+
+// SessionInput closes a session manually or edits a closed session's outcome and note at the expected version.
+type SessionInput struct {
+	ExpectedVersion int64
+	Outcome, Note   string
+}
+
+// SessionOrder is an order created from Desk during a session.
+type SessionOrder struct {
+	ID, OrderNumber, Status string
+}
+
+// MessagingSession is one turn of a thread with its message count, first message and linked orders.
+type MessagingSession struct {
+	Turn           MessagingTurn
+	OpenedAt       time.Time
+	MessageCount   int64
+	FirstMessageID string
+	Orders         []SessionOrder
+}
+
+// MessagingSessionPage lists a thread's sessions newest first.
+type MessagingSessionPage struct {
+	Items      []MessagingSession
+	NextCursor string
 }
 
 const (

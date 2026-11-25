@@ -58,6 +58,10 @@ definitions:
         items:
           $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem'
         type: array
+      messaging_turn_id:
+        description: MessagingTurnID is the conversation session the draft was created
+          from in Desk; set once at creation.
+        type: string
       notes:
         type: string
       order_number:
@@ -586,6 +590,61 @@ definitions:
     - body
     - request_key
     type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSession:
+    properties:
+      first_message_id:
+        description: FirstMessageID lets the thread jump to where the session starts.
+        type: string
+      message_count:
+        type: integer
+      opened_at:
+        description: OpenedAt is the time of the session's earliest message.
+        type: string
+      orders:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionOrder'
+        type: array
+      turn:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingTurn'
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionOrder:
+    properties:
+      id:
+        type: string
+      order_number:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSession'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionRequest:
+    properties:
+      expected_version:
+        minimum: 1
+        type: integer
+      note:
+        maxLength: 1000
+        type: string
+      outcome:
+        enum:
+        - order_placed
+        - consulted
+        - price_inquiry
+        - complaint
+        - no_response
+        - other
+        type: string
+    required:
+    - outcome
+    type: object
   github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSummary:
     properties:
       waiting_staff_count:
@@ -614,9 +673,18 @@ definitions:
     properties:
       assignee_id:
         type: string
+      close_cause:
+        description: CloseCause is expired or closed_manually on a closed turn.
+        enum:
+        - expired
+        - closed_manually
+        type: string
       closed_at:
-        description: ClosedAt is set on a closed turn (24-hour inactivity expiry);
-          a new customer message opens a new turn.
+        description: ClosedAt is set on a closed turn (24-hour inactivity expiry or
+          manual close); a new customer message opens a new turn.
+        type: string
+      closed_by:
+        description: ClosedBy is the member who closed the session manually.
         type: string
       context_revision:
         type: integer
@@ -630,6 +698,10 @@ definitions:
         type: string
       last_activity_at:
         type: string
+      last_handler_id:
+        description: LastHandlerID is the last staff member assigned to the session
+          (kept after return to the bot).
+        type: string
       lifecycle:
         type: string
       needs_human:
@@ -637,6 +709,19 @@ definitions:
       needs_human_reason:
         description: NeedsHumanReason is the handoff reason code behind needs_human;
           omitted when none was given.
+        type: string
+      note:
+        type: string
+      outcome:
+        description: Outcome and Note describe the session; expired sessions have
+          no outcome until one is recorded.
+        enum:
+        - order_placed
+        - consulted
+        - price_inquiry
+        - complaint
+        - no_response
+        - other
         type: string
       thread_id:
         type: string
@@ -1166,6 +1251,10 @@ definitions:
           $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.SalesDraftItemRequest'
         maxItems: 100
         type: array
+      messaging_turn_id:
+        description: MessagingTurnID links a new draft to the open conversation session
+          it is created from (Desk); ignored on update.
+        type: string
       notes:
         maxLength: 10000
         type: string
@@ -1197,6 +1286,10 @@ definitions:
         items:
           $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_core_model.OrderItem'
         type: array
+      messaging_turn_id:
+        description: MessagingTurnID is the conversation session the draft was created
+          from in Desk; set once at creation.
+        type: string
       notes:
         type: string
       order_number:
@@ -1912,6 +2005,12 @@ definitions:
   : properties:
       data:
         $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingPage'
+      meta: {}
+    type: object
+  ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingSessionPage
+  : properties:
+      data:
+        $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionPage'
       meta: {}
     type: object
   ? github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingSummary
@@ -3215,6 +3314,64 @@ paths:
       security:
       - BearerAuth: []
       summary: Read bounded conversation message history
+      tags:
+      - Messaging
+  /api/v1/tenants/{tenantID}/conversations/{id}/sessions:
+    get:
+      description: 'Each session is a consultation turn: opened by a customer message,
+        closed after 24 hours of inactivity (expired) or manually (closed_manually).
+        Items carry the turn (close cause, outcome, note, assignee and last handler),
+        message count, first message ID and the orders created from Desk during the
+        session. Requires current active tenant membership.'
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Conversation (thread) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: UUID cursor (next_cursor of the previous page)
+        in: query
+        name: cursor
+        type: string
+      - description: Page size (1-100, default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingSessionPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List a conversation's sessions newest first
       tags:
       - Messaging
   /api/v1/tenants/{tenantID}/conversations/summary:
@@ -4848,6 +5005,67 @@ paths:
       summary: Claim an unassigned conversation or take control of own assignment
       tags:
       - Messaging
+  /api/v1/tenants/{tenantID}/turns/{id}/close:
+    post:
+      consumes:
+      - application/json
+      description: 'The assigned sale under staff control or the tenant owner closes
+        the open session (turn) with a required outcome and an optional note (at most
+        1000 characters). Closing works like expiry: the version and control generation
+        are bumped (pending proposals become stale and queued bot work is dropped),
+        unstarted sends are cancelled, needs-human is cleared and history is kept.
+        The next new customer message opens a new unassigned session. 403 for other
+        members (including an unassigned or bot-handled session unless owner); 409
+        when the session changed or is already closed.'
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Turn (session) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Outcome, note and expected version
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingTurn'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Close the current conversation session before the 24-hour expiry
+      tags:
+      - Messaging
   /api/v1/tenants/{tenantID}/turns/{id}/handoff:
     post:
       consumes:
@@ -4961,6 +5179,63 @@ paths:
       security:
       - BearerAuth: []
       summary: Send a real channel reply (Facebook or Telegram) as the assigned sale
+      tags:
+      - Messaging
+  /api/v1/tenants/{tenantID}/turns/{id}/outcome:
+    post:
+      consumes:
+      - application/json
+      description: The tenant owner or the session's last handler sets the outcome
+        (required) and note (at most 1000 characters) of a closed session, including
+        an expired one. The session stays closed. 403 for other members; 409 when
+        the session is open or changed.
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      - description: Turn (session) ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Outcome, note and expected version
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto.MessagingSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_TruongHoang2004_Hexta_services_api_internal_present_http_response.Response-github_com_TruongHoang2004_Hexta_services_api_internal_present_http_dto_MessagingTurn'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Record or edit a closed session's outcome and note
       tags:
       - Messaging
   /api/v1/tenants/{tenantID}/turns/{id}/proposals/{proposalID}/discard:

@@ -51,6 +51,9 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	group.POST("/turns/:id/handoff", ctrl.Handoff)
 	group.POST("/turns/:id/return-to-bot", ctrl.ReturnToBot)
 	group.POST("/turns/:id/send-simulation", ctrl.Send)
+	group.POST("/turns/:id/close", ctrl.CloseSession)
+	group.POST("/turns/:id/outcome", ctrl.UpdateSessionOutcome)
+	group.GET("/conversations/:id/sessions", queries.Sessions)
 	request := func(method, path, actor, body string, status int) json.RawMessage {
 		t.Helper()
 		req := httptest.NewRequest(method, "/tenants/"+tenant+path, bytes.NewBufferString(body))
@@ -120,5 +123,29 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":4,"reason":"customer_requested_staff"}`, 200)
 	request("POST", "/turns/"+turn.ID+"/handoff", "sale", `{"expected_version":4,"reason":"customer_requested_staff"}`, 409)
 	request("POST", "/turns/"+turn.ID+"/send-simulation", "sale", `{"expected_version":5,"context_revision":2,"body":"No","request_key":"`+uuid.NewString()+`"}`, 403)
+
+	// Conversation sessions: manual close, outcome edit and the session list.
+	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5}`, 400)
+	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5,"outcome":"sold"}`, 400)
+	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5,"outcome":"other","note":"`+strings.Repeat("n", 1001)+`"}`, 400)
+	request("POST", "/turns/"+turn.ID+"/close", "sale", `{"expected_version":5,"outcome":"consulted"}`, 403)
+	var closed dto.MessagingTurn
+	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5,"outcome":"consulted","note":"Sizes"}`, 200), &closed); err != nil {
+		t.Fatal(err)
+	}
+	if closed.Lifecycle != "closed" || closed.CloseCause != "closed_manually" || closed.Outcome != "consulted" || closed.Note != "Sizes" || closed.ClosedBy != "owner" {
+		t.Fatal("bad session close contract", closed)
+	}
+	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":6,"outcome":"consulted"}`, 409)
+	request("POST", "/turns/"+turn.ID+"/outcome", "sale", `{"expected_version":6,"outcome":"order_placed"}`, 200)
+	request("GET", "/conversations/not-a-uuid/sessions", "sale", "", 400)
+	request("GET", "/conversations/"+message.ThreadID+"/sessions?limit=0", "sale", "", 400)
+	var sessions dto.MessagingSessionPage
+	if err := json.Unmarshal(request("GET", "/conversations/"+message.ThreadID+"/sessions", "sale", "", 200), &sessions); err != nil {
+		t.Fatal(err)
+	}
+	if len(sessions.Items) != 1 || sessions.Items[0].Turn.Outcome != "order_placed" || sessions.Items[0].MessageCount != 2 || sessions.Items[0].FirstMessageID != message.ID || sessions.Items[0].Orders == nil {
+		t.Fatal("bad session list contract", sessions)
+	}
 	request("POST", "/simulator/messages", "sale", `{"external_key":"a","display_name":"A","body":"`+strings.Repeat("a", 33000)+`","request_key":"`+uuid.NewString()+`"}`, 400)
 }

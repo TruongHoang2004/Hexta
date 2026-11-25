@@ -292,7 +292,7 @@ func TestTurnExpiryRejectsStaleObservedState(t *testing.T) {
 	backdate(t, f.db, f.tenant, turn.ID, time.Minute)
 	repo := repository.NewMessagingRepository(f.db)
 	err := repo.WithinExpiry(ctx, func(r repository.TurnExpiryStore) *apperrors.Error {
-		ok, err := r.CloseTurn(ctx, observed, time.Now().UTC())
+		ok, err := r.CloseTurn(ctx, observed, types.TurnClosure{Cause: types.TurnCloseExpired}, time.Now().UTC())
 		if err == nil && ok {
 			t.Error("stale observation closed a turn with newer activity")
 		}

@@ -170,10 +170,24 @@ func (r *MessagingRepository) RecentMessages(ctx context.Context, tenant, turn, 
 // from the connector's outcome. Lock order: thread (held by the caller), outbound intents, outbox events; the
 // caller saves the turn afterwards.
 func (r *MessagingRepository) CancelPendingBotSends(ctx context.Context, tenant, turn string, now time.Time) (int, *apperrors.Error) {
+	return r.cancelUndispatched(ctx, tenant, turn, true, now)
+}
+
+// CancelUndispatchedSends is CancelPendingBotSends for every author: a manual session close cancels staff and bot
+// sends that never reached the connector. Dispatched sends are reconciled from the connector's outcome.
+func (r *MessagingRepository) CancelUndispatchedSends(ctx context.Context, tenant, turn string, now time.Time) (int, *apperrors.Error) {
+	return r.cancelUndispatched(ctx, tenant, turn, false, now)
+}
+
+func (r *MessagingRepository) cancelUndispatched(ctx context.Context, tenant, turn string, botOnly bool, now time.Time) (int, *apperrors.Error) {
 	db := r.db.WithContext(ctx)
 	var ids []string
+	actor := ""
+	if botOnly {
+		actor = types.BotActorID
+	}
 	if err := db.Raw(`SELECT i.id FROM outbound_intents i JOIN messaging_messages m ON m.tenant_id = i.tenant_id AND m.id = i.message_id
-WHERE i.tenant_id = ? AND m.turn_id = ? AND m.actor_id = ? AND i.status = ? ORDER BY i.id FOR UPDATE OF i`, tenant, turn, types.BotActorID, types.IntentPending).Scan(&ids).Error; err != nil {
+WHERE i.tenant_id = ? AND m.turn_id = ? AND (CAST(? AS text) = '' OR m.actor_id = ?) AND i.status = ? ORDER BY i.id FOR UPDATE OF i`, tenant, turn, actor, actor, types.IntentPending).Scan(&ids).Error; err != nil {
 		return 0, salesDBError(ctx, err)
 	}
 	if len(ids) == 0 {

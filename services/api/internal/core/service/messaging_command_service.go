@@ -208,6 +208,11 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 		default:
 			return apperrors.ErrBadRequest(ctx).SetDetail("unsupported conversation command")
 		}
+		// Mirrors SaveTurn: any assignment records the session's last handler.
+		if turn.AssigneeID != nil {
+			handler := *turn.AssigneeID
+			turn.LastHandlerID = &handler
+		}
 		cancelled := 0
 		if fence {
 			turn.ControlGeneration++

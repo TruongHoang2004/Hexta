@@ -98,6 +98,9 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/return-to-bot"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/send-simulation"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/messages"},
+				{"get", "/api/v1/tenants/{tenantID}/conversations/{id}/sessions"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/close"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/outcome"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]
 				require.True(t, exists, "missing messaging operation %s", endpoint.route)

@@ -224,6 +224,60 @@ func (ctrl *MessagingCommandController) Resolve(c *gin.Context) {
 	ctrl.Success(c, httpmap.Turn(*result))
 }
 
+// CloseSession
+// @Summary Close the current conversation session before the 24-hour expiry
+// @Description The assigned sale under staff control or the tenant owner closes the open session (turn) with a required outcome and an optional note (at most 1000 characters). Closing works like expiry: the version and control generation are bumped (pending proposals become stale and queued bot work is dropped), unstarted sends are cancelled, needs-human is cleared and history is kept. The next new customer message opens a new unassigned session. 403 for other members (including an unassigned or bot-handled session unless owner); 409 when the session changed or is already closed.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn (session) ID"
+// @Param request body dto.MessagingSessionRequest true "Outcome, note and expected version"
+// @Success 200 {object} response.Response[dto.MessagingTurn]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/close [post]
+func (ctrl *MessagingCommandController) CloseSession(c *gin.Context) {
+	var input dto.MessagingSessionRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.CloseSession(c.Request.Context(), tenant, actor, c.Param("id"), types.SessionInput{ExpectedVersion: input.ExpectedVersion, Outcome: input.Outcome, Note: input.Note})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Turn(*result))
+}
+
+// UpdateSessionOutcome
+// @Summary Record or edit a closed session's outcome and note
+// @Description The tenant owner or the session's last handler sets the outcome (required) and note (at most 1000 characters) of a closed session, including an expired one. The session stays closed. 403 for other members; 409 when the session is open or changed.
+// @Tags Messaging
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param tenantID path string true "Tenant ID"
+// @Param id path string true "Turn (session) ID"
+// @Param request body dto.MessagingSessionRequest true "Outcome, note and expected version"
+// @Success 200 {object} response.Response[dto.MessagingTurn]
+// @Failure 400,401,403,404,409 {object} apperrors.ErrorResponse
+// @Router /api/v1/tenants/{tenantID}/turns/{id}/outcome [post]
+func (ctrl *MessagingCommandController) UpdateSessionOutcome(c *gin.Context) {
+	var input dto.MessagingSessionRequest
+	if !ctrl.bind(c, &input) {
+		return
+	}
+	tenant, actor := salesScope(c)
+	result, err := ctrl.messaging.UpdateSessionOutcome(c.Request.Context(), tenant, actor, c.Param("id"), types.SessionInput{ExpectedVersion: input.ExpectedVersion, Outcome: input.Outcome, Note: input.Note})
+	if err != nil {
+		ctrl.ErrorData(c, err)
+		return
+	}
+	ctrl.Success(c, httpmap.Turn(*result))
+}
+
 // SendChannel
 // @Summary Send a real channel reply (Facebook or Telegram) as the assigned sale
 // @Description Assigned sale under sales control only; the conversation's Page/bot connection must be active. Records the message as sending with a single-attempt delivery intent; the connector reports sent, failed (window_24h, auth_expired, rate_limit, invalid_recipient, bot_blocked, chat_not_found, transport) or unknown. Never retried automatically. Retrying the same client_message_id returns the original message.

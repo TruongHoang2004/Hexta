@@ -1,4 +1,4 @@
-h1:GDWpw6N+9NnoHiniPlcLxgkN/SLoRT97/lcYIiAVW4w=
+h1:2EV3lG8TvLoTYe04mLvj8TfrClLUdEu7P1SahLS95uw=
 20260220100303_init.sql h1:3mrrsr6I3qwGgyLmb2B1MG8H9gBz3AqVqp0N6wILozY=
 20260912083721_fix_identities_provider_unique_index.sql h1:FxTqqoD+3fmcLRIzvGQvYV+9h439t7soY5YzOdHOGB4=
 20260912160000_create_tenants.sql h1:gdVoZsjwEkuNmhQRMI6NbiXqUbCzSfxT1XGNXw28HZo=
@@ -24,3 +24,6 @@ h1:GDWpw6N+9NnoHiniPlcLxgkN/SLoRT97/lcYIiAVW4w=
 20261126400000_order_exception_cases.sql h1:neBaarXCzvSauyKtzW8E5OxiOkAyyir8tN6xPhcW14k=
 20261126500000_orders_tenant_created.sql h1:5pTnz/AT4lmQ/VGAXx8eeGPtuzsakYLGknxdOAey93o=
 20261126700000_domain_events_cancelled_state.sql h1:st3VQpc+0ouvBKDE7OTvqkm06Ydou0W65I7ZEct6ZL0=
+20261126900000_conversation_sessions.sql h1:HducuABm0BhL03JQyT5HVSLEnAbTRNqjYeWSxcpdTwY=
+20261126900100_backfill_conversation_sessions.sql h1:sEsQML7FbuVuHdyLwfN4J6Lm/OpD4MFDh63GBLbqkv0=
+20261126900200_conversation_sessions_close_cause.sql h1:4DgRLcz3CrUlOSdZD29cmJ8IR9/YUHEbmQEdgfaRXdw=

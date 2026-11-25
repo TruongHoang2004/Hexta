@@ -29,6 +29,11 @@ type Turn struct {
 	Version           int64
 	LastActivityAt    time.Time
 	ClosedAt          *time.Time
+	CloseCause        *string
+	ClosedBy          *string
+	Outcome           *string
+	Note              *string
+	LastHandlerID     *string
 }
 
 func (Turn) TableName() string { return "messaging_turns" }
@@ -138,6 +143,25 @@ type ConversationView struct {
 	TurnVersion       int64
 	LastActivityAt    time.Time
 	NeedsHumanReason  *string
+	ClosedAt          *time.Time
+	CloseCause        *string
+	Outcome           *string
 }
 
 func (ConversationView) TableName() string { return "messaging_conversation_views" }
+
+// SessionStats is one turn's message count and first message, read for the session list.
+type SessionStats struct {
+	TurnID         string
+	MessageCount   int64
+	FirstMessageID string
+	OpenedAt       time.Time
+}
+
+// SessionOrder is an order linked to a turn, read for the session list.
+type SessionOrder struct {
+	ID              string
+	OrderNumber     string
+	Status          string
+	MessagingTurnID string
+}

@@ -84,7 +84,7 @@ func (s *TurnExpiryService) expire(ctx context.Context, ref types.TurnRef, now t
 		if turn.ThreadID != ref.ThreadID || !turn.ExpiryDue(now) {
 			return nil
 		}
-		ok, err := r.CloseTurn(ctx, *turn, now)
+		ok, err := r.CloseTurn(ctx, *turn, types.TurnClosure{Cause: types.TurnCloseExpired}, now)
 		if err != nil || !ok {
 			return err
 		}

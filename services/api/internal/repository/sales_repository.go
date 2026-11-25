@@ -32,6 +32,8 @@ type ISalesRepository interface {
 	SaveOrder(context.Context, *model.Order, int64, bool) *apperrors.Error
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
 	SaveOutboxEvent(context.Context, *model.DomainEvent) *apperrors.Error
+	// SessionTurnOpen share-locks a conversation session (turn) for linking a new draft order to it.
+	SessionTurnOpen(context.Context, string, string) (bool, *apperrors.Error)
 }
 
 type SalesRepository struct{ db *gorm.DB }

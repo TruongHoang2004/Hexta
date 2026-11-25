@@ -242,6 +242,20 @@ func (s *SalesService) SaveDraft(ctx context.Context, tenant, actor, id string, 
 		expected := input.Version
 		if create {
 			row = &model.Order{ID: uuid.NewString(), TenantID: tenant, OrderNumber: "ORD-" + strings.ToUpper(uuid.NewString()), Status: model.OrderStatusDraft, PaymentStatus: model.PaymentStatusUnpaid, Source: model.OrderSourceWebForm, Version: 1}
+			// A draft made from Desk records its conversation session; order rules are otherwise unchanged.
+			if turn := cleanID(input.MessagingTurnID); turn != nil {
+				if _, err := uuid.Parse(*turn); err != nil {
+					return apperrors.ErrBadRequest(ctx).SetDetail("messaging_turn_id must be a UUID")
+				}
+				open, err := r.SessionTurnOpen(ctx, tenant, *turn)
+				if err != nil {
+					return err
+				}
+				if !open {
+					return apperrors.ErrConflict(ctx, "conversation session", "is closed; open the current session before linking an order")
+				}
+				row.MessagingTurnID = turn
+			}
 		} else {
 			var err *apperrors.Error
 			row, err = r.Order(ctx, tenant, id)
