@@ -56,6 +56,28 @@ CRITICAL_PATH_PATTERNS = [
     re.compile(r"^go\.work$"),
 ]
 
+# Production release and deploy surfaces. Merging the release PR deploys to production through the server agent,
+# so the bot must never merge, rebase or force-push these; only the repository owner merges them.
+RELEASE_BRANCH_PREFIXES = ("release/",)
+DEPLOY_PATH_PATTERNS = [
+    re.compile(r"^infrastructure/prod/"),
+    re.compile(r"^infrastructure/compose\.prod[^/]*\.ya?ml$"),
+    re.compile(r"^scripts/deploy-agent\.sh$"),
+    re.compile(r"^\.github/workflows/"),
+    re.compile(r"^\.agents/scripts/pr_review_agent\.py$"),
+]
+
+
+def is_release_or_deploy_pr(head_ref: str, files: List[str]) -> Optional[str]:
+    """Returns why a PR is a production release/deploy change the bot must leave to the owner, or None."""
+    if any(head_ref.startswith(prefix) for prefix in RELEASE_BRANCH_PREFIXES):
+        return f"Production release branch '{head_ref}': merging it deploys to production"
+    deploy_files = [f for f in files if any(p.search(f) for p in DEPLOY_PATH_PATTERNS)]
+    if deploy_files:
+        return f"Touches production release/deploy files: {', '.join(deploy_files[:3])}"
+    return None
+
+
 AUTH_SECURITY_KEYWORD_PATTERNS = [
     re.compile(r"(?:^|/)(?:auth|jwt|oauth|session|token)[^/]*\.(?:go|ts|tsx|js|py)$", re.IGNORECASE),
 ]
@@ -450,6 +472,21 @@ class PRReviewAgent:
                 decision_reason="Skipping draft PR",
             )
 
+        # Release and deploy PRs are never merged, rebased or force-pushed by the bot, whatever their size.
+        deploy_reason = is_release_or_deploy_pr(pr.head_ref_name, pr.files)
+        if deploy_reason:
+            return EvaluationResult(
+                pr_number=pr.number,
+                title=pr.title,
+                head_ref_name=pr.head_ref_name,
+                risk_level=RiskLevel.HIGH,
+                risk_reasons=[deploy_reason],
+                mergeable=pr.mergeable,
+                merge_state_status=pr.merge_state_status,
+                decision=ActionDecision.ESCALATE,
+                decision_reason="Production release/deploy change: only the repository owner merges it",
+            )
+
         risk_level, risk_reasons = classify_pr_risk(
             files=pr.files,
             title=pr.title,
@@ -576,6 +613,10 @@ class PRReviewAgent:
 
     def merge_pr(self, result: EvaluationResult, pr: PRDetails) -> bool:
         """Merges an auto-mergeable PR using squash merge and cleans up issue status."""
+        deploy_reason = is_release_or_deploy_pr(pr.head_ref_name, pr.files)
+        if deploy_reason:
+            print(f"Refusing to merge PR #{pr.number}: {deploy_reason}", file=sys.stderr)
+            return False
         if self.dry_run:
             print(f"[DRY-RUN] Would squash merge PR #{pr.number} (Branch: {pr.head_ref_name}).")
             result.merged = True
