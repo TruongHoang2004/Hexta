@@ -5,6 +5,7 @@ import { secondaryClass } from "@/components/primitives";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { ChannelPlatform } from "@/modules/settings";
 import type { MessagingDetail, MessagingSession } from "../../services/messaging";
+import type { SessionFocus } from "../../hooks/use-session-jump";
 import { sessionCause, sessionOutcome, sessionRange } from "../../utils";
 import { MessageBubble } from "./message-bubble";
 import { TurnDivider } from "./turn-divider";
@@ -32,7 +33,7 @@ export function MessageHistory({
   platform: ChannelPlatform | null;
   busy: boolean;
   /** Session to scroll to; `key` changes on every jump request. */
-  focus: { turnID: string; key: number } | null;
+  focus: SessionFocus | null;
   /** Called once the history has scrolled to `focus`. */
   onFocused: () => void;
   onLoadOlder: () => void;
