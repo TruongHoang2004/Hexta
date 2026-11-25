@@ -449,15 +449,15 @@ func TestSessionOutcomeEditAuthorization(t *testing.T) {
 func TestSessionOrderLinking(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
 	ctx := context.Background()
-	link := func(tenant, id string) (*model.Order, int) {
+	link := func(tenant, actor, id string) (*model.Order, int) {
 		t.Helper()
-		row, err := f.service.SaveDraft(ctx, tenant, f.sale, "", types.DraftInput{MessagingTurnID: &id})
+		row, err := f.service.SaveDraft(ctx, tenant, actor, "", types.DraftInput{MessagingTurnID: &id})
 		if err != nil {
 			return nil, err.GetHttpStatus()
 		}
 		return row, 0
 	}
-	order, status := link(f.tenant, turn.ID)
+	order, status := link(f.tenant, f.sale, turn.ID)
 	if status != 0 || order.MessagingTurnID == nil || *order.MessagingTurnID != turn.ID || order.Status != model.OrderStatusDraft {
 		t.Fatal("a draft created from Desk must link its session", order, status)
 	}
@@ -471,14 +471,18 @@ func TestSessionOrderLinking(t *testing.T) {
 	if err != nil || stored.MessagingTurnID == nil || *stored.MessagingTurnID != turn.ID {
 		t.Fatal("the session link is fixed at creation", stored, err)
 	}
-	// Another tenant's or a missing session is not found; malformed IDs are rejected.
-	if _, status = link(f.other, turn.ID); status != 403 && status != 404 {
-		t.Fatal("cross-tenant session link must be refused", status)
+	// Another tenant's or a missing session is not found; malformed IDs are rejected. The owner is a member of both
+	// tenants, so the cross-tenant attempt passes membership and must be stopped by the session's tenant scope.
+	if _, status = link(f.other, f.owner, turn.ID); status != 404 {
+		t.Fatal("cross-tenant session link must not find the other tenant's session", status)
 	}
-	if _, status = link(f.tenant, uuid.NewString()); status != 404 {
+	if _, status = link(f.other, f.sale, turn.ID); status != 403 {
+		t.Fatal("a non-member must be refused before the session is looked up", status)
+	}
+	if _, status = link(f.tenant, f.sale, uuid.NewString()); status != 404 {
 		t.Fatal("unknown session", status)
 	}
-	if _, status = link(f.tenant, "nope"); status != 400 {
+	if _, status = link(f.tenant, f.sale, "nope"); status != 400 {
 		t.Fatal("malformed session ID", status)
 	}
 	// Orders without a session keep working unchanged.
@@ -494,7 +498,7 @@ func TestSessionOrderLinking(t *testing.T) {
 	if _, err := s.CloseSession(ctx, f.tenant, f.owner, turn.ID, closeInput(current.Version)); err != nil {
 		t.Fatal(err)
 	}
-	if _, status = link(f.tenant, turn.ID); status != 409 {
+	if _, status = link(f.tenant, f.sale, turn.ID); status != 409 {
 		t.Fatal("closed session must refuse new linked orders", status)
 	}
 }
