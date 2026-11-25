@@ -5,12 +5,20 @@ import (
 	"time"
 )
 
-// Reply modes (MVP 5 FR-5.1). The owner chooses how much the bot may do alone while a turn is under bot handling.
+// Reply modes (MVP 5 FR-5.1, owner decision 2026-11-26). The owner chooses how much the bot may do alone while a
+// turn is under bot handling.
 const (
+	// ReplyModeOff is the default for every tenant: new turns wait for staff and the bot never runs. A customer
+	// message on a turn still under bot handling hands it to staff (HandoffReasonBotOff).
+	ReplyModeOff = "off"
 	// ReplyModeSuggest: the bot only proposes; nothing reaches the customer until a sale sends it.
 	ReplyModeSuggest = "suggest"
-	// ReplyModeAutoSend: the bot sends eligible replies itself while the turn is BOT_ACTIVE.
+	// ReplyModeAutoSend: the bot sends script answers and clarifying questions itself while the turn is BOT_ACTIVE.
+	// AI-written answers still wait for staff review.
 	ReplyModeAutoSend = "auto_send"
+
+	// HandoffReasonBotOff is the handoff reason when a customer writes on a bot-handled turn while the bot is off.
+	HandoffReasonBotOff = "bot_off"
 
 	// BotActorID is the actor recorded for bot-authored messages, routing jobs and router transitions.
 	BotActorID = "system:bot"
@@ -20,12 +28,20 @@ const (
 )
 
 // ReplySettings is a tenant's bot reply configuration. Configured is false while the owner has never saved it;
-// the mode then reads as suggest and new turns keep waiting for staff.
+// the mode then reads as off.
 type ReplySettings struct {
 	TenantID, Mode, UpdatedBy string
 	Configured                bool
 	Version                   int64
 	UpdatedAt                 time.Time
+}
+
+// BotOn reports whether the bot may handle turns (suggest or auto_send).
+func (s ReplySettings) BotOn() bool { return s.Mode == ReplyModeSuggest || s.Mode == ReplyModeAutoSend }
+
+// ValidReplyMode reports whether mode is one of the reply modes.
+func ValidReplyMode(mode string) bool {
+	return mode == ReplyModeOff || mode == ReplyModeSuggest || mode == ReplyModeAutoSend
 }
 
 // ReplySettingsUpdate is the owner's change with its optimistic version (0 when never configured).

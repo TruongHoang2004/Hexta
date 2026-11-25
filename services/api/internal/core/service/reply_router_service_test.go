@@ -169,10 +169,14 @@ func TestReplySettingsOwnerOnlyWithOptimisticVersion(t *testing.T) {
 	b := newBotFixture(t, "")
 	ctx := context.Background()
 	current, err := b.settings.Get(ctx, b.tenant, b.sale)
-	if err != nil || current.Configured || current.Mode != types.ReplyModeSuggest || current.Version != 0 {
-		t.Fatal("unconfigured tenants read as suggest", current, err)
+	if err != nil || current.Configured || current.Mode != types.ReplyModeOff || current.Version != 0 {
+		t.Fatal("unconfigured tenants read as off", current, err)
 	}
-	// Before the owner configures the bot, a new conversation keeps waiting for staff and nothing is routed.
+	// Saving off on a tenant that never saved a mode changes nothing.
+	if same, err := b.settings.Update(ctx, b.tenant, b.owner, types.ReplySettingsUpdate{Mode: types.ReplyModeOff}); err != nil || same.Configured || same.Version != 0 {
+		t.Fatal("saving the default off must be a no-op", same, err)
+	}
+	// With the bot off (the default), a new conversation keeps waiting for staff and nothing is routed.
 	message := b.customer(t, "before-bot", "giá áo")
 	if turn := b.detail(t, message.ThreadID).Conversation.Turn; turn.HandlingState() != "WAITING_STAFF" || len(b.proposals(t, turn.ID)) != 0 {
 		t.Fatal("unconfigured bot must not handle new turns", turn)
@@ -198,10 +202,19 @@ func TestReplySettingsOwnerOnlyWithOptimisticVersion(t *testing.T) {
 	if auditCount(t, b.db, b.tenant, b.tenant, "messaging.reply_mode_changed") != 2 {
 		t.Fatal("reply mode changes must be audited")
 	}
-	// Once configured, a new conversation starts under bot handling and is routed.
+	// With suggest, a new conversation starts under bot handling and is routed.
 	message = b.customer(t, "after-bot", "xin chào")
 	if turn := b.detail(t, message.ThreadID).Conversation.Turn; turn.HandlingState() != "BOT_ACTIVE" || len(b.proposals(t, turn.ID)) != 1 {
-		t.Fatal("configured bot must handle new turns", turn)
+		t.Fatal("an enabled bot must handle new turns", turn)
+	}
+	// The owner turns the bot off again: new conversations wait for staff, exactly as before the bot.
+	off, err := b.settings.Update(ctx, b.tenant, b.owner, types.ReplySettingsUpdate{Mode: types.ReplyModeOff, ExpectedVersion: 2})
+	if err != nil || off.Mode != types.ReplyModeOff || !off.Configured || off.Version != 3 {
+		t.Fatal("the owner must be able to turn the bot off", off, err)
+	}
+	message = b.customer(t, "bot-off", "xin chào")
+	if turn := b.detail(t, message.ThreadID).Conversation.Turn; turn.HandlingState() != "WAITING_STAFF" || !turn.NeedsHuman || turn.NeedsHumanReason != "" || len(b.proposals(t, turn.ID)) != 0 {
+		t.Fatal("bot off must start new turns waiting for staff without routing", turn)
 	}
 }
 

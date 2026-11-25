@@ -29,6 +29,15 @@ func messagingFixture(t *testing.T) (salesFixture, *messagingFacade, *types.Mess
 	}
 	return f, s, message, detail.Conversation.Turn
 }
+
+// enableBot saves a bot reply mode so conversations may be returned to the bot; turns that already exist keep their
+// control.
+func enableBot(t *testing.T, f salesFixture) {
+	t.Helper()
+	if _, err := NewReplySettingsService(repository.NewMessagingRepository(f.db)).Update(context.Background(), f.tenant, f.owner, types.ReplySettingsUpdate{Mode: types.ReplyModeSuggest}); err != nil {
+		t.Fatal(err)
+	}
+}
 func TestMessagingClaimReplyAuthorityAndStaleContext(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
 	ctx := context.Background()
@@ -241,6 +250,7 @@ func TestMessagingPaginationAndFilters(t *testing.T) {
 	if err != nil || len(unassigned.Items) != 4 {
 		t.Fatal("unassigned filter failed", err)
 	}
+	enableBot(t, f)
 	if _, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: claimed.Version}); err != nil {
 		t.Fatal(err)
 	}
@@ -309,6 +319,7 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 	if turn.HandlingState() != "WAITING_STAFF" {
 		t.Fatal("simulator without AI must start in staff queue")
 	}
+	enableBot(t, f)
 	// Reloading the inbox through a new service instance sees persisted work.
 	s = NewMessagingService(repository.NewMessagingRepository(f.db))
 	page, err := s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
@@ -392,6 +403,7 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 
 func TestMessagingDeskHandoffAuditRollback(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
+	enableBot(t, f)
 	ctx := context.Background()
 	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil {
@@ -410,6 +422,7 @@ func TestMessagingDeskHandoffAuditRollback(t *testing.T) {
 
 func TestMessagingDeskConcurrentReturnAndReassignment(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
+	enableBot(t, f)
 	ctx := context.Background()
 	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil {

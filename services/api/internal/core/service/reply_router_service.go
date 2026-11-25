@@ -47,10 +47,13 @@ const (
 //  3. a handoff (or an AI failure) moves the turn to WAITING_STAFF with a reason.
 //
 // A candidate becomes a proposal tied to the turn, its control generation and its source. In auto_send mode Go
-// sends an eligible candidate itself through the outbound intent pipeline, but only while the turn is still
-// BOT_ACTIVE at the same control generation and context revision; otherwise the job is superseded. Jobs are
-// durable rows processed after commit, so no transaction spans the script read or the AI call, and the decision
-// is rechecked under the thread lock before anything is written.
+// sends an eligible candidate (autoSendEligible: script answers and clarifying questions, never AI-written answers)
+// itself through the outbound intent pipeline, but only while the turn is still BOT_ACTIVE at the same control
+// generation and context revision; otherwise the job is superseded. A proposal left pending on a BOT_ACTIVE turn
+// marks the turn ReviewPending (waiting for staff, no expiry). While the reply mode is off no script read or AI call
+// is made and a queued job is dropped: its turn is handed to staff (reason bot_off). Jobs are durable rows processed
+// after commit, so no transaction spans the script read or the AI call, and the decision (mode included) is
+// rechecked under the thread lock before anything is written.
 type ReplyRouterService struct {
 	store   repository.ReplyRouterStore
 	scripts ReplyScriptSource
@@ -99,8 +102,16 @@ func (s *ReplyRouterService) route(ctx context.Context, ref types.ProposalRef) (
 	if err != nil {
 		return false, err
 	}
-	// A fenced job needs no script read or AI call; apply records it as superseded.
+	// A fenced job needs no script read or AI call; apply records it as superseded. While the bot is off no AI
+	// call is made either; apply drops the job.
 	if job.Stale(*turn) || turn.ContextRevision != job.ContextRevision {
+		return s.apply(ctx, *job, nil)
+	}
+	settings, err := s.store.ReplySettings(ctx, job.TenantID, false)
+	if err != nil {
+		return false, err
+	}
+	if !settings.BotOn() {
 		return s.apply(ctx, *job, nil)
 	}
 	message, err := s.store.Message(ctx, job.TenantID, job.TriggerMessageID)
@@ -278,15 +289,16 @@ func (s *ReplyRouterService) scheduleNextPoll(ctx context.Context, job types.Rep
 	})
 }
 
-// autoSendEligible is the auto_send gate for a candidate. Today every routed candidate (active script answer, AI
-// answer, AI clarifying question) is eligible. Whether a newly activated script needs a test step first (PRD
-// Q5.2) is OPEN; add that rule here.
+// autoSendEligible is the auto_send gate for a candidate (owner decision D2, 2026-11-26): only a script answer (a
+// trigger match or an AI-selected script; apply also requires the version to still be active) and an AI clarifying
+// question may be sent automatically. An AI-written answer always becomes a pending proposal for staff review, in
+// every mode. Whether a newly activated script needs a test step first (PRD Q5.2) is OPEN; add that rule here.
 func autoSendEligible(candidate types.ReplyCandidate) bool {
-	return candidate.Route == types.RouteScript || candidate.Route == types.RouteAnswer || candidate.Route == types.RouteClarify
+	return candidate.Route == types.RouteScript || candidate.Route == types.RouteClarify
 }
 
-// apply records the decision under the thread lock after rechecking the job and the turn. A nil candidate means
-// the job was already fenced when it was picked up.
+// apply records the decision under the thread lock after rechecking the job, the turn and the reply mode. A nil
+// candidate means the job was fenced or the bot was off when it was picked up.
 func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal, candidate *types.ReplyCandidate) (bool, *apperrors.Error) {
 	decided := false
 	err := s.store.Within(ctx, func(r repository.MessagingStore) *apperrors.Error {
@@ -305,6 +317,10 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 		if err != nil {
 			return err
 		}
+		settings, err := r.ReplySettings(ctx, job.TenantID, false)
+		if err != nil {
+			return err
+		}
 		now := s.now()
 		decided = true
 		p.Version++
@@ -314,28 +330,26 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 		}
 		person := p.RequestedBy != ""
 		state := turn.HandlingState()
+		fenced := p.Stale(*turn) || turn.ContextRevision != p.ContextRevision
+		botOff := !settings.BotOn()
 		switch {
-		case candidate == nil || p.Stale(*turn) || turn.ContextRevision != p.ContextRevision:
+		case fenced || (candidate == nil && !botOff):
 			// Control or context changed while the job waited: the output belongs to an old basis.
-			p.Status = types.ProposalSuperseded
-			p.Text, p.Source, p.ScriptVersionID = "", "", ""
+			supersede(p, "")
+		case botOff && state == "BOT_ACTIVE" && !person:
+			// The owner turned the bot off after this customer message was queued: drop the job and hand the
+			// unanswered message to staff, as the next customer message would.
+			supersede(p, types.HandoffReasonBotOff)
+			p.Status, p.Route = types.ProposalHandedOff, types.RouteHandoff
+			if err := botHandoff(ctx, r, turn, types.HandoffReasonBotOff, map[string]any{"router_reason": types.HandoffReasonBotOff, "proposal_id": p.ID}, now); err != nil {
+				return err
+			}
+		case botOff:
+			// A person's request (or a turn no longer under the bot) while the bot is off: nothing is proposed.
+			supersede(p, types.HandoffReasonBotOff)
 		case candidate.Route == types.RouteHandoff && state == "BOT_ACTIVE" && !person:
-			cancelled, err := r.CancelPendingBotSends(ctx, job.TenantID, turn.ID, now)
-			if err != nil {
-				return err
-			}
-			before := turn.HandlingState()
-			applyHandoff(turn, candidate.HandoffReason)
-			turn.ControlGeneration++
-			turn.Version++
-			if err := r.SaveTurn(ctx, *turn, false); err != nil {
-				return err
-			}
 			p.Status = types.ProposalHandedOff
-			if err := r.Audit(ctx, job.TenantID, types.BotActorID, "messaging.handoff", "messaging_turn", turn.ID, map[string]any{
-				"version": turn.Version, "control_generation": turn.ControlGeneration, "before": before, "after": turn.HandlingState(),
-				"reason": candidate.HandoffReason, "router_reason": candidate.Reason, "proposal_id": p.ID, "cancelled_bot_sends": cancelled,
-			}); err != nil {
+			if err := botHandoff(ctx, r, turn, candidate.HandoffReason, map[string]any{"router_reason": candidate.Reason, "proposal_id": p.ID}, now); err != nil {
 				return err
 			}
 		case candidate.Route == types.RouteHandoff:
@@ -343,26 +357,19 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 			p.Status = types.ProposalNoCandidate
 		case state == "BOT_ACTIVE" || (state == "STAFF_ACTIVE" && person):
 			p.Status = types.ProposalPending
-			if state == "BOT_ACTIVE" && !person && autoSendEligible(*candidate) {
-				settings, err := r.ReplySettings(ctx, job.TenantID, false)
-				if err != nil {
-					return err
-				}
+			if state == "BOT_ACTIVE" && !person && settings.Mode == types.ReplyModeAutoSend && autoSendEligible(*candidate) {
 				active := true
-				if settings.Mode == types.ReplyModeAutoSend && p.Source == types.SourceScript {
+				if p.Source == types.SourceScript {
 					// The script may have been deactivated or archived after the router read it; only a version
 					// that is still active may be sent automatically.
 					if active, err = r.ScriptVersionActive(ctx, job.TenantID, p.ScriptVersionID); err != nil {
 						return err
 					}
 				}
-				switch {
-				case settings.Mode != types.ReplyModeAutoSend:
-				case !active:
+				if !active {
 					// The source answer is no longer authorized: record the proposal as superseded, never sendable.
-					p.Status, p.Reason = types.ProposalSuperseded, "script_inactive"
-					p.Text, p.Source, p.ScriptVersionID = "", "", ""
-				default:
+					supersede(p, "script_inactive")
+				} else {
 					sent, reason, err := s.autoSend(ctx, r, *thread, turn, *p, now)
 					if err != nil {
 						return err
@@ -374,9 +381,17 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 					}
 				}
 			}
+			// A proposal left pending under bot handling waits for staff review (suggest safety): the turn joins
+			// the waiting queue and does not expire until the proposal is sent, discarded or superseded.
+			if p.Status == types.ProposalPending && state == "BOT_ACTIVE" && !turn.ReviewPending {
+				turn.ReviewPending = true
+				turn.Version++
+				if err := r.SaveTurn(ctx, *turn, false); err != nil {
+					return err
+				}
+			}
 		default:
-			p.Status = types.ProposalSuperseded
-			p.Text, p.Source, p.ScriptVersionID = "", "", ""
+			supersede(p, "")
 		}
 		return r.SaveProposal(ctx, *p)
 	})
@@ -384,6 +399,16 @@ func (s *ReplyRouterService) apply(ctx context.Context, job types.ReplyProposal,
 		return false, err
 	}
 	return decided, nil
+}
+
+// supersede records a job or proposal as never sendable, keeping no candidate text; reason replaces the decision
+// reason when set.
+func supersede(p *types.ReplyProposal, reason string) {
+	p.Status = types.ProposalSuperseded
+	p.Text, p.Source, p.ScriptVersionID = "", "", ""
+	if reason != "" {
+		p.Reason = reason
+	}
 }
 
 // autoSend sends a proposal as the bot. The caller holds the thread lock and has verified BOT_ACTIVE at the

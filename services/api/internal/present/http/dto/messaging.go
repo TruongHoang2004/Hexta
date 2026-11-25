@@ -52,11 +52,16 @@ type MessagingTurn struct {
 	LastActivityAt    time.Time `json:"last_activity_at"`
 	// ClosedAt is set on a closed turn (24-hour inactivity expiry); a new customer message opens a new turn.
 	ClosedAt *time.Time `json:"closed_at,omitempty"`
+	// ReviewPending is true while the bot handles the turn and its proposal waits for staff review: the
+	// conversation counts as waiting for staff and does not expire until the proposal is sent, discarded or
+	// superseded.
+	ReviewPending bool `json:"review_pending"`
 }
 
 // MessagingSummary is the tenant-wide Desk notification state.
 type MessagingSummary struct {
-	// WaitingStaffCount is the number of open conversations waiting for staff (unassigned, staff control).
+	// WaitingStaffCount is the number of open conversations waiting for staff: unassigned under staff control, or
+	// under bot handling with a proposal waiting for review (review_pending).
 	WaitingStaffCount int64 `json:"waiting_staff_count"`
 }
 

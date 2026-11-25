@@ -2,10 +2,10 @@ package dto
 
 import "time"
 
-// ReplySettingsResponse is the tenant's bot reply mode. configured=false means the owner never chose one: new
-// conversations then wait for staff and reply_mode reads as suggest.
+// ReplySettingsResponse is the tenant's bot reply mode. off (the default) keeps the bot from running: new
+// conversations wait for staff. configured=false means the owner never saved a mode; reply_mode then reads as off.
 type ReplySettingsResponse struct {
-	ReplyMode  string     `json:"reply_mode" enums:"suggest,auto_send"`
+	ReplyMode  string     `json:"reply_mode" enums:"off,suggest,auto_send"`
 	Configured bool       `json:"configured"`
 	Version    int64      `json:"version"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
@@ -14,7 +14,7 @@ type ReplySettingsResponse struct {
 // UpdateReplySettingsRequest changes the reply mode; expected_version is the version last read (0 before the
 // first save).
 type UpdateReplySettingsRequest struct {
-	ReplyMode       string `json:"reply_mode" validate:"required,oneof=suggest auto_send" enums:"suggest,auto_send"`
+	ReplyMode       string `json:"reply_mode" validate:"required,oneof=off suggest auto_send" enums:"off,suggest,auto_send"`
 	ExpectedVersion int64  `json:"expected_version" validate:"min=0"`
 }
 

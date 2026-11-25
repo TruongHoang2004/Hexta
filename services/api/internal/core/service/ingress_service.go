@@ -67,6 +67,9 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 			}
 		case types.InboundHistory:
 		default:
+			if err = botIntake(ctx, tx, turn, time.Now().UTC()); err != nil {
+				return err
+			}
 			turn.Version++
 			turn.ContextRevision++
 			if e.SourceAt.After(turn.LastActivityAt) {

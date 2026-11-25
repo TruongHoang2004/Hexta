@@ -74,7 +74,7 @@ func (ctrl *MessagingCommandController) DiscardProposal(c *gin.Context) {
 
 // RegenerateProposal
 // @Summary Ask the bot for a new proposal at the current conversation control
-// @Description Answers the turn's newest customer message and replaces its live proposal. Any member on a bot-handled conversation, the assigned sale on a staff-handled one. A requested proposal is never sent automatically and never changes control. Returns the routing job; poll the conversation for the result.
+// @Description Answers the turn's newest customer message and replaces its live proposal. Any member on a bot-handled conversation, the assigned sale on a staff-handled one. A requested proposal is never sent automatically and never changes control. Refused with 409 while the reply mode is off. Returns the routing job; poll the conversation for the result.
 // @Tags Messaging
 // @Produce json
 // @Security BearerAuth

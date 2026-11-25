@@ -57,6 +57,6 @@ func ConversationChangedOf(thread types.MessagingThread, turn types.MessagingTur
 		ThreadCreatedAt: thread.CreatedAt, ThreadUpdatedAt: thread.UpdatedAt,
 		TurnID: turn.ID, Lifecycle: turn.Lifecycle, Control: turn.Control, AssigneeID: turn.AssigneeID,
 		NeedsHuman: turn.NeedsHuman, NeedsHumanReason: turn.NeedsHumanReason, ContextRevision: turn.ContextRevision, ControlGeneration: turn.ControlGeneration,
-		TurnVersion: turn.Version, LastActivityAt: turn.LastActivityAt,
+		TurnVersion: turn.Version, LastActivityAt: turn.LastActivityAt, ReviewPending: turn.ReviewPending,
 	}
 }

@@ -29,6 +29,7 @@ type Turn struct {
 	Version           int64
 	LastActivityAt    time.Time
 	ClosedAt          *time.Time
+	ReviewPending     bool
 }
 
 func (Turn) TableName() string { return "messaging_turns" }
@@ -138,6 +139,7 @@ type ConversationView struct {
 	TurnVersion       int64
 	LastActivityAt    time.Time
 	NeedsHumanReason  *string
+	ReviewPending     bool
 }
 
 func (ConversationView) TableName() string { return "messaging_conversation_views" }

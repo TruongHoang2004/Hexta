@@ -10,9 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ReplySettingsService owns the tenant's bot reply mode (MVP 5 FR-5.1). Every member may read it; only the tenant
-// owner changes it, with an optimistic version. The mode is read again by the router and by proposal commands at
-// the moment they act, so a change applies to the next routed message and never re-sends existing proposals.
+// ReplySettingsService owns the tenant's bot reply mode (MVP 5 FR-5.1, owner decisions 2026-11-26): off (the
+// default), suggest or auto_send. Every member may read it; only the tenant owner changes it, with an optimistic
+// version. The mode is read again by ingress, the router and proposal commands at the moment they act, so a change
+// applies to the next customer message or routing decision. A change never moves existing turns and never sends
+// existing proposals: after a switch to off, a turn still under bot handling keeps its pending proposal and is
+// handed to staff (reason bot_off) by its next customer message or still-queued routing job.
 type ReplySettingsService struct {
 	store repository.ReplySettingsStore
 	now   func() time.Time
@@ -41,7 +44,7 @@ func (s *ReplySettingsService) within(ctx context.Context, tenant, actor string,
 	})
 }
 
-// Get returns the current reply mode; Configured=false means the owner never chose one.
+// Get returns the current reply mode; Configured=false means the owner never saved one (the mode reads as off).
 func (s *ReplySettingsService) Get(ctx context.Context, tenant, actor string) (types.ReplySettings, *apperrors.Error) {
 	var result types.ReplySettings
 	err := s.within(ctx, tenant, actor, func(r repository.ReplySettingsStore, _ types.MessagingScope) *apperrors.Error {
@@ -53,10 +56,11 @@ func (s *ReplySettingsService) Get(ctx context.Context, tenant, actor string) (t
 }
 
 // Update changes the reply mode as the tenant owner. ExpectedVersion is the version the owner saw (0 before the
-// first save); a stale version is a conflict. Saving the current mode again is a no-op that keeps the version.
+// first save); a stale version is a conflict. Saving the current mode again (including off on a tenant that never
+// saved a mode) is a no-op that keeps the version.
 func (s *ReplySettingsService) Update(ctx context.Context, tenant, actor string, input types.ReplySettingsUpdate) (types.ReplySettings, *apperrors.Error) {
-	if input.Mode != types.ReplyModeSuggest && input.Mode != types.ReplyModeAutoSend {
-		return types.ReplySettings{}, apperrors.ErrBadRequest(ctx).SetDetail("reply_mode must be suggest or auto_send")
+	if !types.ValidReplyMode(input.Mode) {
+		return types.ReplySettings{}, apperrors.ErrBadRequest(ctx).SetDetail("reply_mode must be off, suggest or auto_send")
 	}
 	if input.ExpectedVersion < 0 {
 		return types.ReplySettings{}, apperrors.ErrBadRequest(ctx).SetDetail("expected_version must not be negative")
@@ -73,7 +77,7 @@ func (s *ReplySettingsService) Update(ctx context.Context, tenant, actor string,
 		if current.Version != input.ExpectedVersion {
 			return apperrors.ErrConflict(ctx, "reply settings", "changed; refresh before retrying")
 		}
-		if current.Configured && current.Mode == input.Mode {
+		if current.Mode == input.Mode {
 			result = current
 			return nil
 		}

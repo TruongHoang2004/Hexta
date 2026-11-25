@@ -33,6 +33,9 @@ type ConversationChanged struct {
 	ControlGeneration int64     `json:"control_generation"`
 	TurnVersion       int64     `json:"turn_version"`
 	LastActivityAt    time.Time `json:"last_activity_at"`
+	// ReviewPending is true while a bot-handled turn's proposal waits for staff review; omitted when false, so
+	// snapshots written before the field existed decode as false.
+	ReviewPending bool `json:"review_pending,omitempty"`
 }
 
 // Key orders changes per thread.

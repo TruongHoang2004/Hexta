@@ -74,8 +74,9 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 	case "needs_human":
 		q = q.Where("(needs_human = TRUE OR (control = ? AND assignee_id IS NULL))", "sales")
 	case "waiting":
-		// Mirrors MessagingTurn.HandlingState() == WAITING_STAFF.
-		q = q.Where("control = ? AND assignee_id IS NULL", "sales")
+		// Mirrors MessagingTurn.HandlingState() == WAITING_STAFF, plus BOT_ACTIVE turns whose bot proposal waits for
+		// staff review (review_pending is only ever set on BOT_ACTIVE turns). Matches the waiting index predicate.
+		q = q.Where("assignee_id IS NULL AND (control = ? OR review_pending)", "sales")
 	case "bot":
 		// Mirrors MessagingTurn.HandlingState() == BOT_ACTIVE.
 		q = q.Where("control = ? AND assignee_id IS NULL AND needs_human = FALSE", "system")
@@ -98,11 +99,12 @@ func (r *MessagingRepository) Conversations(ctx context.Context, tenant, actor s
 	return result, nil
 }
 
-// WaitingStaffCount counts the tenant's open conversations waiting for staff, from the read model.
+// WaitingStaffCount counts the tenant's open conversations waiting for staff, from the read model: unassigned turns
+// under staff control and bot turns whose proposal waits for review.
 func (r *MessagingRepository) WaitingStaffCount(ctx context.Context, tenant string) (int64, *apperrors.Error) {
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&messagingmodel.ConversationView{}).
-		Where("tenant_id = ? AND lifecycle = ? AND control = ? AND assignee_id IS NULL", tenant, types.TurnOpen, "sales").
+		Where("tenant_id = ? AND lifecycle = ? AND assignee_id IS NULL AND (control = ? OR review_pending)", tenant, types.TurnOpen, "sales").
 		Count(&count).Error; err != nil {
 		return 0, salesDBError(ctx, err)
 	}

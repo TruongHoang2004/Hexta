@@ -86,6 +86,7 @@ func (s *MessagingCommandService) SendProposal(ctx context.Context, tenant, acto
 			}
 			turn.AssigneeID, turn.Control = &actor, "sales"
 			turn.ControlGeneration++
+			turn.ReviewPending = false
 			claimed = true
 		default:
 			return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale can send this proposal")
@@ -137,15 +138,25 @@ func (s *MessagingCommandService) DiscardProposal(ctx context.Context, tenant, a
 			return apperrors.ErrConflict(ctx, "proposal", "is no longer pending; refresh the conversation")
 		}
 		now := time.Now().UTC()
+		stale := p.Stale(*turn)
 		p.Status, p.DecidedBy = types.ProposalDiscarded, actor
 		p.Version++
 		p.UpdatedAt = now
 		if err := r.SaveProposal(ctx, *p); err != nil {
 			return err
 		}
+		// The turn holds at most one live proposal, so a current one is the proposal waiting for review: the turn
+		// leaves the waiting queue and normal expiry resumes. Control does not change.
+		if !stale && turn.ReviewPending {
+			turn.ReviewPending = false
+			turn.Version++
+			if err := r.SaveTurn(ctx, *turn, false); err != nil {
+				return err
+			}
+		}
 		result = p
 		return r.Audit(ctx, tenant, actor, "messaging.proposal_discarded", "messaging_turn", turnID, map[string]any{
-			"proposal_id": p.ID, "stale": p.Stale(*turn), "source": p.Source, "script_version_id": p.ScriptVersionID, "ai_run_id": p.AIRunID,
+			"proposal_id": p.ID, "stale": stale, "source": p.Source, "script_version_id": p.ScriptVersionID, "ai_run_id": p.AIRunID,
 		})
 	})
 	return result, err
@@ -154,7 +165,7 @@ func (s *MessagingCommandService) DiscardProposal(ctx context.Context, tenant, a
 // RegenerateProposal asks the router for a fresh proposal at the turn's current control generation, answering its
 // newest customer message (the Desk "regenerate" action for a stale proposal). It supersedes the turn's live
 // proposal. A person-requested proposal is never sent automatically and never moves control. Allowed for any
-// member on a BOT_ACTIVE turn and for the assigned sale on a STAFF_ACTIVE turn.
+// member on a BOT_ACTIVE turn and for the assigned sale on a STAFF_ACTIVE turn, and refused while the bot is off.
 func (s *MessagingCommandService) RegenerateProposal(ctx context.Context, tenant, actor, turnID string) (*types.ReplyProposal, *apperrors.Error) {
 	var result *types.ReplyProposal
 	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingStore, _ bool) *apperrors.Error {
@@ -174,6 +185,13 @@ func (s *MessagingCommandService) RegenerateProposal(ctx context.Context, tenant
 		default:
 			return apperrors.ErrConflict(ctx, "turn", "is waiting for staff; claim it before requesting a proposal")
 		}
+		settings, err := r.ReplySettings(ctx, tenant, false)
+		if err != nil {
+			return err
+		}
+		if !settings.BotOn() {
+			return errBotOff(ctx, "requesting a bot proposal")
+		}
 		message, err := r.LatestInbound(ctx, tenant, turnID)
 		if err != nil {
 			return err
@@ -182,6 +200,14 @@ func (s *MessagingCommandService) RegenerateProposal(ctx context.Context, tenant
 			return apperrors.ErrConflict(ctx, "turn", "has no customer message to answer")
 		}
 		now := time.Now().UTC()
+		// The new job supersedes the live proposal, so the turn no longer waits for its review.
+		if turn.ReviewPending {
+			turn.ReviewPending = false
+			turn.Version++
+			if err := r.SaveTurn(ctx, *turn, false); err != nil {
+				return err
+			}
+		}
 		if result, err = enqueueBotRouting(ctx, r, *turn, *message, actor, now); err != nil {
 			return err
 		}

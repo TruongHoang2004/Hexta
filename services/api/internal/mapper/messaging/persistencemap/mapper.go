@@ -31,10 +31,10 @@ func ThreadRow(value types.MessagingThread) messagingmodel.Thread {
 	return messagingmodel.Thread{ID: value.ID, TenantID: value.TenantID, ExternalKey: value.ExternalKey, DisplayName: value.DisplayName, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt, ConnectionID: optional(value.ConnectionID), RecipientID: optional(value.RecipientID)}
 }
 func Turn(row messagingmodel.Turn) types.MessagingTurn {
-	return types.MessagingTurn{ID: row.ID, TenantID: row.TenantID, ThreadID: row.ThreadID, Lifecycle: row.Lifecycle, Control: row.Control, AssigneeID: row.AssigneeID, NeedsHuman: row.NeedsHuman, NeedsHumanReason: text(row.NeedsHumanReason), ContextRevision: row.ContextRevision, ControlGeneration: row.ControlGeneration, Version: row.Version, LastActivityAt: row.LastActivityAt, ClosedAt: row.ClosedAt}
+	return types.MessagingTurn{ID: row.ID, TenantID: row.TenantID, ThreadID: row.ThreadID, Lifecycle: row.Lifecycle, Control: row.Control, AssigneeID: row.AssigneeID, NeedsHuman: row.NeedsHuman, NeedsHumanReason: text(row.NeedsHumanReason), ContextRevision: row.ContextRevision, ControlGeneration: row.ControlGeneration, Version: row.Version, LastActivityAt: row.LastActivityAt, ClosedAt: row.ClosedAt, ReviewPending: row.ReviewPending}
 }
 func TurnRow(value types.MessagingTurn) messagingmodel.Turn {
-	return messagingmodel.Turn{ID: value.ID, TenantID: value.TenantID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, NeedsHumanReason: optional(value.NeedsHumanReason), ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt, ClosedAt: value.ClosedAt}
+	return messagingmodel.Turn{ID: value.ID, TenantID: value.TenantID, ThreadID: value.ThreadID, Lifecycle: value.Lifecycle, Control: value.Control, AssigneeID: value.AssigneeID, NeedsHuman: value.NeedsHuman, NeedsHumanReason: optional(value.NeedsHumanReason), ContextRevision: value.ContextRevision, ControlGeneration: value.ControlGeneration, Version: value.Version, LastActivityAt: value.LastActivityAt, ClosedAt: value.ClosedAt, ReviewPending: value.ReviewPending}
 }
 
 // Message tolerates malformed placeholder metadata by dropping kinds; the content type still renders a placeholder.
@@ -67,6 +67,6 @@ func MessageRow(value types.MessagingMessage) messagingmodel.Message {
 // ConversationView maps a read model row back to the thread and latest turn the API returns.
 func ConversationView(row messagingmodel.ConversationView) (types.MessagingThread, types.MessagingTurn) {
 	thread := types.MessagingThread{ID: row.ThreadID, TenantID: row.TenantID, ExternalKey: row.ExternalKey, DisplayName: row.DisplayName, CreatedAt: row.ThreadCreatedAt, UpdatedAt: row.ThreadUpdatedAt, ConnectionID: text(row.ConnectionID), RecipientID: text(row.RecipientID)}
-	turn := types.MessagingTurn{ID: row.TurnID, TenantID: row.TenantID, ThreadID: row.ThreadID, Lifecycle: row.Lifecycle, Control: row.Control, AssigneeID: row.AssigneeID, NeedsHuman: row.NeedsHuman, NeedsHumanReason: text(row.NeedsHumanReason), ContextRevision: row.ContextRevision, ControlGeneration: row.ControlGeneration, Version: row.TurnVersion, LastActivityAt: row.LastActivityAt}
+	turn := types.MessagingTurn{ID: row.TurnID, TenantID: row.TenantID, ThreadID: row.ThreadID, Lifecycle: row.Lifecycle, Control: row.Control, AssigneeID: row.AssigneeID, NeedsHuman: row.NeedsHuman, NeedsHumanReason: text(row.NeedsHumanReason), ContextRevision: row.ContextRevision, ControlGeneration: row.ControlGeneration, Version: row.TurnVersion, LastActivityAt: row.LastActivityAt, ReviewPending: row.ReviewPending}
 	return thread, turn
 }
