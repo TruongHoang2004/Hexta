@@ -1,4 +1,4 @@
-import { ClipboardList, MessagesSquare, Settings, ShoppingBag, type LucideIcon } from "lucide-react";
+import { ClipboardList, LayoutDashboard, MessagesSquare, Settings, ShoppingBag, type LucideIcon } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 export interface NavItem {
@@ -13,6 +13,8 @@ export interface NavGroup {
   label: MessageKey;
   icon: LucideIcon;
   items: NavItem[];
+  /** Hidden for members. Navigation only; the API still authorizes every request. */
+  ownerOnly?: boolean;
 }
 
 export const settingsNav: NavItem[] = [
@@ -22,6 +24,13 @@ export const settingsNav: NavItem[] = [
 ];
 
 export const navGroups: NavGroup[] = [
+  {
+    id: "overview",
+    label: "nav.groups.overview",
+    icon: LayoutDashboard,
+    ownerOnly: true,
+    items: [{ path: "overview", label: "nav.overview" }],
+  },
   {
     id: "conversations",
     label: "nav.groups.conversations",
