@@ -34,9 +34,21 @@ def atlas_database():
             admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
 
 
+LEGACY_RUNS = """CREATE SCHEMA IF NOT EXISTS ai_runtime;
+CREATE TABLE ai_runtime.runs (
+    tenant_id text NOT NULL, run_id text NOT NULL, request bytea NOT NULL, digest bytea NOT NULL,
+    result bytea NOT NULL, status smallint NOT NULL CHECK (status BETWEEN 1 AND 5),
+    attempts integer NOT NULL DEFAULT 0, lease_token uuid, lease_until timestamptz,
+    error_code text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    updated_at timestamptz NOT NULL DEFAULT clock_timestamp(), PRIMARY KEY (tenant_id, run_id),
+    CHECK ((status = 2) = (lease_token IS NOT NULL AND lease_until IS NOT NULL)));
+CREATE INDEX runs_queue ON ai_runtime.runs(status, lease_until, created_at);"""
+
+
 def legacy_fixture(project, database_url):
+    # The pre-Atlas shape: only the runs table (later knowledge tables are created by migrations).
     with psycopg.connect(database_url) as db:
-        db.execute((project / "migrations/schema/ai.sql").read_text())
+        db.execute(LEGACY_RUNS)
         db.execute("""INSERT INTO ai_runtime.runs
             (tenant_id,run_id,request,digest,result,status)
             VALUES ('atlas-adoption','retained',%s,%s,%s,1)""", (b"request", b"digest", b"result"))
@@ -85,4 +97,5 @@ def test_api_and_ai_histories_share_database_without_collision(atlas_database):
         assert result.returncode == 0
     with psycopg.connect(database_url) as db:
         assert db.execute("SELECT count(*) FROM atlas_schema_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == len(list((project / "migrations/api").glob("[0-9]*.sql")))
-        assert db.execute("SELECT count(*) FROM atlas_ai_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM atlas_ai_revisions.atlas_schema_revisions WHERE COALESCE(error,'')=''").fetchone()[0] == len(list((project / "migrations/ai").glob("[0-9]*.sql")))
+        assert db.execute("SELECT count(*) FROM ai_runtime.knowledge_sources").fetchone()[0] == 0

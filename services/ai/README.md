@@ -78,6 +78,43 @@ Only authenticated internal callers can use preview. Failure categories are
 The provider streaming port buffers one complete structured candidate; the public
 HTTP endpoint and RPCs remain non-streaming.
 
+## Jev routing, knowledge answers and RAG (2026-11-26)
+
+Design: [agentic-memory/designs/2026-11-26_ai-jev-rag_design.md](../../agentic-memory/designs/2026-11-26_ai-jev-rag_design.md).
+
+- **Router.** With `AI_JEV_ENABLED=true` and `TYPESAFE_API_KEY`, one TypeSafe System One call (model
+  `AI_JEV_MODEL`, default pinned `jev-1.14.0`) chooses `script` / `answer` / `clarify` / `human`. Only
+  typed-redacted text (`[PHONE]`, `[EMAIL]`, `[ADDRESS]`, see `hexta_ai/redaction.py`) and redacted script
+  excerpts are sent; script IDs become local labels. Thresholds (`AI_JEV_MIN_PROBABILITY`,
+  `AI_JEV_SCRIPT_MIN_PROBABILITY`, `AI_JEV_NOUL_YES`, `AI_JEV_NOUL_NO`) are configuration because Vietnamese
+  accuracy is not documented by the vendor. Jev errors, low probability or invalid output fall back to the
+  deterministic exact matcher and then `human`, never to a paid LLM routing call. Jev disabled (default)
+  keeps the existing classifier path. The SDK retries only HTTP 429/529 and its body-logging logger is kept
+  at WARNING.
+- **Knowledge.** Go pushes tenant products, documents and active scripts with `UpsertKnowledge` /
+  `DeleteKnowledge` (idempotent by source revision + content hash; attribute-only changes are not
+  re-embedded; deletes leave tombstones). Chunks and 768-dimension embeddings live in `ai_runtime`
+  (pgvector >= 0.8.0, extension in schema `public`). `AI_EMBEDDING_PROVIDER=fake` (default, offline
+  hashing) or `gemini` (`AI_EMBEDDING_MODEL`, default `gemini-embedding-001`, via langchain-google-genai).
+  Retrieval is tenant- and embedding-model-filtered top-k (`AI_RAG_TOP_K`), similarity floor
+  (`AI_RAG_MIN_SIMILARITY`) and context budget (`AI_RAG_MAX_CONTEXT_TOKENS`).
+- **Answers.** The answer route needs the caller's `allow_knowledge_answer`. Claude (default
+  `claude-sonnet-5-5`; any configured provider works) returns structured `kind/text/cited_source_ids/
+  confidence/needs_human`, with a stable cache-marked system prompt followed by knowledge, conversation and
+  message. Answers must cite retrieved sources, meet `AI_ANSWER_MIN_CONFIDENCE` (0.7) and contain only
+  numbers present in the cited records or the question. Refusals and provider errors become `human`
+  candidates. Generated text is labelled `candidate_kind=generated`, `requires_review=true`: Go must never
+  auto-send it.
+- **Eval.** `uv run python -m hexta_ai.routing.evaluate` checks the Vietnamese fixture set
+  (`evals/jev_routing_vi.json`) offline; `--replay` scores recorded answers and `--sweep` compares
+  thresholds; `--live --confirm-paid-calls --record FILE` calls the paid API and needs owner approval.
+
+Database prerequisite: the AI migrator is not a superuser in Compose/production, and pgvector is not a
+trusted extension, so a superuser must run `CREATE EXTENSION vector WITH SCHEMA public` on a
+pgvector-capable image before `make migrate svc=ai`. Generating AI migrations needs `AI_DEV_URL` pointing
+to a disposable dev database with `vector` preinstalled in `public` (Atlas Community cannot manage
+extensions and drops it after each diff, so reinstall before every run).
+
 ## Offline and opt-in live smoke
 
 ```sh

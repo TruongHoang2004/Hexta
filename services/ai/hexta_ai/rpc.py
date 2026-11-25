@@ -14,6 +14,9 @@ from pydantic import ValidationError
 from hexta.ai.v1 import service_pb2 as pb
 from hexta.ai.v1 import service_pb2_grpc as rpc
 from hexta_ai.graph import PreviewRequest, PreviewResult, preview_graph
+from hexta_ai.knowledge.embeddings import EmbeddingError
+from hexta_ai.knowledge.models import KnowledgeInput
+from hexta_ai.knowledge.store import Retry
 from hexta_ai.providers.base import ProviderError
 from hexta_ai.run_mapper import completed_run, preview_request
 
@@ -26,8 +29,9 @@ async def run_graph(request: PreviewRequest) -> PreviewResult:
 
 class AIService(rpc.AIServiceServicer):
     def __init__(self, token: str, runner: Callable[[PreviewRequest], Awaitable[PreviewResult]] = run_graph,
-                 capacity: int = 1000, provider=None):
+                 capacity: int = 1000, provider=None, knowledge=None):
         self.token = token
+        self.knowledge = knowledge
         self.runner = runner
         self.capacity = capacity
         self.provider = provider
@@ -119,6 +123,58 @@ class AIService(rpc.AIServiceServicer):
                 task.cancel()
         return run
 
+    async def knowledge_service(self, context):
+        if self.knowledge is None:
+            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Knowledge store is not configured")
+        return self.knowledge
+
+    async def knowledge_call(self, context, operation):
+        """Map storage/embedding failures to retryable statuses without exposing provider or DB details."""
+        from psycopg import Error as DatabaseError
+
+        try:
+            return await operation()
+        except EmbeddingError as error:
+            code = grpc.StatusCode.RESOURCE_EXHAUSTED if error.code == "EMBEDDING_QUOTA" else grpc.StatusCode.UNAVAILABLE
+            await context.abort(code, error.code)
+        except (DatabaseError, Retry):
+            await context.abort(grpc.StatusCode.UNAVAILABLE, "Knowledge storage unavailable")
+
+    async def UpsertKnowledge(self, request, context):
+        await self.authorize(context)
+        await self.validate_ids(context, request.tenant_id)
+        service = await self.knowledge_service(context)
+        documents = []
+        try:
+            for item in request.documents:
+                documents.append(KnowledgeInput(
+                    source_type=item.source_type, source_id=item.source_id, source_revision=item.source_revision,
+                    title=item.title, body=item.body, attributes=dict(item.attributes)))
+        except ValidationError:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid knowledge document")
+        if not 1 <= len(documents) <= 20 or len({d.key for d in documents}) != len(documents):
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Provide 1-20 distinct knowledge documents")
+        response = pb.UpsertKnowledgeResponse()
+        for document in documents:
+            try:
+                outcome, count = await self.knowledge_call(
+                    context, lambda d=document: service.upsert(request.tenant_id, d))
+            except ValueError:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Knowledge document is too long")
+            response.results.add(source_type=document.source_type, source_id=document.source_id,
+                                 outcome=outcome, chunk_count=count)
+        return response
+
+    async def DeleteKnowledge(self, request, context):
+        await self.authorize(context)
+        await self.validate_ids(context, request.tenant_id, request.source_id)
+        if request.source_type not in ("product", "document", "script") or request.source_revision < 0:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid knowledge source")
+        service = await self.knowledge_service(context)
+        outcome = await self.knowledge_call(context, lambda: service.delete(
+            request.tenant_id, request.source_type, request.source_id, request.source_revision))
+        return pb.DeleteKnowledgeResponse(outcome=outcome)
+
     async def close(self):
         tasks = list(self.tasks.values())
         for task in tasks:
@@ -128,14 +184,14 @@ class AIService(rpc.AIServiceServicer):
 
 
 async def start_server(token: str, address: str, service: AIService | None = None, *,
-                       runner=run_graph, provider=None):
+                       runner=run_graph, provider=None, knowledge=None):
     if service is None:
         dsn = os.getenv("AI_DATABASE_URL")
         if not dsn:
             raise RuntimeError("AI_DATABASE_URL is required for the gRPC runtime")
         from hexta_ai.durable import DurableAIService
         from hexta_ai.store import RunStore
-        service = DurableAIService(token, RunStore(dsn), runner=runner, provider=provider)
+        service = DurableAIService(token, RunStore(dsn), runner=runner, provider=provider, knowledge=knowledge)
         try:
             await service.start()
         except BaseException:
