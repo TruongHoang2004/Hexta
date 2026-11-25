@@ -160,8 +160,11 @@ type StartRunRequest struct {
 	Facts             []*DomainFact          `protobuf:"bytes,9,rep,name=facts,proto3" json:"facts,omitempty"`
 	Constraints       []string               `protobuf:"bytes,10,rep,name=constraints,proto3" json:"constraints,omitempty"`
 	AllowGeneration   bool                   `protobuf:"varint,11,opt,name=allow_generation,json=allowGeneration,proto3" json:"allow_generation,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Opt-in to knowledge-grounded generated answers. They are always proposals that need staff review
+	// (Run.requires_review); callers that do not set this never receive them.
+	AllowKnowledgeAnswer bool `protobuf:"varint,12,opt,name=allow_knowledge_answer,json=allowKnowledgeAnswer,proto3" json:"allow_knowledge_answer,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *StartRunRequest) Reset() {
@@ -267,6 +270,13 @@ func (x *StartRunRequest) GetConstraints() []string {
 func (x *StartRunRequest) GetAllowGeneration() bool {
 	if x != nil {
 		return x.AllowGeneration
+	}
+	return false
+}
+
+func (x *StartRunRequest) GetAllowKnowledgeAnswer() bool {
+	if x != nil {
+		return x.AllowKnowledgeAnswer
 	}
 	return false
 }
@@ -448,8 +458,25 @@ type Run struct {
 	InputTokens       int64                  `protobuf:"varint,17,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
 	OutputTokens      int64                  `protobuf:"varint,18,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
 	UsageEstimated    bool                   `protobuf:"varint,19,opt,name=usage_estimated,json=usageEstimated,proto3" json:"usage_estimated,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// script | generated | clarify | handoff; empty for runs that produced no candidate.
+	CandidateKind string `protobuf:"bytes,20,opt,name=candidate_kind,json=candidateKind,proto3" json:"candidate_kind,omitempty"`
+	// Knowledge sources the candidate relies on: product:<id>, document:<id>, script:<id>, fact:<id>.
+	CitedSourceIds []string `protobuf:"bytes,21,rep,name=cited_source_ids,json=citedSourceIds,proto3" json:"cited_source_ids,omitempty"`
+	NeedsHuman     bool     `protobuf:"varint,22,opt,name=needs_human,json=needsHuman,proto3" json:"needs_human,omitempty"`
+	// Handoff category in the Go vocabulary: customer_requested_staff, insufficient_information, ai_error,
+	// business_review. Empty unless route is human.
+	HandoffReason string `protobuf:"bytes,23,opt,name=handoff_reason,json=handoffReason,proto3" json:"handoff_reason,omitempty"`
+	// True for model-authored text; Go must never auto-send it.
+	RequiresReview bool `protobuf:"varint,24,opt,name=requires_review,json=requiresReview,proto3" json:"requires_review,omitempty"`
+	// jev | deterministic | provider
+	Router      string `protobuf:"bytes,25,opt,name=router,proto3" json:"router,omitempty"`
+	RouterModel string `protobuf:"bytes,26,opt,name=router_model,json=routerModel,proto3" json:"router_model,omitempty"`
+	// Probability of the router's chosen option, 0 when the router reports none.
+	RouteProbability float64 `protobuf:"fixed64,27,opt,name=route_probability,json=routeProbability,proto3" json:"route_probability,omitempty"`
+	// Safe category explaining why the primary router was not used (for example jev_disabled, jev_timeout).
+	RouterFallbackReason string `protobuf:"bytes,28,opt,name=router_fallback_reason,json=routerFallbackReason,proto3" json:"router_fallback_reason,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -615,6 +642,435 @@ func (x *Run) GetUsageEstimated() bool {
 	return false
 }
 
+func (x *Run) GetCandidateKind() string {
+	if x != nil {
+		return x.CandidateKind
+	}
+	return ""
+}
+
+func (x *Run) GetCitedSourceIds() []string {
+	if x != nil {
+		return x.CitedSourceIds
+	}
+	return nil
+}
+
+func (x *Run) GetNeedsHuman() bool {
+	if x != nil {
+		return x.NeedsHuman
+	}
+	return false
+}
+
+func (x *Run) GetHandoffReason() string {
+	if x != nil {
+		return x.HandoffReason
+	}
+	return ""
+}
+
+func (x *Run) GetRequiresReview() bool {
+	if x != nil {
+		return x.RequiresReview
+	}
+	return false
+}
+
+func (x *Run) GetRouter() string {
+	if x != nil {
+		return x.Router
+	}
+	return ""
+}
+
+func (x *Run) GetRouterModel() string {
+	if x != nil {
+		return x.RouterModel
+	}
+	return ""
+}
+
+func (x *Run) GetRouteProbability() float64 {
+	if x != nil {
+		return x.RouteProbability
+	}
+	return 0
+}
+
+func (x *Run) GetRouterFallbackReason() string {
+	if x != nil {
+		return x.RouterFallbackReason
+	}
+	return ""
+}
+
+type KnowledgeDocument struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// product | document | script
+	SourceType string `protobuf:"bytes,1,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
+	SourceId   string `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	// Monotonic per source (for example the source row version); older revisions are ignored.
+	SourceRevision int64  `protobuf:"varint,3,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	Title          string `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	// Embedded text.
+	Body string `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	// Current facts shown to the model but not embedded (price, stock, sku, version_id).
+	Attributes    map[string]string `protobuf:"bytes,6,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KnowledgeDocument) Reset() {
+	*x = KnowledgeDocument{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KnowledgeDocument) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KnowledgeDocument) ProtoMessage() {}
+
+func (x *KnowledgeDocument) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KnowledgeDocument.ProtoReflect.Descriptor instead.
+func (*KnowledgeDocument) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *KnowledgeDocument) GetSourceType() string {
+	if x != nil {
+		return x.SourceType
+	}
+	return ""
+}
+
+func (x *KnowledgeDocument) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *KnowledgeDocument) GetSourceRevision() int64 {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return 0
+}
+
+func (x *KnowledgeDocument) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *KnowledgeDocument) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *KnowledgeDocument) GetAttributes() map[string]string {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+type UpsertKnowledgeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Documents     []*KnowledgeDocument   `protobuf:"bytes,2,rep,name=documents,proto3" json:"documents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertKnowledgeRequest) Reset() {
+	*x = UpsertKnowledgeRequest{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertKnowledgeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertKnowledgeRequest) ProtoMessage() {}
+
+func (x *UpsertKnowledgeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertKnowledgeRequest.ProtoReflect.Descriptor instead.
+func (*UpsertKnowledgeRequest) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UpsertKnowledgeRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *UpsertKnowledgeRequest) GetDocuments() []*KnowledgeDocument {
+	if x != nil {
+		return x.Documents
+	}
+	return nil
+}
+
+type KnowledgeResult struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	SourceType string                 `protobuf:"bytes,1,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
+	SourceId   string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	// created | updated | attributes_updated | unchanged | stale
+	Outcome       string `protobuf:"bytes,3,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ChunkCount    int32  `protobuf:"varint,4,opt,name=chunk_count,json=chunkCount,proto3" json:"chunk_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KnowledgeResult) Reset() {
+	*x = KnowledgeResult{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KnowledgeResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KnowledgeResult) ProtoMessage() {}
+
+func (x *KnowledgeResult) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KnowledgeResult.ProtoReflect.Descriptor instead.
+func (*KnowledgeResult) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *KnowledgeResult) GetSourceType() string {
+	if x != nil {
+		return x.SourceType
+	}
+	return ""
+}
+
+func (x *KnowledgeResult) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *KnowledgeResult) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *KnowledgeResult) GetChunkCount() int32 {
+	if x != nil {
+		return x.ChunkCount
+	}
+	return 0
+}
+
+type UpsertKnowledgeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*KnowledgeResult     `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertKnowledgeResponse) Reset() {
+	*x = UpsertKnowledgeResponse{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertKnowledgeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertKnowledgeResponse) ProtoMessage() {}
+
+func (x *UpsertKnowledgeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertKnowledgeResponse.ProtoReflect.Descriptor instead.
+func (*UpsertKnowledgeResponse) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UpsertKnowledgeResponse) GetResults() []*KnowledgeResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type DeleteKnowledgeRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SourceType     string                 `protobuf:"bytes,2,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
+	SourceId       string                 `protobuf:"bytes,3,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	SourceRevision int64                  `protobuf:"varint,4,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DeleteKnowledgeRequest) Reset() {
+	*x = DeleteKnowledgeRequest{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteKnowledgeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteKnowledgeRequest) ProtoMessage() {}
+
+func (x *DeleteKnowledgeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteKnowledgeRequest.ProtoReflect.Descriptor instead.
+func (*DeleteKnowledgeRequest) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeleteKnowledgeRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *DeleteKnowledgeRequest) GetSourceType() string {
+	if x != nil {
+		return x.SourceType
+	}
+	return ""
+}
+
+func (x *DeleteKnowledgeRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *DeleteKnowledgeRequest) GetSourceRevision() int64 {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return 0
+}
+
+type DeleteKnowledgeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// deleted | not_found | stale
+	Outcome       string `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteKnowledgeResponse) Reset() {
+	*x = DeleteKnowledgeResponse{}
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteKnowledgeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteKnowledgeResponse) ProtoMessage() {}
+
+func (x *DeleteKnowledgeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hexta_ai_v1_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteKnowledgeResponse.ProtoReflect.Descriptor instead.
+func (*DeleteKnowledgeResponse) Descriptor() ([]byte, []int) {
+	return file_hexta_ai_v1_service_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DeleteKnowledgeResponse) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
 var File_hexta_ai_v1_service_proto protoreflect.FileDescriptor
 
 const file_hexta_ai_v1_service_proto_rawDesc = "" +
@@ -624,7 +1080,7 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\atrigger\x18\x02 \x01(\tR\atrigger\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x12\x16\n" +
-	"\x06active\x18\x04 \x01(\bR\x06active\"\xb9\x03\n" +
+	"\x06active\x18\x04 \x01(\bR\x06active\"\xef\x03\n" +
 	"\x0fStartRunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x17\n" +
@@ -637,7 +1093,8 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\x05facts\x18\t \x03(\v2\x17.hexta.ai.v1.DomainFactR\x05facts\x12 \n" +
 	"\vconstraints\x18\n" +
 	" \x03(\tR\vconstraints\x12)\n" +
-	"\x10allow_generation\x18\v \x01(\bR\x0fallowGeneration\"=\n" +
+	"\x10allow_generation\x18\v \x01(\bR\x0fallowGeneration\x124\n" +
+	"\x16allow_knowledge_answer\x18\f \x01(\bR\x14allowKnowledgeAnswer\"=\n" +
 	"\x13ConversationMessage\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\"0\n" +
@@ -648,7 +1105,7 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"\n" +
 	"RunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xd1\x04\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xb1\a\n" +
 	"\x03Run\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x17\n" +
@@ -672,18 +1129,63 @@ const file_hexta_ai_v1_service_proto_rawDesc = "" +
 	"confidence\x12!\n" +
 	"\finput_tokens\x18\x11 \x01(\x03R\vinputTokens\x12#\n" +
 	"\routput_tokens\x18\x12 \x01(\x03R\foutputTokens\x12'\n" +
-	"\x0fusage_estimated\x18\x13 \x01(\bR\x0eusageEstimated*\xa1\x01\n" +
+	"\x0fusage_estimated\x18\x13 \x01(\bR\x0eusageEstimated\x12%\n" +
+	"\x0ecandidate_kind\x18\x14 \x01(\tR\rcandidateKind\x12(\n" +
+	"\x10cited_source_ids\x18\x15 \x03(\tR\x0ecitedSourceIds\x12\x1f\n" +
+	"\vneeds_human\x18\x16 \x01(\bR\n" +
+	"needsHuman\x12%\n" +
+	"\x0ehandoff_reason\x18\x17 \x01(\tR\rhandoffReason\x12'\n" +
+	"\x0frequires_review\x18\x18 \x01(\bR\x0erequiresReview\x12\x16\n" +
+	"\x06router\x18\x19 \x01(\tR\x06router\x12!\n" +
+	"\frouter_model\x18\x1a \x01(\tR\vrouterModel\x12+\n" +
+	"\x11route_probability\x18\x1b \x01(\x01R\x10routeProbability\x124\n" +
+	"\x16router_fallback_reason\x18\x1c \x01(\tR\x14routerFallbackReason\"\xb3\x02\n" +
+	"\x11KnowledgeDocument\x12\x1f\n" +
+	"\vsource_type\x18\x01 \x01(\tR\n" +
+	"sourceType\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12'\n" +
+	"\x0fsource_revision\x18\x03 \x01(\x03R\x0esourceRevision\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12N\n" +
+	"\n" +
+	"attributes\x18\x06 \x03(\v2..hexta.ai.v1.KnowledgeDocument.AttributesEntryR\n" +
+	"attributes\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"s\n" +
+	"\x16UpsertKnowledgeRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12<\n" +
+	"\tdocuments\x18\x02 \x03(\v2\x1e.hexta.ai.v1.KnowledgeDocumentR\tdocuments\"\x8a\x01\n" +
+	"\x0fKnowledgeResult\x12\x1f\n" +
+	"\vsource_type\x18\x01 \x01(\tR\n" +
+	"sourceType\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12\x18\n" +
+	"\aoutcome\x18\x03 \x01(\tR\aoutcome\x12\x1f\n" +
+	"\vchunk_count\x18\x04 \x01(\x05R\n" +
+	"chunkCount\"Q\n" +
+	"\x17UpsertKnowledgeResponse\x126\n" +
+	"\aresults\x18\x01 \x03(\v2\x1c.hexta.ai.v1.KnowledgeResultR\aresults\"\x9c\x01\n" +
+	"\x16DeleteKnowledgeRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vsource_type\x18\x02 \x01(\tR\n" +
+	"sourceType\x12\x1b\n" +
+	"\tsource_id\x18\x03 \x01(\tR\bsourceId\x12'\n" +
+	"\x0fsource_revision\x18\x04 \x01(\x03R\x0esourceRevision\"3\n" +
+	"\x17DeleteKnowledgeResponse\x12\x18\n" +
+	"\aoutcome\x18\x01 \x01(\tR\aoutcome*\xa1\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11RUN_STATUS_QUEUED\x10\x01\x12\x16\n" +
 	"\x12RUN_STATUS_RUNNING\x10\x02\x12\x18\n" +
 	"\x14RUN_STATUS_SUCCEEDED\x10\x03\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\x04\x12\x18\n" +
-	"\x14RUN_STATUS_CANCELLED\x10\x052\xb4\x01\n" +
+	"\x14RUN_STATUS_CANCELLED\x10\x052\xf0\x02\n" +
 	"\tAIService\x12:\n" +
 	"\bStartRun\x12\x1c.hexta.ai.v1.StartRunRequest\x1a\x10.hexta.ai.v1.Run\x123\n" +
 	"\x06GetRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.Run\x126\n" +
-	"\tCancelRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.RunBSZQgithub.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1b\x06proto3"
+	"\tCancelRun\x12\x17.hexta.ai.v1.RunRequest\x1a\x10.hexta.ai.v1.Run\x12\\\n" +
+	"\x0fUpsertKnowledge\x12#.hexta.ai.v1.UpsertKnowledgeRequest\x1a$.hexta.ai.v1.UpsertKnowledgeResponse\x12\\\n" +
+	"\x0fDeleteKnowledge\x12#.hexta.ai.v1.DeleteKnowledgeRequest\x1a$.hexta.ai.v1.DeleteKnowledgeResponseBSZQgithub.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai/rpc;aiv1b\x06proto3"
 
 var (
 	file_hexta_ai_v1_service_proto_rawDescOnce sync.Once
@@ -698,32 +1200,46 @@ func file_hexta_ai_v1_service_proto_rawDescGZIP() []byte {
 }
 
 var file_hexta_ai_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_hexta_ai_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_hexta_ai_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_hexta_ai_v1_service_proto_goTypes = []any{
-	(RunStatus)(0),              // 0: hexta.ai.v1.RunStatus
-	(*Script)(nil),              // 1: hexta.ai.v1.Script
-	(*StartRunRequest)(nil),     // 2: hexta.ai.v1.StartRunRequest
-	(*ConversationMessage)(nil), // 3: hexta.ai.v1.ConversationMessage
-	(*DomainFact)(nil),          // 4: hexta.ai.v1.DomainFact
-	(*RunRequest)(nil),          // 5: hexta.ai.v1.RunRequest
-	(*Run)(nil),                 // 6: hexta.ai.v1.Run
+	(RunStatus)(0),                  // 0: hexta.ai.v1.RunStatus
+	(*Script)(nil),                  // 1: hexta.ai.v1.Script
+	(*StartRunRequest)(nil),         // 2: hexta.ai.v1.StartRunRequest
+	(*ConversationMessage)(nil),     // 3: hexta.ai.v1.ConversationMessage
+	(*DomainFact)(nil),              // 4: hexta.ai.v1.DomainFact
+	(*RunRequest)(nil),              // 5: hexta.ai.v1.RunRequest
+	(*Run)(nil),                     // 6: hexta.ai.v1.Run
+	(*KnowledgeDocument)(nil),       // 7: hexta.ai.v1.KnowledgeDocument
+	(*UpsertKnowledgeRequest)(nil),  // 8: hexta.ai.v1.UpsertKnowledgeRequest
+	(*KnowledgeResult)(nil),         // 9: hexta.ai.v1.KnowledgeResult
+	(*UpsertKnowledgeResponse)(nil), // 10: hexta.ai.v1.UpsertKnowledgeResponse
+	(*DeleteKnowledgeRequest)(nil),  // 11: hexta.ai.v1.DeleteKnowledgeRequest
+	(*DeleteKnowledgeResponse)(nil), // 12: hexta.ai.v1.DeleteKnowledgeResponse
+	nil,                             // 13: hexta.ai.v1.KnowledgeDocument.AttributesEntry
 }
 var file_hexta_ai_v1_service_proto_depIdxs = []int32{
-	1, // 0: hexta.ai.v1.StartRunRequest.scripts:type_name -> hexta.ai.v1.Script
-	3, // 1: hexta.ai.v1.StartRunRequest.history:type_name -> hexta.ai.v1.ConversationMessage
-	4, // 2: hexta.ai.v1.StartRunRequest.facts:type_name -> hexta.ai.v1.DomainFact
-	0, // 3: hexta.ai.v1.Run.status:type_name -> hexta.ai.v1.RunStatus
-	2, // 4: hexta.ai.v1.AIService.StartRun:input_type -> hexta.ai.v1.StartRunRequest
-	5, // 5: hexta.ai.v1.AIService.GetRun:input_type -> hexta.ai.v1.RunRequest
-	5, // 6: hexta.ai.v1.AIService.CancelRun:input_type -> hexta.ai.v1.RunRequest
-	6, // 7: hexta.ai.v1.AIService.StartRun:output_type -> hexta.ai.v1.Run
-	6, // 8: hexta.ai.v1.AIService.GetRun:output_type -> hexta.ai.v1.Run
-	6, // 9: hexta.ai.v1.AIService.CancelRun:output_type -> hexta.ai.v1.Run
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: hexta.ai.v1.StartRunRequest.scripts:type_name -> hexta.ai.v1.Script
+	3,  // 1: hexta.ai.v1.StartRunRequest.history:type_name -> hexta.ai.v1.ConversationMessage
+	4,  // 2: hexta.ai.v1.StartRunRequest.facts:type_name -> hexta.ai.v1.DomainFact
+	0,  // 3: hexta.ai.v1.Run.status:type_name -> hexta.ai.v1.RunStatus
+	13, // 4: hexta.ai.v1.KnowledgeDocument.attributes:type_name -> hexta.ai.v1.KnowledgeDocument.AttributesEntry
+	7,  // 5: hexta.ai.v1.UpsertKnowledgeRequest.documents:type_name -> hexta.ai.v1.KnowledgeDocument
+	9,  // 6: hexta.ai.v1.UpsertKnowledgeResponse.results:type_name -> hexta.ai.v1.KnowledgeResult
+	2,  // 7: hexta.ai.v1.AIService.StartRun:input_type -> hexta.ai.v1.StartRunRequest
+	5,  // 8: hexta.ai.v1.AIService.GetRun:input_type -> hexta.ai.v1.RunRequest
+	5,  // 9: hexta.ai.v1.AIService.CancelRun:input_type -> hexta.ai.v1.RunRequest
+	8,  // 10: hexta.ai.v1.AIService.UpsertKnowledge:input_type -> hexta.ai.v1.UpsertKnowledgeRequest
+	11, // 11: hexta.ai.v1.AIService.DeleteKnowledge:input_type -> hexta.ai.v1.DeleteKnowledgeRequest
+	6,  // 12: hexta.ai.v1.AIService.StartRun:output_type -> hexta.ai.v1.Run
+	6,  // 13: hexta.ai.v1.AIService.GetRun:output_type -> hexta.ai.v1.Run
+	6,  // 14: hexta.ai.v1.AIService.CancelRun:output_type -> hexta.ai.v1.Run
+	10, // 15: hexta.ai.v1.AIService.UpsertKnowledge:output_type -> hexta.ai.v1.UpsertKnowledgeResponse
+	12, // 16: hexta.ai.v1.AIService.DeleteKnowledge:output_type -> hexta.ai.v1.DeleteKnowledgeResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_hexta_ai_v1_service_proto_init() }
@@ -737,7 +1253,7 @@ func file_hexta_ai_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hexta_ai_v1_service_proto_rawDesc), len(file_hexta_ai_v1_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

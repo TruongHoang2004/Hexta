@@ -50,6 +50,16 @@ class AIServiceStub:
                 request_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.RunRequest.SerializeToString,
                 response_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.Run.FromString,
                 _registered_method=True)
+        self.UpsertKnowledge = channel.unary_unary(
+                '/hexta.ai.v1.AIService/UpsertKnowledge',
+                request_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeRequest.SerializeToString,
+                response_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeResponse.FromString,
+                _registered_method=True)
+        self.DeleteKnowledge = channel.unary_unary(
+                '/hexta.ai.v1.AIService/DeleteKnowledge',
+                request_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeRequest.SerializeToString,
+                response_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeResponse.FromString,
+                _registered_method=True)
 
 
 class AIServiceServicer:
@@ -74,6 +84,19 @@ class AIServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UpsertKnowledge(self, request, context):
+        """Knowledge ingest for grounded answers. Go pushes authorized tenant data; Python stores embeddings only.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteKnowledge(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_AIServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -91,6 +114,16 @@ def add_AIServiceServicer_to_server(servicer, server):
                     servicer.CancelRun,
                     request_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.RunRequest.FromString,
                     response_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.Run.SerializeToString,
+            ),
+            'UpsertKnowledge': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpsertKnowledge,
+                    request_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeRequest.FromString,
+                    response_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeResponse.SerializeToString,
+            ),
+            'DeleteKnowledge': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteKnowledge,
+                    request_deserializer=hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeRequest.FromString,
+                    response_serializer=hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -175,6 +208,60 @@ class AIService:
             '/hexta.ai.v1.AIService/CancelRun',
             hexta_dot_ai_dot_v1_dot_service__pb2.RunRequest.SerializeToString,
             hexta_dot_ai_dot_v1_dot_service__pb2.Run.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpsertKnowledge(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/hexta.ai.v1.AIService/UpsertKnowledge',
+            hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeRequest.SerializeToString,
+            hexta_dot_ai_dot_v1_dot_service__pb2.UpsertKnowledgeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteKnowledge(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/hexta.ai.v1.AIService/DeleteKnowledge',
+            hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeRequest.SerializeToString,
+            hexta_dot_ai_dot_v1_dot_service__pb2.DeleteKnowledgeResponse.FromString,
             options,
             channel_credentials,
             insecure,
