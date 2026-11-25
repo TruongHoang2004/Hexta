@@ -6,7 +6,8 @@ export interface MessagingTurn {
   thread_id: string;
   lifecycle: "open" | "closed";
   control: "system" | "sales";
-  handling_state?: "BOT_ACTIVE" | "WAITING_STAFF" | "STAFF_ACTIVE" | "UNKNOWN";
+  /** CLOSED once the turn (session) is closed; the control fields then keep their values from the close. */
+  handling_state?: "BOT_ACTIVE" | "WAITING_STAFF" | "STAFF_ACTIVE" | "UNKNOWN" | "CLOSED";
   assignee_id: string | null;
   needs_human: boolean;
   /** Handoff reason code behind needs_human; absent when none was given. */

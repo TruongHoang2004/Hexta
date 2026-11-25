@@ -166,3 +166,16 @@ func (t MessagingTurn) HandlingState() string {
 	}
 	return "UNKNOWN"
 }
+
+// HandlingClosed is the handling state reported to clients for a closed turn.
+const HandlingClosed = "CLOSED"
+
+// ReportedHandlingState is the handling state clients see: CLOSED for a closed turn, whose control fields keep the
+// values they had at close and no longer describe who handles the conversation, else HandlingState. Business checks
+// keep using HandlingState together with Lifecycle.
+func (t MessagingTurn) ReportedHandlingState() string {
+	if t.Lifecycle == TurnClosed {
+		return HandlingClosed
+	}
+	return t.HandlingState()
+}

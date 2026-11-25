@@ -18,7 +18,9 @@ export function turnState(
   turn: MessagingTurn | null | undefined,
   userID: string | undefined,
 ): { label: string; tone: ChipTone } {
-  if (turn?.lifecycle === "closed") return { label: t("desk.states.CLOSED"), tone: "neutral" };
+  if (turn?.lifecycle === "closed" || turn?.handling_state === "CLOSED") {
+    return { label: t("desk.states.CLOSED"), tone: "neutral" };
+  }
   switch (turn?.handling_state) {
     case "BOT_ACTIVE":
       return { label: t("desk.states.BOT_ACTIVE"), tone: "neutral" };

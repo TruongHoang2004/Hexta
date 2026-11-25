@@ -139,7 +139,7 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	if err := json.Unmarshal(request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":5,"outcome":"consulted","note":"Sizes"}`, 200), &closed); err != nil {
 		t.Fatal(err)
 	}
-	if closed.Lifecycle != "closed" || closed.CloseCause != "closed_manually" || closed.Outcome != "consulted" || closed.Note != "Sizes" || closed.ClosedBy != "owner" {
+	if closed.Lifecycle != "closed" || closed.HandlingState != "CLOSED" || closed.CloseCause != "closed_manually" || closed.Outcome != "consulted" || closed.Note != "Sizes" || closed.ClosedBy != "owner" {
 		t.Fatal("bad session close contract", closed)
 	}
 	request("POST", "/turns/"+turn.ID+"/close", "owner", `{"expected_version":6,"outcome":"consulted"}`, 409)
@@ -159,7 +159,7 @@ func TestMessagingHTTPFlowAndValidation(t *testing.T) {
 	if err := json.Unmarshal(request("GET", "/conversations/"+message.ThreadID+"/sessions", "sale", "", 200), &sessions); err != nil {
 		t.Fatal(err)
 	}
-	if len(sessions.Items) != 1 || sessions.Items[0].Turn.Outcome != "order_placed" || sessions.Items[0].MessageCount != 2 || sessions.Items[0].FirstMessageID != message.ID || sessions.Items[0].Orders == nil {
+	if len(sessions.Items) != 1 || sessions.Items[0].Turn.HandlingState != "CLOSED" || sessions.Items[0].Turn.Outcome != "order_placed" || sessions.Items[0].MessageCount != 2 || sessions.Items[0].FirstMessageID != message.ID || sessions.Items[0].Orders == nil {
 		t.Fatal("bad session list contract", sessions)
 	}
 	request("POST", "/simulator/messages", "sale", `{"external_key":"a","display_name":"A","body":"`+strings.Repeat("a", 33000)+`","request_key":"`+uuid.NewString()+`"}`, 400)

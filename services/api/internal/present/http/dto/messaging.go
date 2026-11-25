@@ -40,11 +40,12 @@ type MessagingThread struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 type MessagingTurn struct {
-	ID            string  `json:"id"`
-	ThreadID      string  `json:"thread_id"`
-	Lifecycle     string  `json:"lifecycle"`
-	Control       string  `json:"control"`
-	HandlingState string  `json:"handling_state"`
+	ID        string `json:"id"`
+	ThreadID  string `json:"thread_id"`
+	Lifecycle string `json:"lifecycle"`
+	Control   string `json:"control"`
+	// HandlingState is who handles an open turn; CLOSED once the turn (session) is closed.
+	HandlingState string  `json:"handling_state" enums:"BOT_ACTIVE,WAITING_STAFF,STAFF_ACTIVE,UNKNOWN,CLOSED"`
 	AssigneeID    *string `json:"assignee_id"`
 	NeedsHuman    bool    `json:"needs_human"`
 	// NeedsHumanReason is the handoff reason code behind needs_human; omitted when none was given.

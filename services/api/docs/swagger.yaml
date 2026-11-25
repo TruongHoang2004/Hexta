@@ -694,6 +694,14 @@ definitions:
       control_generation:
         type: integer
       handling_state:
+        description: HandlingState is who handles an open turn; CLOSED once the turn
+          (session) is closed.
+        enum:
+        - BOT_ACTIVE
+        - WAITING_STAFF
+        - STAFF_ACTIVE
+        - UNKNOWN
+        - CLOSED
         type: string
       id:
         type: string
