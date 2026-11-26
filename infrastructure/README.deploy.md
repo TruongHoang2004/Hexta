@@ -538,7 +538,8 @@ to retry the switch after a rollback, remove it once the rolled-back stack is he
 | Deploy agent | `systemctl list-timers hexta-deploy.timer`, `journalctl -u hexta-deploy --since today` |
 | Pause automatic deploys | `sudo systemctl stop hexta-deploy.timer` (start it again to resume) |
 | Logs | `./scripts/prod.sh logs -f --tail=200 api` (or `connector`, `ingress`, `ai`, `web`, `caddy`) |
-| Restart one service | `./scripts/prod.sh restart connector` |
+| Restart one service | `./scripts/prod.sh restart connector` (any service except `postgres`) |
+| Restart Postgres | `./scripts/prod.sh stop postgres && ./scripts/prod.sh up -d --wait postgres`. Never `prod.sh restart postgres`, `docker compose restart` or `docker restart`: they skip `postgres-collation-guard` |
 | Resource use | `docker stats --no-stream` |
 | Disk cleanup (old images) | `docker image prune -f` |
 | Postgres shell | `./scripts/prod.sh exec postgres psql -U postgres -d hexta` |
