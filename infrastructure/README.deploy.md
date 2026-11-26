@@ -310,6 +310,10 @@ printed), then run the login check again until it prints 1:
   echo "ALTER ROLE postgres PASSWORD :'pw';"; } | ./scripts/prod.sh exec -T postgres psql -U postgres -q -v ON_ERROR_STOP=1
 ```
 
+The `\set` line hands the password to psql's own command parser, so it assumes a value without whitespace, quotes,
+backslashes or colons, as the `openssl rand -hex 32` values from section 4 are (hex only). For any other value, first
+replace `POSTGRES_PASSWORD` in `.env` with a new `openssl rand -hex 32` value, then realign.
+
 ### Maintenance window (writers stopped, a few minutes of downtime)
 
 Run the blocks **one at a time**, in one bash shell, and start the next block only after the current one printed
@@ -320,12 +324,48 @@ run the next one:
 | Block failed | State | What to do |
 | --- | --- | --- |
 | 0 or 1 | Old release, data untouched | Fix the cause, or restart the old stack: `./scripts/prod.sh up -d --wait` |
-| 2 | Old release, Postgres stopped, data untouched | `docker volume rm hexta-prod_postgres_data_alpine17` (partial copy), then `./scripts/prod.sh up -d --wait` |
-| 3 | Checkout may be at X, data untouched | `git checkout --detach "$PREV" && unset HEXTA_IMAGE_TAG && ./scripts/prod.sh up -d --wait` |
-| 4 or 5 | The data volume was opened by glibc Postgres | Never start the old release on it: [roll back the switch](#rollback-of-the-switch) |
+| 2 | Old release, Postgres stopped, data untouched | Depends on the message, see [block 2 failures](#block-2-failures). Never delete a copy volume that this run did not create |
+| 3 | Checkout may be at X, data untouched | Run the [marker check](#marker-check) first; only after it printed `safe`: `git checkout --detach "$PREV" && unset HEXTA_IMAGE_TAG && ./scripts/prod.sh up -d --wait` |
+| 4 or 5 printing `data untouched — do not roll back` | A block before it did not finish; data untouched | Run the block the message names and continue, or return to the old release as for block 3 |
+| 4 or 5, any other failure | The data volume was opened by glibc Postgres | Never start the old release on it: [roll back the switch](#rollback-of-the-switch) |
 
-The blocks also refuse to run when the previous block's result is missing (no verified dump, no volume copy, no
-marker), so pasting several blocks at once cannot write the marker after a failure.
+Pasting several blocks at once cannot write the marker after a failure: block 0 starts a new attempt in the switch
+record `$R`, block 2 appends `copy=ok` only after the copy passed its size check, block 3 appends `checkout=ok` only
+after the checkout reached X and the images were pulled, and block 4 refuses to touch the data volume unless the
+current attempt holds both lines and `HEAD` is X. Block 4 appends `reindex=started` just before it opens the data
+volume, and a completed rollback appends `rollback=ok`; that order tells the checks below whether glibc opened it.
+
+#### Block 2 failures
+
+- `run block 0 first` or a `gunzip` error: Postgres still runs and nothing was created; run blocks 0 and 1 again.
+- `an earlier block 4 opened the data volume`: roll back the switch. The copy volume is your rollback: keep it.
+- `copy volume not empty`: the volume holds the musl copy of an earlier attempt; keep it. Check every switch record:
+  `for f in ~/hexta-backups/pgvector-switch-*.txt; do grep -E '^(reindex=started|rollback=ok)' "$f" | tail -1 | grep -q '^reindex' && echo "$f: opened by glibc, not rolled back"; done`.
+  If it prints a line, roll back the switch with that record. If it prints nothing (no earlier attempt reached
+  block 4, or it was rolled back), the copy is older than the writes since then: now that block 1 verified a fresh
+  dump, `docker volume rm hexta-prod_postgres_data_alpine17` and run block 2 again.
+- `source is not the musl cluster`: the data volume is empty or already carries the marker. Do not start the old
+  release; a marked volume was switched before (finish with blocks 3 and 5, or roll back).
+- `copy failed`, `copy incomplete` or a Docker error: the copy volume was empty when this run began, so it holds
+  only this run's partial copy: `docker volume rm hexta-prod_postgres_data_alpine17`, then run block 2 again or
+  restart the old stack.
+
+#### Marker check
+
+Before the previous (Alpine) release starts again after a failed block 3, 4 or 5, run this; it prints `safe` only
+when no block 4 opened the data volume (or a rollback followed it) and the volume carries no marker:
+
+```sh
+# Marker check: may the previous release start on the data volume?
+( set -euo pipefail
+  [ -s "${R:-}" ] || { echo "R is not the switch record of block 0: STOP" >&2; exit 1; }
+  last=$(grep -E '^(reindex=started|rollback=ok)' "$R" | tail -1 || true)
+  [[ $last != reindex=started* ]] || { echo "NOT safe: block 4 opened the data volume; roll back the switch" >&2; exit 1; }
+  docker run --rm --network none -v hexta-prod_postgres_data:/d:ro --entrypoint sh "$PG" -c \
+    '[ -s /d/PG_VERSION ] && [ ! -e /d/HEXTA_GLIBC_COLLATION_OK ]' \
+    || { echo "NOT safe: marker present, volume empty or unreadable; do not start the previous release" >&2; exit 1; }
+  echo "safe: no marker, and no block 4 opened the data volume since the last rollback; the previous release may start" )
+```
 
 ```sh
 # Block 0: variables (exported in your shell) and checks. Edit X first.
@@ -338,6 +378,7 @@ export R=~/hexta-backups/pgvector-switch-$X.txt   # switch record: previous rele
 ( set -euo pipefail
   [[ $X =~ ^[0-9a-f]{7}$ ]] || { echo "X is not a 7-char commit (edit the X= line): STOP" >&2; exit 1; }
   [[ $PREV =~ ^[0-9a-f]{7}$ ]] || { echo "infrastructure/prod/state/deployed has no sha-<7 hex>: STOP" >&2; exit 1; }
+  [ "$PREV" != "$X" ] || { echo "sha-$X is already deployed: STOP" >&2; exit 1; }
   [ "$(systemctl is-active hexta-deploy.timer || true)" = inactive ] || { echo "deploy timer still active: STOP" >&2; exit 1; }
   git fetch --quiet origin
   git rev-parse --verify --quiet "$X^{commit}" >/dev/null || { echo "commit $X not found: STOP" >&2; exit 1; }
@@ -363,24 +404,32 @@ Copy `$F` off the server now (for example `scp`) and continue only when the copy
 ```sh
 # Block 2: file-level copy of the stopped volume for a fast rollback. The copy volume must be new and empty.
 ( set -euo pipefail
-  gunzip -t "${F:?run block 0 first}"   # block 1's verified dump must exist
+  [ -s "${R:-}" ] && [ -n "${F:-}" ] && gunzip -t "$F" || { echo "run block 0 first: STOP" >&2; exit 1; }   # block 1's verified dump
+  last=$(grep -E '^(reindex=started|rollback=ok)' "$R" | tail -1 || true)
+  [[ $last != reindex=started* ]] || { echo "an earlier block 4 opened the data volume: STOP, roll back the switch" >&2; exit 1; }
   ./scripts/prod.sh stop postgres
   docker volume create hexta-prod_postgres_data_alpine17 >/dev/null
   docker run --rm --network none -v hexta-prod_postgres_data:/from:ro -v hexta-prod_postgres_data_alpine17:/to \
     --entrypoint sh "$PG" -c '[ -z "$(ls -A /to)" ] || { echo "copy volume not empty: STOP" >&2; exit 1; }
       [ -s /from/PG_VERSION ] && [ ! -e /from/HEXTA_GLIBC_COLLATION_OK ] || { echo "source is not the musl cluster: STOP" >&2; exit 1; }
-      cp -a /from/. /to/ && du -s /from /to'
+      cp -a /from/. /to/ || { echo "copy failed: STOP" >&2; exit 1; }
+      sz() { find "$1" -type f -printf "%s\n" | awk "{n++; b+=\$1} END {print n+0, b+0}"; }
+      from=$(sz /from) to=$(sz /to); echo "files and bytes: source $from, copy $to"
+      [ "$from" = "$to" ] && [ -s /to/global/pg_control ] || { echo "copy incomplete: STOP" >&2; exit 1; }'
+  echo "copy=ok $(date -u +%FT%TZ)" >> "$R"
   echo "OK 2: musl copy in hexta-prod_postgres_data_alpine17" )
 ```
 
 ```sh
-# Block 3: check out the release commit and pull its images (pins the tag in your shell).
-export HEXTA_IMAGE_TAG=sha-$X
+# Block 3: check out the release commit and pull its images.
 ( set -euo pipefail
-  [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] || { echo "run block 0 first: STOP" >&2; exit 1; }
+  [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP" >&2; exit 1; }
+  attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -q '^copy=ok' <<<"$attempt" || { echo "no verified musl copy in this attempt: run block 2 first: STOP" >&2; exit 1; }
   git checkout --quiet --detach "$(git rev-parse --verify "$X^{commit}")"
-  [ "$(git rev-parse --short=7 HEAD)" = "$X" ]
-  ./scripts/prod.sh pull --quiet
+  [ "$(git rev-parse --short=7 HEAD)" = "$X" ] || { echo "HEAD is not $X: STOP" >&2; exit 1; }
+  HEXTA_IMAGE_TAG=sha-$X ./scripts/prod.sh pull --quiet
+  echo "checkout=ok $X $(date -u +%FT%TZ)" >> "$R"
   echo "OK 3: checked out $X, sha-$X images pulled" )
 ```
 
@@ -395,10 +444,15 @@ the indexes were built with, so keep it with the dump.
 ```sh
 # Block 4: record the image, REINDEX, amcheck, then (only if everything passed) write the marker.
 ( set -euo pipefail
-  ok=0
-  trap '[ "$ok" = 1 ] || echo "BLOCK 4 FAILED: marker NOT written. STOP and roll back the switch (below)." >&2' EXIT
-  [ "${HEXTA_IMAGE_TAG:-}" = "sha-$X" ] || { echo "run block 3 first: STOP" >&2; exit 1; }
-  # The rollback copy (block 2) must exist before the data volume is touched.
+  ok=0 opened=0
+  trap 'if [ "$ok" != 1 ] && [ "$opened" = 1 ]; then echo "BLOCK 4 FAILED: marker NOT written. STOP and roll back the switch (below)." >&2
+    elif [ "$ok" != 1 ]; then echo "BLOCK 4 did not start: data untouched — do not roll back (stop table)." >&2; fi' EXIT
+  [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP" >&2; exit 1; }
+  attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -q '^copy=ok' <<<"$attempt" || { echo "no verified musl copy in this attempt: run block 2 first: STOP" >&2; exit 1; }
+  grep -q "^checkout=ok $X" <<<"$attempt" && [ "$(git rev-parse --short=7 HEAD)" = "$X" ] \
+    || { echo "release $X is not checked out: run block 3 first: STOP" >&2; exit 1; }
+  # The rollback copy (block 2) must still exist before the data volume is touched.
   docker run --rm --network none -v hexta-prod_postgres_data_alpine17:/c:ro --entrypoint test "$PG" -s /c/PG_VERSION
   { echo "image=$PG"
     docker image inspect --format 'image_id={{.Id}} repo_digests={{join .RepoDigests ","}}' "$PG"
@@ -406,6 +460,7 @@ the indexes were built with, so keep it with the dump.
       'echo "postgres=$(postgres --version)"; echo "glibc=$(ldd --version | head -1)"; echo "debian=$(cat /etc/debian_version)"'
   } >> "$R"
   cat "$R"
+  echo "reindex=started $(date -u +%FT%TZ)" >> "$R"; opened=1   # from here on only the rollback goes back
   docker run -d --name hexta-pg-reindex --network none -v hexta-prod_postgres_data:/var/lib/postgresql/data "$PG" >/dev/null
   pg() { docker exec -u postgres hexta-pg-reindex psql -X -U postgres -v ON_ERROR_STOP=1 "$@"; }
   for _ in $(seq 60); do docker exec hexta-pg-reindex pg_isready -U postgres -q && break; sleep 1; done
@@ -445,11 +500,17 @@ the indexes were built with, so keep it with the dump.
 ```sh
 # Block 5: start the stack (guard finds the marker, postgres, postgres-extensions, migrations, apps), record the
 # deployed tag yourself, then resume the agent (it sees release.env = sha-X = deployed: no-op).
-export HEXTA_IMAGE_TAG=sha-$X
 ( set -euo pipefail
-  [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ "$(git rev-parse --short=7 HEAD)" = "$X" ] || { echo "run blocks 0 and 3 first: STOP" >&2; exit 1; }
-  docker run --rm --network none -v hexta-prod_postgres_data:/d:ro --entrypoint test "$PG" -f /d/HEXTA_GLIBC_COLLATION_OK \
-    || { echo "no marker on the data volume (block 4 did not finish): STOP, roll back" >&2; exit 1; }
+  [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP (data untouched — do not roll back)" >&2; exit 1; }
+  if ! docker run --rm --network none -v hexta-prod_postgres_data:/d:ro --entrypoint test "$PG" -f /d/HEXTA_GLIBC_COLLATION_OK; then
+    last=$(grep -E '^(reindex=started|rollback=ok)' "$R" | tail -1 || true)
+    if [[ $last == reindex=started* ]]; then echo "no marker: block 4 opened the data volume but did not finish: STOP, roll back the switch" >&2
+    else echo "no marker: run block 4 first: STOP (data untouched — do not roll back)" >&2; fi
+    exit 1
+  fi
+  [ "$(git rev-parse --short=7 HEAD)" = "$X" ] \
+    || { echo "HEAD is not $X: run block 3 again (the data is switched: never start the previous release)" >&2; exit 1; }
+  export HEXTA_IMAGE_TAG=sha-$X
   ./scripts/prod.sh up -d --wait --remove-orphans
   ./scripts/prod.sh logs --no-log-prefix postgres-collation-guard | tail -1
   ./scripts/prod.sh exec -T postgres psql -U postgres -d hexta -Atc "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'"
@@ -487,18 +548,23 @@ the blocks above. To bump it:
 
 Never start the previous release on the switched volume, and never copy into a non-empty volume. Restore the
 musl copy into a recreated, empty volume (or restore the dump into an empty volume as in section 10). The block
+reads the previous release from the switch record `$R` of block 0 (edit X to the release commit of the switch),
 first removes a leftover `hexta-pg-reindex` container (a failed block 4), then checks that the musl copy exists,
-holds a cluster and carries no marker, and only then removes anything:
+holds a cluster and carries no marker, and only then removes anything. If it stops part way, fix the cause and run
+the whole block again: it removes the data volume only when it exists and copies only into an empty one:
 
 ```sh
 # Rollback: restore the musl copy and the previous release.
 cd /opt/hexta
 sudo systemctl stop hexta-deploy.timer
+export X=XXXXXXX                                   # the release commit of the switch (block 0)
 export PG=pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
-export PREV=$(sed -n 's/^previous=sha-//p' ~/hexta-backups/pgvector-switch-*.txt | tail -1)   # from block 0
-export HEXTA_IMAGE_TAG=sha-$PREV
+export R=~/hexta-backups/pgvector-switch-$X.txt
+export PREV=$(sed -n 's/^previous=sha-//p' "$R" 2>/dev/null | tail -1)   # recorded by block 0
 ( set -euo pipefail
-  [[ $PREV =~ ^[0-9a-f]{7}$ ]] || { echo "PREV is not the 7-char previous release commit: STOP" >&2; exit 1; }
+  [[ $X =~ ^[0-9a-f]{7}$ ]] && [ -s "$R" ] || { echo "no switch record $R (edit the X= line): STOP" >&2; exit 1; }
+  [[ $PREV =~ ^[0-9a-f]{7}$ ]] && [ "$PREV" != "$X" ] || { echo "no previous release in $R: STOP" >&2; exit 1; }
+  export HEXTA_IMAGE_TAG=sha-$PREV
   docker rm -f hexta-pg-reindex >/dev/null 2>&1 || true
   docker volume inspect hexta-prod_postgres_data_alpine17 >/dev/null 2>&1 \
     || { echo "musl copy volume hexta-prod_postgres_data_alpine17 missing: STOP (restore the dump, section 10)" >&2; exit 1; }
@@ -513,7 +579,8 @@ export HEXTA_IMAGE_TAG=sha-$PREV
     gunzip -t "$D" && ls -lh "$D"
   fi
   ./scripts/prod.sh down                                   # never down -v
-  docker volume rm hexta-prod_postgres_data
+  # The switched (or, on a re-run, partly restored) data volume; already gone if an earlier run removed it.
+  if docker volume inspect hexta-prod_postgres_data >/dev/null 2>&1; then docker volume rm hexta-prod_postgres_data >/dev/null; fi
   # The previous release recreates the empty volume (with its Compose labels) without starting postgres.
   git checkout --quiet --detach "$(git rev-parse --verify "$PREV^{commit}")"
   ./scripts/prod.sh up --no-start postgres
@@ -521,6 +588,7 @@ export HEXTA_IMAGE_TAG=sha-$PREV
     --entrypoint sh "$PG" -c '[ -z "$(ls -A /to)" ] || { echo "target volume not empty: STOP" >&2; exit 1; }; cp -a /from/. /to/'
   ./scripts/prod.sh up -d --wait --remove-orphans
   echo "$HEXTA_IMAGE_TAG" > infrastructure/prod/state/deployed
+  echo "rollback=ok $(date -u +%FT%TZ)" >> "$R"
   echo "OK rollback: sha-$PREV running on the musl copy" )
 ```
 
