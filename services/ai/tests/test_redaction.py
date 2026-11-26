@@ -32,9 +32,10 @@ def test_phones_and_emails_become_typed_placeholders(text, expected):
     "giá 1.250.000đ còn không", "giá 299.000 ạ", "mã đơn 1234567890", "size 42 còn 5 đôi",
     "mua quan size 30", "2 Áo Polo đen", "có đường không", "84.000đ",
     # Prices, quantities and order codes that look like phones.
-    "lấy 2 cái nhé", "2 cái áo size L", "mua 3 đôi giá 1.250.000đ", "đơn DH0912345678 giao chưa",
-    "mã đơn 912345678", "mã: 912345678", "order #912345678", "đơn 512345678 sao rồi", "912.345.678đ",
+    "lấy 2 cái nhé", "2 cái áo size L", "mua 3 đôi giá 1.250.000đ", "đơn DH0912345678 giao chưa", "912.345.678đ",
     "giá 350000000đ", "chuyển 350000000 đồng", "SP0912345678", "tổng 912345678 vnđ", "1234567890", "mã đơn #ORD-2026-912345678",
+    # Order codes whose length or prefix cannot be a Vietnamese phone.
+    "mã đơn 1234567890", "đơn hàng 091234567890", "order 0012345678", "mã đơn 12345678",
 ])
 def test_prices_sizes_and_ordinary_words_are_kept(text):
     assert redact_pii(text) == text
@@ -112,12 +113,37 @@ def test_local_unit_and_place_lookalikes_are_kept(text):
     assert redact_pii(text) == text
 
 
-@pytest.mark.parametrize("text", [
-    "order 0912345678", "order #0912345678", "mã đơn: 0912345678", "đơn hàng 0912345678 sao rồi",
-    "order id 0912345678 giao chưa", "tôi muốn 912345678 cái", "lấy 912345678 sp",
-])
-def test_order_codes_and_quantities_shaped_like_phones_are_kept(text):
+@pytest.mark.parametrize("text", ["tôi muốn 912345678 cái", "lấy 912345678 sp"])
+def test_quantities_shaped_like_phones_are_kept(text):
     assert redact_pii(text) == text
+
+
+@pytest.mark.parametrize("text,expected", [
+    # A customer often answers "which order?" with their phone: an order word never keeps a valid phone shape.
+    ("kiểm tra đơn hàng 0912345678 giúp em", "kiểm tra đơn hàng [PHONE] giúp em"),
+    ("cho em order 0987654321 Lan nhé", "cho em order [PHONE] Lan nhé"),
+    ("Đơn hàng: 0987654321, Nguyễn Văn A", "Đơn hàng: [PHONE], Nguyễn Văn A"),
+    ("đơn hàng 0912345678 sđt 0987654321", "đơn hàng [PHONE] sđt [PHONE]"),
+    ("order 0912345678", "order [PHONE]"),
+    ("order #0912345678", "order #[PHONE]"),
+    ("mã đơn: 0912345678", "mã đơn: [PHONE]"),
+    ("order id 0912345678 giao chưa", "order id [PHONE] giao chưa"),
+    ("mã vận đơn 0912 345 678", "mã vận đơn [PHONE]"),
+    ("đơn hàng +84 912 345 678", "đơn hàng [PHONE]"),
+    ("order 84912345678", "order [PHONE]"),
+    ("đơn hàng 0912.345.678", "đơn hàng [PHONE]"),
+    ("mã đơn 091-234-5678", "mã đơn [PHONE]"),
+    ("số đơn 024 3826 1234", "số đơn [PHONE]"),
+    # Without the leading 0 too: the 9-digit form is a valid mobile whatever word precedes it.
+    ("mã đơn 912345678", "mã đơn [PHONE]"),
+    ("mã: 912345678", "mã: [PHONE]"),
+    ("order #912345678", "order #[PHONE]"),
+    ("đơn 512345678 sao rồi", "đơn [PHONE] sao rồi"),
+])
+def test_phones_after_order_words_are_redacted(text, expected):
+    assert redact_pii(text) == expected
+    # contact_values sees the same phone, so a tenant's own number written after an order word can still be allowed.
+    assert contact_values(text) and "[PHONE]" not in redact_pii(text, keep=contact_values(text))
 
 
 @pytest.mark.parametrize("text,expected", [

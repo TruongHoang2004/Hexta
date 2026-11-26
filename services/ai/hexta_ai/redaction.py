@@ -4,8 +4,12 @@ Heuristic defense in depth for Vietnamese chat text, not a completeness guarante
 (+84/84/0 prefixes, spaced, dotted or dashed, glued to a phone keyword or a trailing word, and 9-digit
 mobiles written without the leading 0), emails and best-effort street addresses (including ``ấp 3``,
 ``kp 5``, ``tổ 7``, ``thôn 2`` and house + street before a known district or city) become typed placeholders.
-Prices such as ``1.250.000đ``, quantities such as ``2 cái`` or ``912345678 cái`` and order codes such as
-``DH0912345678``, ``mã đơn 912345678`` or ``order 0912345678`` stay intact.
+
+Any valid phone shape is redacted whatever word precedes it, so ``đơn hàng 0912345678`` and ``order
+912345678`` lose the number: PII is redacted before text leaves, and a customer often answers "which order?"
+with their phone. Only values that cannot be a phone stay intact: prices such as ``1.250.000đ``, quantities
+such as ``2 cái`` or ``912345678 cái``, codes glued to letters such as ``DH0912345678`` or ``#ORD-2026-…``,
+and digit runs whose length or prefix is not a Vietnamese phone (``mã đơn 1234567890``).
 """
 
 import re
@@ -23,12 +27,9 @@ _PHONE_START = "(?:(?<![\\w+])|" + "|".join(f"(?i:(?<={k}))" for k in _PHONE_KEY
 # A candidate run of digits with optional single separators; validated by digit count below.
 _PHONE = re.compile(_PHONE_START + r"(?:\(?\+84\)?|\(?84\)?|0)[\s.\-]?(?:\d[\s.\-]?){7,10}\d(?!\d)")
 # Mobile written without its leading 0 ("912345678", "912 345 678"): 9 digits starting 3/5/7/8/9, never dotted (a
-# dotted run is a price) and never in an order/price context (checked by _is_bare_mobile).
-_PHONE9 = re.compile(_PHONE_START.replace("(?<![\\w+])", "(?<![\\w+#.,/-])") + r"[35789]\d{2} ?\d{3} ?\d{3}(?![\d.,/-])")
-_ORDER_CONTEXT = re.compile(r"(?<!\w)(?i:mã|ma|đơn|don|order|code|id|#|số đơn|so don|sku)\s*[:#]?\s*$")
-# Stricter context for a full 10-11 digit phone shape: only an explicit order word right before it keeps it.
-_ORDER_STRICT = re.compile(r"(?<!\w)(?i:mã đơn(?: hàng)?|ma don(?: hang)?|số đơn|so don|đơn hàng|don hang|"
-                           r"mã vận đơn|ma van don|order(?: id| no\.?| number)?)\s*[:#]?\s*$")
+# dotted run is a price), never inside a dashed or slashed code and never an amount or a quantity (checked by
+# _is_bare_mobile). An order word before it does not keep it: "mã đơn 912345678" may be the customer's phone.
+_PHONE9 = re.compile(_PHONE_START.replace("(?<![\\w+])", "(?<![\\w+.,/-])") + r"[35789]\d{2} ?\d{3} ?\d{3}(?![\d.,/-])")
 _MONEY_AFTER = re.compile(r"(?i:\s*(?:đ|₫|vnđ|vnd|đồng|dong|k|tr|triệu|trieu|nghìn|nghin|ngàn|ngan)(?!\w))")
 # A count unit right after a bare 9-digit number makes it a quantity ("tôi muốn 912345678 cái").
 _QUANTITY_AFTER = re.compile(r"(?i:\s*(?:cái|cai|chiếc|chiec|đôi|doi|bộ|bo|hộp|hop|gói|goi|sp|sản phẩm|san pham|"
@@ -106,14 +107,8 @@ _MERGE = re.compile(rf"{re.escape(ADDRESS)}(?:[\s,.\-]+{re.escape(ADDRESS)})+")
 
 
 def _is_bare_mobile(text: str, match) -> bool:
-    """A 9-digit match is a phone unless it reads as an order code, an amount of money or a quantity."""
-    return not (_ORDER_CONTEXT.search(text[max(0, match.start() - 12):match.start()])
-                or _MONEY_AFTER.match(text, match.end()) or _QUANTITY_AFTER.match(text, match.end()))
-
-
-def _is_order_code(text: str, match) -> bool:
-    """A full phone shape right after an explicit order word ("order 0912345678", "mã đơn: 0912345678")."""
-    return bool(_ORDER_STRICT.search(text[max(0, match.start() - 16):match.start()]))
+    """A 9-digit match is a phone unless an amount of money or a count unit follows it."""
+    return not (_MONEY_AFTER.match(text, match.end()) or _QUANTITY_AFTER.match(text, match.end()))
 
 
 def _phone_digits(value: str) -> str | None:
@@ -131,7 +126,7 @@ def _phone_digits(value: str) -> str | None:
 def contact_values(text: str) -> set[str]:
     """Normalized phones/emails present in text (used to allow tenant-provided contacts in answers)."""
     values = {m.group(0).casefold() for m in _EMAIL.finditer(text)}
-    values |= {d for m in _PHONE.finditer(text) if not _is_order_code(text, m) and (d := _phone_digits(m.group(0)))}
+    values |= {d for m in _PHONE.finditer(text) if (d := _phone_digits(m.group(0)))}
     values |= {d for m in _PHONE9.finditer(text) if _is_bare_mobile(text, m) and (d := _phone_digits(m.group(0)))}
     return values
 
@@ -156,14 +151,11 @@ def redact_pii(text: str, *, addresses: bool = True, keep: set[str] | None = Non
             return match.group(0)
         return PHONE
 
-    def full_phone(match):
-        return match.group(0) if _is_order_code(match.string, match) else phone(match)
-
     def bare_mobile(match):
         return phone(match) if _is_bare_mobile(match.string, match) else match.group(0)
 
     text = _EMAIL.sub(email, text)
-    text = _PHONE.sub(full_phone, text)
+    text = _PHONE.sub(phone, text)
     text = _PHONE9.sub(bare_mobile, text)
     if addresses:
         for pattern in _ADDRESS_PATTERNS:
