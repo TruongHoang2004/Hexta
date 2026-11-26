@@ -51,7 +51,7 @@ Nhà Bè|Bình Chánh|Hóc Môn|Củ Chi"""
 _ADMIN_ACCENTED = r"(?:phường|quận|huyện|xã|thị xã|thị trấn|tỉnh|thành phố)"
 _ADMIN_SHORT = r"(?:tp\.?|p\.|q\.|phuong|quan|huyen|xa)"
 _NAME = rf"[{_UPPER}\d]{_WORD}*(?:\s+[{_UPPER}\d]{_WORD}*){{0,4}}"
-_HOUSE = r"(?:(?i:số)\s*(?:(?i:nhà)\s*)?)?\d{1,5}[A-Za-z]?(?:[/\-]\d{1,4}[A-Za-z]?)*"
+_HOUSE = r"(?:(?i:số)\s*(?:(?i:nhà)\s*)?)?\d{1,5}[A-Za-z]?(?:[/\-]\d{1,4}[A-Za-z]?){0,3}"
 
 # An administrative unit right after a street: "Quận 5", "phường Bến Nghé", "quan 5", "q.1", "Q1".
 _ADMIN_AHEAD = rf"(?:(?i:{_ADMIN_ACCENTED})\s+\S|(?i:{_ADMIN_SHORT})\s*\d|[qpQP]\d{{1,2}}(?!\w))"
