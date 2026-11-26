@@ -43,9 +43,52 @@ services:
     mem_limit: 256m
     logging: *logging
 
+  # Collation guard (one-shot, runs before every postgres start through Compose). The pgvector image is Debian/glibc;
+  # releases before it ran postgres:17.7-alpine (musl). Text sort order differs, so a musl-built data directory
+  # started under glibc silently corrupts text B-tree indexes (primary keys included). Postgres starts only on an
+  # empty volume (fresh install: init-db.sh writes the marker under glibc) or on a volume carrying the marker that
+  # the README.deploy.md section 10a runbook writes after REINDEX and amcheck. It lives in Compose, not in the deploy
+  # agent, so it also holds when an older agent deploys this release.
+  postgres-collation-guard:
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+    restart: "no"
+    user: root
+    network_mode: none
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        d=/var/lib/postgresql/data
+        m="$$d/HEXTA_GLIBC_COLLATION_OK"
+        if [ -z "$$(ls -A "$$d")" ]; then
+          echo "postgres-collation-guard: empty data volume (fresh install); init-db.sh writes the marker"
+          exit 0
+        fi
+        if [ -f "$$m" ]; then
+          echo "postgres-collation-guard: glibc collation marker present: $$(head -c 200 "$$m")"
+          exit 0
+        fi
+        echo "postgres-collation-guard: REFUSING TO START POSTGRES. The data volume holds a cluster without" >&2
+        echo "HEXTA_GLIBC_COLLATION_OK, so it was created by the previous Alpine (musl) image. Starting this" >&2
+        echo "Debian (glibc) pgvector image on it corrupts text indexes. The data was not touched and Postgres" >&2
+        echo "stays stopped (the deploy agent rolls back to the previous release). Run the one-time switch in" >&2
+        echo "infrastructure/README.deploy.md section 10a (backup, REINDEX, amcheck, marker) first." >&2
+        exit 1
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+    mem_limit: 64m
+    logging: *logging
+
+  # pgvector build of PostgreSQL 17 (owner decision 2026-11-26) for the AI knowledge store; never start it on a
+  # musl-built volume (see postgres-collation-guard and README.deploy.md section 10a). Pinned by digest (tag is
+  # mutable; a new glibc changes text sort order): PostgreSQL 17.8, Debian 12.13, glibc 2.36. The same reference is
+  # used by postgres-collation-guard, postgres-extensions and scripts/deploy-agent.sh; bump all together
+  # (README.deploy.md section 10a, "Image pin").
   postgres:
-    image: postgres:17.7-alpine3.23
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     restart: unless-stopped
+    depends_on:
+      postgres-collation-guard:
+        condition: service_completed_successfully
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
@@ -133,8 +176,26 @@ services:
       API_DATABASE_URL: postgres://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
     command: ["apply"]
 
+  # Superuser one-shot: pgvector is not a trusted extension, so the non-superuser AI migrator cannot create it.
+  # init-db.sh covers a new volume; this idempotent job covers an existing one. It never touches application tables.
+  postgres-extensions:
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    entrypoint: ["psql", "-h", "postgres", "-U", "postgres", "-d", "hexta", "-v", "ON_ERROR_STOP=1", "-c", "CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public"]
+    logging: *logging
+
   migrate-ai:
     <<: *migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-extensions:
+        condition: service_completed_successfully
     environment:
       MIGRATE_TARGET: ai
       AI_DATABASE_URL: postgres://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
@@ -165,6 +226,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:?Set AI_INTERNAL_TOKEN}
+      # The reply router and knowledge sync call the AI service over gRPC (ai.run_addr in prod/api.yaml).
+      AI_RUN_ADDR: ai:50051
       CONNECTOR_MANAGEMENT_TOKEN: ${CONNECTOR_MANAGEMENT_TOKEN:?Set CONNECTOR_MANAGEMENT_TOKEN}
       META_APP_ID: ${META_APP_ID:-}
     volumes:
@@ -232,11 +295,20 @@ services:
     environment:
       AI_DATABASE_URL: postgresql://hexta_ai:${AI_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN}
-      AI_PROVIDER: ${AI_PROVIDER:-fake}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      # Owner decision 2026-11-26: AI is OFF until fully configured. Default: exact scripts only, everything else to
+      # staff, no paid call. Enabling sets Claude + Jev + Gemini embeddings together (README.deploy.md, "AI
+      # settings"). Missing or partial settings keep AI disabled with a logged reason; the service still starts.
+      AI_PROVIDER: ${AI_PROVIDER:-disabled}
+      AI_MODEL: ${AI_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # AI_JEV_ENABLED=true without TYPESAFE_API_KEY is logged as an error and Jev stays off.
+      AI_JEV_ENABLED: ${AI_JEV_ENABLED:-false}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      # fake = offline hashing; gemini needs GEMINI_API_KEY and is used only while AI is enabled.
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-fake}
+      AI_RAG_MIN_SIMILARITY: ${AI_RAG_MIN_SIMILARITY:-0.55}
       LANGSMITH_TRACING: "false"
     healthcheck:
       test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]

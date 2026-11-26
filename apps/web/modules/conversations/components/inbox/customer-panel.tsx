@@ -17,6 +17,9 @@ export function CustomerPanel({
 }) {
   const t = useT();
   const source = detail?.conversation.source;
+  const turn = detail?.conversation.turn;
+  // A draft started here is linked to the open session; a closed session no longer accepts orders.
+  const draftHref = `/tenants/${tenantID}/orders${turn?.lifecycle === "open" ? `?turn=${turn.id}` : ""}`;
   return (
     <aside
       aria-label={t("desk.customer.title")}
@@ -34,7 +37,7 @@ export function CustomerPanel({
           </dd>
         </dl>
       )}
-      <Link href={`/tenants/${tenantID}/orders`} className={`${buttonClass} text-center`} aria-describedby="draft-hint">
+      <Link href={draftHref} className={`${buttonClass} text-center`} aria-describedby="draft-hint">
         {t("desk.customer.createDraft")}
       </Link>
       <p id="draft-hint" className="text-xs text-muted">

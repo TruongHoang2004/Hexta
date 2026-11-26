@@ -319,7 +319,7 @@ func (ctrl *SalesController) CreateOrder(c *gin.Context) {
 	for i, item := range req.Items {
 		items[i] = types.DraftItemInput{VariantID: item.VariantID, Quantity: item.Quantity, UnitPrice: item.UnitPrice}
 	}
-	row, err := ctrl.sales.SaveDraft(c.Request.Context(), tenant, actor, "", types.DraftInput{Version: req.Version, CustomerID: req.CustomerID, EmployeeID: req.EmployeeID, RequiresDelivery: req.RequiresDelivery, DeliveryAddress: req.DeliveryAddress, Notes: req.Notes, Items: items})
+	row, err := ctrl.sales.SaveDraft(c.Request.Context(), tenant, actor, "", types.DraftInput{Version: req.Version, CustomerID: req.CustomerID, EmployeeID: req.EmployeeID, RequiresDelivery: req.RequiresDelivery, DeliveryAddress: req.DeliveryAddress, Notes: req.Notes, Items: items, MessagingTurnID: req.MessagingTurnID})
 	if err != nil {
 		ctrl.ErrorData(c, err)
 		return

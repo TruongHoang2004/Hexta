@@ -98,6 +98,19 @@ migrate-validate:
 	MIGRATE_TARGET="$(if $(svc),$(svc),all)" ./scripts/migrate.sh validate
 
 # ==============================
+# AI knowledge re-sync (after an embedding model switch)
+# ==============================
+
+.PHONY: knowledge-resync
+
+# Enqueue every live product, active script and knowledge document: tenant=<id> or all=1; status=1 only prints
+# counts. Needs API_DATABASE_URL (the API database login). Production runs the same binary inside the ingress
+# container; see infrastructure/README.deploy.md.
+knowledge-resync:
+	@test -n "$$API_DATABASE_URL" || { echo "API_DATABASE_URL is required" >&2; exit 1; }
+	go run ./services/api/cmd/knowledge-resync $(if $(status),-status,$(if $(all),-all-tenants,-tenant "$(tenant)"))
+
+# ==============================
 # API Documentation (Swagger)
 # ==============================
 

@@ -1,4 +1,6 @@
-// Command messaging-command serves the conversation write side (claim, assign, handoff, replies, simulator input).
+// Command messaging-command serves the conversation write side (claim, assign, handoff, resolve, replies, simulator
+// input, bot proposal send/discard/regenerate) and runs the 24-hour turn expiry job, the bot reply router and the AI
+// knowledge sync job.
 // The public API forwards those routes here and keeps serving reads; both share the API database.
 package main
 
@@ -47,6 +49,13 @@ func main() {
 		bootstrap.BuildMiddleware(),
 		bootstrap.ServerModule,
 		bootstrap.MessagingCommandRouterModule,
+		// Conversation writes live here, so the 24-hour turn expiry job does too.
+		bootstrap.BuildTurnExpiry(),
+		// The bot reply router turns customer messages on bot-handled turns into proposals or bot sends.
+		bootstrap.BuildReplyRouter(),
+		// AI knowledge sync (products, active scripts, knowledge documents) shares the router's AI client; it must
+		// follow BuildReplyRouter so it stops before the client is closed.
+		bootstrap.BuildKnowledgeSync(),
 	)
 
 	startCtx, cancel := context.WithTimeout(context.Background(), gracefulTimeout)

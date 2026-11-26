@@ -1,0 +1,38 @@
+{
+  "description": "Vietnamese routing fixtures for the Jev router. Expected routes are owner-reviewable labels, not measured results. Messages are synthetic; phone numbers, emails and addresses are fake and must never reach TypeSafe unredacted.",
+  "scripts": [
+    {"id": "ver-ship", "trigger": "phí ship, ship bao nhiêu, tiền ship", "text": "Dạ phí ship toàn quốc 30.000đ, đơn từ 500.000đ được miễn phí ship ạ.", "active": true},
+    {"id": "ver-hours", "trigger": "giờ mở cửa, mấy giờ mở cửa", "text": "Dạ shop mở cửa từ 8h đến 22h tất cả các ngày ạ.", "active": true},
+    {"id": "ver-return", "trigger": "đổi trả, chính sách đổi trả", "text": "Dạ shop hỗ trợ đổi trả trong 7 ngày nếu sản phẩm còn tem mác ạ.", "active": true}
+  ],
+  "cases": [
+    {"id": "ship-1", "message": "ship về Hà Nội bao nhiêu tiền vậy shop", "expected": "script", "script_id": "ver-ship"},
+    {"id": "ship-2", "message": "phi ship bn a", "expected": "script", "script_id": "ver-ship"},
+    {"id": "ship-3", "message": "giao về 12 đường Lê Lợi, Quận 1 thì phí vận chuyển bao nhiêu", "expected": "script", "script_id": "ver-ship", "pii": ["Lê Lợi"]},
+    {"id": "hours-1", "message": "shop mấy giờ đóng cửa ạ", "expected": "script", "script_id": "ver-hours"},
+    {"id": "hours-2", "message": "chủ nhật shop có mở cửa ko", "expected": "script", "script_id": "ver-hours"},
+    {"id": "return-1", "message": "mua về mặc không vừa có đổi được không shop", "expected": "script", "script_id": "ver-return"},
+    {"id": "return-2", "message": "doi tra trong bao lau vay", "expected": "script", "script_id": "ver-return"},
+    {"id": "answer-price-1", "message": "áo polo đen size L giá bao nhiêu ạ", "expected": "answer"},
+    {"id": "answer-price-2", "message": "quan jean slim 31 gia nhieu", "expected": "answer"},
+    {"id": "answer-stock-1", "message": "giày chạy bộ size 42 còn hàng không shop", "expected": "answer"},
+    {"id": "answer-stock-2", "message": "con mau trang ko ạ", "expected": "answer"},
+    {"id": "answer-material", "message": "áo này chất liệu gì vậy, có nóng không", "expected": "answer"},
+    {"id": "answer-size", "message": "mình cao 1m70 nặng 65kg mặc size nào vừa", "expected": "answer"},
+    {"id": "answer-compare", "message": "túi da bò với túi canvas cái nào bền hơn", "expected": "answer"},
+    {"id": "answer-pii", "message": "áo polo còn size M không, sdt mình 0912 345 678", "expected": "answer", "pii": ["0912", "345 678"]},
+    {"id": "clarify-1", "message": "cái này bao nhiêu", "expected": "clarify"},
+    {"id": "clarify-2", "message": "còn không shop", "expected": "clarify"},
+    {"id": "clarify-3", "message": "???", "expected": "clarify"},
+    {"id": "clarify-4", "message": "tư vấn giúp mình với", "expected": "clarify"},
+    {"id": "human-request-1", "message": "cho mình gặp nhân viên tư vấn", "expected": "human"},
+    {"id": "human-request-2", "message": "ad oi goi lai cho minh 0987.654.321 nhe", "expected": "human", "pii": ["0987", "654.321"]},
+    {"id": "human-complaint-1", "message": "đơn hàng mình đặt 1 tuần rồi chưa thấy giao, làm ăn kiểu gì vậy", "expected": "human"},
+    {"id": "human-complaint-2", "message": "hàng nhận bị rách, mình muốn hoàn tiền", "expected": "human"},
+    {"id": "human-payment", "message": "mình chuyển khoản rồi mà chưa thấy xác nhận", "expected": "human"},
+    {"id": "human-order-change", "message": "mình muốn đổi địa chỉ giao hàng sang số 5 ngõ 34 Láng Hạ", "expected": "human", "pii": ["Láng Hạ"]},
+    {"id": "human-negotiate", "message": "lấy 10 cái bớt cho mình 20% được không", "expected": "human"},
+    {"id": "human-email", "message": "gửi hóa đơn VAT qua mail ketoan.abc@gmail.com giúp mình", "expected": "human", "pii": ["ketoan.abc@gmail.com"]},
+    {"id": "answer-english", "message": "do you have the black polo in size XL?", "expected": "answer"}
+  ]
+}

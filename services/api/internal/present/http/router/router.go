@@ -17,9 +17,13 @@ func RegisterRoutes(
 	tenantController *controller.TenantController,
 	salesController *controller.SalesController,
 	workflows *controller.WorkflowController,
+	overview *controller.OverviewController,
 	messagingQuery *controller.MessagingQueryController,
 	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
+	scripts *controller.ScriptController,
+	replySettings *controller.ReplySettingsController,
+	knowledge *controller.KnowledgeController,
 	onboarding *controller.TenantOnboardingController,
 	consultant *controller.AIController,
 	authMiddleware *middleware.AuthMiddleware,
@@ -94,8 +98,13 @@ func RegisterRoutes(
 	resources.POST("/work-items/:id/assign", workflows.Assign)
 	resources.POST("/work-items/:id/complete", workflows.Complete)
 
+	// Read-only owner overview; the service enforces owner identity (PRD MVP 6 rule 3).
+	resources.GET("/overview", overview.Overview)
+
 	resources.GET("/conversations", messagingQuery.List)
+	resources.GET("/conversations/summary", messagingQuery.Summary)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
+	resources.GET("/conversations/:id/sessions", messagingQuery.Sessions)
 	registerMessagingCommandRoutes(resources, messagingCommands.Handle)
 
 	resources.POST("/channels/facebook/oauth/start", channels.StartFacebookOAuth)
@@ -105,6 +114,29 @@ func RegisterRoutes(
 	resources.GET("/channels/telegram/connections", channels.ListTelegramConnections)
 	resources.POST("/channels/telegram/connections", channels.ConnectTelegramBot)
 	resources.PATCH("/channels/telegram/connections/:id", channels.UpdateTelegramConnection)
+
+	// Bot reply scripts (MVP 5); the script service checks membership and the specific script permission.
+	resources.GET("/scripts", scripts.ListScripts)
+	resources.POST("/scripts", scripts.CreateScript)
+	resources.GET("/scripts/:id", scripts.GetScript)
+	resources.PUT("/scripts/:id/draft", scripts.SaveScriptDraft)
+	resources.POST("/scripts/:id/activate", scripts.ActivateScript)
+	resources.POST("/scripts/:id/deactivate", scripts.DeactivateScript)
+	resources.POST("/scripts/:id/archive", scripts.ArchiveScript)
+	resources.GET("/script-permissions", scripts.ListScriptPermissions)
+	resources.GET("/script-permissions/me", scripts.MyScriptPermissions)
+	resources.POST("/script-permissions/:userID/grant", scripts.GrantScriptPermission)
+	resources.POST("/script-permissions/:userID/revoke", scripts.RevokeScriptPermission)
+
+	// Bot reply mode (MVP 5 FR-5.1); every member reads it, only the owner changes it.
+	resources.GET("/settings/reply-mode", replySettings.GetReplyMode)
+	resources.PUT("/settings/reply-mode", replySettings.UpdateReplyMode)
+
+	// Knowledge documents the bot may answer from; every member reads, only the owner changes them.
+	resources.GET("/knowledge-documents", knowledge.ListKnowledgeDocuments)
+	resources.POST("/knowledge-documents", knowledge.CreateKnowledgeDocument)
+	resources.PUT("/knowledge-documents/:id", knowledge.UpdateKnowledgeDocument)
+	resources.DELETE("/knowledge-documents/:id", knowledge.DeleteKnowledgeDocument)
 
 	// Swagger UI
 	params.Public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

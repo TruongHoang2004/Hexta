@@ -18,6 +18,9 @@ const (
 	DomainEventStateLeased    = "leased"
 	DomainEventStatePublished = "published"
 	DomainEventStateFailed    = "failed"
+	// DomainEventStateCancelled marks an event withdrawn before the relay leased it (a bot send cancelled because
+	// control changed); it is never published. failed stays reserved for relay give-up.
+	DomainEventStateCancelled = "cancelled"
 )
 
 // DomainEvent is a transactional outbox row, committed with the business change it describes.

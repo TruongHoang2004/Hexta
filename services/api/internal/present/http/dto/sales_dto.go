@@ -32,6 +32,8 @@ type SalesDraftRequest struct {
 	DeliveryAddress  string                  `json:"delivery_address" validate:"max=5000"`
 	Notes            string                  `json:"notes" validate:"max=10000"`
 	Items            []SalesDraftItemRequest `json:"items" validate:"max=100,dive"`
+	// MessagingTurnID links a new draft to the open conversation session it is created from (Desk); ignored on update.
+	MessagingTurnID *string `json:"messaging_turn_id" validate:"omitempty,uuid"`
 	// Legacy callers must not silently bypass explicit confirmation.
 	AutoConfirm bool `json:"auto_confirm"`
 }

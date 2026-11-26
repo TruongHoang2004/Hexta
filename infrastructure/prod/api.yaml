@@ -22,6 +22,9 @@ oauth:
 # The Python AI runtime owns provider calls; these legacy Go provider fields stay inert.
 ai:
   consult_url: http://ai:8000
+  # Internal AIService gRPC host:port for the reply router and knowledge sync (messaging-command). Empty hands
+  # conversations that no script answers to staff; a set address needs AI_INTERNAL_TOKEN (>= 24 characters).
+  run_addr: ${AI_RUN_ADDR}
   internal_token: ${AI_INTERNAL_TOKEN}
   provider: fake
   base_url: http://127.0.0.1:1

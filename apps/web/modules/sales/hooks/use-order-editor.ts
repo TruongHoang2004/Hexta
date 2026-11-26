@@ -15,10 +15,12 @@ export interface OrderEditorOptions {
   dirty: boolean;
   setDirty: (dirty: boolean) => void;
   onSaved: (order: Order) => void;
+  /** Links a new draft to this open conversation session (from the Desk); unused for existing orders. */
+  sessionTurnID?: string;
 }
 
 /** Draft form fields plus save, claim, confirm and reload; `busy`/`dirty` are owned by the screen. */
-export function useOrderEditor({ tenantID, order, busy, setBusy, dirty, setDirty, onSaved }: OrderEditorOptions) {
+export function useOrderEditor({ tenantID, order, busy, setBusy, dirty, setDirty, onSaved, sessionTurnID }: OrderEditorOptions) {
   const t = useT();
   const errorText = useErrorText();
   const [fields, setFields] = useState<DraftFields>(() => ({
@@ -60,7 +62,9 @@ export function useOrderEditor({ tenantID, order, busy, setBusy, dirty, setDirty
   /** Save the draft with the given assignee (claim passes the current user). */
   function persist(employeeID: string) {
     if (!tenantID || busy) return;
-    return run(() => sales.saveDraft(tenantID, order?.id || null, draftInput(order, fields, employeeID)));
+    const input = draftInput(order, fields, employeeID);
+    if (!order && sessionTurnID) input.messaging_turn_id = sessionTurnID;
+    return run(() => sales.saveDraft(tenantID, order?.id || null, input));
   }
   function confirm() {
     if (!tenantID || !order || dirty || busy) return;

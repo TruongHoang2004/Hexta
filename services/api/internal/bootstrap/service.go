@@ -7,6 +7,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/ai"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/connector"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"go.uber.org/fx"
 )
 
@@ -16,11 +17,18 @@ func BuildService() fx.Option {
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
 		service.NewSalesService,
+		service.NewOrderCaseService,
 		service.NewWorkflowService,
+		service.NewOverviewService,
 		service.NewMessagingQueryService,
 		service.NewMessagingCommandService,
 		service.NewChannelService,
 		newChannelSettings,
+		service.NewScriptService,
+		service.NewReplySettingsService,
+		service.NewKnowledgeService,
+		// Member emails are display data for the script permission screen, read from the DB repository.
+		func(r *repository.TenantRepository) service.ScriptMemberDirectory { return r },
 		fx.Annotate(
 			connector.NewClient,
 			fx.As(new(service.IChannelConnector)),

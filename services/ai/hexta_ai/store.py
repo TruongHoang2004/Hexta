@@ -14,10 +14,11 @@ class InputConflict(Exception):
     pass
 
 
-class RunStore:
-    def __init__(self, dsn: str, lease_seconds: float = 60, *, min_size: int = 2, max_size: int = 10):
+class PostgresPool:
+    """Lazily opened connection pool; each connect() block is one transaction."""
+
+    def __init__(self, dsn: str, *, min_size: int = 2, max_size: int = 10):
         self.dsn = dsn
-        self.lease_seconds = lease_seconds
         # Checkout keeps the former 5s bound; pool errors subclass psycopg.Error for existing handling.
         self.pool = AsyncConnectionPool(dsn, min_size=min_size, max_size=max_size, timeout=5, open=False,
                                         kwargs={"row_factory": dict_row, "connect_timeout": 5},
@@ -42,11 +43,17 @@ class RunStore:
     async def connect(self):
         """One transaction per block: commit on success, rollback on error, then return to the pool."""
         if self.closed:
-            raise PoolClosed("RunStore is closed")
+            raise PoolClosed(f"{type(self).__name__} is closed")
         if self.pool.closed:
             await self.open()  # Lazy and idempotent: the pool serializes concurrent opens.
         async with self.pool.connection() as db:
             yield db
+
+
+class RunStore(PostgresPool):
+    def __init__(self, dsn: str, lease_seconds: float = 60, *, min_size: int = 2, max_size: int = 10):
+        super().__init__(dsn, min_size=min_size, max_size=max_size)
+        self.lease_seconds = lease_seconds
 
     async def ping(self):
         async with self.connect() as db:

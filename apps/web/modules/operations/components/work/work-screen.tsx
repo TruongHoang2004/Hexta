@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { ConflictBanner, Notice, secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
@@ -9,6 +9,7 @@ import { useWorkItem } from "../../hooks/use-work-item";
 import { useWorkList } from "../../hooks/use-work-list";
 import { useWorkLookups } from "../../hooks/use-work-lookups";
 import { WorkCreator } from "./work-creator";
+import { WorkDeepLink } from "./work-deep-link";
 import { WorkDetail } from "./work-detail";
 import { WorkList } from "./work-list";
 
@@ -25,6 +26,9 @@ export function WorkScreen() {
   const { selected, busy } = work;
   return (
     <div className="space-y-5">
+      <Suspense fallback={null}>
+        <WorkDeepLink onOpen={(id) => void work.open(id)} />
+      </Suspense>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{t("work.title")}</h1>

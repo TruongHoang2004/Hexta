@@ -11,6 +11,15 @@ export const handoffReasons = [
 ] as const;
 export type HandoffReason = (typeof handoffReasons)[number];
 
+/** Every needs-human reason with a localized label: staff reasons plus bot_off (a customer wrote while the bot was off). */
+export const needsHumanReasons = [...handoffReasons, "bot_off"] as const;
+
+/** Session outcomes (proposed set; owner decision pending). */
+export const sessionOutcomes = ["order_placed", "consulted", "price_inquiry", "complaint", "no_response", "other"] as const;
+export type SessionOutcome = (typeof sessionOutcomes)[number];
+/** Longest session note the API accepts. */
+export const maxSessionNote = 1000;
+
 /** Delivery failure codes that have a localized explanation. */
 export const deliveryReasons = [
   "window_24h",
@@ -24,6 +33,7 @@ export const deliveryReasons = [
   "connection_inactive",
   "connection_paused",
   "connection_disconnected",
+  "cancelled",
 ] as const;
 export type DeliveryReason = (typeof deliveryReasons)[number];
 
@@ -32,9 +42,9 @@ export const mediaKinds = ["image", "video", "audio", "file", "sticker"] as cons
 export type MediaKind = (typeof mediaKinds)[number];
 
 /** Inbox list filters shown on the desk. */
-export type DeskFilter = Extract<InboxFilter, "bot" | "needs_human" | "mine" | "all">;
+export type DeskFilter = Extract<InboxFilter, "bot" | "waiting" | "mine" | "all">;
 
-export type ThreadCommand = "claim" | "assign" | "handoff" | "return-to-bot";
+export type ThreadCommand = "claim" | "assign" | "handoff" | "return-to-bot" | "resolve";
 
 /** One message in the consultant chat, with the structured parts streamed alongside it. */
 export type ConsultTurn = ChatMessage & {

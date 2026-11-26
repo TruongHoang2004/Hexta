@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
 	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
@@ -47,6 +48,17 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e delivery.SendComp
 		}
 		if err := r.SetMessageDelivery(ctx, e.TenantID, intent.MessageID, e.Status, e.ErrorCategory); err != nil {
 			return err
+		}
+		// Only a confirmed send is turn activity, measured from the provider outcome time (never in the future).
+		// Failed and unknown outcomes, and redelivered results (filtered above), never extend the turn.
+		if e.Status == delivery.StatusSent {
+			activity := at
+			if now := time.Now().UTC(); activity.After(now) {
+				activity = now
+			}
+			if err := r.RecordSendActivity(ctx, e.TenantID, intent.MessageID, activity); err != nil {
+				return err
+			}
 		}
 		if e.ErrorCategory == delivery.ErrorAuthExpired {
 			return r.MarkAuthExpired(ctx, e.TenantID, e.ConnectionID, attempt.ConnectionVersion, e.ErrorCode, at)

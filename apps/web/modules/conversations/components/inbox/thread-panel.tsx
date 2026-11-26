@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { TenantMember } from "@hexta/sdk";
 import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import { platformLabel, type ChannelConnection } from "@/modules/settings";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useReplyMode } from "../../hooks/use-reply-mode";
 import { useReplySender } from "../../hooks/use-reply-sender";
+import { useSessionJump } from "../../hooks/use-session-jump";
+import { useSessions } from "../../hooks/use-sessions";
 import { useThread } from "../../hooks/use-thread";
 import type { HandoffReason, ThreadCommand } from "../../types";
 import { threadAccess, threadPlatform } from "../../utils";
@@ -14,8 +17,11 @@ import { AssignControl } from "./assign-control";
 import { CustomerPanel } from "./customer-panel";
 import { HandoffDialog } from "./handoff-dialog";
 import { MessageHistory } from "./message-history";
+import { NeedsHumanPanel } from "./needs-human-panel";
 import { ReplyComposer } from "./reply-composer";
+import { SessionPanel } from "./session-panel";
 import { ThreadHeader } from "./thread-header";
+import { ThreadProposal } from "./thread-proposal";
 
 /** The selected conversation: header, history, reply box and the customer panel. */
 export function ThreadPanel({
@@ -50,8 +56,11 @@ export function ThreadPanel({
       onChanged();
     },
   });
+  const replyMode = useReplyMode(tenantID);
+  const botOff = replyMode.settings?.reply_mode === "off";
   const [handoffOpen, setHandoffOpen] = useState(false);
   const turn = detail?.conversation.turn;
+  const proposal = detail?.proposals?.[0] ?? null;
   const access = threadAccess({
     t,
     detail,
@@ -60,7 +69,20 @@ export function ThreadPanel({
     owner,
     channelName: platform ? platformLabel[platform] : "",
     assigneeName: turn?.assignee_id ? memberName(turn.assignee_id) : "",
+    botOff,
   });
+  const sessions = useSessions({
+    tenantID,
+    threadID,
+    // Re-read the sessions whenever the current turn or the newest message changes.
+    refresh: `${turn?.id}:${turn?.version}:${turn?.last_activity_at}:${detail?.messages[0]?.id}`,
+    onChanged: () => {
+      thread.reload();
+      onChanged();
+    },
+  });
+  const sessionMap = useMemo(() => new Map(sessions.items.map((row) => [row.turn.id, row])), [sessions.items]);
+  const jump = useSessionJump(thread);
   const busy = thread.busy || sender.busy;
   const commandsDisabled = busy || sender.uncertain;
   const error = thread.error || sender.error;
@@ -103,11 +125,31 @@ export function ThreadPanel({
             detail && (
               <MessageHistory
                 detail={detail}
+                sessions={sessionMap}
                 platform={platform}
                 busy={busy}
+                focus={jump.focus}
+                onFocused={jump.clearFocus}
                 onLoadOlder={() => void thread.loadOlder()}
               />
             )
+          )}
+          {turn && proposal && (
+            <ThreadProposal
+              key={proposal.id}
+              tenantID={tenantID}
+              turn={turn}
+              proposal={proposal}
+              mode={replyMode.settings?.reply_mode ?? null}
+              userID={userID}
+              owner={owner}
+              assigneeName={turn.assignee_id ? memberName(turn.assignee_id) : ""}
+              onChanged={() => {
+                thread.reload();
+                onChanged();
+              }}
+              onPoll={thread.poll}
+            />
           )}
         </div>
         {detail && (
@@ -126,7 +168,25 @@ export function ThreadPanel({
         )}
       </section>
       <CustomerPanel tenantID={tenantID} detail={detail}>
-        {owner && turn && (
+        <SessionPanel
+          tenantID={tenantID}
+          sessions={sessions}
+          currentTurnID={turn?.id ?? ""}
+          userID={userID}
+          owner={owner}
+          disabled={commandsDisabled}
+          memberName={memberName}
+          onJump={jump.jump}
+        />
+        {turn?.needs_human && turn.lifecycle === "open" && (
+          <NeedsHumanPanel
+            turn={turn}
+            canResolve={access.canResolve}
+            disabled={commandsDisabled}
+            onResolve={() => void run("resolve")}
+          />
+        )}
+        {owner && turn?.lifecycle === "open" && (
           <AssignControl
             key={`${turn.id}:${turn.version}`}
             members={members}
