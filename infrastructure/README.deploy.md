@@ -329,8 +329,9 @@ run the next one:
 | 4 or 5 printing `data untouched — do not roll back` | A block before it did not finish; data untouched | Run the block the message names and continue, or return to the old release as for block 3 |
 | 4 or 5, any other failure | The data volume was opened by glibc Postgres | Never start the old release on it: [roll back the switch](#rollback-of-the-switch) |
 
-Pasting several blocks at once cannot write the marker after a failure: block 0 starts a new attempt in the switch
-record `$R`, block 2 appends `copy=ok` only after the copy passed its size check, block 3 appends `checkout=ok` only
+Pasting several blocks at once cannot write the marker after a failure: block 0 exports a new attempt id `A` and
+records it in the switch record `$R` only after all its checks passed (blocks 1–4 refuse unless the latest attempt
+carries this shell's `A`, so a failed block 0 never lets them reuse an earlier attempt), block 2 appends `copy=ok` only after the copy passed its size check, block 3 appends `checkout=ok` only
 after the checkout reached X and the images were pulled, and block 4 refuses to touch the data volume unless the
 current attempt holds both lines and `HEAD` is X. Block 4 appends `reindex=started` just before it opens the data
 volume, and a completed rollback appends `rollback=ok`; that order tells the checks below whether glibc opened it.
@@ -375,6 +376,7 @@ export PG=pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956
 export PREV=$(sed -n 's/^sha-//p' infrastructure/prod/state/deployed)   # running release, needed by a rollback
 export F=~/hexta-backups/pre-pgvector-$(date +%F-%H%M).sql.gz
 export R=~/hexta-backups/pgvector-switch-$X.txt   # switch record: previous release, image digest and versions
+export A=$(date -u +%Y%m%dT%H%M%SZ)-$$             # attempt id: blocks 1-4 run only if block 0 recorded it
 ( set -euo pipefail
   [[ $X =~ ^[0-9a-f]{7}$ ]] || { echo "X is not a 7-char commit (edit the X= line): STOP" >&2; exit 1; }
   [[ $PREV =~ ^[0-9a-f]{7}$ ]] || { echo "infrastructure/prod/state/deployed has no sha-<7 hex>: STOP" >&2; exit 1; }
@@ -384,7 +386,7 @@ export R=~/hexta-backups/pgvector-switch-$X.txt   # switch record: previous rele
   git rev-parse --verify --quiet "$X^{commit}" >/dev/null || { echo "commit $X not found: STOP" >&2; exit 1; }
   release=$(git show origin/main:infrastructure/prod/release.env)
   grep -qx "HEXTA_IMAGE_TAG=sha-$X" <<<"$release" || { echo "origin/main release.env is not sha-$X: STOP" >&2; exit 1; }
-  printf -- '--- attempt\nprevious=sha-%s\nrelease=sha-%s\nstarted=%s\n' "$PREV" "$X" "$(date -u +%FT%TZ)" >> "$R"
+  printf -- '--- attempt\nid=%s\nprevious=sha-%s\nrelease=sha-%s\nstarted=%s\n' "$A" "$PREV" "$X" "$(date -u +%FT%TZ)" >> "$R"
   echo "OK 0: release $X, previous $PREV (recorded in $R)" )
 ```
 
@@ -392,6 +394,8 @@ export R=~/hexta-backups/pgvector-switch-$X.txt   # switch record: previous rele
 # Block 1: stop every writer (postgres keeps running) and write a verified logical backup.
 ( set -euo pipefail
   [ -n "${X:-}" ] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP" >&2; exit 1; }
+  attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -qx "id=${A:-none}" <<<"$attempt" || { echo "block 0 did not pass in this shell: run block 0 first: STOP" >&2; exit 1; }
   ./scripts/prod.sh stop caddy web api messaging-command ingress connector ai
   ./scripts/prod.sh exec -T postgres pg_dumpall -U postgres | gzip > "$F"
   gunzip -t "$F"
@@ -405,6 +409,8 @@ Copy `$F` off the server now (for example `scp`) and continue only when the copy
 # Block 2: file-level copy of the stopped volume for a fast rollback. The copy volume must be new and empty.
 ( set -euo pipefail
   [ -s "${R:-}" ] && [ -n "${F:-}" ] && gunzip -t "$F" || { echo "run block 0 first: STOP" >&2; exit 1; }   # block 1's verified dump
+  attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -qx "id=${A:-none}" <<<"$attempt" || { echo "block 0 did not pass in this shell: run block 0 first: STOP" >&2; exit 1; }
   last=$(grep -E '^(reindex=started|rollback=ok)' "$R" | tail -1 || true)
   [[ $last != reindex=started* ]] || { echo "an earlier block 4 opened the data volume: STOP, roll back the switch" >&2; exit 1; }
   ./scripts/prod.sh stop postgres
@@ -425,6 +431,7 @@ Copy `$F` off the server now (for example `scp`) and continue only when the copy
 ( set -euo pipefail
   [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP" >&2; exit 1; }
   attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -qx "id=${A:-none}" <<<"$attempt" || { echo "block 0 did not pass in this shell: run block 0 first: STOP" >&2; exit 1; }
   grep -q '^copy=ok' <<<"$attempt" || { echo "no verified musl copy in this attempt: run block 2 first: STOP" >&2; exit 1; }
   git checkout --quiet --detach "$(git rev-parse --verify "$X^{commit}")"
   [ "$(git rev-parse --short=7 HEAD)" = "$X" ] || { echo "HEAD is not $X: STOP" >&2; exit 1; }
@@ -449,6 +456,7 @@ the indexes were built with, so keep it with the dump.
     elif [ "$ok" != 1 ]; then echo "BLOCK 4 did not start: data untouched — do not roll back (stop table)." >&2; fi' EXIT
   [[ ${X:-} =~ ^[0-9a-f]{7}$ ]] && [ -s "${R:-}" ] || { echo "run block 0 first: STOP" >&2; exit 1; }
   attempt=$(awk '/^--- attempt$/ {s = ""} {s = s $0 "\n"} END {printf "%s", s}' "$R")
+  grep -qx "id=${A:-none}" <<<"$attempt" || { echo "block 0 did not pass in this shell: run block 0 first: STOP" >&2; exit 1; }
   grep -q '^copy=ok' <<<"$attempt" || { echo "no verified musl copy in this attempt: run block 2 first: STOP" >&2; exit 1; }
   grep -q "^checkout=ok $X" <<<"$attempt" && [ "$(git rev-parse --short=7 HEAD)" = "$X" ] \
     || { echo "release $X is not checked out: run block 3 first: STOP" >&2; exit 1; }
@@ -489,7 +497,9 @@ the indexes were built with, so keep it with the dump.
   done
   pg -qc "ALTER DATABASE template0 ALLOW_CONNECTIONS false"
   # 4d. Marker only when every database was reindexed and verified.
-  [ "$total" -gt 0 ] && [ "$reindexed" -eq "$total" ] && [ "$checked" -eq "$total" ]
+  [ "$total" -gt 0 ] || { echo "no databases found" >&2; exit 1; }
+  [ "$reindexed" -eq "$total" ] || { echo "reindexed $reindexed of $total databases" >&2; exit 1; }
+  [ "$checked" -eq "$total" ] || { echo "amcheck verified $checked of $total databases" >&2; exit 1; }
   docker exec -u postgres -e IMG="$PG" hexta-pg-reindex sh -c 'echo "glibc collation: REINDEX + amcheck by $(postgres --version), $(ldd --version | head -1), image $IMG on $(date -u +%FT%TZ) (README.deploy.md 10a)" > "$PGDATA/HEXTA_GLIBC_COLLATION_OK"'
   docker stop hexta-pg-reindex >/dev/null && docker rm hexta-pg-reindex >/dev/null
   echo "marker=written $(date -u +%FT%TZ)" >> "$R"
