@@ -50,7 +50,7 @@ services:
   # the README.deploy.md section 10a runbook writes after REINDEX and amcheck. It lives in Compose, not in the deploy
   # agent, so it also holds when an older agent deploys this release.
   postgres-collation-guard:
-    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     restart: "no"
     user: root
     network_mode: none
@@ -79,9 +79,12 @@ services:
     logging: *logging
 
   # pgvector build of PostgreSQL 17 (owner decision 2026-11-26) for the AI knowledge store; never start it on a
-  # musl-built volume (see postgres-collation-guard and README.deploy.md section 10a).
+  # musl-built volume (see postgres-collation-guard and README.deploy.md section 10a). Pinned by digest (tag is
+  # mutable; a new glibc changes text sort order): PostgreSQL 17.8, Debian 12.13, glibc 2.36. The same reference is
+  # used by postgres-collation-guard, postgres-extensions and scripts/deploy-agent.sh; bump all together
+  # (README.deploy.md section 10a, "Image pin").
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     restart: unless-stopped
     depends_on:
       postgres-collation-guard:
@@ -176,7 +179,7 @@ services:
   # Superuser one-shot: pgvector is not a trusted extension, so the non-superuser AI migrator cannot create it.
   # init-db.sh covers a new volume; this idempotent job covers an existing one. It never touches application tables.
   postgres-extensions:
-    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     restart: "no"
     depends_on:
       postgres:
