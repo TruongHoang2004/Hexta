@@ -99,6 +99,15 @@ def test_addresses_can_be_kept_and_known_contacts_allowed():
     ("giao số 10 Trần Phú Hà Đông giúp", "giao [ADDRESS] giúp"),
     ("12 Hàng Bạc, Hoàn Kiếm", "[ADDRESS]"),
     ("45 Lê Văn Sỹ Phú Nhuận, HCM", "[ADDRESS]"),
+    # A city ends an address after a comma; capitalized serving words are street names.
+    ("15B Phan Đình Phùng, Hà Nội", "[ADDRESS]"),
+    ("giao 15b phan dinh phung, ha noi nhé", "giao [ADDRESS] nhé"),
+    ("12 Tô Hiến Thành, Hai Bà Trưng", "[ADDRESS]"),
+    ("3 Hàng Mắm Hoàn Kiếm", "[ADDRESS]"),
+    ("5 hàng bún, ba đình", "[ADDRESS]"),
+    # "kp" without its dot after an address word or a comma.
+    ("giao kp3 Linh Trung", "giao [ADDRESS]"),
+    ("địa chỉ kp 4 Linh Trung", "địa chỉ [ADDRESS]"),
 ])
 def test_local_units_and_addresses_before_known_places(text, expected):
     assert redact_pii(text) == expected
@@ -108,6 +117,10 @@ def test_local_units_and_addresses_before_known_places(text, expected):
     "tổ chức 5 sự kiện", "tổng 5 cái", "thông tin 3 sản phẩm", "tổ 5 người đặt chung", "ấp trứng",
     "có ship Hà Nội không", "shop ở Hà Nội à", "ship 2 ngày tới Hà Nội", "mua 2 cái về Hà Nội",
     "giá 299.000 ship Hà Nội", "còn 3 màu Hà Nội", "có 2 chi nhánh Hà Nội",
+    # Dishes and products named after a city, amounts and product models are not addresses.
+    "cho 3 tô bún bò Huế", "2 phở Hà Nội", "1 cà phê Sài Gòn", "10 mè xửng Huế", "đặt 5 bánh cốm Hà Nội",
+    "iPhone 15 Pro Max Hà Nội", "299k freeship Hà Nội", "2 phở Ba Đình", "cho 3 tô bún bò, Huế",
+    "iPhone 15 Pro Max, Hà Nội", "Loa KP2", "loa KP 2 còn không", "KP2 còn hàng không",
 ])
 def test_local_unit_and_place_lookalikes_are_kept(text):
     assert redact_pii(text) == text
