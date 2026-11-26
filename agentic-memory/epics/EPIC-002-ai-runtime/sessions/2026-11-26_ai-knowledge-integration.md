@@ -268,5 +268,69 @@ stubbed.
 | Instructions | `python3 scripts/check-agent-instructions.py` | PASS (0 errors) |
 | AI + pgvector DB tests, server rollout, agent on a server, live providers | — | NOT_RUN |
 
+Correction (third follow-up): the AI + pgvector DB tests of this round were run afterwards on the digest-pinned
+image (prod `init-db.sh`, AI migrations as `hexta_ai`, `AI_TEST_DATABASE_URL`): 325 passed. Server rollout, agent
+on a server and live providers remain NOT_RUN.
+
 Remaining: unchanged from the previous handoff (owner window per §10a, browser acceptance, RAG without Jev). Not
 done until merged into main and verified.
+
+## Third review follow-up — 2026-11-26 (I1, I2, M1–M7)
+
+IMPLEMENTED (local `main`, unpushed; commits cfc580b, 2292fac, 971fd0b and this record):
+
+- **I1 phones after order words (privacy).** Owner decision: PII is redacted before TypeSafe. `_ORDER_STRICT`
+  and `_ORDER_CONTEXT` are removed: every valid Vietnamese phone shape (10-digit with 0, 11-digit landline,
+  `+84`/`84`, spaced, dotted, dashed, and the 9-digit form without 0) is redacted whatever word precedes it
+  (`kiểm tra đơn hàng 0912345678 giúp em` → `[PHONE]`, also `mã đơn 912345678`, `order #912345678`). Kept: codes
+  glued to letters (`DH0912345678`, `SP…`), dashed codes (`#ORD-2026-912345678`), lengths or prefixes that cannot
+  be phones (`mã đơn 1234567890`, `đơn hàng 091234567890`, `order 0012345678`), amounts and quantities.
+- **M1 address false positives.** House + street before a place now needs a known district, or a city after a
+  comma (cities alone name dishes and products); amounts (`299k`), product words (`pro`, `max`, `freeship`, …)
+  and lowercase serving/dish words (`tô`, `bún`, `phở`, `bánh`, `cà phê`, …) keep the phrase, while capitalized
+  ones stay street names (Tô Hiến Thành, Hàng Mắm, Hàng Bún). `kp` without its dot is a quarter only after an
+  address word or a comma (`Loa KP2` kept, `nhà ở kp 5` redacted). All earlier positive address tests pass.
+- **I2 runbook §10a fail-closed.** Block 0 starts an attempt in `$R` (and refuses `PREV = X`); block 2 appends
+  `copy=ok` only after `cp -a` and a file-count + byte-size comparison; block 3 sets `HEXTA_IMAGE_TAG` only for
+  its own `pull` and appends `checkout=ok X` only after checkout, `HEAD = X` and pull; block 4 requires both lines
+  in the current attempt and `HEAD = X`, appends `reindex=started` just before opening the data volume, and its
+  trap prints `data untouched — do not roll back` before that point (M4); block 5 says the same when block 4 never
+  opened the volume. Stop table: a marker check (`$R` order of `reindex=started`/`rollback=ok` plus the volume
+  marker) before the previous release starts (M2, row 3) and per-message block 2 advice that never deletes an
+  earlier copy without checking every switch record (M2, row 2). Rollback reads `PREV` from `$R` of this X (M3),
+  removes the data volume only if it exists, copies only into an empty one, appends `rollback=ok`, and can be
+  re-run after a partial run. Realignment notes the hex-only password assumption of `\set` (M5).
+
+### Rehearsals (bash 5.3 container, host Docker, Compose v5.8; all rehearsal containers, volumes and network removed)
+
+Same method as the second follow-up: throwaway checkout with a bare origin (PREV Alpine 17.7, X = this compose
+trimmed to guard/postgres/postgres-extensions, sleeping writers), README blocks extracted verbatim with only
+names, `cd` and `X` substituted, `sudo`/`systemctl` stubbed; injections named below.
+
+| Case | Result |
+| --- | --- |
+| (a) tracked local edit blocks `git checkout X`; blocks 0–5 pasted at once | OK 0–2; block 3 git `Aborting`, no `checkout=ok`; block 4 `release … is not checked out` + `data untouched — do not roll back`; block 5 `no marker: run block 4 first … data untouched`; marker absent, HEAD = PREV; marker check `safe`; row-3 recovery starts Alpine |
+| (b0) retry with the copy of (a) present | block 2 `copy volume not empty`; row-2 record check prints nothing; copy removed per advice |
+| (b1) injected: `cp` copies `PG_VERSION` then fails | `copy failed: STOP`, no `copy=ok`; blocks 3/4 `no verified musl copy`, block 4 `data untouched`, block 5 `data untouched`; marker absent |
+| (b2) injected: a file removed after `cp` | `copy incomplete` (1577/74053790 vs 1576/74053702 files/bytes); same refusals, marker absent |
+| (c) clean run, all blocks pasted | sizes equal, OK 0–5; amcheck hexta 167, others 164 indexes OK; guard `marker present`; `vector 0.8.1`; deployed `sha-X`; 7200 probe rows on PostgreSQL 17.8 |
+| (d1) rollback, injected failure after the data volume removal | post-switch dump kept; volume gone |
+| (d2) unchanged re-run, injected failure after the copy | skips the missing volume, PREV checked out, copy restored |
+| (d3) unchanged re-run | removes the restored volume, recopies, `OK rollback`; Alpine 3.23.3, no marker, 7200 rows, `rollback=ok` in `$R`; marker check `safe` |
+| Marker check / block 2 with a `reindex=started` not followed by `rollback=ok` | `NOT safe … roll back`; block 2 `an earlier block 4 opened the data volume` |
+
+### Verification (third follow-up)
+
+| Scope | Command | Result |
+| --- | --- | --- |
+| AI offline | `cd services/ai && uv run pytest -q` | 347 passed, 11 skipped |
+| AI + pgvector DB | disposable digest-pinned `pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adf…` initialised by prod `init-db.sh` (marker written), `MIGRATE_TARGET=ai scripts/migrate.sh apply` as `hexta_ai` (3 migrations), `AI_TEST_DATABASE_URL=<superuser> uv run pytest -q` | 358 passed; container removed |
+| Compose | `docker compose --env-file <dummy> -f infrastructure/compose.prod.yml config -q` | PASS |
+| Instructions | `python3 scripts/check-agent-instructions.py` | PASS (0 errors) |
+| Whitespace | `git diff --check` | PASS |
+| Lint | — | not applicable (no Python linter configured in `pyproject.toml` or CI) |
+| Shell | `scripts/deploy-agent.sh` unchanged | not applicable |
+| Server rollout, agent on a server, live providers | — | NOT_RUN |
+
+Remaining: unchanged (owner window per §10a, browser acceptance, RAG without Jev). Not done until merged into main
+and verified.
