@@ -205,3 +205,68 @@ IMPLEMENTED (local/unmerged), per finding:
 - Browser acceptance of Settings › Tài liệu and Desk citations; demo runtime check of the offline answer path.
 - Follow-up: RAG answers without Jev (provider classifier never routes to `answer`).
 - Not done until merged into main and verified.
+
+## Second review follow-up — 2026-11-26 (verified findings 1–9)
+
+IMPLEMENTED (local `main`, unpushed; commits a18b325..e3fa81f):
+
+- **Preflight superuser check (§10a).** `-h 127.0.0.1` inside the container hits the `trust` pg_hba line, so a
+  wrong password passed. The check now runs `psql -h postgres` from a separate container on `hexta-prod_default`
+  with `PGPASSWORD` from `.env` (the scram rule postgres-extensions uses); the realignment reads `.env` in the shell
+  and never prints it.
+- **Fail-closed window.** Blocks 0–5, each a `set -euo pipefail` subshell ending in `OK <n>`, with a stop table.
+  Block 0 refuses an unedited `X=XXXXXXX`, an active timer, a missing commit or a `release.env` on `origin/main`
+  that does not name `sha-$X`; blocks refuse without the previous result (verified dump, non-empty copy, pinned
+  tag, marker on the volume). Block 4 captures the database list before looping, counts REINDEX and amcheck
+  successes, writes the marker only when both equal the total, and its EXIT trap prints `marker NOT written`.
+- **Rollback.** `docker rm -f hexta-pg-reindex`; refuses unless `hexta-prod_postgres_data_alpine17` exists, holds
+  `PG_VERSION` and `global/pg_control` and has no marker; post-switch dump only when postgres is running, with
+  pipefail and `gunzip -t`; previous commit read from the switch record.
+- **Deploy agent.** `musl_downgrade` captures `git show` before `grep` (no SIGPIPE false "no guard"); volume
+  listing, image presence (`docker image inspect` or pull) and `docker run --pull never` errors return status 2,
+  which refuses the deploy and the automatic rollback with a log line.
+- **Restart.** Operations table: `restart postgres` skips the guard; use `stop postgres && up -d --wait postgres`.
+- **AI gating.** `is_real(provider)`: Jev and paid embeddings only with a real provider (never `fake`/`disabled`,
+  whatever keys); fake answers only via `AI_FAKE_ROUTER` and simulated; startup line `AI runtime SIMULATED …`;
+  `openai` needs `gpt-`/`chatgpt-`/`o1`/`o3`/`o4`; invalid `AI_RAG_*` → knowledge `None` with an error log.
+- **Redaction.** Standalone `ấp/thôn/khu phố/kp/tổ N`; house + street before a curated city/district list
+  (accented or folded); `order 0912345678` (explicit order words only) and `912345678 cái` kept.
+- **Image provenance.** `compose.prod.yml` and `deploy-agent.sh` pin
+  `pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adf…5700b21` (index digest from `docker buildx imagetools
+  inspect`, equal to the local RepoDigest). Block 4 writes digest, PostgreSQL 17.8, glibc 2.36, Debian 12.13 to
+  `~/hexta-backups/pgvector-switch-$X.txt` and into the marker. `datcollversion` stays NULL (`REFRESH COLLATION
+  VERSION` on it: `invalid collation version change`, rehearsed). Bump procedure documented ("Image pin").
+
+### Rehearsals (bash 5.3 in a Linux container, host Docker 29.9, Compose v5.8; all removed afterwards)
+
+Throwaway checkout with a bare origin: previous release = `origin/main` compose trimmed to `postgres` (Alpine
+17.7), release X = this compose trimmed to guard/postgres/postgres-extensions; writers are sleeping stand-ins.
+README blocks were extracted verbatim, with only names (`rh10a_*`), `cd` and `X` substituted and `sudo`/`systemctl`
+stubbed.
+
+| Case | Result |
+| --- | --- |
+| Preflight, `.env` matches | `1` |
+| `.env` password differs | `password authentication failed`, exit 2; old `-h 127.0.0.1` check with `PGPASSWORD=definitely-wrong` prints `1` (the bug) |
+| Realignment, then check | `1` |
+| Run A: all blocks pasted at once, injected `IMMUTABLE` function using `random()` in an index | blocks 0–3 OK, 5 databases reindexed, amcheck `heap tuple (0,1) … lacks matching index tuple … "rh_inj_lying"`, `BLOCK 4 FAILED: marker NOT written`, block 5 `no marker on the data volume`; marker `test -f` exit 1; `deployed` unchanged |
+| Rollback, copy missing / empty | refused before any removal; data volume and stack intact |
+| Rollback after Run A | leftover reindex container removed, musl copy restored, Alpine healthy, 7200 probe rows, no marker |
+| Retry with the old copy present | block 2 `copy volume not empty: STOP` |
+| Run B (fault removed, copy removed) | amcheck hexta 167, others 164 OK; marker with digest/versions; guard `marker present`; `vector 0.8.1`; `OK 5` |
+| Restart | `prod.sh restart postgres` leaves guard `StartedAt` unchanged; `stop` + `up -d --wait postgres` reruns it |
+| `musl_downgrade` (functions sourced, disposable volume) | guarded commit / no volume / unmarked: allowed; pre-guard + marker: refused; image unavailable, `docker run` 125, daemon unreachable: refused (status 2); same on the switched rehearsal volume |
+
+### Verification (second follow-up)
+
+| Scope | Command | Result |
+| --- | --- | --- |
+| Shell | `shellcheck` (koalaman/shellcheck:v0.10.0 container) on `scripts/deploy-agent.sh`; `bash -n` | PASS |
+| Go | `sh scripts/check-gofmt.sh`; `go build` + `go vet ./services/api/... ./packages/shared/...` | PASS; no Go change, so `go test -race` not rerun |
+| AI offline | `cd services/ai && uv run pytest -q` | 314 passed, 11 skipped (new matrix, openai prefix, RAG fail-safe and redaction cases fail on the previous code) |
+| Compose | `config -q` (dummy env) prod, prod+shared-edge, prod+build | PASS |
+| Instructions | `python3 scripts/check-agent-instructions.py` | PASS (0 errors) |
+| AI + pgvector DB tests, server rollout, agent on a server, live providers | — | NOT_RUN |
+
+Remaining: unchanged from the previous handoff (owner window per §10a, browser acceptance, RAG without Jev). Not
+done until merged into main and verified.
