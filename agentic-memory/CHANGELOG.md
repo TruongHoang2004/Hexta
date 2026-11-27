@@ -24,6 +24,12 @@
 - Web Overview shows "Đang huỷ / trả" and "Đã chốt huỷ / trả" tiles and lists pending cases in the stuck table; Orders page opens `?order=<id>`.
 - Details: [session](epics/EPIC-007-orders-workflows/sessions/2026-11-26_overview-exceptions.md).
 
+## 2026-11-22 — One connection model across channel types (in review)
+
+- API: `GET/PATCH /tenants/{id}/connections` list and manage every connection type (with allowed `actions` per row); per-platform list/update routes removed; type registry `types.ChannelPlatforms`.
+- Web: Channels settings is one list with a type filter and an "Add connection" dialog (Facebook OAuth or Telegram Bot Token).
+- Details: [session](epics/EPIC-008-integrations-deployment/sessions/2026-11-22_unified-connections.md).
+
 ## 2026-11-22 — Event contracts in code (in review, PR #93)
 
 - `packages/shared/events`: one file per event (`MessageReceived`, `ConversationChanged`, `SendRequested`, `SendCompleted`, `HealthChanged`, `OrderConfirmed`) on the unchanged topics, one event type per topic; `catalog` maps events to topics. Order/conversation topics keep their envelope.

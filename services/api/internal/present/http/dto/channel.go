@@ -29,52 +29,42 @@ type ConnectFacebookPagesRequest struct {
 	OAuthSessionID string   `json:"oauth_session_id" validate:"required,uuid"`
 	PageIDs        []string `json:"page_ids" validate:"required,min=1,max=20,unique,dive,required,max=64"`
 }
-type FacebookConnectionDTO struct {
+
+// ConnectionDTO is one channel connection of any type. AccountUsername is set for platforms with handles (Telegram
+// @bot_username). Actions lists what an owner may do next in the current state.
+type ConnectionDTO struct {
 	ID               string    `json:"id"`
 	TenantID         string    `json:"tenant_id"`
-	Platform         string    `json:"platform"`
+	Platform         string    `json:"platform" enums:"facebook,telegram"`
 	AccountID        string    `json:"account_id"`
 	AccountName      string    `json:"account_name"`
+	AccountUsername  string    `json:"account_username,omitempty"`
 	Version          int64     `json:"version"`
-	Status           string    `json:"status"`
+	Status           string    `json:"status" enums:"active,paused,auth_expired"`
+	Actions          []string  `json:"actions"`
 	LastErrorCode    string    `json:"last_error_code,omitempty"`
 	LastErrorMessage string    `json:"last_error_message,omitempty"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
+type ListConnectionsQuery struct {
+	Platform string `form:"platform" validate:"omitempty,oneof=facebook telegram"`
+}
+type ListConnectionsResponse struct {
+	Connections []ConnectionDTO `json:"connections"`
+}
 type ConnectFacebookPagesResponse struct {
-	Connections []FacebookConnectionDTO `json:"connections"`
+	Connections []ConnectionDTO `json:"connections"`
 }
-type ListFacebookConnectionsResponse struct {
-	Connections []FacebookConnectionDTO `json:"connections"`
-}
-type UpdateFacebookConnectionRequest struct {
-	Action string `json:"action" validate:"required,oneof=pause resume disconnect"`
+
+// UpdateConnectionRequest: bot_token is required for rotate_token and rejected otherwise; rotate_token is accepted
+// only for connection types that rotate credentials.
+type UpdateConnectionRequest struct {
+	Action   string `json:"action" validate:"required,oneof=pause resume disconnect rotate_token"`
+	BotToken string `json:"bot_token,omitempty" validate:"required_if=Action rotate_token,max=128"`
 }
 
 // ConnectTelegramBotRequest carries a raw Bot Token. It is forwarded to the connector and never logged, stored or
 // returned by the API.
 type ConnectTelegramBotRequest struct {
 	BotToken string `json:"bot_token" validate:"required,max=128"`
-}
-
-// UpdateTelegramConnectionRequest: bot_token is required for rotate_token and rejected otherwise.
-type UpdateTelegramConnectionRequest struct {
-	Action   string `json:"action" validate:"required,oneof=pause resume disconnect rotate_token"`
-	BotToken string `json:"bot_token,omitempty" validate:"required_if=Action rotate_token,max=128"`
-}
-type TelegramConnectionDTO struct {
-	ID               string    `json:"id"`
-	TenantID         string    `json:"tenant_id"`
-	Platform         string    `json:"platform"`
-	AccountID        string    `json:"account_id"`
-	AccountName      string    `json:"account_name"`
-	AccountUsername  string    `json:"account_username,omitempty"`
-	Version          int64     `json:"version"`
-	Status           string    `json:"status"`
-	LastErrorCode    string    `json:"last_error_code,omitempty"`
-	LastErrorMessage string    `json:"last_error_message,omitempty"`
-	UpdatedAt        time.Time `json:"updated_at"`
-}
-type ListTelegramConnectionsResponse struct {
-	Connections []TelegramConnectionDTO `json:"connections"`
 }

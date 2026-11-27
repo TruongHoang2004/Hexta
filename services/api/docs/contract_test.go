@@ -115,12 +115,10 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 			for _, endpoint := range []struct{ method, route string }{
 				{"post", "/api/v1/tenants/{tenantID}/channels/facebook/oauth/start"},
 				{"get", "/api/v1/channels/facebook/oauth/callback"},
-				{"get", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
 				{"post", "/api/v1/tenants/{tenantID}/channels/facebook/connections"},
-				{"patch", "/api/v1/tenants/{tenantID}/channels/facebook/connections/{id}"},
-				{"get", "/api/v1/tenants/{tenantID}/channels/telegram/connections"},
 				{"post", "/api/v1/tenants/{tenantID}/channels/telegram/connections"},
-				{"patch", "/api/v1/tenants/{tenantID}/channels/telegram/connections/{id}"},
+				{"get", "/api/v1/tenants/{tenantID}/connections"},
+				{"patch", "/api/v1/tenants/{tenantID}/connections/{id}"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]
 				require.True(t, exists, "missing channel operation %s", endpoint.route)

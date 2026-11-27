@@ -240,14 +240,56 @@ func (s *ChannelService) CompleteFacebookOAuth(ctx context.Context, actor, code,
 	return result, nil
 }
 
-func (s *ChannelService) ListFacebookConnections(ctx context.Context, tenant, actor string) ([]types.ChannelConnection, *apperrors.Error) {
-	var result []types.ChannelConnection
+// ListConnections returns the tenant's current connections of every type, or of one platform when platform is set.
+// Any active member may read them (Inbox banners and composer locks); credentials are never part of the result.
+func (s *ChannelService) ListConnections(ctx context.Context, tenant, actor, platform string) ([]types.ChannelConnection, *apperrors.Error) {
+	if _, ok := types.ChannelPlatforms[platform]; platform != "" && !ok {
+		return nil, apperrors.ErrBadRequest(ctx).SetDetail("unknown connection platform")
+	}
+	result := []types.ChannelConnection{}
 	err := s.authorized(ctx, tenant, actor, false, func(r repository.ChannelStore) *apperrors.Error {
-		var err *apperrors.Error
-		result, err = r.Connections(ctx, tenant, types.ChannelPlatformFacebook)
+		list, err := r.Connections(ctx, tenant, platform)
+		if list != nil {
+			result = list
+		}
 		return err
 	})
 	return result, err
+}
+
+func (s *ChannelService) ListFacebookConnections(ctx context.Context, tenant, actor string) ([]types.ChannelConnection, *apperrors.Error) {
+	return s.ListConnections(ctx, tenant, actor, types.ChannelPlatformFacebook)
+}
+
+// UpdateConnection applies an owner action to any connection: pause, resume and disconnect for every platform, and
+// rotate_token where the platform supports credential rotation. bot_token is accepted only with rotate_token.
+func (s *ChannelService) UpdateConnection(ctx context.Context, tenant, actor, id, action, credential string) (*types.ChannelConnection, *apperrors.Error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, apperrors.ErrBadRequest(ctx).SetDetail("invalid connection ID")
+	}
+	var current *types.ChannelConnection
+	err := s.authorized(ctx, tenant, actor, true, func(r repository.ChannelStore) *apperrors.Error {
+		var err *apperrors.Error
+		current, err = r.Connection(ctx, tenant, id, false)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if action == types.ChannelActionRotateToken && !types.ChannelPlatforms[current.Platform].RotatesCredential {
+		return nil, apperrors.ErrBadRequest(ctx).SetDetail("this connection type does not support rotate_token")
+	}
+	switch current.Platform {
+	case types.ChannelPlatformTelegram:
+		return s.UpdateTelegramConnection(ctx, tenant, actor, id, action, credential)
+	case types.ChannelPlatformFacebook:
+		if strings.TrimSpace(credential) != "" {
+			return nil, apperrors.ErrBadRequest(ctx).SetDetail("bot_token is only accepted with rotate_token")
+		}
+		return s.UpdateFacebookConnection(ctx, tenant, actor, id, action)
+	default:
+		return nil, apperrors.ErrNotFound(ctx, "connection", "not found")
+	}
 }
 
 // sync pushes committed configuration to the connector. A failure is recorded on the row; retrying the same

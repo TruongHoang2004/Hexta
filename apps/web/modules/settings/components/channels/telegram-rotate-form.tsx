@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { Field, buttonClass, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
-import type { TelegramConnection } from "../../types";
-import { botName, telegramTokenPattern } from "../../utils";
+import type { ChannelConnection } from "../../types";
+import { connectionName, telegramTokenPattern } from "../../utils";
 import { TelegramTokenInput } from "./telegram-token-input";
 
 interface Props {
-  row: TelegramConnection;
+  row: ChannelConnection;
   busy: string;
   onRotate: (token: string) => Promise<unknown>;
   onCancel: () => void;
@@ -30,7 +30,7 @@ export function TelegramRotateForm({ row, busy, onRotate, onCancel }: Props) {
       }}
       className="space-y-2 rounded-lg border border-border p-3"
     >
-      <Field title={t("channels.telegram.newToken", { name: botName(row) })}>
+      <Field title={t("channels.telegram.newToken", { name: connectionName(row) })}>
         <TelegramTokenInput id={id} value={token} disabled={!!busy} onChange={setToken} />
       </Field>
       <p id={`${id}-help`} className="text-xs text-muted">

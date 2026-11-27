@@ -41,6 +41,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 
 ## Sessions
 
+- [2026-11-22 unified connections](sessions/2026-11-22_unified-connections.md) — in-review: one `/connections` resource and one Channels list for every connection type; stacked on #93.
 - [2026-11-03 connector ingress](sessions/2026-11-03_connector-ingress.md) — [PR #66](https://github.com/TruongHoang2004/Hexta/pull/66), OPEN/non-draft/in-review; signed webhook through isolated Kafka to member inbox verified. No live Meta/send/merge claim.
 - [2026-11-15 Facebook platform connection](sessions/2026-11-15_facebook-platform-connection.md) — [PR #69](https://github.com/TruongHoang2004/Hexta/pull/69) open, not merged: owner OAuth + Page picker, pause/resume/disconnect, media placeholders, single-attempt outbound send with result/health events. Isolated mock-Meta E2E verified; live Meta NOT_RUN.
 - [2026-11-16 single-host deployment](sessions/2026-11-16_single-host-deployment.md) — production Compose stack + runbook for hexta.org (2 vCPU / 16 GB); verified locally with `DOMAIN=localhost`; real-server deployment NOT_RUN.

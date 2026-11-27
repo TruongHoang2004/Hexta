@@ -11,12 +11,12 @@ export interface ChannelConnection {
   account_username?: string;
   version: number;
   status: ConnectionStatus;
+  // Owner actions allowed in the current state, decided by the API per connection type.
+  actions: ConnectionAction[];
   last_error_code?: string;
   last_error_message?: string;
   updated_at: string;
 }
-export type FacebookConnection = ChannelConnection & { platform: "facebook" };
-export type TelegramConnection = ChannelConnection & { platform: "telegram" };
 export interface SelectablePage {
   page_id: string;
   page_name: string;
@@ -28,5 +28,6 @@ export interface OAuthPages {
   expires_at: string;
   pages: SelectablePage[];
 }
-export type ConnectionAction = "pause" | "resume" | "disconnect";
-export type TelegramAction = ConnectionAction | "rotate_token";
+export type ConnectionAction = "pause" | "resume" | "disconnect" | "rotate_token";
+/** Actions confirmed before they run; rotate_token has its own form instead. */
+export type ConfirmedAction = Exclude<ConnectionAction, "rotate_token">;

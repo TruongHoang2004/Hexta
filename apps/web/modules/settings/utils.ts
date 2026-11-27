@@ -1,11 +1,14 @@
 import type { ChipTone } from "@/components/primitives";
 import type { Translate } from "@/lib/i18n/translate";
-import type { ChannelPlatform, ConnectionStatus, TelegramConnection } from "./types";
+import type { ChannelConnection, ChannelPlatform, ConnectionStatus } from "./types";
 
 export const platformLabel: Record<ChannelPlatform, string> = {
   facebook: "Facebook",
   telegram: "Telegram",
 };
+
+/** Connection types in the order the "add connection" picker and filters show them. */
+export const channelPlatforms: ChannelPlatform[] = ["facebook", "telegram"];
 
 export const connectionTone: Record<ConnectionStatus, ChipTone> = {
   active: "success",
@@ -17,7 +20,8 @@ export const connectionTone: Record<ConnectionStatus, ChipTone> = {
 // Mirrors the API check: numeric bot ID, colon, secret from @BotFather.
 export const telegramTokenPattern = /^[0-9]{1,20}:[A-Za-z0-9_-]{30,80}$/;
 
-export const botName = (row: TelegramConnection) =>
+/** Display name of any connection: @handle when the platform has one, else account name, else ID. */
+export const connectionName = (row: ChannelConnection) =>
   row.account_username ? `@${row.account_username}` : row.account_name || row.account_id;
 
 const roles = ["owner", "admin", "member"] as const;
