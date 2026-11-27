@@ -193,6 +193,7 @@ services:
     environment:
       API_DATABASE_URL: postgresql://hexta_demo:local-demo-only@postgres:5432/hexta_demo?sslmode=disable&search_path=public
       KAFKA_BROKERS: kafka:9092
+      REDIS_ADDR: redis:6379
   # Conversation write side; the api service forwards conversation writes here.
   messaging-command:
     build:

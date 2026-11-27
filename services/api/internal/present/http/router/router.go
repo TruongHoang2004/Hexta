@@ -19,6 +19,7 @@ func RegisterRoutes(
 	workflows *controller.WorkflowController,
 	overview *controller.OverviewController,
 	messagingQuery *controller.MessagingQueryController,
+	conversationStream *controller.ConversationStreamController,
 	messagingCommands *MessagingCommandGateway,
 	channels *controller.ChannelController,
 	scripts *controller.ScriptController,
@@ -103,6 +104,7 @@ func RegisterRoutes(
 
 	resources.GET("/conversations", messagingQuery.List)
 	resources.GET("/conversations/summary", messagingQuery.Summary)
+	resources.GET("/conversations/stream", conversationStream.Stream)
 	resources.GET("/conversations/:id/messages", messagingQuery.Detail)
 	resources.GET("/conversations/:id/sessions", messagingQuery.Sessions)
 	registerMessagingCommandRoutes(resources, messagingCommands.Handle)

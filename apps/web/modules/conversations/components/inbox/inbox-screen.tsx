@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ExpiredConnectionBanner } from "@/modules/settings";
 import { secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useChannelConnections } from "../../hooks/use-channel-connections";
+import { useConversationStream } from "../../hooks/use-conversation-stream";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
 import { useWaitingCount } from "../../hooks/use-waiting-count";
@@ -22,7 +23,11 @@ export function InboxScreen() {
   const [refresh, setRefresh] = useState(0);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [selected, setSelected] = useState("");
-  const list = useInboxConversations(tenantID, refresh);
+  // Pushed events reach the open conversation through `subscribe`; the list refreshes quietly from them.
+  const [liveList, setLiveList] = useState(0);
+  const onListChange = useCallback(() => setLiveList((v) => v + 1), []);
+  const { status: streamStatus, subscribe } = useConversationStream(tenantID, onListChange);
+  const list = useInboxConversations(tenantID, refresh, liveList);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
   const waitingCount = useWaitingCount(tenantID, refresh);
@@ -36,6 +41,9 @@ export function InboxScreen() {
           <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <p role="status" className="text-xs text-muted">
+            {streamStatus === "live" ? t("desk.liveOn") : t("desk.liveOff")}
+          </p>
           <WaitingStaffButton
             count={waitingCount}
             active={list.filter === "waiting"}
@@ -73,6 +81,7 @@ export function InboxScreen() {
             members={members}
             connections={connections}
             externalRefresh={detailRefresh}
+            subscribe={subscribe}
             onChanged={reloadList}
           />
         ) : (

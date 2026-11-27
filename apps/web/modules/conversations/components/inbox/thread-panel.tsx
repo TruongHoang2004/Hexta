@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/provider";
 import { useMemberName } from "@/lib/members";
 import { platformLabel, type ChannelConnection } from "@/modules/settings";
 import { useAuthStore } from "@/store/useAuthStore";
+import type { StreamListener } from "../../hooks/use-conversation-stream";
 import { useReplyMode } from "../../hooks/use-reply-mode";
 import { useReplySender } from "../../hooks/use-reply-sender";
 import { useSessionJump } from "../../hooks/use-session-jump";
@@ -31,6 +32,7 @@ export function ThreadPanel({
   members,
   connections,
   externalRefresh,
+  subscribe,
   onChanged,
 }: {
   tenantID: string;
@@ -40,12 +42,13 @@ export function ThreadPanel({
   // null while unknown; the API still rejects sends on inactive connections.
   connections: ChannelConnection[] | null;
   externalRefresh: number;
+  subscribe: (listener: StreamListener) => () => void;
   onChanged: () => void;
 }) {
   const t = useT();
   const memberName = useMemberName(members);
   const userID = useAuthStore((state) => state.user?.id);
-  const thread = useThread({ tenantID, threadID, externalRefresh, onChanged });
+  const thread = useThread({ tenantID, threadID, externalRefresh, subscribe, onChanged });
   const { detail } = thread;
   const platform = threadPlatform(detail);
   const sender = useReplySender({

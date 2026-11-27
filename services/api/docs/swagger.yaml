@@ -3506,6 +3506,54 @@ paths:
       summary: List a conversation's sessions newest first
       tags:
       - Messaging
+  /api/v1/tenants/{tenantID}/conversations/stream:
+    get:
+      description: 'Server-sent events: `ready` on connect; `message` {thread_id,
+        message} for each new stored message (message has the same shape as in the
+        conversation messages response); `delivery` {thread_id, message_id, delivery_status,
+        delivery_error_reason}; `changed` {thread_id, reason} when the conversation
+        list should refresh; `resync` when events may have been lost and clients must
+        refetch. PostgreSQL stays authoritative; clients dedupe by message id. The
+        stream closes after about 10 minutes and clients reconnect. Requires current
+        active tenant membership.'
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: tenantID
+        required: true
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: event stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/errors.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stream conversation change hints (SSE)
+      tags:
+      - Messaging
   /api/v1/tenants/{tenantID}/conversations/summary:
     get:
       description: Tenant-wide Desk notification state for polling. Requires current

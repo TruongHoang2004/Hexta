@@ -11,14 +11,26 @@ import (
 	"time"
 )
 
-type IngressService struct{ store repository.IngressStore }
+type IngressService struct {
+	store     repository.IngressStore
+	publisher RealtimePublisher
+}
 
-func NewIngressService(store repository.IngressStore) *IngressService { return &IngressService{store} }
+func NewIngressService(store repository.IngressStore) *IngressService {
+	return &IngressService{store: store}
+}
+
+// WithPublisher pushes each newly stored customer message to connected clients after its transaction commits.
+func (s *IngressService) WithPublisher(publisher RealtimePublisher) *IngressService {
+	s.publisher = publisher
+	return s
+}
 func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceived) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrForbidden(ctx).SetDetail("invalid ingress")
 	}
-	return s.store.Apply(ctx, e, func(tx repository.MessagingStore, b repository.IngressBinding, duplicate bool) *apperrors.Error {
+	var stored *types.MessagingMessage
+	err := s.store.Apply(ctx, e, func(tx repository.MessagingStore, b repository.IngressBinding, duplicate bool) *apperrors.Error {
 		// Disabled/version-stale events are durably ignored, never reassigned to another tenant.
 		if duplicate || !b.Enabled || !b.Active || b.Version != e.ConnectionVersion || b.Platform != e.Platform || b.AccountID != e.AccountID {
 			return nil
@@ -84,6 +96,7 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 		if err = tx.InsertMessage(ctx, message); err != nil {
 			return err
 		}
+		stored = &message
 		// A live customer message on a bot-handled turn is routed after commit; history never is.
 		if placement != types.InboundHistory {
 			if _, err = enqueueBotRouting(ctx, tx, *turn, message, "", time.Now().UTC()); err != nil {
@@ -95,4 +108,9 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 		}
 		return tx.SaveThread(ctx, *thread)
 	})
+	if err == nil && stored != nil && s.publisher != nil {
+		// Best effort after commit: clients repair any gap by refetching on reconnect.
+		_ = s.publisher.Publish(ctx, stored.TenantID, types.RealtimeHint{ThreadID: stored.ThreadID, Reason: types.RealtimeMessageCreated, Message: stored})
+	}
+	return err
 }

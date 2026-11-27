@@ -21,6 +21,7 @@ type DeliveryStore interface {
 	SaveAttempt(context.Context, types.OutboundAttempt) *apperrors.Error
 	SaveIntent(context.Context, types.OutboundIntent) *apperrors.Error
 	SetMessageDelivery(context.Context, string, string, string, string) *apperrors.Error
+	ThreadOfMessage(context.Context, string, string) (string, *apperrors.Error)
 	MarkAuthExpired(context.Context, string, string, int64, string, time.Time) *apperrors.Error
 	// RecordSendActivity advances the open turn of a message to at, never backwards and never on a closed turn.
 	RecordSendActivity(context.Context, string, string, time.Time) *apperrors.Error
@@ -100,6 +101,16 @@ func (r *DeliveryRepository) SetMessageDelivery(ctx context.Context, tenant, id,
 		return salesDBError(ctx, err)
 	}
 	return nil
+}
+
+// ThreadOfMessage returns the thread holding a message, or "" when it is unknown.
+func (r *DeliveryRepository) ThreadOfMessage(ctx context.Context, tenant, id string) (string, *apperrors.Error) {
+	var thread string
+	err := r.db.WithContext(ctx).Model(&messagingmodel.Message{}).Where("tenant_id = ? AND id = ?", tenant, id).Select("thread_id").Limit(1).Scan(&thread).Error
+	if err != nil {
+		return "", salesDBError(ctx, err)
+	}
+	return thread, nil
 }
 
 // MarkAuthExpired moves only an active binding at or below the reported version; paused/disconnected/newer

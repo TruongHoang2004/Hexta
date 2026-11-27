@@ -19,7 +19,8 @@ func TestIngressAuthorityReplayAndNoAISideEffects(t *testing.T) {
 	if err := f.db.Exec("INSERT INTO messaging_connections(id,tenant_id,version,platform,account_id,enabled) VALUES(?,?,1,'facebook','page',true)", id, f.tenant).Error; err != nil {
 		t.Fatal(err)
 	}
-	s := NewIngressService(repository.NewIngressRepository(f.db))
+	pushed := &recordingPublisher{}
+	s := NewIngressService(repository.NewIngressRepository(f.db)).WithPublisher(pushed)
 	e := messaging.MessageReceived{Meta: events.Meta{EventID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, Platform: "facebook", ConnectionID: id, ConnectionVersion: 1, AccountID: "page", ConversationKey: "psid", MessageID: "m1", SourceIdentity: "message:m1", Sender: "psid", Recipient: "page", Direction: "inbound", Text: "real text", SourceAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
 	if err := s.Consume(ctx, e); err != nil {
 		t.Fatal(err)
@@ -55,6 +56,9 @@ func TestIngressAuthorityReplayAndNoAISideEffects(t *testing.T) {
 	f.db.Model(&messagingmodel.Message{}).Where("tenant_id=?", f.tenant).Count(&count)
 	if count != 1 {
 		t.Fatal("duplicate/unsafe event", count)
+	}
+	if len(pushed.hints) != 1 || pushed.hints[0].Reason != types.RealtimeMessageCreated || pushed.hints[0].Message == nil || pushed.hints[0].Message.Body != "real text" || pushed.hints[0].Message.Direction != "inbound" {
+		t.Fatal("exactly the stored customer message is pushed, not duplicates or ignored events", pushed.hints)
 	}
 	f.db.Model(&messagingmodel.Turn{}).Where("tenant_id=?", f.tenant).Count(&count)
 	if count != 1 {

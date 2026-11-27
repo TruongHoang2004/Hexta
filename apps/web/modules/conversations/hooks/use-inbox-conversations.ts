@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useErrorText } from "@/lib/errors";
 import { messaging, type Conversation } from "../services/messaging";
 import type { DeskFilter } from "../types";
 
-/** One page of desk conversations for a filter, reloaded whenever `refresh` changes. */
-export function useInboxConversations(tenantID: string, refresh: number) {
+/**
+ * One page of desk conversations for a filter, reloaded whenever `refresh` changes. A change of `live`
+ * (a realtime hint) reloads quietly, without the loading state, and only on the first page so paging is stable.
+ */
+export function useInboxConversations(tenantID: string, refresh: number, live: number) {
   const errorText = useErrorText();
   const [filter, setFilterState] = useState<DeskFilter>("all");
   const [cursor, setCursor] = useState("");
@@ -14,12 +17,18 @@ export function useInboxConversations(tenantID: string, refresh: number) {
   const [rows, setRows] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const seenLive = useRef(live);
   useEffect(() => {
     if (!tenantID) return;
+    const silent = seenLive.current !== live;
+    seenLive.current = live;
+    if (silent && cursor) return;
     const controller = new AbortController();
     async function load() {
-      setLoading(true);
-      setError("");
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
       try {
         const result = await messaging.list(tenantID, filter, cursor, controller.signal);
         if (!controller.signal.aborted) {
@@ -27,14 +36,14 @@ export function useInboxConversations(tenantID: string, refresh: number) {
           setNext(result.next_cursor);
         }
       } catch (err) {
-        if (!controller.signal.aborted) setError(errorText(err));
+        if (!controller.signal.aborted && !silent) setError(errorText(err));
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && !silent) setLoading(false);
       }
     }
     void load();
     return () => controller.abort();
-  }, [tenantID, filter, cursor, refresh, errorText]);
+  }, [tenantID, filter, cursor, refresh, live, errorText]);
   /** Changing the filter always returns to the first page. */
   function setFilter(value: DeskFilter) {
     setFilterState(value);

@@ -283,6 +283,7 @@ services:
     environment:
       API_DATABASE_URL: postgresql://hexta_api:${API_DB_PASSWORD}@postgres:5432/hexta?sslmode=disable&search_path=public
       KAFKA_BROKERS: kafka:9092
+      REDIS_ADDR: redis:6379
     mem_limit: 256m
     logging: *logging
 

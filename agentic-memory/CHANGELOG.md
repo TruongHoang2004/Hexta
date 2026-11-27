@@ -30,6 +30,12 @@
 - API outbox relay routes by catalog through one multi-topic writer; `ingress`/`outbound` packages and API-local event types removed.
 - Details: [session](epics/EPIC-005-kafka/sessions/2026-11-22_event-contracts.md).
 
+## 2026-11-22 — Realtime inbox updates (in review)
+
+- New SSE route `GET /tenants/{tenantID}/conversations/stream` pushes each newly stored message whole (and delivery updates), so a customer message appears in the staff member's open chat at once; the conversation list refreshes quietly. Automatic reconnect, `resync` after gaps, connection status label.
+- Messages are published after commit by `ingress` (real channels) and `messaging-command` (simulator and staff replies) over Redis pub/sub to an in-process hub in the API; PostgreSQL stays authoritative. `ingress` gains `REDIS_ADDR` in compose.
+- Details and evidence: [session](epics/EPIC-004-messaging/sessions/2026-11-22_messaging-realtime.md).
+
 ## 2026-11-22 — Messaging read/write split (CQRS, in review)
 
 - Conversation reads and writes are separate in the API: query/command services, controllers and stores; writes run in the new `messaging-command` process and the public API forwards to it (`messaging.command_url`).

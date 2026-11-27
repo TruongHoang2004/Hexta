@@ -11,6 +11,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/service"
+	"github.com/TruongHoang2004/Hexta/services/api/internal/infrastructure/cache"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/postgres"
@@ -29,11 +30,19 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 	}
 	brokers := strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
 	store := repository.NewIngressRepository(db)
-	consumer := service.NewIngressService(store)
+	ingressService := service.NewIngressService(store)
 	deliveryStore := repository.NewDeliveryRepository(db)
 	deliveries := service.NewDeliveryService(deliveryStore)
 	views := repository.NewConversationViewRepository(db)
 	projector := service.NewConversationProjector(views)
+	// Realtime hints are optional: without REDIS_ADDR the process still projects, clients just don't get pushes.
+	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
+		bus := cache.NewRealtimeBusForAddr(addr)
+		defer bus.Close()
+		projector.WithPublisher(bus)
+		ingressService.WithPublisher(bus)
+		deliveries.WithPublisher(bus)
+	}
 	consumers := []struct {
 		group, topic string
 		quarantine   func(context.Context, string, string) error
@@ -44,7 +53,7 @@ func RunIngress(ctx context.Context, db *gorm.DB) error {
 			if json.Unmarshal(value, &e) != nil || e.Validate() != nil {
 				return false, nil
 			}
-			return true, func() *apperrors.Error { return consumer.Consume(ctx, e) }
+			return true, func() *apperrors.Error { return ingressService.Consume(ctx, e) }
 		}},
 		{"hexta-api-outbound-result-v1", delivery.SendCompletedTopic, deliveryStore.Quarantine, func(value []byte) (bool, func() *apperrors.Error) {
 			var e delivery.SendCompleted

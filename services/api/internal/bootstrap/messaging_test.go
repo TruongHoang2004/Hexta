@@ -9,7 +9,7 @@ import (
 )
 
 func TestMessagingComposition(t *testing.T) {
-	if err := fx.ValidateApp(BuildService(), BuildRepository(), BuildController(), BuildValidator(), fx.Supply(&gorm.DB{}), fx.Invoke(func(*controller.MessagingQueryController, *controller.MessagingCommandController, *controller.ReplySettingsController) {
+	if err := fx.ValidateApp(BuildService(), BuildRepository(), BuildCache(), BuildController(), BuildValidator(), fx.Supply(&gorm.DB{}), fx.Invoke(func(*controller.MessagingQueryController, *controller.MessagingCommandController, *controller.ReplySettingsController) {
 	}), fx.NopLogger); err != nil {
 		t.Fatalf("messaging graph is not wired: %v", err)
 	}

@@ -1393,6 +1393,70 @@
                 }
             }
         },
+        "/api/v1/tenants/{tenantID}/conversations/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Server-sent events: `ready` on connect; `message` {thread_id, message} for each new stored message (message has the same shape as in the conversation messages response); `delivery` {thread_id, message_id, delivery_status, delivery_error_reason}; `changed` {thread_id, reason} when the conversation list should refresh; `resync` when events may have been lost and clients must refetch. PostgreSQL stays authoritative; clients dedupe by message id. The stream closes after about 10 minutes and clients reconnect. Requires current active tenant membership.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Messaging"
+                ],
+                "summary": "Stream conversation change hints (SSE)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenantID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/errors.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tenants/{tenantID}/conversations/summary": {
             "get": {
                 "security": [

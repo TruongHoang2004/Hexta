@@ -62,8 +62,11 @@ export const en: Messages = {
   desk: {
     title: "Inbox",
     subtitle: "Claim conversations, reply to customers and hand over between the bot and staff.",
-    notice: "Facebook, Telegram and simulator conversations appear here. A turn closes after 24 hours without activity unless it still needs a person. The bot follows the reply mode set in Settings › Reply mode. Use Refresh to see new activity and delivery status.",
+    notice: "Facebook, Telegram and simulator conversations appear here. A turn closes after 24 hours without activity unless it still needs a person. The bot follows the reply mode set in Settings › Reply mode. New messages and delivery status appear automatically; use Refresh if the connection drops.",
     refresh: "Refresh",
+    liveOn: "Live updates on",
+    liveOff: "Reconnecting…",
+    newMessages: "New messages ↓",
     listLabel: "Conversation list",
     filterLabel: "Filter conversations",
     filters: { bot: "Bot", waiting: "Waiting for staff", waitingCount: "Waiting for staff ({count})", mine: "Mine", all: "All" },
