@@ -51,7 +51,7 @@ func TestConversationEventsAreEmittedOncePerThreadAndTransaction(t *testing.T) {
 	if err := json.Unmarshal([]byte(events[1].Payload), &change); err != nil {
 		t.Fatal(err)
 	}
-	if change.TurnVersion != turn.Version+1 || change.AssigneeID == nil || *change.AssigneeID != f.sale || change.NeedsHuman {
+	if change.TurnVersion != turn.Version+1 || change.AssigneeID == nil || *change.AssigneeID != f.sale || !change.NeedsHuman || change.Lifecycle != "open" {
 		t.Fatalf("snapshot must carry the post-claim turn state: %+v", change)
 	}
 }

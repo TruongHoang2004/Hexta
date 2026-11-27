@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -27,6 +28,15 @@ func messagingFixture(t *testing.T) (salesFixture, *messagingFacade, *types.Mess
 		t.Fatal(err)
 	}
 	return f, s, message, detail.Conversation.Turn
+}
+
+// enableBot saves a bot reply mode so conversations may be returned to the bot; turns that already exist keep their
+// control.
+func enableBot(t *testing.T, f salesFixture) {
+	t.Helper()
+	if _, err := NewReplySettingsService(repository.NewMessagingRepository(f.db)).Update(context.Background(), f.tenant, f.owner, types.ReplySettingsUpdate{Mode: types.ReplyModeSuggest}); err != nil {
+		t.Fatal(err)
+	}
 }
 func TestMessagingClaimReplyAuthorityAndStaleContext(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
@@ -240,6 +250,7 @@ func TestMessagingPaginationAndFilters(t *testing.T) {
 	if err != nil || len(unassigned.Items) != 4 {
 		t.Fatal("unassigned filter failed", err)
 	}
+	enableBot(t, f)
 	if _, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "return-to-bot", types.MessagingCommand{ExpectedVersion: claimed.Version}); err != nil {
 		t.Fatal(err)
 	}
@@ -308,6 +319,7 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 	if turn.HandlingState() != "WAITING_STAFF" {
 		t.Fatal("simulator without AI must start in staff queue")
 	}
+	enableBot(t, f)
 	// Reloading the inbox through a new service instance sees persisted work.
 	s = NewMessagingService(repository.NewMessagingRepository(f.db))
 	page, err := s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
@@ -372,13 +384,16 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 		t.Fatal("waiting queue silently resumed bot", err)
 	}
 	turn = detail.Conversation.Turn
-	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
-	if err != nil || turn.NeedsHuman || turn.HandlingState() != "STAFF_ACTIVE" {
-		t.Fatal("claim did not clear queue flag", err)
+	if !turn.NeedsHuman || turn.NeedsHumanReason != "customer_requested_staff" {
+		t.Fatal("handoff did not record needs-human with its reason")
 	}
-	page, err = s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
+	turn, err = s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
+	if err != nil || !turn.NeedsHuman || turn.NeedsHumanReason != "customer_requested_staff" || turn.HandlingState() != "STAFF_ACTIVE" {
+		t.Fatal("claim must keep the needs-human flag for the assigned sale to resolve", err)
+	}
+	page, err = s.Conversations(ctx, f.tenant, f.peer, types.MessagingQuery{Limit: 20, Filter: "waiting"})
 	if err != nil || len(page.Items) != 0 {
-		t.Fatal("claimed work still in queue", err)
+		t.Fatal("claimed work still in waiting queue", err)
 	}
 	turn, err = s.Command(ctx, f.tenant, f.owner, turn.ID, "assign", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil || turn.HandlingState() != "WAITING_STAFF" {
@@ -388,6 +403,7 @@ func TestMessagingDeskHandoffLifecycle(t *testing.T) {
 
 func TestMessagingDeskHandoffAuditRollback(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
+	enableBot(t, f)
 	ctx := context.Background()
 	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil {
@@ -406,6 +422,7 @@ func TestMessagingDeskHandoffAuditRollback(t *testing.T) {
 
 func TestMessagingDeskConcurrentReturnAndReassignment(t *testing.T) {
 	f, s, message, turn := messagingFixture(t)
+	enableBot(t, f)
 	ctx := context.Background()
 	turn, err := s.Command(ctx, f.tenant, f.sale, turn.ID, "claim", types.MessagingCommand{ExpectedVersion: turn.Version})
 	if err != nil {
@@ -471,5 +488,58 @@ func TestMessagingDeskLegacyUnassignedQueue(t *testing.T) {
 	page, err := s.Conversations(context.Background(), f.tenant, f.sale, types.MessagingQuery{Limit: 20, Filter: "needs_human"})
 	if err != nil || len(page.Items) != 1 || page.Items[0].Thread.ID != message.ThreadID || page.Items[0].Turn.HandlingState() != "WAITING_STAFF" {
 		t.Fatal("legacy unassigned staff work disappeared", err)
+	}
+}
+
+// A send confirmation advances last_activity_at without the thread lock or a version bump. A writer that read the
+// turn before the confirmation must not write the older activity back when it saves the turn.
+func TestSendActivityIsNotLostToAnEarlierTurnRead(t *testing.T) {
+	f, _, message, turn := messagingFixture(t)
+	ctx := context.Background()
+	repo := repository.NewMessagingRepository(f.db)
+	delivery := repository.NewDeliveryRepository(f.db)
+	base := turn.LastActivityAt.UTC().Truncate(time.Microsecond)
+	confirmed, earlier, later := base.Add(10*time.Minute), base.Add(5*time.Minute), base.Add(20*time.Minute)
+	stored := func() time.Time {
+		t.Helper()
+		var at time.Time
+		if err := f.db.Raw("SELECT last_activity_at FROM messaging_turns WHERE tenant_id = ? AND id = ?", f.tenant, turn.ID).Scan(&at).Error; err != nil {
+			t.Fatal(err)
+		}
+		return at.UTC()
+	}
+	save := func(at time.Time, interleave func() *apperrors.Error) {
+		t.Helper()
+		if err := repo.Within(ctx, func(r repository.MessagingStore) *apperrors.Error {
+			if _, err := r.Thread(ctx, f.tenant, message.ThreadID, true); err != nil {
+				return err
+			}
+			current, err := r.Turn(ctx, f.tenant, turn.ID)
+			if err != nil {
+				return err
+			}
+			if interleave != nil {
+				if err := interleave(); err != nil {
+					return err
+				}
+			}
+			current.LastActivityAt = at
+			current.Version++
+			return r.SaveTurn(ctx, *current, false)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// The delivery consumer commits a confirmation (its own transaction, not blocked by the thread lock) after the
+	// writer read the turn and before it saves an older activity.
+	save(earlier, func() *apperrors.Error { return delivery.RecordSendActivity(ctx, f.tenant, message.ID, confirmed) })
+	if got := stored(); !got.Equal(confirmed) {
+		t.Fatalf("a stale turn write moved activity backwards: got %s, want %s", got, confirmed)
+	}
+	// A newer activity from the writer still applies.
+	save(later, nil)
+	if got := stored(); !got.Equal(later) {
+		t.Fatalf("a newer activity must be saved: got %s, want %s", got, later)
 	}
 }

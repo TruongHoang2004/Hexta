@@ -27,6 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/api ./cmd/main.go
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/platform-operator ./cmd/platform-operator
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/ingress ./cmd/ingress
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/messaging-command ./cmd/messaging-command
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/knowledge-resync ./cmd/knowledge-resync
 
 FROM alpine:latest
 
@@ -40,6 +41,8 @@ COPY --from=builder /app/bin/platform-operator .
 COPY --from=builder /app/bin/ingress .
 # Conversation write side; the public API forwards claim/assign/handoff/reply routes here. Run with ./messaging-command.
 COPY --from=builder /app/bin/messaging-command .
+# Operator CLI: enqueue all AI knowledge sources after an embedding model switch (README.deploy.md, AI section).
+COPY --from=builder /app/bin/knowledge-resync .
 COPY --from=builder /app/services/api/config ./config
 
 EXPOSE 8080

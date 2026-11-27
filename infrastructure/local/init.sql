@@ -5,6 +5,9 @@ DO $$ BEGIN
     END IF;
 END $$;
 CREATE SCHEMA IF NOT EXISTS ai_runtime AUTHORIZATION hexta_ai;
+-- pgvector for the AI knowledge store. It is not a trusted extension, so the superuser creates it here; the
+-- non-superuser AI migration then finds it (CREATE EXTENSION IF NOT EXISTS is a no-op).
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 
 -- Independent Atlas metadata for the AI owner, separate from API revisions.
 CREATE SCHEMA IF NOT EXISTS atlas_ai_revisions AUTHORIZATION hexta_ai;

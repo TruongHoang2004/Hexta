@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ExpiredConnectionBanner } from "@/modules/settings";
 import { secondaryClass } from "@/components/primitives";
 import { useWorkspace } from "@/components/layout/workspace-context";
 import { useT } from "@/lib/i18n/provider";
 import { useChannelConnections } from "../../hooks/use-channel-connections";
+import { useConversationStream } from "../../hooks/use-conversation-stream";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
+import { useWaitingCount } from "../../hooks/use-waiting-count";
 import { ConversationList } from "./conversation-list";
 import { InboundSimulator } from "./inbound-simulator";
 import { ThreadPanel } from "./thread-panel";
+import { WaitingStaffButton } from "./waiting-staff-button";
 
 /** The desk: conversation list, selected conversation and the inbound simulator. */
 export function InboxScreen() {
@@ -20,9 +23,14 @@ export function InboxScreen() {
   const [refresh, setRefresh] = useState(0);
   const [detailRefresh, setDetailRefresh] = useState(0);
   const [selected, setSelected] = useState("");
-  const list = useInboxConversations(tenantID, refresh);
+  // Pushed events reach the open conversation through `subscribe`; the list refreshes quietly from them.
+  const [liveList, setLiveList] = useState(0);
+  const onListChange = useCallback(() => setLiveList((v) => v + 1), []);
+  const { status: streamStatus, subscribe } = useConversationStream(tenantID, onListChange);
+  const list = useInboxConversations(tenantID, refresh, liveList);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
+  const waitingCount = useWaitingCount(tenantID, refresh);
   const reloadList = () => setRefresh((v) => v + 1);
   if (!tenant) return null;
   return (
@@ -32,9 +40,22 @@ export function InboxScreen() {
           <h1 className="text-2xl font-semibold">{t("desk.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
         </div>
-        <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
-          {t("desk.refresh")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="status" className="text-xs text-muted">
+            {streamStatus === "live" ? t("desk.liveOn") : t("desk.liveOff")}
+          </p>
+          <WaitingStaffButton
+            count={waitingCount}
+            active={list.filter === "waiting"}
+            onOpen={() => {
+              list.setFilter("waiting");
+              reloadList();
+            }}
+          />
+          <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
+            {t("desk.refresh")}
+          </button>
+        </div>
       </div>
       <p role="note" className="rounded-lg border border-border bg-surface p-3 text-sm text-muted">
         {t("desk.notice")}
@@ -46,6 +67,7 @@ export function InboxScreen() {
           owner={isOwner}
           members={members}
           list={list}
+          waitingCount={waitingCount}
           error={list.error || membersError}
           selected={selected}
           onSelect={setSelected}
@@ -59,6 +81,7 @@ export function InboxScreen() {
             members={members}
             connections={connections}
             externalRefresh={detailRefresh}
+            subscribe={subscribe}
             onChanged={reloadList}
           />
         ) : (

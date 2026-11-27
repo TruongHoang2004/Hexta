@@ -37,7 +37,10 @@ type Config struct {
 		} `yaml:"google" mapstructure:"google"`
 	} `yaml:"oauth" mapstructure:"oauth"`
 	AI struct {
-		ConsultURL    string  `yaml:"consult_url" mapstructure:"consult_url"`
+		ConsultURL string `yaml:"consult_url" mapstructure:"consult_url"`
+		// RunAddr is the internal AIService gRPC host:port used by the reply router; empty hands bot
+		// conversations that no script answers to staff.
+		RunAddr       string  `yaml:"run_addr" mapstructure:"run_addr"`
 		InternalToken string  `yaml:"internal_token" mapstructure:"internal_token"`
 		Provider      string  `yaml:"provider" mapstructure:"provider"`
 		ApiKey        string  `yaml:"api_key" mapstructure:"api_key"`

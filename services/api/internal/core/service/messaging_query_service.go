@@ -45,7 +45,7 @@ func messagingQuery(ctx context.Context, q types.MessagingQuery) *apperrors.Erro
 		}
 	}
 	switch q.Filter {
-	case "", "all", "mine", "unassigned", "needs_human", "bot":
+	case "", "all", "mine", "unassigned", "needs_human", "waiting", "bot":
 		return nil
 	}
 	return apperrors.ErrBadRequest(ctx).SetDetail("invalid conversation filter")
@@ -72,12 +72,57 @@ func (s *MessagingQueryService) Detail(ctx context.Context, tenant, actor, id st
 		if err != nil {
 			return err
 		}
-		turn, err := r.CurrentTurn(ctx, tenant, id)
+		turn, err := r.LatestTurn(ctx, tenant, id)
 		if err != nil {
 			return err
 		}
 		result.Conversation = types.MessagingConversation{Thread: *thread, Turn: turn}
 		result.Messages, result.NextCursor, err = r.Messages(ctx, tenant, id, input)
+		if err != nil || turn == nil {
+			return err
+		}
+		if result.Proposals, err = r.LiveProposals(ctx, tenant, turn.ID); err != nil {
+			return err
+		}
+		// Staleness is derived from current control: a proposal from another control generation cannot be sent.
+		for i := range result.Proposals {
+			result.Proposals[i].Stale = result.Proposals[i].Proposal.Stale(*turn)
+		}
+		return nil
+	})
+	return result, err
+}
+
+// Sessions lists a conversation's sessions (turns) newest first with their message count, first message and the
+// orders created from Desk during each one. Every active member may read them, like the conversation itself.
+func (s *MessagingQueryService) Sessions(ctx context.Context, tenant, actor, thread string, input types.MessagingQuery) (types.MessagingSessionPage, *apperrors.Error) {
+	var result types.MessagingSessionPage
+	input.Filter = ""
+	if err := messagingQuery(ctx, input); err != nil {
+		return result, err
+	}
+	if _, err := uuid.Parse(thread); err != nil {
+		return result, apperrors.ErrBadRequest(ctx).SetDetail("valid conversation ID required")
+	}
+	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingQueryStore) *apperrors.Error {
+		// Resolving the thread inside the tenant first keeps another tenant's conversation not found.
+		if _, err := r.Thread(ctx, tenant, thread, false); err != nil {
+			return err
+		}
+		var err *apperrors.Error
+		result, err = r.Sessions(ctx, tenant, thread, input)
+		return err
+	})
+	return result, err
+}
+
+// Summary returns the tenant-wide Desk notification state: conversations waiting for staff. Every member sees the
+// same queue; the count comes from the conversation read model.
+func (s *MessagingQueryService) Summary(ctx context.Context, tenant, actor string) (types.MessagingSummary, *apperrors.Error) {
+	var result types.MessagingSummary
+	err := s.authorized(ctx, tenant, actor, func(r repository.MessagingQueryStore) *apperrors.Error {
+		var err *apperrors.Error
+		result.WaitingStaff, err = r.WaitingStaffCount(ctx, tenant)
 		return err
 	})
 	return result, err

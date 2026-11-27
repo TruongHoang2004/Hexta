@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
+	"time"
 
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
@@ -32,6 +33,10 @@ type ISalesRepository interface {
 	SaveOrder(context.Context, *model.Order, int64, bool) *apperrors.Error
 	Audit(context.Context, string, string, string, string, string, any) *apperrors.Error
 	SaveOutboxEvent(context.Context, *model.DomainEvent) *apperrors.Error
+	// SessionTurnOpen share-locks a conversation session (turn) for linking a new draft order to it.
+	SessionTurnOpen(context.Context, string, string) (bool, *apperrors.Error)
+	// EnqueueKnowledgeSync records a changed AI knowledge source in the caller's transaction.
+	EnqueueKnowledgeSync(ctx context.Context, tenant, sourceType, sourceID string, at time.Time) *apperrors.Error
 }
 
 type SalesRepository struct{ db *gorm.DB }
@@ -226,6 +231,15 @@ func (r *SalesRepository) SaveOrder(ctx context.Context, row *model.Order, expec
 	}
 	if result.RowsAffected != 1 {
 		return apperrors.ErrConflict(ctx, "order", "changed; reload before saving")
+	}
+	// GORM stamps updated_at on the Model target, not on row: read back the persisted value so the caller's
+	// response, audit and events carry the timestamp that was actually stored.
+	var stamps []time.Time
+	if err := r.db.WithContext(ctx).Model(&model.Order{}).Where("tenant_id = ? AND id = ?", row.TenantID, row.ID).Pluck("updated_at", &stamps).Error; err != nil {
+		return salesDBError(ctx, err)
+	}
+	if len(stamps) == 1 {
+		row.UpdatedAt = stamps[0]
 	}
 	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND order_id = ?", row.TenantID, row.ID).Delete(&model.OrderItem{}).Error; err != nil {
 		return salesDBError(ctx, err)

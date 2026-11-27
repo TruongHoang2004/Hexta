@@ -21,7 +21,10 @@ type DeliveryStore interface {
 	SaveAttempt(context.Context, types.OutboundAttempt) *apperrors.Error
 	SaveIntent(context.Context, types.OutboundIntent) *apperrors.Error
 	SetMessageDelivery(context.Context, string, string, string, string) *apperrors.Error
+	ThreadOfMessage(context.Context, string, string) (string, *apperrors.Error)
 	MarkAuthExpired(context.Context, string, string, int64, string, time.Time) *apperrors.Error
+	// RecordSendActivity advances the open turn of a message to at, never backwards and never on a closed turn.
+	RecordSendActivity(context.Context, string, string, time.Time) *apperrors.Error
 	Quarantine(context.Context, string, string) error
 }
 
@@ -100,6 +103,16 @@ func (r *DeliveryRepository) SetMessageDelivery(ctx context.Context, tenant, id,
 	return nil
 }
 
+// ThreadOfMessage returns the thread holding a message, or "" when it is unknown.
+func (r *DeliveryRepository) ThreadOfMessage(ctx context.Context, tenant, id string) (string, *apperrors.Error) {
+	var thread string
+	err := r.db.WithContext(ctx).Model(&messagingmodel.Message{}).Where("tenant_id = ? AND id = ?", tenant, id).Select("thread_id").Limit(1).Scan(&thread).Error
+	if err != nil {
+		return "", salesDBError(ctx, err)
+	}
+	return thread, nil
+}
+
 // MarkAuthExpired moves only an active binding at or below the reported version; paused/disconnected/newer
 // (reconnected) bindings are left untouched.
 func (r *DeliveryRepository) MarkAuthExpired(ctx context.Context, tenant, id string, version int64, code string, now time.Time) *apperrors.Error {
@@ -116,6 +129,26 @@ func (r *DeliveryRepository) MarkAuthExpired(ctx context.Context, tenant, id str
 		return salesDBError(ctx, err)
 	}
 	return nil
+}
+
+// RecordSendActivity moves only last_activity_at (no turn version), so a confirmation never invalidates the sale's
+// next reply. The conversation event is written in the same transaction.
+func (r *DeliveryRepository) RecordSendActivity(ctx context.Context, tenant, message string, at time.Time) *apperrors.Error {
+	var threads []string
+	if err := r.db.WithContext(ctx).Raw(`
+UPDATE messaging_turns t SET last_activity_at = ?
+FROM messaging_messages m
+WHERE m.tenant_id = ? AND m.id = ? AND t.tenant_id = m.tenant_id AND t.id = m.turn_id
+  AND t.lifecycle = ? AND t.last_activity_at < ?
+RETURNING t.thread_id`, at, tenant, message, types.TurnOpen, at).Scan(&threads).Error; err != nil {
+		return salesDBError(ctx, err)
+	}
+	if len(threads) == 0 {
+		return nil
+	}
+	events := newTxMessagingRepository(r.db)
+	events.markConversation(tenant, threads[0])
+	return events.flushConversationEvents(ctx)
 }
 
 // Quarantine stores only a payload hash and safe reason, reusing the ingress quarantine ledger.

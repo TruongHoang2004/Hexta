@@ -1,46 +1,113 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useErrorText } from "@/lib/errors";
-import { messaging, type MessagingDetail } from "../services/messaging";
+import { messaging, type MessagingDetail, type MessagingMessage } from "../services/messaging";
+import type { StreamListener } from "./use-conversation-stream";
 import type { HandoffReason, ThreadCommand } from "../types";
+
+/** Adds a pushed message once; messages are newest first and the same id is never shown twice. */
+function appendMessage(current: MessagingDetail, message: MessagingMessage): MessagingDetail {
+  if (current.messages.some((row) => row.id === message.id)) return current;
+  return { ...current, messages: [message, ...current.messages] };
+}
+
+function byNewest(a: MessagingMessage, b: MessagingMessage) {
+  return b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+}
+
+/** Replaces the newest page with fresh data while keeping older pages the user already loaded. */
+function mergeNewest(current: MessagingDetail, fresh: MessagingDetail): MessagingDetail {
+  const older = current.messages.filter((row) => !fresh.messages.some((next) => next.id === row.id));
+  return {
+    ...fresh,
+    messages: [...fresh.messages, ...older].sort(byNewest),
+    next_cursor: older.length ? current.next_cursor : fresh.next_cursor,
+  };
+}
+
+/** At most this many history pages (50 messages each) are fetched for one session jump. */
+const maxJumpPages = 40;
 
 /**
  * Loads one conversation with its newest messages, pages older ones and runs turn commands
- * (claim, assign, handoff, return to bot). Reloads when `externalRefresh` changes.
+ * (claim, assign, handoff, return to bot). Reloads when `externalRefresh` changes. Through `subscribe` it also
+ * appends messages pushed for this thread the moment they arrive, patches delivery state, and quietly reloads the
+ * turn (its version feeds `expected_version`), keeping older pages already loaded.
  */
 export function useThread(args: {
   tenantID: string;
   threadID: string;
   externalRefresh: number;
+  subscribe: (listener: StreamListener) => () => void;
   onChanged: () => void;
 }) {
-  const { tenantID, threadID, externalRefresh, onChanged } = args;
+  const { tenantID, threadID, externalRefresh, subscribe, onChanged } = args;
   const errorText = useErrorText();
   const [detail, setDetail] = useState<MessagingDetail | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [live, setLive] = useState(0);
+  const seenLive = useRef(live);
+  // A background poll re-reads the conversation without the loading state, so history does not flicker.
+  const quiet = useRef(false);
   useEffect(() => {
+    // Pushed updates and background polls reload silently and keep older pages already loaded.
+    const silent = seenLive.current !== live || quiet.current;
+    seenLive.current = live;
+    quiet.current = false;
     const controller = new AbortController();
     async function load() {
-      setLoading(true);
-      setError("");
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
       try {
         const result = await messaging.detail(tenantID, threadID, "", controller.signal);
-        if (!controller.signal.aborted) setDetail(result);
+        if (!controller.signal.aborted) setDetail((current) => (silent && current ? mergeNewest(current, result) : result));
       } catch (err) {
-        if (!controller.signal.aborted) setError(errorText(err));
+        if (!controller.signal.aborted && !silent) setError(errorText(err));
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && !silent) setLoading(false);
       }
     }
     void load();
     return () => controller.abort();
-  }, [tenantID, threadID, refresh, externalRefresh, errorText]);
+  }, [tenantID, threadID, refresh, externalRefresh, live, errorText]);
 
   const reload = () => setRefresh((v) => v + 1);
+  const poll = () => {
+    quiet.current = true;
+    setRefresh((v) => v + 1);
+  };
+
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (event.type === "resync") return setLive((v) => v + 1);
+        if (event.type === "changed") return event.threadID === threadID ? setLive((v) => v + 1) : undefined;
+        if (event.type === "message" && event.threadID === threadID) {
+          setDetail((current) => (current ? appendMessage(current, event.message) : current));
+          setLive((v) => v + 1);
+        } else if (event.type === "delivery" && event.threadID === threadID) {
+          setDetail((current) =>
+            current
+              ? {
+                  ...current,
+                  messages: current.messages.map((row) =>
+                    row.id === event.messageID
+                      ? { ...row, delivery_status: event.status, delivery_error_reason: event.reason }
+                      : row,
+                  ),
+                }
+              : current,
+          );
+        }
+      }),
+    [subscribe, threadID],
+  );
 
   async function command(action: ThreadCommand, assignee: string | null, reason: HandoffReason) {
     const turn = detail?.conversation.turn;
@@ -85,5 +152,35 @@ export function useThread(args: {
     }
   }
 
-  return { detail, loading, busy, error, reload, command, loadOlder };
+  /**
+   * Pages older messages until `messageID` is loaded (or history ends), so the thread can jump to a session's
+   * first message. Bounded so a very long history cannot loop indefinitely. Returns whether it is loaded.
+   */
+  async function loadUntil(messageID: string) {
+    if (!detail || busy) return false;
+    if (detail.messages.some((row) => row.id === messageID)) return true;
+    setBusy(true);
+    setError("");
+    let messages = detail.messages;
+    let cursor = detail.next_cursor;
+    try {
+      for (let page = 0; cursor && page < maxJumpPages && !messages.some((row) => row.id === messageID); page++) {
+        const result = await messaging.detail(tenantID, threadID, cursor);
+        const known = new Set(messages.map((row) => row.id));
+        messages = [...messages, ...result.messages.filter((row) => !known.has(row.id))];
+        cursor = result.next_cursor;
+      }
+      const loaded = messages;
+      const next = cursor;
+      setDetail((current) => (current ? { ...current, messages: loaded, next_cursor: next } : current));
+      return messages.some((row) => row.id === messageID);
+    } catch (err) {
+      setError(errorText(err));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return { detail, loading, busy, error, reload, poll, command, loadOlder, loadUntil };
 }

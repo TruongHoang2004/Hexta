@@ -229,6 +229,9 @@ class ModelAdapter:
 
         if prov == "fake":
             return FakeStructuredChatModel()
+        if prov == "disabled":
+            # AI switched off: callers fall back to their static reply; no model is created.
+            raise RuntimeError("AI is disabled")
 
         if prov in {"openai", "chatgpt"}:
             api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY") or os.getenv("AI_API_KEY")

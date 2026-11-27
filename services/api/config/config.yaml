@@ -25,6 +25,7 @@ oauth:
 
 ai:
   consult_url: ${AI_CONSULT_URL}
+  run_addr: ${AI_RUN_ADDR}
   internal_token: ${AI_INTERNAL_TOKEN}
   provider: ${AI_PROVIDER}
   api_key: ${AI_API_KEY}

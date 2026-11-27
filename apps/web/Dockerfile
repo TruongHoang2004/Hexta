@@ -14,6 +14,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Google sign-in buttons stay hidden unless this is "true".
+ARG NEXT_PUBLIC_GOOGLE_LOGIN=
+ENV NEXT_PUBLIC_GOOGLE_LOGIN=$NEXT_PUBLIC_GOOGLE_LOGIN
 
 # Build workspace packages first, then the web app
 RUN pnpm --filter "./packages/*" --if-present run build

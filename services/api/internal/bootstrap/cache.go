@@ -10,5 +10,6 @@ func BuildCache() fx.Option {
 		cache.NewRedisClient,
 		cache.NewSessionCache,
 		cache.NewTenantCache,
+		cache.NewRealtimeBusFromRedis,
 	)
 }

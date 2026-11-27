@@ -150,6 +150,8 @@ CREATE TABLE "orders" (
   "version" bigint NOT NULL DEFAULT 1,
   "requires_delivery" boolean NOT NULL DEFAULT false,
   "delivery_address" text NOT NULL DEFAULT '',
+  -- Conversation session (messaging turn) the order was created from in Desk; NULL for orders made elsewhere.
+  "messaging_turn_id" uuid NULL,
   PRIMARY KEY ("id")
 );
 -- Create index "idx_orders_customer_id" to table: "orders"
@@ -166,6 +168,9 @@ CREATE INDEX "idx_orders_payment_status" ON "orders" ("payment_status");
 CREATE INDEX "idx_orders_source" ON "orders" ("source");
 -- Create index "idx_orders_status" to table: "orders"
 CREATE INDEX "idx_orders_status" ON "orders" ("status");
+-- Create index "idx_orders_tenant_created" to table: "orders"
+-- Owner overview period filter: tenant equality plus a created_at range (PRD MVP 6, FR-6.4).
+CREATE INDEX "idx_orders_tenant_created" ON "orders" ("tenant_id", "created_at");
 -- Create index "idx_orders_tenant_id" to table: "orders"
 CREATE INDEX "idx_orders_tenant_id" ON "orders" ("tenant_id");
 -- Create index "idx_orders_tenant_identity" to table: "orders"
@@ -223,6 +228,9 @@ CREATE INDEX "idx_order_items_order_id" ON "order_items" ("order_id");
 CREATE INDEX "idx_order_items_tenant_id" ON "order_items" ("tenant_id");
 -- Create index "idx_order_items_variant_id" to table: "order_items"
 CREATE INDEX "idx_order_items_variant_id" ON "order_items" ("variant_id");
+-- Create index "idx_order_items_case_reference" to table: "order_items"
+-- Lets exception case lines reference a line together with its original quantity.
+CREATE UNIQUE INDEX "idx_order_items_case_reference" ON "order_items" ("tenant_id", "order_id", "id", "quantity");
 -- Create "products" table
 CREATE TABLE "products" (
   "id" character varying(36) NOT NULL,
@@ -483,14 +491,40 @@ CREATE TABLE "messaging_turns" (
  "control_generation" bigint NOT NULL CHECK ("control_generation" > 0),
  "version" bigint NOT NULL CHECK ("version" > 0),
  "last_activity_at" timestamptz NOT NULL,
+ -- Handoff reason that raised needs_human; NULL when the flag was set without one (new turn, owner unassignment).
+-- bot_off: a customer wrote on a bot-handled turn after the owner turned the bot off.
+ "needs_human_reason" character varying(32) NULL CHECK ("needs_human_reason" IN ('customer_requested_staff', 'insufficient_information', 'ai_error', 'business_review', 'staff_handoff', 'bot_off')),
+ -- Set when the turn closes (24-hour inactivity expiry or manual close); a closed turn is never reopened.
+ "closed_at" timestamptz NULL,
+ -- A bot-handled turn whose live bot proposal waits for staff review (suggest safety): it counts as waiting for
+ -- staff and does not expire. Cleared when the proposal is sent, discarded or superseded, and on every control change.
+ "review_pending" boolean NOT NULL DEFAULT false,
+ -- Conversation sessions (a session is a turn): how it closed, who closed it manually, its outcome and note.
+ -- Turns closed before close_cause existed were all expired (20261126900100 backfill).
+ "close_cause" character varying(16) NULL CHECK ("close_cause" IN ('expired', 'closed_manually')),
+ "closed_by" character varying(255) NULL,
+ "outcome" character varying(32) NULL CHECK ("outcome" IN ('order_placed', 'consulted', 'price_inquiry', 'complaint', 'no_response', 'other')),
+ "note" text NULL CHECK (char_length("note") <= 1000),
+ -- Last staff member assigned to the turn; kept after return-to-bot/unassignment so a closed session has a handler.
+ "last_handler_id" character varying(255) NULL,
+ CONSTRAINT "messaging_turns_closed_at_check" CHECK (("lifecycle" = 'closed') = ("closed_at" IS NOT NULL)),
+ CONSTRAINT "messaging_turns_review_pending_check" CHECK (NOT "review_pending" OR ("lifecycle" = 'open' AND "control" = 'system' AND "assignee_id" IS NULL AND NOT "needs_human")),
+ CONSTRAINT "messaging_turns_close_lifecycle_check" CHECK (("lifecycle" = 'closed') = ("close_cause" IS NOT NULL)),
+ CONSTRAINT "messaging_turns_manual_close_check" CHECK ("close_cause" IS DISTINCT FROM 'closed_manually' OR ("closed_by" IS NOT NULL AND "outcome" IS NOT NULL)),
  UNIQUE ("tenant_id", "id"),
  UNIQUE ("tenant_id", "thread_id", "id"),
  FOREIGN KEY ("tenant_id", "thread_id") REFERENCES "messaging_threads" ("tenant_id", "id")
 );
 CREATE UNIQUE INDEX "idx_messaging_one_open_turn" ON "messaging_turns" ("tenant_id", "thread_id") WHERE "lifecycle" = 'open';
 CREATE INDEX "idx_messaging_turn_assignment" ON "messaging_turns" ("tenant_id", "assignee_id", "thread_id") WHERE "lifecycle" = 'open';
+-- Turn expiry scan: open turns that are not flagged for a person, oldest activity first. The scan also skips turns
+-- whose bot proposal waits for review (review_pending); the predicate still covers it.
+CREATE INDEX "idx_messaging_turn_expiry" ON "messaging_turns" ("last_activity_at") WHERE "lifecycle" = 'open' AND "needs_human" = false;
+-- Orders linked to a conversation session; the composite key keeps the link inside the tenant.
+ALTER TABLE "orders" ADD CONSTRAINT "orders_messaging_turn_fkey" FOREIGN KEY ("tenant_id", "messaging_turn_id") REFERENCES "messaging_turns" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+CREATE INDEX "idx_orders_messaging_turn" ON "orders" ("tenant_id", "messaging_turn_id") WHERE "messaging_turn_id" IS NOT NULL;
 -- Conversation read model (CQRS). Projected from messaging.conversation.changed events; never written by commands.
--- Only conversations with an open turn appear. Rebuildable from messaging_threads and messaging_turns.
+-- One row per thread with its latest turn (open, or the most recently closed). Rebuildable from messaging_threads and messaging_turns.
 CREATE TABLE "messaging_conversation_views" (
  "tenant_id" character varying(36) NOT NULL REFERENCES "tenants" ("id"),
  "thread_id" uuid NOT NULL,
@@ -509,10 +543,17 @@ CREATE TABLE "messaging_conversation_views" (
  "control_generation" bigint NOT NULL,
  "turn_version" bigint NOT NULL,
  "last_activity_at" timestamptz NOT NULL,
+ "needs_human_reason" character varying(32) NULL,
+ "review_pending" boolean NOT NULL DEFAULT false,
+ "closed_at" timestamptz NULL,
+ "close_cause" character varying(16) NULL,
+ "outcome" character varying(32) NULL,
  PRIMARY KEY ("tenant_id", "thread_id")
 );
 CREATE INDEX "idx_messaging_conversation_views_list" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC);
 CREATE INDEX "idx_messaging_conversation_views_assignee" ON "messaging_conversation_views" ("tenant_id", "assignee_id", "thread_id" DESC);
+-- Desk waiting-for-staff count and filter: unassigned staff-control turns plus bot turns whose proposal waits for review.
+CREATE INDEX "idx_messaging_conversation_views_waiting" ON "messaging_conversation_views" ("tenant_id", "thread_id" DESC) WHERE "lifecycle" = 'open' AND "assignee_id" IS NULL AND ("control" = 'sales' OR "review_pending");
 CREATE TABLE "messaging_messages" (
  "id" uuid NOT NULL PRIMARY KEY,
  "tenant_id" character varying(36) NOT NULL,
@@ -536,6 +577,8 @@ CREATE TABLE "messaging_messages" (
  FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id")
 );
 CREATE INDEX "idx_messaging_messages_history" ON "messaging_messages" ("tenant_id", "thread_id", "id" DESC);
+-- Session list: message count and first message of each turn.
+CREATE INDEX "idx_messaging_messages_turn" ON "messaging_messages" ("tenant_id", "turn_id", "id");
 
 -- API-owned authority mirror: provisioned by trusted API operator tooling only.
 -- One Page belongs to at most one tenant while not disconnected; disconnected rows are retained for history/FKs.
@@ -645,7 +688,252 @@ CREATE TABLE "domain_events" (
   "created_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
   "published_at" timestamptz NULL,
   PRIMARY KEY ("id"),
-  CONSTRAINT "chk_domain_events_state" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'published'::character varying, 'failed'::character varying])::text[]))
+  CONSTRAINT "chk_domain_events_state" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'published'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[]))
 );
 -- Create index "idx_domain_events_pending" to table: "domain_events"
 CREATE INDEX "idx_domain_events_pending" ON "domain_events" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));
+-- Bot reply scripts (MVP 5). A script has at most one active version pointer; versions are never deleted so
+-- proposals can keep their source version. A version's content is frozen from its first activation (published_at).
+CREATE TABLE "scripts" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "name" character varying(120) NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "active_version_id" character varying(36) NULL,
+  "version" bigint NOT NULL,
+  "create_hash" character varying(64) NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  "archived_at" timestamptz NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "scripts_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "scripts_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "scripts_status_check" CHECK ((status)::text = ANY ((ARRAY['inactive'::character varying, 'active'::character varying, 'archived'::character varying])::text[])),
+  CONSTRAINT "scripts_active_pointer_check" CHECK (((status)::text = 'active'::text) = (active_version_id IS NOT NULL)),
+  CONSTRAINT "scripts_archived_check" CHECK (((status)::text = 'archived'::text) = (archived_at IS NOT NULL)),
+  CONSTRAINT "scripts_version_check" CHECK (version > 0)
+);
+-- Create index "idx_scripts_tenant_updated" to table: "scripts"
+CREATE INDEX "idx_scripts_tenant_updated" ON "scripts" ("tenant_id", "updated_at" DESC, "id");
+-- Create "script_versions" table
+CREATE TABLE "script_versions" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "script_id" character varying(36) NOT NULL,
+  "number" bigint NOT NULL,
+  "triggers" jsonb NOT NULL,
+  "answer" text NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  "published_at" timestamptz NULL,
+  "published_by" character varying(255) NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "script_versions_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "script_versions_tenant_id_script_id_id_key" UNIQUE ("tenant_id", "script_id", "id"),
+  CONSTRAINT "idx_script_version_number" UNIQUE ("tenant_id", "script_id", "number"),
+  CONSTRAINT "script_versions_tenant_id_script_id_fkey" FOREIGN KEY ("tenant_id", "script_id") REFERENCES "scripts" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "script_versions_number_check" CHECK (number > 0),
+  CONSTRAINT "script_versions_triggers_check" CHECK (jsonb_typeof(triggers) = 'array'::text),
+  CONSTRAINT "script_versions_answer_check" CHECK ((char_length(answer) >= 1) AND (char_length(answer) <= 2000)),
+  CONSTRAINT "script_versions_published_check" CHECK ((published_at IS NULL) = (published_by IS NULL))
+);
+-- At most one unpublished draft per script.
+CREATE UNIQUE INDEX "idx_script_versions_one_draft" ON "script_versions" ("tenant_id", "script_id") WHERE (published_at IS NULL);
+-- The active pointer must name a version of the same script in the same tenant.
+ALTER TABLE "scripts" ADD CONSTRAINT "scripts_active_version_fkey" FOREIGN KEY ("tenant_id", "id", "active_version_id") REFERENCES "script_versions" ("tenant_id", "script_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+-- Per-member delegated script permissions; the tenant owner implicitly holds all four and has no row. Removing a
+-- membership removes its grants.
+CREATE TABLE "script_member_permissions" (
+  "tenant_id" character varying(36) NOT NULL,
+  "user_id" character varying(255) NOT NULL,
+  "can_create" boolean NOT NULL DEFAULT false,
+  "can_edit" boolean NOT NULL DEFAULT false,
+  "can_activate" boolean NOT NULL DEFAULT false,
+  "can_archive" boolean NOT NULL DEFAULT false,
+  "version" bigint NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY ("tenant_id", "user_id"),
+  CONSTRAINT "script_member_permissions_member_fkey" FOREIGN KEY ("tenant_id", "user_id") REFERENCES "tenant_members" ("tenant_id", "user_id") ON UPDATE NO ACTION ON DELETE CASCADE,
+  CONSTRAINT "script_member_permissions_version_check" CHECK (version > 0)
+);
+-- Order exception cases (MVP 6). At most one case per order; the original order and its lines are never modified.
+-- No refund, payment or stock movement is attached to a case.
+CREATE TABLE "order_cases" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "order_id" character varying(36) NOT NULL,
+  "case_type" character varying(16) NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "handler_id" character varying(255) NOT NULL,
+  "opened_by" character varying(255) NOT NULL,
+  "progress_note" text NOT NULL DEFAULT '',
+  "finalized_by" character varying(255) NULL,
+  "finalized_at" timestamptz NULL,
+  "version" bigint NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  "updated_at" timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY ("id"),
+  CONSTRAINT "order_cases_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "order_cases_tenant_id_id_order_id_key" UNIQUE ("tenant_id", "id", "order_id"),
+  CONSTRAINT "order_cases_tenant_id_order_id_key" UNIQUE ("tenant_id", "order_id"),
+  CONSTRAINT "order_cases_tenant_id_order_id_fkey" FOREIGN KEY ("tenant_id", "order_id") REFERENCES "orders" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "order_cases_case_type_check" CHECK ((case_type)::text = ANY ((ARRAY['cancellation'::character varying, 'return'::character varying])::text[])),
+  CONSTRAINT "order_cases_status_check" CHECK ((status)::text = ANY ((ARRAY['open'::character varying, 'sent_back'::character varying, 'finalized'::character varying])::text[])),
+  CONSTRAINT "order_cases_finalized_check" CHECK (((status)::text = 'finalized'::text) = ((finalized_by IS NOT NULL) AND (finalized_at IS NOT NULL))),
+  CONSTRAINT "order_cases_version_check" CHECK (version > 0)
+);
+-- Current return lines of a case. The composite foreign key pins each line to a line of the same order and its
+-- original quantity, so the check below bounds the returned quantity in the database as well as in the service.
+CREATE TABLE "order_case_lines" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "case_id" character varying(36) NOT NULL,
+  "order_id" character varying(36) NOT NULL,
+  "order_item_id" character varying(36) NOT NULL,
+  "original_quantity" bigint NOT NULL,
+  "quantity" bigint NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY ("id"),
+  CONSTRAINT "order_case_lines_case_id_order_item_id_key" UNIQUE ("case_id", "order_item_id"),
+  CONSTRAINT "order_case_lines_case_fkey" FOREIGN KEY ("tenant_id", "case_id", "order_id") REFERENCES "order_cases" ("tenant_id", "id", "order_id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "order_case_lines_item_fkey" FOREIGN KEY ("tenant_id", "order_id", "order_item_id", "original_quantity") REFERENCES "order_items" ("tenant_id", "order_id", "id", "quantity") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "order_case_lines_quantity_check" CHECK ((quantity > 0) AND (quantity <= original_quantity))
+);
+-- Append-only case history: one row per case version. The application only inserts rows.
+CREATE TABLE "order_case_events" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "case_id" character varying(36) NOT NULL,
+  "version" bigint NOT NULL,
+  "actor_id" character varying(255) NOT NULL,
+  "action" character varying(16) NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "note" text NOT NULL DEFAULT '',
+  "lines" jsonb NOT NULL DEFAULT '[]',
+  "created_at" timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY ("id"),
+  CONSTRAINT "order_case_events_case_id_version_key" UNIQUE ("case_id", "version"),
+  CONSTRAINT "order_case_events_case_fkey" FOREIGN KEY ("tenant_id", "case_id") REFERENCES "order_cases" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "order_case_events_action_check" CHECK ((action)::text = ANY ((ARRAY['opened'::character varying, 'updated'::character varying, 'sent_back'::character varying, 'finalized'::character varying])::text[])),
+  CONSTRAINT "order_case_events_status_check" CHECK ((status)::text = ANY ((ARRAY['open'::character varying, 'sent_back'::character varying, 'finalized'::character varying])::text[])),
+  CONSTRAINT "order_case_events_version_check" CHECK (version > 0)
+);
+-- Bot reply mode per tenant (MVP 5 FR-5.1), changed by the tenant owner only. No row means the owner has not yet
+-- chosen a mode: it reads as 'off'. With 'off' new conversation turns wait for staff and the bot never runs; with
+-- 'suggest' or 'auto_send' new turns start under bot handling.
+CREATE TABLE "tenant_reply_settings" (
+  "tenant_id" character varying(36) NOT NULL,
+  "reply_mode" character varying(16) NOT NULL,
+  "version" bigint NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("tenant_id"),
+  CONSTRAINT "tenant_reply_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "tenant_reply_settings_mode_check" CHECK ((reply_mode)::text = ANY ((ARRAY['off'::character varying, 'suggest'::character varying, 'auto_send'::character varying])::text[])),
+  CONSTRAINT "tenant_reply_settings_version_check" CHECK (version > 0)
+);
+-- Bot reply proposals (MVP 5 FR-5.2/FR-5.3). A row starts as a durable routing job for one customer message and
+-- becomes a proposal tied to its turn, control generation and source (immutable script version or AI run). A
+-- proposal whose control generation no longer matches its turn is stale and can never be sent.
+CREATE TABLE "messaging_reply_proposals" (
+  "id" uuid NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "thread_id" uuid NOT NULL,
+  "turn_id" uuid NOT NULL,
+  "trigger_message_id" uuid NOT NULL,
+  "control_generation" bigint NOT NULL,
+  "context_revision" bigint NOT NULL,
+  "status" character varying(16) NOT NULL,
+  "route" character varying(16) NULL,
+  "source" character varying(16) NULL,
+  "script_version_id" character varying(36) NULL,
+  "ai_run_id" character varying(100) NULL,
+  "text" text NULL,
+  "reason" character varying(64) NULL,
+  -- Set when a person asked for this proposal (regenerate); such a proposal is never sent automatically.
+  "requested_by" character varying(255) NULL,
+  "decided_by" character varying(255) NULL,
+  "sent_message_id" uuid NULL,
+  "attempts" integer NOT NULL DEFAULT 0,
+  "available_at" timestamptz NOT NULL,
+  -- Knowledge sources an AI answer cites (product:<id>, document:<id>, script:<id>, fact:<id>), for staff review.
+  "cited_source_ids" jsonb NOT NULL DEFAULT '[]',
+  "version" bigint NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "messaging_reply_proposals_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "messaging_reply_proposals_turn_fkey" FOREIGN KEY ("tenant_id", "thread_id", "turn_id") REFERENCES "messaging_turns" ("tenant_id", "thread_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_trigger_fkey" FOREIGN KEY ("tenant_id", "trigger_message_id") REFERENCES "messaging_messages" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_sent_fkey" FOREIGN KEY ("tenant_id", "sent_message_id") REFERENCES "messaging_messages" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_script_fkey" FOREIGN KEY ("tenant_id", "script_version_id") REFERENCES "script_versions" ("tenant_id", "id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "messaging_reply_proposals_status_check" CHECK ((status)::text = ANY ((ARRAY['routing'::character varying, 'pending'::character varying, 'sent'::character varying, 'auto_sent'::character varying, 'discarded'::character varying, 'superseded'::character varying, 'handed_off'::character varying, 'no_candidate'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_route_check" CHECK ((route)::text = ANY ((ARRAY['script'::character varying, 'answer'::character varying, 'clarify'::character varying, 'handoff'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_source_check" CHECK ((source)::text = ANY ((ARRAY['script'::character varying, 'ai'::character varying])::text[])),
+  CONSTRAINT "messaging_reply_proposals_script_source_check" CHECK (((source)::text = 'script'::text) = (script_version_id IS NOT NULL)),
+  CONSTRAINT "messaging_reply_proposals_candidate_check" CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'sent'::character varying, 'auto_sent'::character varying, 'discarded'::character varying])::text[])) <= ((source IS NOT NULL) AND (text IS NOT NULL))),
+  CONSTRAINT "messaging_reply_proposals_sent_check" CHECK (((status)::text = ANY ((ARRAY['sent'::character varying, 'auto_sent'::character varying])::text[])) = (sent_message_id IS NOT NULL)),
+  CONSTRAINT "messaging_reply_proposals_text_check" CHECK ((char_length(text) >= 1) AND (char_length(text) <= 2000)),
+  CONSTRAINT "messaging_reply_proposals_generation_check" CHECK (control_generation > 0),
+  CONSTRAINT "messaging_reply_proposals_revision_check" CHECK (context_revision > 0),
+  CONSTRAINT "messaging_reply_proposals_version_check" CHECK (version > 0),
+  CONSTRAINT "messaging_reply_proposals_citations_check" CHECK ((jsonb_typeof(cited_source_ids) = 'array'::text) AND (jsonb_array_length(cited_source_ids) <= 20))
+);
+-- Router work queue: routing jobs that are due, oldest first.
+CREATE INDEX "idx_messaging_reply_proposals_routing" ON "messaging_reply_proposals" ("available_at") WHERE ((status)::text = 'routing'::text);
+-- Proposals of one turn, newest first.
+CREATE INDEX "idx_messaging_reply_proposals_turn" ON "messaging_reply_proposals" ("tenant_id", "turn_id", "id" DESC);
+-- At most one live (routing or pending) proposal per turn; a newer customer message supersedes the older one.
+CREATE UNIQUE INDEX "idx_messaging_reply_proposals_one_live" ON "messaging_reply_proposals" ("tenant_id", "turn_id") WHERE ((status)::text = ANY ((ARRAY['routing'::character varying, 'pending'::character varying])::text[]));
+-- Owner-managed business knowledge documents (FAQ, policies) the bot may answer from. Every member reads them; only
+-- the tenant owner changes them. A deleted document stays as a tombstone (deleted_at) with a newer version, so the
+-- AI knowledge removal carries a revision newer than every earlier upsert.
+CREATE TABLE "knowledge_documents" (
+  "id" character varying(36) NOT NULL,
+  "tenant_id" character varying(36) NOT NULL,
+  "title" character varying(200) NOT NULL,
+  "body" text NOT NULL,
+  "version" bigint NOT NULL,
+  "created_by" character varying(255) NOT NULL,
+  "updated_by" character varying(255) NOT NULL,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  "deleted_at" timestamptz NULL,
+  PRIMARY KEY ("id"),
+  CONSTRAINT "knowledge_documents_tenant_id_id_key" UNIQUE ("tenant_id", "id"),
+  CONSTRAINT "knowledge_documents_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "knowledge_documents_title_check" CHECK ((char_length((title)::text) >= 1) AND (char_length((title)::text) <= 200)),
+  CONSTRAINT "knowledge_documents_body_check" CHECK ((char_length(body) >= 1) AND (char_length(body) <= 20000)),
+  CONSTRAINT "knowledge_documents_version_check" CHECK (version > 0)
+);
+-- Live documents of a tenant, newest change first.
+CREATE INDEX "idx_knowledge_documents_tenant_updated" ON "knowledge_documents" ("tenant_id", "updated_at" DESC, "id") WHERE (deleted_at IS NULL);
+-- Durable AI knowledge sync queue (transactional outbox): one row per knowledge source, written in the same
+-- transaction as the product, script or document change. The sync job reads the source's current state after
+-- commit and pushes it to the AI service; fence advances on every enqueue and lease so a stale attempt cannot
+-- finish a newer change. revision is the last revision the AI service accepted.
+CREATE TABLE "knowledge_sync_jobs" (
+  "tenant_id" character varying(36) NOT NULL,
+  "source_type" character varying(16) NOT NULL,
+  "source_id" character varying(36) NOT NULL,
+  "state" character varying(16) NOT NULL,
+  "attempts" integer NOT NULL DEFAULT 0,
+  "fence" bigint NOT NULL,
+  "available_at" timestamptz NOT NULL,
+  "last_error" character varying(64) NULL,
+  "revision" bigint NULL,
+  "updated_at" timestamptz NOT NULL,
+  PRIMARY KEY ("tenant_id", "source_type", "source_id"),
+  CONSTRAINT "knowledge_sync_jobs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT "knowledge_sync_jobs_source_type_check" CHECK ((source_type)::text = ANY ((ARRAY['product'::character varying, 'document'::character varying, 'script'::character varying])::text[])),
+  CONSTRAINT "knowledge_sync_jobs_state_check" CHECK ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying, 'done'::character varying, 'failed'::character varying])::text[])),
+  CONSTRAINT "knowledge_sync_jobs_attempts_check" CHECK (attempts >= 0),
+  CONSTRAINT "knowledge_sync_jobs_fence_check" CHECK (fence > 0)
+);
+-- Sync work queue: due jobs, oldest first.
+CREATE INDEX "idx_knowledge_sync_jobs_due" ON "knowledge_sync_jobs" ("available_at") WHERE ((state)::text = ANY ((ARRAY['pending'::character varying, 'leased'::character varying])::text[]));

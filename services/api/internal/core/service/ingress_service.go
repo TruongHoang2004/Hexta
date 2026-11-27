@@ -8,16 +8,29 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
+	"time"
 )
 
-type IngressService struct{ store repository.IngressStore }
+type IngressService struct {
+	store     repository.IngressStore
+	publisher RealtimePublisher
+}
 
-func NewIngressService(store repository.IngressStore) *IngressService { return &IngressService{store} }
+func NewIngressService(store repository.IngressStore) *IngressService {
+	return &IngressService{store: store}
+}
+
+// WithPublisher pushes each newly stored customer message to connected clients after its transaction commits.
+func (s *IngressService) WithPublisher(publisher RealtimePublisher) *IngressService {
+	s.publisher = publisher
+	return s
+}
 func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceived) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrForbidden(ctx).SetDetail("invalid ingress")
 	}
-	return s.store.Apply(ctx, e, func(tx repository.MessagingStore, b repository.IngressBinding, duplicate bool) *apperrors.Error {
+	var stored *types.MessagingMessage
+	err := s.store.Apply(ctx, e, func(tx repository.MessagingStore, b repository.IngressBinding, duplicate bool) *apperrors.Error {
 		// Disabled/version-stale events are durably ignored, never reassigned to another tenant.
 		if duplicate || !b.Enabled || !b.Active || b.Version != e.ConnectionVersion || b.Platform != e.Platform || b.AccountID != e.AccountID {
 			return nil
@@ -46,16 +59,29 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 				return err
 			}
 		}
-		turn, err := tx.CurrentTurn(ctx, e.TenantID, thread.ID)
+		turn, err := tx.LatestTurn(ctx, e.TenantID, thread.ID)
 		if err != nil {
 			return err
 		}
-		if turn == nil {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+		// Placement uses the source event time: a delayed or replayed message older than the closed turn's
+		// activity is kept as history on that turn and neither reopens it nor manufactures a new one.
+		placement := types.InboundPlacement(turn, e.SourceAt, time.Now().UTC())
+		switch placement {
+		case types.InboundNewTurn:
+			settings, err := tx.ReplySettings(ctx, e.TenantID, false)
+			if err != nil {
+				return err
+			}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: types.TurnOpen, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+			newTurnHandling(turn, settings)
 			if err = tx.SaveTurn(ctx, *turn, true); err != nil {
 				return err
 			}
-		} else {
+		case types.InboundHistory:
+		default:
+			if err = botIntake(ctx, tx, turn, time.Now().UTC()); err != nil {
+				return err
+			}
 			turn.Version++
 			turn.ContextRevision++
 			if e.SourceAt.After(turn.LastActivityAt) {
@@ -70,9 +96,21 @@ func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceive
 		if err = tx.InsertMessage(ctx, message); err != nil {
 			return err
 		}
+		stored = &message
+		// A live customer message on a bot-handled turn is routed after commit; history never is.
+		if placement != types.InboundHistory {
+			if _, err = enqueueBotRouting(ctx, tx, *turn, message, "", time.Now().UTC()); err != nil {
+				return err
+			}
+		}
 		if e.OccurredAt.After(thread.UpdatedAt) {
 			thread.UpdatedAt = e.OccurredAt
 		}
 		return tx.SaveThread(ctx, *thread)
 	})
+	if err == nil && stored != nil && s.publisher != nil {
+		// Best effort after commit: clients repair any gap by refetching on reconnect.
+		_ = s.publisher.Publish(ctx, stored.TenantID, types.RealtimeHint{ThreadID: stored.ThreadID, Reason: types.RealtimeMessageCreated, Message: stored})
+	}
+	return err
 }
