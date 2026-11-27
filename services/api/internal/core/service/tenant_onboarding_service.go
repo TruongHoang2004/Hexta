@@ -58,7 +58,9 @@ func (s *TenantOnboardingService) Apply(ctx context.Context, actor, name, slug s
 	if len(name) < 2 || len(name) > 100 || len(slug) < 2 || len(slug) > 100 || !tenantSlugPattern.MatchString(slug) {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("name and slug must be 2-100 characters; slug uses lowercase letters, digits and single hyphens")
 	}
-	row := &model.TenantRegistration{ID: uuid.NewString(), ApplicantID: actor, Name: name, Slug: slug, Status: "pending"}
+	// Applications are auto-approved: the tenant is provisioned immediately with the applicant as owner.
+	now := s.now().UTC()
+	row := &model.TenantRegistration{ID: uuid.NewString(), ApplicantID: actor, Name: name, Slug: slug, Status: "approved", ReviewReason: "auto-approved", ReviewedBy: actor, ReviewedAt: &now}
 	err := s.repo.Transaction(ctx, func(r *repository.TenantOnboardingRepository) *apperrors.Error {
 		taken, err := r.SlugTaken(ctx, slug)
 		if err != nil {
@@ -66,6 +68,14 @@ func (s *TenantOnboardingService) Apply(ctx context.Context, actor, name, slug s
 		}
 		if taken {
 			return apperrors.ErrConflict(ctx, "tenant slug", "already exists")
+		}
+		tenant := &model.Tenant{ID: uuid.NewString(), Name: name, Slug: slug, Plan: model.PlanFree, Status: model.TenantStatusActive, OwnerID: actor}
+		if err := r.Provision(ctx, tenant); err != nil {
+			return err
+		}
+		row.TenantID = &tenant.ID
+		if err := r.Audit(ctx, tenant.ID, actor, "tenant.created", tenant.ID, tenant); err != nil {
+			return err
 		}
 		return r.SaveRequest(ctx, row, true)
 	})
