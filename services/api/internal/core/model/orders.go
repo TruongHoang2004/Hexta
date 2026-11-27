@@ -52,11 +52,13 @@ type Order struct {
 	TotalAmount      decimal.Decimal `gorm:"column:total_amount;type:numeric(15,2);not null;default:0" json:"total_amount"`
 	Source           OrderSource     `gorm:"column:source;type:varchar(32);not null;default:'web_form';index" json:"source"`
 	DraftID          *string         `gorm:"column:draft_id;type:varchar(36);index" json:"draft_id,omitempty"`
-	Notes            string          `gorm:"column:notes;type:text" json:"notes,omitempty"`
-	CreatedAt        time.Time       `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt        time.Time       `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
-	DeletedAt        gorm.DeletedAt  `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
-	Items            []OrderItem     `gorm:"foreignKey:OrderID;references:ID" json:"items"`
+	// MessagingTurnID is the conversation session the draft was created from in Desk; set once at creation.
+	MessagingTurnID *string        `gorm:"column:messaging_turn_id;type:uuid" json:"messaging_turn_id,omitempty"`
+	Notes           string         `gorm:"column:notes;type:text" json:"notes,omitempty"`
+	CreatedAt       time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"column:deleted_at;index" json:"deleted_at,omitempty"`
+	Items           []OrderItem    `gorm:"foreignKey:OrderID;references:ID" json:"items"`
 }
 
 func (Order) TableName() string {

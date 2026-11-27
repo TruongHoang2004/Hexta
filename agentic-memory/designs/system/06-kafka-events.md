@@ -1,5 +1,20 @@
 # Kafka event backbone
 
+## Event contracts in code — 2026-11-22 (owner decision, IMPLEMENTED in PR #93)
+
+Owner decisions: keep the existing topics and their wire formats; each topic carries exactly one event type; the work is naming and organizing the schemas in code. Contracts live in `packages/shared/events`, one Go file (plus test) per event in its domain package; `events/catalog` lists each event with its topic. Messages are text-only for now, so there is a single message event. A first revision of PR #93 renamed every topic; the owner rejected that and it was reverted.
+
+| Topic (unchanged) | Event (file) | Wire | Producer → consumer | Key |
+| --- | --- | --- | --- | --- |
+| `hexta.ingress.received.v1` | `messaging.MessageReceived` (`messaging/message_received.go`) | flat + `Meta` | connector → API ingress | hash(tenant, connection, conversation) |
+| `hexta.messaging.conversations.v1` | `messaging.ConversationChanged` | `events.Envelope` (`messaging.conversation.changed`) | API outbox → conversation read model | thread (aggregate) |
+| `hexta.outbound.intent.v1` | `delivery.SendRequested` | flat + `Meta` | API outbox → connector | connection:recipient |
+| `hexta.outbound.result.v1` | `delivery.SendCompleted` | flat + `Meta` | connector outbox → API delivery | intent |
+| `hexta.connector.health.v1` | `connection.HealthChanged` | flat + `Meta` | connector outbox → API channels | connection |
+| `hexta.orders.events.v1` | `order.OrderConfirmed` | `events.Envelope` (`order.confirmed`) | API outbox → (none yet) | order (aggregate) |
+
+The API outbox relay resolves a row's event type through the catalog and publishes to that event's topic (enveloped or raw) through one multi-topic writer. Payload changes on the four flat topics: `events.Meta` (`event_id`, `correlation_id`, `tenant_id`, `occurred_at`) replaces `schema_version`/`issued_at`/`received_timestamp`; `MessageReceived` drops `event_type`/`attachments` for text plus optional `unsupported_media_kinds` (`direction=outbound` marks echoes). The envelope topics keep their exact main wire format.
+
 ## Connector direction update — 2026-11-03
 
 DECIDED: direct Facebook replaces Pancake; a separate machine-facing connector receives webhooks or fetches platform messages and normalizes them into Kafka, with abstraction before plugins. The owner REJECTED the first connector design. The [Omni Bridge-based redesign](../2026-11-03_connector-omni-bridge_design.md) is a discussion proposal, not approved implementation authority. Its base/plugin interfaces and direct Kafka ACK delivery choice require review; the rejected receipt/outbox architecture is not mandatory. Earlier Pancake diagrams are historical targets, not the selected integration. API retains business authority. No connector runtime is implemented or verified.

@@ -6,7 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/service"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -45,7 +47,7 @@ func enqueueOutcome(ctx context.Context, tx pgx.Tx, o service.AttemptOutcome, no
 	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO connector.outbound_events(id,topic,event_key,payload,state,available_at) VALUES($1,$2,$3,$4,'pending',$5)`, uuid.NewString(), outbound.ResultTopic, o.Result.IntentID, payload, now); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO connector.outbound_events(id,topic,event_key,payload,state,available_at) VALUES($1,$2,$3,$4,'pending',$5)`, uuid.NewString(), delivery.SendCompletedTopic, o.Result.IntentID, payload, now); err != nil {
 		return err
 	}
 	if o.Health == nil {
@@ -55,13 +57,13 @@ func enqueueOutcome(ctx context.Context, tx pgx.Tx, o service.AttemptOutcome, no
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO connector.outbound_events(id,topic,event_key,payload,state,available_at) VALUES($1,$2,$3,$4,'pending',$5)`, uuid.NewString(), outbound.HealthTopic, o.Health.ConnectionID, payload, now)
+	_, err = tx.Exec(ctx, `INSERT INTO connector.outbound_events(id,topic,event_key,payload,state,available_at) VALUES($1,$2,$3,$4,'pending',$5)`, uuid.NewString(), connection.HealthChangedTopic, o.Health.ConnectionID, payload, now)
 	return err
 }
 
 // BeginAttempt claims the attempt before any provider call. A redelivered attempt still marked dispatching may
 // already have reached the provider, so it becomes unknown and is never sent again.
-func (s *Store) BeginAttempt(ctx context.Context, intent outbound.IntentEvent, now time.Time, reject func(service.Connection, *service.Sealed) *service.AttemptOutcome) (*service.Dispatch, error) {
+func (s *Store) BeginAttempt(ctx context.Context, intent delivery.SendRequested, now time.Time, reject func(service.Connection, *service.Sealed) *service.AttemptOutcome) (*service.Dispatch, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -72,12 +74,12 @@ func (s *Store) BeginAttempt(ctx context.Context, intent outbound.IntentEvent, n
 		return nil, err
 	}
 	if tag.RowsAffected() == 0 {
-		tag, err = tx.Exec(ctx, `UPDATE connector.outbound_attempts SET status='unknown',error_category=$2,error_code='interrupted' WHERE attempt_id=$1 AND status='dispatching'`, intent.AttemptID, outbound.ErrorTransport)
+		tag, err = tx.Exec(ctx, `UPDATE connector.outbound_attempts SET status='unknown',error_category=$2,error_code='interrupted' WHERE attempt_id=$1 AND status='dispatching'`, intent.AttemptID, delivery.ErrorTransport)
 		if err != nil {
 			return nil, err
 		}
 		if tag.RowsAffected() == 1 {
-			o := service.AttemptOutcome{Result: outbound.ResultEvent{SchemaVersion: 1, IntentID: intent.IntentID, AttemptID: intent.AttemptID, TenantID: intent.TenantID, ConnectionID: intent.ConnectionID, Status: outbound.StatusUnknown, ErrorCategory: outbound.ErrorTransport, ErrorCode: "interrupted", OccurredAt: now}}
+			o := service.AttemptOutcome{Result: delivery.SendCompleted{Meta: events.NewMeta(intent.TenantID, intent.CorrelationID, now), IntentID: intent.IntentID, AttemptID: intent.AttemptID, ConnectionID: intent.ConnectionID, Status: delivery.StatusUnknown, ErrorCategory: delivery.ErrorTransport, ErrorCode: "interrupted"}}
 			if err = enqueueOutcome(ctx, tx, o, now); err != nil {
 				return nil, err
 			}

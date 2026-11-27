@@ -46,7 +46,7 @@ make migrate-apply-local svc=api
 
 The new connector target is explicit/host-operated until Compose role initialization and private connector URL wiring are implemented. Existing `all` apply/status continues to select API/AI; `all` hash/validate includes connector.
 
-Create topics `hexta.ingress.received.v1`, `hexta.outbound.intent.v1`, `hexta.outbound.result.v1` and `hexta.connector.health.v1` using your broker's admin tooling; producer auto-creation is disabled. Configure retention, access controls, partition count and replication for the environment. Connector writes with `acks=all`; it does not claim producer-idempotence or cross-system exactly-once.
+Create topics `hexta.ingress.received.v1`, `hexta.outbound.intent.v1`, `hexta.outbound.result.v1` and `hexta.connector.health.v1` (contracts: `packages/shared/events`) using your broker's admin tooling; producer auto-creation is disabled. Configure retention, access controls, partition count and replication for the environment. Connector writes with `acks=all`; it does not claim producer-idempotence or cross-system exactly-once.
 
 The normal path is the owner flow in the web app (Settings → Channels → Connect Facebook Page), which requires the API to have `CONNECTOR_URL`, `CONNECTOR_MANAGEMENT_TOKEN` and `META_APP_ID`, and Meta's valid OAuth redirect set to `<frontend>/channels/facebook/callback`. Manual operator provisioning (receive-only, no Page token) remains possible:
 

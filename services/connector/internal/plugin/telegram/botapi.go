@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"io"
 	"net/http"
 	"regexp"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 )
 
@@ -56,18 +56,18 @@ func Classify(status int, description string) *plugin.ProviderError {
 	d := strings.ToLower(description)
 	switch {
 	case status == http.StatusUnauthorized || status == http.StatusNotFound:
-		return &plugin.ProviderError{Category: outbound.ErrorAuthExpired, Code: code}
+		return &plugin.ProviderError{Category: delivery.ErrorAuthExpired, Code: code}
 	case status == http.StatusForbidden:
 		// "bot was blocked by the user", "user is deactivated", "bot can't initiate conversation with a user".
-		return &plugin.ProviderError{Category: outbound.ErrorBotBlocked, Code: code}
+		return &plugin.ProviderError{Category: delivery.ErrorBotBlocked, Code: code}
 	case status == http.StatusBadRequest && strings.Contains(d, "chat not found"):
-		return &plugin.ProviderError{Category: outbound.ErrorChatNotFound, Code: code}
+		return &plugin.ProviderError{Category: delivery.ErrorChatNotFound, Code: code}
 	case status == http.StatusTooManyRequests:
-		return &plugin.ProviderError{Category: outbound.ErrorRateLimit, Code: code}
+		return &plugin.ProviderError{Category: delivery.ErrorRateLimit, Code: code}
 	case status >= 500:
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: code, Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: code, Unknown: true}
 	}
-	return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: code}
+	return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: code}
 }
 
 func (b *BotAPI) call(ctx context.Context, token, method string, input, output any) error {
@@ -86,12 +86,12 @@ func (b *BotAPI) call(ctx context.Context, token, method string, input, output a
 	res, err := b.Client.Do(req)
 	if err != nil {
 		// Connection/timeout failures after dispatch cannot prove Telegram did nothing.
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "network", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "network", Unknown: true}
 	}
 	defer res.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if err != nil {
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "read", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "read", Unknown: true}
 	}
 	var envelope struct {
 		OK          bool            `json:"ok"`
@@ -101,12 +101,12 @@ func (b *BotAPI) call(ctx context.Context, token, method string, input, output a
 	_ = json.Unmarshal(data, &envelope)
 	if res.StatusCode != http.StatusOK || !envelope.OK {
 		if res.StatusCode == http.StatusOK {
-			return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "decode", Unknown: true}
+			return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "decode", Unknown: true}
 		}
 		return Classify(res.StatusCode, envelope.Description)
 	}
 	if output != nil && json.Unmarshal(envelope.Result, output) != nil {
-		return &plugin.ProviderError{Category: outbound.ErrorTransport, Code: "decode", Unknown: true}
+		return &plugin.ProviderError{Category: delivery.ErrorTransport, Code: "decode", Unknown: true}
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func (b *BotAPI) GetMe(ctx context.Context, token string) (plugin.BotIdentity, e
 	}
 	err := b.call(ctx, token, "getMe", struct{}{}, &me)
 	var pe *plugin.ProviderError
-	if errors.As(err, &pe) && pe.Category == outbound.ErrorAuthExpired {
+	if errors.As(err, &pe) && pe.Category == delivery.ErrorAuthExpired {
 		return plugin.BotIdentity{}, ErrInvalidToken
 	}
 	if err != nil {
@@ -158,7 +158,7 @@ func (b *BotAPI) SendText(ctx context.Context, _, token, chat, text string) (str
 	}
 	if err := b.call(ctx, token, "sendMessage", map[string]string{"chat_id": chat, "text": text}, &sent); err != nil {
 		if errors.Is(err, ErrInvalidToken) {
-			return "", &plugin.ProviderError{Category: outbound.ErrorAuthExpired, Code: "invalid_token"}
+			return "", &plugin.ProviderError{Category: delivery.ErrorAuthExpired, Code: "invalid_token"}
 		}
 		return "", err
 	}

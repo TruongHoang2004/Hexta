@@ -18,11 +18,18 @@ func BuildService() fx.Option {
 		func() *config.Config { return config.AppConfig },
 		service.NewBaseService,
 		service.NewSalesService,
+		service.NewOrderCaseService,
 		service.NewWorkflowService,
+		service.NewOverviewService,
 		service.NewMessagingQueryService,
 		newMessagingCommandService,
 		service.NewChannelService,
 		newChannelSettings,
+		service.NewScriptService,
+		service.NewReplySettingsService,
+		service.NewKnowledgeService,
+		// Member emails are display data for the script permission screen, read from the DB repository.
+		func(r *repository.TenantRepository) service.ScriptMemberDirectory { return r },
 		fx.Annotate(
 			connector.NewClient,
 			fx.As(new(service.IChannelConnector)),

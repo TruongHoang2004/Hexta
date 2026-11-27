@@ -19,6 +19,8 @@ type schema struct {
 	Ref        string            `json:"$ref"`
 	Properties map[string]schema `json:"properties"`
 	Items      *schema           `json:"items"`
+	// AllOf holds the single reference swag emits for a documented struct field.
+	AllOf []schema `json:"allOf"`
 }
 type operation struct {
 	Parameters []struct {
@@ -41,7 +43,8 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 	auth := middleware.NewAuthMiddleware(nil)
 	// Register the real route tree; no handlers or dependencies need execution.
 	router.RegisterRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine), Private: router.CreatePrivateRouterGroup(engine, auth)},
-		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.MessagingQueryController{}, &controller.ConversationStreamController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+		&controller.HealthController{}, &controller.AuthController{}, &controller.TenantController{}, &controller.SalesController{}, &controller.WorkflowController{}, &controller.OverviewController{}, &controller.MessagingQueryController{}, &controller.ConversationStreamController{}, &router.MessagingCommandGateway{}, &controller.ChannelController{}, &controller.ScriptController{}, &controller.ReplySettingsController{}, &controller.KnowledgeController{}, &controller.TenantOnboardingController{}, &controller.AIController{}, auth, &middleware.TenantMiddleware{})
+	router.RegisterOrderCaseRoutes(router.Params{Public: router.CreatePublicRouterGroup(engine)}, &controller.OrderCaseController{}, auth, &middleware.TenantMiddleware{})
 	registered := map[string]bool{}
 	for _, route := range engine.Routes() {
 		registered[route.Method+" "+route.Path] = true
@@ -95,6 +98,9 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/return-to-bot"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/send-simulation"},
 				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/messages"},
+				{"get", "/api/v1/tenants/{tenantID}/conversations/{id}/sessions"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/close"},
+				{"post", "/api/v1/tenants/{tenantID}/turns/{id}/outcome"},
 			} {
 				op, exists := spec.Paths[endpoint.route][endpoint.method]
 				require.True(t, exists, "missing messaging operation %s", endpoint.route)
@@ -130,6 +136,73 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 					require.False(t, exposesToken, "channel list responses must never carry provider tokens")
 				}
 			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"get", "/api/v1/tenants/{tenantID}/scripts"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts"},
+				{"get", "/api/v1/tenants/{tenantID}/scripts/{id}"},
+				{"put", "/api/v1/tenants/{tenantID}/scripts/{id}/draft"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/activate"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/deactivate"},
+				{"post", "/api/v1/tenants/{tenantID}/scripts/{id}/archive"},
+				{"get", "/api/v1/tenants/{tenantID}/script-permissions"},
+				{"get", "/api/v1/tenants/{tenantID}/script-permissions/me"},
+				{"post", "/api/v1/tenants/{tenantID}/script-permissions/{userID}/grant"},
+				{"post", "/api/v1/tenants/{tenantID}/script-permissions/{userID}/revoke"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing script operation %s %s", endpoint.method, endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id", "{userID}", ":userID").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route], "documented script route is not registered: %s", route)
+				success := resolveSchema(t, spec, op.Responses["200"].Schema)
+				require.Contains(t, success.Properties, "data", "script responses must use the response envelope")
+				failure := resolveSchema(t, spec, op.Responses["403"].Schema)
+				require.Contains(t, failure.Properties, "detail")
+			}
+			for _, endpoint := range []struct{ method, route string }{
+				{"get", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"put", "/api/v1/tenants/{tenantID}/orders/{id}/case"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case/send-back"},
+				{"post", "/api/v1/tenants/{tenantID}/orders/{id}/case/finalize"},
+			} {
+				op, exists := spec.Paths[endpoint.route][endpoint.method]
+				require.True(t, exists, "missing order case operation %s %s", endpoint.method, endpoint.route)
+				route := strings.NewReplacer("{tenantID}", ":tenantID", "{id}", ":id").Replace(endpoint.route)
+				require.True(t, registered[strings.ToUpper(endpoint.method)+" "+route])
+				require.Contains(t, resolveSchema(t, spec, op.Responses["200"].Schema).Properties, "data")
+				require.Contains(t, resolveSchema(t, spec, op.Responses["403"].Schema).Properties, "detail")
+			}
+			overview, exists := spec.Paths["/api/v1/tenants/{tenantID}/overview"]["get"]
+			require.True(t, exists, "missing owner overview operation")
+			require.True(t, registered["GET /api/v1/tenants/:tenantID/overview"])
+			overviewData := resolveSchema(t, spec, resolveSchema(t, spec, overview.Responses["200"].Schema).Properties["data"])
+			for _, field := range []string{"filters", "has_activity", "orders", "exceptions", "work", "stuck", "pending_cases"} {
+				require.Contains(t, overviewData.Properties, field)
+			}
+			_, namesRevenue := resolveSchema(t, spec, overviewData.Properties["orders"]).Properties["revenue"]
+			require.False(t, namesRevenue, "order totals are order value, never revenue")
+			// Exceptions come from order cases (cases never change order status) and carry no refund amount.
+			exceptions := resolveSchema(t, spec, overviewData.Properties["exceptions"])
+			for _, field := range []string{"in_progress", "finalized", "cancelled_order_value"} {
+				require.Contains(t, exceptions.Properties, field)
+			}
+			for _, forbidden := range []string{"revenue", "refund", "refunded_amount"} {
+				_, exists := exceptions.Properties[forbidden]
+				require.False(t, exists, "exceptions must not report %s", forbidden)
+			}
+			for _, stage := range []string{"in_progress", "finalized"} {
+				counts := resolveSchema(t, spec, exceptions.Properties[stage])
+				for _, field := range []string{"total", "cancellation", "return"} {
+					require.Contains(t, counts.Properties, field)
+				}
+			}
+			pendingCases := resolveSchema(t, spec, overviewData.Properties["pending_cases"])
+			require.Contains(t, pendingCases.Properties, "total")
+			pendingCase := resolveSchema(t, spec, *pendingCases.Properties["items"].Items)
+			for _, field := range []string{"case_id", "order_id", "order_number", "case_type", "handler_id", "waiting_since"} {
+				require.Contains(t, pendingCase.Properties, field)
+			}
+			require.Contains(t, resolveSchema(t, spec, overview.Responses["403"].Schema).Properties, "detail")
 			require.True(t, registered["POST /api/v1/ai/converse"])
 			require.Contains(t, spec.Paths["/api/v1/ai/converse"], "post")
 			// Health's unavailable response has the same typed envelope as success.
@@ -141,6 +214,9 @@ func TestGeneratedSwaggerMatchesRegisteredAuthAndHealthRoutes(t *testing.T) {
 
 func resolveSchema(t *testing.T, spec specification, value schema) schema {
 	t.Helper()
+	if value.Ref == "" && len(value.AllOf) == 1 {
+		value = value.AllOf[0]
+	}
 	if value.Ref == "" {
 		return value
 	}

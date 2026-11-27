@@ -2,7 +2,8 @@ package service
 
 import (
 	"context"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
@@ -20,7 +21,7 @@ func TestIngressAuthorityReplayAndNoAISideEffects(t *testing.T) {
 	}
 	pushed := &recordingPublisher{}
 	s := NewIngressService(repository.NewIngressRepository(f.db)).WithPublisher(pushed)
-	e := ingress.Event{SchemaVersion: 1, EventID: uuid.NewString(), CorrelationID: uuid.NewString(), Platform: "facebook", ConnectionID: id, ConnectionVersion: 1, TenantID: f.tenant, AccountID: "page", ConversationKey: "psid", MessageID: "m1", SourceIdentity: "message:m1", Sender: "psid", Recipient: "page", Direction: "inbound", Type: "message", Text: "real text", SourceAt: time.Now(), ReceivedAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
+	e := messaging.MessageReceived{Meta: events.Meta{EventID: uuid.NewString(), CorrelationID: uuid.NewString(), TenantID: f.tenant, OccurredAt: time.Now()}, Platform: "facebook", ConnectionID: id, ConnectionVersion: 1, AccountID: "page", ConversationKey: "psid", MessageID: "m1", SourceIdentity: "message:m1", Sender: "psid", Recipient: "page", Direction: "inbound", Text: "real text", SourceAt: time.Now(), Acquisition: "webhook", Purpose: "live"}
 	if err := s.Consume(ctx, e); err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +39,7 @@ func TestIngressAuthorityReplayAndNoAISideEffects(t *testing.T) {
 		case 0:
 			v.Purpose = "history"
 		case 1:
-			v.Type = "echo"
-			v.Direction = "outbound"
+			v.Direction = messaging.DirectionOutbound
 		case 2:
 			f.db.Exec("UPDATE messaging_connections SET enabled=false WHERE id=?", id)
 		case 3:

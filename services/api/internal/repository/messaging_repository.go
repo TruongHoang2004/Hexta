@@ -11,6 +11,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository/messagingmodel"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"time"
 )
 
 type MessagingStore interface {
@@ -20,6 +21,7 @@ type MessagingStore interface {
 	Thread(context.Context, string, string, bool) (*types.MessagingThread, *apperrors.Error)
 	UpsertThread(context.Context, types.MessagingThread) (*types.MessagingThread, *apperrors.Error)
 	CurrentTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
+	LatestTurn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
 	Turn(context.Context, string, string) (*types.MessagingTurn, *apperrors.Error)
 	SaveTurn(context.Context, types.MessagingTurn, bool) *apperrors.Error
 	SaveThread(context.Context, types.MessagingThread) *apperrors.Error
@@ -29,6 +31,20 @@ type MessagingStore interface {
 	BindThreadChannel(context.Context, string, string, string, string) *apperrors.Error
 	SendConnection(context.Context, string, string) (*types.ChannelConnection, *apperrors.Error)
 	InsertOutbound(context.Context, types.OutboundIntent, types.OutboundAttempt, *model.DomainEvent) *apperrors.Error
+	// Bot reply routing and proposals (MVP 5). See reply_repository.go.
+	ReplySettings(context.Context, string, bool) (types.ReplySettings, *apperrors.Error)
+	InsertRouting(context.Context, types.ReplyProposal) *apperrors.Error
+	Proposal(context.Context, string, string, bool) (*types.ReplyProposal, *apperrors.Error)
+	SaveProposal(context.Context, types.ReplyProposal) *apperrors.Error
+	Message(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
+	LatestInbound(context.Context, string, string) (*types.MessagingMessage, *apperrors.Error)
+	RecentMessages(context.Context, string, string, string, int) ([]types.MessagingMessage, *apperrors.Error)
+	CancelPendingBotSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
+	// Conversation sessions. See messaging_session_repository.go and messaging_turn_expiry.go.
+	CloseTurn(context.Context, types.MessagingTurn, types.TurnClosure, time.Time) (bool, *apperrors.Error)
+	CancelUndispatchedSends(context.Context, string, string, time.Time) (int, *apperrors.Error)
+	SaveSessionOutcome(context.Context, types.MessagingTurn) *apperrors.Error
+	ScriptVersionActive(context.Context, string, string) (bool, *apperrors.Error)
 }
 type MessagingRepository struct {
 	*SalesRepository
@@ -107,6 +123,21 @@ func (r *MessagingRepository) CurrentTurn(ctx context.Context, tenant, thread st
 	value := persistencemap.Turn(row)
 	return &value, nil
 }
+
+// LatestTurn returns the open turn, or else the most recently opened closed turn; nil when the thread has none.
+// Turn IDs are UUIDv7, so ID order is creation order.
+func (r *MessagingRepository) LatestTurn(ctx context.Context, tenant, thread string) (*types.MessagingTurn, *apperrors.Error) {
+	var row messagingmodel.Turn
+	err := r.db.WithContext(ctx).Where("tenant_id = ? AND thread_id = ?", tenant, thread).Order("lifecycle = 'open' DESC, id DESC").First(&row).Error
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, salesDBError(ctx, err)
+	}
+	value := persistencemap.Turn(row)
+	return &value, nil
+}
 func (r *MessagingRepository) Turn(ctx context.Context, tenant, id string) (*types.MessagingTurn, *apperrors.Error) {
 	var row messagingmodel.Turn
 	if err := r.db.WithContext(ctx).Where("tenant_id = ? AND id = ?", tenant, id).First(&row).Error; err != nil {
@@ -124,7 +155,14 @@ func (r *MessagingRepository) SaveTurn(ctx context.Context, value types.Messagin
 		}
 		return nil
 	}
-	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).Select("assignee_id", "control", "needs_human", "lifecycle", "context_revision", "control_generation", "version", "last_activity_at").Updates(&row)
+	// last_activity_at only moves forward: the delivery consumer advances it without the thread lock or a version
+	// bump (RecordSendActivity), so a writer holding an earlier read must not write the older value back.
+	result := r.db.WithContext(ctx).Model(&messagingmodel.Turn{}).Where("tenant_id = ? AND id = ? AND version = ?", value.TenantID, value.ID, value.Version-1).
+		Updates(map[string]any{"assignee_id": row.AssigneeID, "control": row.Control, "needs_human": row.NeedsHuman, "needs_human_reason": row.NeedsHumanReason,
+			"review_pending": row.ReviewPending, "lifecycle": row.Lifecycle, "context_revision": row.ContextRevision, "control_generation": row.ControlGeneration, "version": row.Version,
+			"last_activity_at": gorm.Expr("GREATEST(last_activity_at, ?)", row.LastActivityAt), "closed_at": row.ClosedAt,
+			// Any assignment records the session's handler; unassignment and return-to-bot keep the last one.
+			"last_handler_id": gorm.Expr("COALESCE(CAST(? AS varchar), last_handler_id)", row.AssigneeID)})
 	if result.Error != nil {
 		return salesDBError(ctx, result.Error)
 	}

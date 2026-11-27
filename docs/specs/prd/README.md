@@ -20,7 +20,7 @@ Each slice is usable on its own and builds on the previous ones.
 | 2 | [Catalog and orders](mvp-2-catalog-orders.md) | Staff keep customers/products and turn chats into confirmed orders, helped by AI | S-08–S-10, S-12, S-13 | Built |
 | 3 | [Workflows and work](mvp-3-workflows-work.md) | Each order moves through the business's own steps with one responsible person | S-11, S-14 | Built |
 | 4 | [Channels and Desk](mvp-4-channels-desk.md) | Customer messages arrive in one inbox with clear bot/staff control | S-07, S-18 | Built (live channel acceptance open) |
-| 5 | [Bot replies and scripts](mvp-5-bot-replies.md) | Owner decides how much the bot may answer alone, using approved scripts | S-15, S-17, S-19 | Target |
+| 5 | [Bot replies and scripts](mvp-5-bot-replies.md) | Owner decides how much the bot may answer alone, using approved scripts | S-15, S-17, S-19 | Target (implemented on `integrate/mvp5-6`, not merged) |
 | 6 | [Exceptions and overview](mvp-6-exceptions-overview.md) | Owner handles cancellations/returns and sees how the business runs | S-06 | Target |
 
 **Built** = implemented and verified in isolation. **Target** = approved, not implemented. **Open** = undecided. Wireframes may include Target screens; label them.

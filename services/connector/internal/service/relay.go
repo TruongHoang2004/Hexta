@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 )
 
 type Publisher interface {
@@ -11,7 +11,7 @@ type Publisher interface {
 }
 
 func Publish(ctx context.Context, p Publisher, payload []byte) error {
-	var e ingress.Event
+	var e messaging.MessageReceived
 	if err := json.Unmarshal(payload, &e); err != nil {
 		return err
 	}

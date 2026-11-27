@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 )
 
@@ -78,13 +78,13 @@ func TestBotAPICallsAndClassification(t *testing.T) {
 		category string
 		unknown  bool
 	}{
-		{403, "Forbidden: bot was blocked by the user", outbound.ErrorBotBlocked, false},
-		{403, "Forbidden: user is deactivated", outbound.ErrorBotBlocked, false},
-		{400, "Bad Request: chat not found", outbound.ErrorChatNotFound, false},
-		{401, "Unauthorized", outbound.ErrorAuthExpired, false},
-		{429, "Too Many Requests: retry after 5", outbound.ErrorRateLimit, false},
-		{400, "Bad Request: message is too long", outbound.ErrorTransport, false},
-		{502, "Bad Gateway", outbound.ErrorTransport, true},
+		{403, "Forbidden: bot was blocked by the user", delivery.ErrorBotBlocked, false},
+		{403, "Forbidden: user is deactivated", delivery.ErrorBotBlocked, false},
+		{400, "Bad Request: chat not found", delivery.ErrorChatNotFound, false},
+		{401, "Unauthorized", delivery.ErrorAuthExpired, false},
+		{429, "Too Many Requests: retry after 5", delivery.ErrorRateLimit, false},
+		{400, "Bad Request: message is too long", delivery.ErrorTransport, false},
+		{502, "Bad Gateway", delivery.ErrorTransport, true},
 	} {
 		status, reply = c.status, `{"ok":false,"error_code":0,"description":"`+c.desc+`"}`
 		_, err := api.SendText(ctx, "123456", fixtureToken, "42", "hello")
@@ -93,7 +93,7 @@ func TestBotAPICallsAndClassification(t *testing.T) {
 			t.Fatal("classification", c, err)
 		}
 	}
-	if _, err := api.SendText(ctx, "123456", "bad", "42", "hello"); !isCategory(err, outbound.ErrorAuthExpired) {
+	if _, err := api.SendText(ctx, "123456", "bad", "42", "hello"); !isCategory(err, delivery.ErrorAuthExpired) {
 		t.Fatal("malformed stored token must surface as auth_expired", err)
 	}
 }
@@ -112,7 +112,7 @@ func TestTimeoutIsUnknownAndHidesToken(t *testing.T) {
 	api.Client.Timeout = 20 * time.Millisecond
 	_, err := api.SendText(context.Background(), "123456", fixtureToken, "42", "hello")
 	var pe *plugin.ProviderError
-	if !errors.As(err, &pe) || !pe.Unknown || pe.Category != outbound.ErrorTransport || strings.Contains(err.Error(), fixtureToken) {
+	if !errors.As(err, &pe) || !pe.Unknown || pe.Category != delivery.ErrorTransport || strings.Contains(err.Error(), fixtureToken) {
 		t.Fatal("timeout must be unknown and sanitized", err)
 	}
 }

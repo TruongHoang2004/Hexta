@@ -1,0 +1,26 @@
+# Overlay for a host whose ports 80/443 already belong to another reverse proxy (for example an nginx that
+# serves other apps and terminates TLS with certbot). Caddy publishes no host port; it joins that proxy's Docker
+# network as `hexta-edge` and keeps Hexta's path routing over plain HTTP. Also shrinks the Kafka heap for small
+# hosts (~4 GB RAM). Use: ./scripts/prod.sh -f infrastructure/compose.prod.shared-edge.yml up -d --wait
+# Requires HEXTA_EDGE_NETWORK in prod/.env; proxy config template: prod/nginx-shared-edge.conf.
+services:
+  caddy:
+    ports: !reset []
+    volumes: !override
+      - ./prod/Caddyfile.shared-edge:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default: {}
+      edge:
+        aliases: [hexta-edge]
+
+  kafka:
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx384m
+    mem_limit: 768m
+
+networks:
+  edge:
+    external: true
+    name: ${HEXTA_EDGE_NETWORK:?Set HEXTA_EDGE_NETWORK}

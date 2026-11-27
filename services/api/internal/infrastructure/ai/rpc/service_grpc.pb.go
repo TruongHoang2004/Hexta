@@ -19,9 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AIService_StartRun_FullMethodName  = "/hexta.ai.v1.AIService/StartRun"
-	AIService_GetRun_FullMethodName    = "/hexta.ai.v1.AIService/GetRun"
-	AIService_CancelRun_FullMethodName = "/hexta.ai.v1.AIService/CancelRun"
+	AIService_StartRun_FullMethodName        = "/hexta.ai.v1.AIService/StartRun"
+	AIService_GetRun_FullMethodName          = "/hexta.ai.v1.AIService/GetRun"
+	AIService_CancelRun_FullMethodName       = "/hexta.ai.v1.AIService/CancelRun"
+	AIService_UpsertKnowledge_FullMethodName = "/hexta.ai.v1.AIService/UpsertKnowledge"
+	AIService_DeleteKnowledge_FullMethodName = "/hexta.ai.v1.AIService/DeleteKnowledge"
 )
 
 // AIServiceClient is the client API for AIService service.
@@ -33,6 +35,9 @@ type AIServiceClient interface {
 	StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*Run, error)
 	GetRun(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*Run, error)
 	CancelRun(ctx context.Context, in *RunRequest, opts ...grpc.CallOption) (*Run, error)
+	// Knowledge ingest for grounded answers. Go pushes authorized tenant data; Python stores embeddings only.
+	UpsertKnowledge(ctx context.Context, in *UpsertKnowledgeRequest, opts ...grpc.CallOption) (*UpsertKnowledgeResponse, error)
+	DeleteKnowledge(ctx context.Context, in *DeleteKnowledgeRequest, opts ...grpc.CallOption) (*DeleteKnowledgeResponse, error)
 }
 
 type aIServiceClient struct {
@@ -73,6 +78,26 @@ func (c *aIServiceClient) CancelRun(ctx context.Context, in *RunRequest, opts ..
 	return out, nil
 }
 
+func (c *aIServiceClient) UpsertKnowledge(ctx context.Context, in *UpsertKnowledgeRequest, opts ...grpc.CallOption) (*UpsertKnowledgeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertKnowledgeResponse)
+	err := c.cc.Invoke(ctx, AIService_UpsertKnowledge_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aIServiceClient) DeleteKnowledge(ctx context.Context, in *DeleteKnowledgeRequest, opts ...grpc.CallOption) (*DeleteKnowledgeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteKnowledgeResponse)
+	err := c.cc.Invoke(ctx, AIService_DeleteKnowledge_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AIServiceServer is the server API for AIService service.
 // All implementations must embed UnimplementedAIServiceServer
 // for forward compatibility.
@@ -82,6 +107,9 @@ type AIServiceServer interface {
 	StartRun(context.Context, *StartRunRequest) (*Run, error)
 	GetRun(context.Context, *RunRequest) (*Run, error)
 	CancelRun(context.Context, *RunRequest) (*Run, error)
+	// Knowledge ingest for grounded answers. Go pushes authorized tenant data; Python stores embeddings only.
+	UpsertKnowledge(context.Context, *UpsertKnowledgeRequest) (*UpsertKnowledgeResponse, error)
+	DeleteKnowledge(context.Context, *DeleteKnowledgeRequest) (*DeleteKnowledgeResponse, error)
 	mustEmbedUnimplementedAIServiceServer()
 }
 
@@ -100,6 +128,12 @@ func (UnimplementedAIServiceServer) GetRun(context.Context, *RunRequest) (*Run, 
 }
 func (UnimplementedAIServiceServer) CancelRun(context.Context, *RunRequest) (*Run, error) {
 	return nil, status.Error(codes.Unimplemented, "method CancelRun not implemented")
+}
+func (UnimplementedAIServiceServer) UpsertKnowledge(context.Context, *UpsertKnowledgeRequest) (*UpsertKnowledgeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertKnowledge not implemented")
+}
+func (UnimplementedAIServiceServer) DeleteKnowledge(context.Context, *DeleteKnowledgeRequest) (*DeleteKnowledgeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteKnowledge not implemented")
 }
 func (UnimplementedAIServiceServer) mustEmbedUnimplementedAIServiceServer() {}
 func (UnimplementedAIServiceServer) testEmbeddedByValue()                   {}
@@ -176,6 +210,42 @@ func _AIService_CancelRun_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AIService_UpsertKnowledge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertKnowledgeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AIServiceServer).UpsertKnowledge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AIService_UpsertKnowledge_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AIServiceServer).UpsertKnowledge(ctx, req.(*UpsertKnowledgeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AIService_DeleteKnowledge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteKnowledgeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AIServiceServer).DeleteKnowledge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AIService_DeleteKnowledge_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AIServiceServer).DeleteKnowledge(ctx, req.(*DeleteKnowledgeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AIService_ServiceDesc is the grpc.ServiceDesc for AIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -194,6 +264,14 @@ var AIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelRun",
 			Handler:    _AIService_CancelRun_Handler,
+		},
+		{
+			MethodName: "UpsertKnowledge",
+			Handler:    _AIService_UpsertKnowledge_Handler,
+		},
+		{
+			MethodName: "DeleteKnowledge",
+			Handler:    _AIService_DeleteKnowledge_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

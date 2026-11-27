@@ -35,8 +35,11 @@ export function ConversationListItem({
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           <StatusChip tone={state.tone}>{state.label}</StatusChip>
-          {row.turn?.needs_human && row.turn.handling_state !== "WAITING_STAFF" && (
+          {row.turn?.needs_human && row.turn.lifecycle === "open" && (
             <StatusChip tone="warning">{t("desk.needsHuman")}</StatusChip>
+          )}
+          {row.turn?.review_pending && row.turn.lifecycle === "open" && (
+            <StatusChip tone="warning">{t("desk.reviewPending")}</StatusChip>
           )}
         </span>
         <span className="text-xs text-muted">

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 )
@@ -108,7 +109,7 @@ func (p *recordingPublisher) Publish(_ context.Context, _ string, hint types.Rea
 
 type fakeViews struct{ err *apperrors.Error }
 
-func (v fakeViews) Apply(context.Context, string, types.ConversationChanged) *apperrors.Error {
+func (v fakeViews) Apply(context.Context, string, messaging.ConversationChanged) *apperrors.Error {
 	return v.err
 }
 func (fakeViews) Rebuild(context.Context, string) *apperrors.Error { return nil }
@@ -117,14 +118,14 @@ func (fakeViews) Quarantine(context.Context, string, string) error { return nil 
 func TestProjectorPublishesOnlyAfterTheViewIsApplied(t *testing.T) {
 	pub := &recordingPublisher{}
 	ok := NewConversationProjector(fakeViews{}).WithPublisher(pub)
-	if err := ok.Project(context.Background(), "t", types.ConversationChanged{ThreadID: "th"}); err != nil {
+	if err := ok.Project(context.Background(), "t", messaging.ConversationChanged{ThreadID: "th"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(pub.hints) != 1 || pub.hints[0].ThreadID != "th" || pub.hints[0].Reason != types.RealtimeConversationChanged {
 		t.Fatalf("applied change must publish one hint: %+v", pub.hints)
 	}
 	failing := NewConversationProjector(fakeViews{err: apperrors.ErrSystemError(context.Background(), "db")}).WithPublisher(pub)
-	if err := failing.Project(context.Background(), "t", types.ConversationChanged{ThreadID: "th2"}); err == nil {
+	if err := failing.Project(context.Background(), "t", messaging.ConversationChanged{ThreadID: "th2"}); err == nil {
 		t.Fatal("apply failure must surface for retry")
 	}
 	if len(pub.hints) != 1 {

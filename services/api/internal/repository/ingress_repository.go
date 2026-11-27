@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"gorm.io/gorm"
 	"time"
@@ -14,14 +14,14 @@ type IngressBinding struct {
 	Enabled, Active                   bool
 }
 type IngressStore interface {
-	Apply(context.Context, ingress.Event, func(MessagingStore, IngressBinding, bool) *apperrors.Error) *apperrors.Error
+	Apply(context.Context, messaging.MessageReceived, func(MessagingStore, IngressBinding, bool) *apperrors.Error) *apperrors.Error
 }
 type IngressRepository struct{ db *gorm.DB }
 
 func NewIngressRepository(db *gorm.DB) *IngressRepository { return &IngressRepository{db} }
 
 // The binding lock, consumer dedup and business mutation share a single transaction.
-func (r *IngressRepository) Apply(ctx context.Context, e ingress.Event, fn func(MessagingStore, IngressBinding, bool) *apperrors.Error) *apperrors.Error {
+func (r *IngressRepository) Apply(ctx context.Context, e messaging.MessageReceived, fn func(MessagingStore, IngressBinding, bool) *apperrors.Error) *apperrors.Error {
 	var failure *apperrors.Error
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var b IngressBinding
@@ -31,7 +31,7 @@ func (r *IngressRepository) Apply(ctx context.Context, e ingress.Event, fn func(
 		if b.ID == "" {
 			return tx.Exec("INSERT INTO messaging_ingress_quarantine(identity,reason,received_at) VALUES(?,?,?) ON CONFLICT(identity) DO NOTHING", e.Identity(), "untrusted_binding", time.Now().UTC()).Error
 		}
-		result := tx.Exec(`INSERT INTO messaging_ingress(identity,event_id,tenant_id,connection_id,message_id,external_conversation_key,source_identity,source_revision,reply_to,source_timestamp,acquisition,purpose,received_at,outcome) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(identity) DO NOTHING`, e.Identity(), e.EventID, e.TenantID, e.ConnectionID, e.MessageID, e.ConversationKey, e.SourceIdentity, e.SourceRevision, e.ReplyTo, e.SourceAt, e.Acquisition, e.Purpose, e.ReceivedAt, "handled")
+		result := tx.Exec(`INSERT INTO messaging_ingress(identity,event_id,tenant_id,connection_id,message_id,external_conversation_key,source_identity,source_revision,reply_to,source_timestamp,acquisition,purpose,received_at,outcome) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(identity) DO NOTHING`, e.Identity(), e.EventID, e.TenantID, e.ConnectionID, e.MessageID, e.ConversationKey, e.SourceIdentity, e.SourceRevision, e.ReplyTo, e.SourceAt, e.Acquisition, e.Purpose, e.OccurredAt, "handled")
 		if result.Error != nil {
 			return result.Error
 		}

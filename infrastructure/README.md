@@ -26,7 +26,7 @@ The local infrastructure stack runs via Docker Compose and provides all dependen
 
 ## 📁 Compose Configurations
 
-- **`docker-compose.yml`**: Core infrastructure stack (Postgres, Redis, Kafka). Elasticsearch and Qdrant start only with `docker compose --profile search-engine up -d`.
+- **`docker-compose.yml`**: Core infrastructure stack (Postgres, Redis, Kafka). Elasticsearch and Qdrant start only with `docker compose --profile search-engine up -d`. Postgres is `pgvector/pgvector:0.8.1-pg17-bookworm` (glibc); a `./volumes/postgres` directory created by the earlier `postgres:17.7-alpine3.23` (musl) image has wrong text index order under glibc. Delete that local data or rebuild every index once: `docker exec hexta_postgres sh -c 'for db in $(psql -U postgres -Atc "SELECT datname FROM pg_database WHERE datallowconn"); do psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -qc "REINDEX DATABASE \"$db\"" -c "REINDEX SYSTEM \"$db\"" || exit 1; done'`.
 - **`docker-compose.migrate.yml`**: Atlas migration runner for declarative and version-controlled database schemas.
 - **`docker-compose.log.yml`**: Full observability pipeline (Grafana, Loki, Promtail, Prometheus, Tempo, OTel Collector).
 - **`docker-compose.ui.yml`**: Local management UIs (Adminer, Redis Commander).

@@ -9,9 +9,11 @@ import { useChannelConnections } from "../../hooks/use-channel-connections";
 import { useConversationStream } from "../../hooks/use-conversation-stream";
 import { useInboxConversations } from "../../hooks/use-inbox-conversations";
 import { useTenantMembers } from "../../hooks/use-tenant-members";
+import { useWaitingCount } from "../../hooks/use-waiting-count";
 import { ConversationList } from "./conversation-list";
 import { InboundSimulator } from "./inbound-simulator";
 import { ThreadPanel } from "./thread-panel";
+import { WaitingStaffButton } from "./waiting-staff-button";
 
 /** The desk: conversation list, selected conversation and the inbound simulator. */
 export function InboxScreen() {
@@ -28,6 +30,7 @@ export function InboxScreen() {
   const list = useInboxConversations(tenantID, refresh, liveList);
   const { members, error: membersError } = useTenantMembers(tenantID);
   const connections = useChannelConnections(tenantID, refresh);
+  const waitingCount = useWaitingCount(tenantID, refresh);
   const reloadList = () => setRefresh((v) => v + 1);
   if (!tenant) return null;
   return (
@@ -37,10 +40,18 @@ export function InboxScreen() {
           <h1 className="text-2xl font-semibold">{t("desk.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("desk.subtitle")}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <p role="status" className="text-xs text-muted">
             {streamStatus === "live" ? t("desk.liveOn") : t("desk.liveOff")}
           </p>
+          <WaitingStaffButton
+            count={waitingCount}
+            active={list.filter === "waiting"}
+            onOpen={() => {
+              list.setFilter("waiting");
+              reloadList();
+            }}
+          />
           <button type="button" className={secondaryClass} disabled={list.loading} onClick={reloadList}>
             {t("desk.refresh")}
           </button>
@@ -56,6 +67,7 @@ export function InboxScreen() {
           owner={isOwner}
           members={members}
           list={list}
+          waitingCount={waitingCount}
           error={list.error || membersError}
           selected={selected}
           onSelect={setSelected}

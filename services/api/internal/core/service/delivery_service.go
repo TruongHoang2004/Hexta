@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
@@ -26,7 +28,7 @@ func (s *DeliveryService) WithPublisher(publisher RealtimePublisher) *DeliverySe
 	return s
 }
 
-func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEvent) *apperrors.Error {
+func (s *DeliveryService) ConsumeResult(ctx context.Context, e delivery.SendCompleted) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid outbound result")
 	}
@@ -42,7 +44,7 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 		}
 		// A cancelled attempt may still have reached the provider; record sent/unknown truthfully.
 		cancelled := attempt.Status == types.IntentCancelled
-		if attempt.Status != types.IntentPending && !(cancelled && e.Status != outbound.StatusFailed) {
+		if attempt.Status != types.IntentPending && !(cancelled && e.Status != delivery.StatusFailed) {
 			return nil
 		}
 		at := e.OccurredAt.UTC()
@@ -63,7 +65,18 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 				return err
 			}
 		}
-		if e.ErrorCategory == outbound.ErrorAuthExpired {
+		// Only a confirmed send is turn activity, measured from the provider outcome time (never in the future).
+		// Failed and unknown outcomes, and redelivered results (filtered above), never extend the turn.
+		if e.Status == delivery.StatusSent {
+			activity := at
+			if now := time.Now().UTC(); activity.After(now) {
+				activity = now
+			}
+			if err := r.RecordSendActivity(ctx, e.TenantID, intent.MessageID, activity); err != nil {
+				return err
+			}
+		}
+		if e.ErrorCategory == delivery.ErrorAuthExpired {
 			return r.MarkAuthExpired(ctx, e.TenantID, e.ConnectionID, attempt.ConnectionVersion, e.ErrorCode, at)
 		}
 		return nil
@@ -76,7 +89,7 @@ func (s *DeliveryService) ConsumeResult(ctx context.Context, e outbound.ResultEv
 	return err
 }
 
-func (s *DeliveryService) ConsumeHealth(ctx context.Context, e outbound.ConnectionHealthEvent) *apperrors.Error {
+func (s *DeliveryService) ConsumeHealth(ctx context.Context, e connection.HealthChanged) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrBadRequest(ctx).SetDetail("invalid connection health event")
 	}

@@ -1,5 +1,35 @@
 # Consolidated Project Changelog
 
+## 2026-11-26 — Knowledge answers wired end to end (in review)
+
+- Go maps the AI Run grounded-answer fields: AI answers stay pending for staff review with cited sources stored on the proposal and labelled on the Desk; `requires_review` candidates are never auto-sent; AI handoff reasons accepted only from the AI vocabulary. Router requeues a job when the bot is turned back on during routing.
+- Durable `knowledge_sync_jobs` outbox (migrations 20261127100000/100001, backfill of active products and scripts) and a `messaging-command` job push products, active scripts and new owner-managed knowledge documents (`/tenants/{id}/knowledge-documents`, Settings › Tài liệu) to the AI knowledge store.
+- pgvector image `pgvector/pgvector:0.8.1-pg17-bookworm` (Debian 12, pinned) in every Compose file, CI and the Atlas AI dev image, superuser `CREATE EXTENSION vector` (init scripts + prod `postgres-extensions` job); `messaging-command` gets `AI_RUN_ADDR`/`AI_INTERNAL_TOKEN`. Rollout runbook in README.deploy.md §10a (REINDEX, amcheck, marker; volume-recreate rollback).
+- Review follow-up: prod `postgres-collation-guard` one-shot refuses to start the glibc image on an Alpine-created volume without the `HEXTA_GLIBC_COLLATION_OK` marker (fresh installs get it from `init-db.sh`); the deploy agent refuses Alpine-era releases once the marker exists. Production AI is OFF by default (`AI_PROVIDER=disabled`); missing/partial AI settings disable AI with a log line instead of failing startup; Jev without key logged and off. Stock changes enqueue product knowledge sync in their transaction; `knowledge-resync` CLI (`make knowledge-resync`); failed/stuck sync counts logged. Redaction covers lowercase/unaccented addresses, `Q1`, `số 5, đường số 7`, glued and 9-digit phones. AI migrations renamed to 20261125223600/223601 (never applied outside disposable DBs).
+- Offline demo: `AI_FAKE_ROUTER=keyword`, extractive fake answers with citations, diacritic-folding hashing embeddings; Vietnamese clarify text (`AI_CLARIFY_TEXT`).
+- Details: [session](epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-knowledge-integration.md).
+
+## 2026-11-26 — Jev routing, pgvector knowledge and Claude answers (in review, AI service)
+
+- Python AI routes with Jev (TypeSafe System One, `jev-1.14.0`, flag `AI_JEV_ENABLED`, default off) after typed PII redaction; failures fall back to the deterministic matcher, then human.
+- New additive gRPC: `UpsertKnowledge`/`DeleteKnowledge`, `StartRunRequest.allow_knowledge_answer`, Run fields 20–28 (`candidate_kind`, `requires_review`, citations, handoff reason, router metadata). Old callers keep old semantics.
+- `ai_runtime.knowledge_sources`/`knowledge_chunks` with pgvector (migrations 20261125223600/223601; extension in `public`, needs a pgvector image and superuser-created extension). Gemini embeddings via LangChain.
+- Claude (`claude-sonnet-5-5` default) structured, cited answers labelled `generated` + `requires_review`; refusals/errors hand off. New dependency `typesafe-sdk` 0.7.5.
+- Go adapter and infrastructure images are follow-ups. Details: [session](epics/EPIC-002-ai-runtime/sessions/2026-11-26_ai-jev-rag.md).
+
+## 2026-11-26 — Overview counts exception cases (in review, integrate/mvp5-6)
+
+- `GET /tenants/{id}/overview` adds `exceptions` (in-progress and finalized cancellation/return cases of the order cohort, `cancelled_order_value`) and `pending_cases` (open cases awaiting the owner, capped at 50). Additive JSON; no migration.
+- Order value now excludes orders whose cancellation case is finalized (returns unchanged; status buckets unchanged) — implementation decision pending owner confirmation.
+- Web Overview shows "Đang huỷ / trả" and "Đã chốt huỷ / trả" tiles and lists pending cases in the stuck table; Orders page opens `?order=<id>`.
+- Details: [session](epics/EPIC-007-orders-workflows/sessions/2026-11-26_overview-exceptions.md).
+
+## 2026-11-22 — Event contracts in code (in review, PR #93)
+
+- `packages/shared/events`: one file per event (`MessageReceived`, `ConversationChanged`, `SendRequested`, `SendCompleted`, `HealthChanged`, `OrderConfirmed`) on the unchanged topics, one event type per topic; `catalog` maps events to topics. Order/conversation topics keep their envelope.
+- API outbox relay routes by catalog through one multi-topic writer; `ingress`/`outbound` packages and API-local event types removed.
+- Details: [session](epics/EPIC-005-kafka/sessions/2026-11-22_event-contracts.md).
+
 ## 2026-11-22 — Realtime inbox updates (in review)
 
 - New SSE route `GET /tenants/{tenantID}/conversations/stream` pushes each newly stored message whole (and delivery updates), so a customer message appears in the staff member's open chat at once; the conversation list refreshes quietly. Automatic reconnect, `resync` after gaps, connection status label.

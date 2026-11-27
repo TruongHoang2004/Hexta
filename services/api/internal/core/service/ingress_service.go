@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
-	"github.com/TruongHoang2004/Hexta/packages/shared/ingress"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
+	"time"
 )
 
 type IngressService struct {
@@ -23,7 +25,7 @@ func (s *IngressService) WithPublisher(publisher RealtimePublisher) *IngressServ
 	s.publisher = publisher
 	return s
 }
-func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperrors.Error {
+func (s *IngressService) Consume(ctx context.Context, e messaging.MessageReceived) *apperrors.Error {
 	if e.Validate() != nil {
 		return apperrors.ErrForbidden(ctx).SetDetail("invalid ingress")
 	}
@@ -34,35 +36,20 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 			return nil
 		}
 		// History, echo and receipts cannot create active turns or schedule AI.
-		if e.Direction != "inbound" || e.Purpose != "live" {
+		if e.Direction != messaging.DirectionInbound || e.Purpose != "live" {
 			return nil
 		}
+		// Validate guarantees text-only or media-only content. Media is a placeholder: kinds are recorded, media is
+		// never fetched or stored.
 		message := types.MessagingMessage{ContentType: types.ContentText, Body: e.Text}
-		switch e.Type {
-		case ingress.TypeMessage:
-			if e.Text == "" || len([]rune(e.Text)) > 4000 || len(e.Attachments) > 0 {
-				return nil
-			}
-		case ingress.TypeUnsupportedMedia:
-			// Placeholder only: kinds are recorded, media is never fetched or stored.
-			if e.Text != "" || len(e.Attachments) == 0 || len(e.Attachments) > 10 {
-				return nil
-			}
-			for _, a := range e.Attachments {
-				if !ingress.MediaKinds[a.Type] {
-					return nil
-				}
-				message.MediaKinds = append(message.MediaKinds, a.Type)
-			}
-			message.ContentType = types.ContentUnsupportedMedia
-		default:
-			return nil
+		if len(e.UnsupportedMedia) > 0 {
+			message.ContentType, message.MediaKinds = types.ContentUnsupportedMedia, append([]string(nil), e.UnsupportedMedia...)
 		}
 		name, ok := types.ChannelThreadNames[e.Platform]
 		if !ok {
 			return nil
 		}
-		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: e.Platform + ":" + e.Key(), DisplayName: name, CreatedAt: e.ReceivedAt, UpdatedAt: e.ReceivedAt, ConnectionID: e.ConnectionID, RecipientID: e.ConversationKey})
+		thread, err := tx.UpsertThread(ctx, types.MessagingThread{ID: messagingID(), TenantID: e.TenantID, ExternalKey: e.Platform + ":" + e.Key(), DisplayName: name, CreatedAt: e.OccurredAt, UpdatedAt: e.OccurredAt, ConnectionID: e.ConnectionID, RecipientID: e.ConversationKey})
 		if err != nil {
 			return err
 		}
@@ -72,16 +59,29 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 				return err
 			}
 		}
-		turn, err := tx.CurrentTurn(ctx, e.TenantID, thread.ID)
+		turn, err := tx.LatestTurn(ctx, e.TenantID, thread.ID)
 		if err != nil {
 			return err
 		}
-		if turn == nil {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+		// Placement uses the source event time: a delayed or replayed message older than the closed turn's
+		// activity is kept as history on that turn and neither reopens it nor manufactures a new one.
+		placement := types.InboundPlacement(turn, e.SourceAt, time.Now().UTC())
+		switch placement {
+		case types.InboundNewTurn:
+			settings, err := tx.ReplySettings(ctx, e.TenantID, false)
+			if err != nil {
+				return err
+			}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: e.TenantID, ThreadID: thread.ID, Lifecycle: types.TurnOpen, ContextRevision: 1, ControlGeneration: 1, Version: 1, LastActivityAt: e.SourceAt}
+			newTurnHandling(turn, settings)
 			if err = tx.SaveTurn(ctx, *turn, true); err != nil {
 				return err
 			}
-		} else {
+		case types.InboundHistory:
+		default:
+			if err = botIntake(ctx, tx, turn, time.Now().UTC()); err != nil {
+				return err
+			}
 			turn.Version++
 			turn.ContextRevision++
 			if e.SourceAt.After(turn.LastActivityAt) {
@@ -92,13 +92,19 @@ func (s *IngressService) Consume(ctx context.Context, e ingress.Event) *apperror
 			}
 		}
 		message.ID, message.TenantID, message.ThreadID, message.TurnID, message.Direction, message.ActorID = messagingID(), e.TenantID, thread.ID, turn.ID, "inbound", e.Sender
-		message.RequestKey, message.RequestHash, message.Status, message.DeliveryStatus, message.CreatedAt = uuid.NewSHA1(uuid.NameSpaceOID, []byte(e.Identity())).String(), ingress.Hash(e.Text), "received", types.DeliveryReceived, e.SourceAt
+		message.RequestKey, message.RequestHash, message.Status, message.DeliveryStatus, message.CreatedAt = uuid.NewSHA1(uuid.NameSpaceOID, []byte(e.Identity())).String(), events.Hash(e.Text), "received", types.DeliveryReceived, e.SourceAt
 		if err = tx.InsertMessage(ctx, message); err != nil {
 			return err
 		}
 		stored = &message
-		if e.ReceivedAt.After(thread.UpdatedAt) {
-			thread.UpdatedAt = e.ReceivedAt
+		// A live customer message on a bot-handled turn is routed after commit; history never is.
+		if placement != types.InboundHistory {
+			if _, err = enqueueBotRouting(ctx, tx, *turn, message, "", time.Now().UTC()); err != nil {
+				return err
+			}
+		}
+		if e.OccurredAt.After(thread.UpdatedAt) {
+			thread.UpdatedAt = e.OccurredAt
 		}
 		return tx.SaveThread(ctx, *thread)
 	})

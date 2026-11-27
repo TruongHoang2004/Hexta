@@ -3,8 +3,10 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/connection"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/packages/shared/kafkatransport"
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/facebook"
 	"github.com/TruongHoang2004/Hexta/services/connector/internal/plugin/telegram"
@@ -88,9 +90,9 @@ func Run(ctx context.Context) error {
 	}
 	server := &http.Server{Addr: addr, Handler: h.Routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	brokers := strings.Split(os.Getenv("KAFKA_BROKERS"), ",")
-	pub := kafkatransport.NewPublisher(brokers)
+	pub := kafkatransport.NewTopicPublisher(brokers, messaging.MessageReceivedTopic)
 	defer pub.Writer.Close()
-	publishers := map[string]*kafkatransport.Publisher{outbound.ResultTopic: kafkatransport.NewTopicPublisher(brokers, outbound.ResultTopic), outbound.HealthTopic: kafkatransport.NewTopicPublisher(brokers, outbound.HealthTopic)}
+	publishers := map[string]*kafkatransport.Publisher{delivery.SendCompletedTopic: kafkatransport.NewTopicPublisher(brokers, delivery.SendCompletedTopic), connection.HealthChangedTopic: kafkatransport.NewTopicPublisher(brokers, connection.HealthChangedTopic)}
 	for _, p := range publishers {
 		defer p.Writer.Close()
 	}
@@ -177,7 +179,7 @@ func relayOutbound(ctx context.Context, store *repository.Store, publishers map[
 
 // consumeIntents processes one intent at a time and commits its offset only after the attempt outcome is durable.
 func consumeIntents(ctx context.Context, brokers []string, sender *service.OutboundService) {
-	reader := kafkatransport.NewTopicReader(brokers, "hexta-connector-outbound-v1", outbound.IntentTopic)
+	reader := kafkatransport.NewTopicReader(brokers, "hexta-connector-outbound-v1", delivery.SendRequestedTopic)
 	defer reader.Close()
 	for {
 		m, err := reader.FetchMessage(ctx)

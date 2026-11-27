@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"net/url"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestBatchAndAuthentication(t *testing.T) {
 	if err != nil || len(items) != 4 {
 		t.Fatal(err, len(items))
 	}
-	if items[0].Event.MessageID != "m1" || items[0].Event.ReplyTo != "old" || items[1].Reason != "malformed_item" || items[2].Event.Type != "echo" || items[3].AccountID != "p2" {
+	if items[0].Event.MessageID != "m1" || items[0].Event.ReplyTo != "old" || items[1].Reason != "malformed_item" || items[2].Event.Direction != messaging.DirectionOutbound || items[3].AccountID != "p2" {
 		t.Fatal("batch mapping")
 	}
 }
@@ -50,12 +51,12 @@ func TestMediaBecomesPlaceholderWithoutBinaryReferences(t *testing.T) {
 	}
 	for i, want := range [][]string{{"image"}, {"sticker"}, {"audio", "file"}} {
 		e := items[i].Event
-		if items[i].Reason != "" || e.Type != "unsupported_media" || e.Text != "" || len(e.Attachments) != len(want) {
-			t.Fatal("media mapping", i, items[i].Reason, e.Type)
+		if items[i].Reason != "" || e.Direction != messaging.DirectionInbound || e.Text != "" || len(e.UnsupportedMedia) != len(want) {
+			t.Fatal("media mapping", i, items[i].Reason, e.Direction)
 		}
 		for j, kind := range want {
-			if e.Attachments[j].Type != kind || e.Attachments[j].Reference != "" {
-				t.Fatal("attachment kind", i, e.Attachments[j])
+			if e.UnsupportedMedia[j] != kind {
+				t.Fatal("attachment kind", i, e.UnsupportedMedia[j])
 			}
 		}
 	}

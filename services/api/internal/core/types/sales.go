@@ -39,4 +39,6 @@ type DraftInput struct {
 	DeliveryAddress  string
 	Notes            string
 	Items            []DraftItemInput
+	// MessagingTurnID links a new draft to the open conversation session it was created from; ignored on update.
+	MessagingTurnID *string
 }

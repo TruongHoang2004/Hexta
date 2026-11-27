@@ -174,12 +174,16 @@ def test_factory_key_precedence_missing_key_and_safe_configuration(monkeypatch):
         provider_from_env()
         assert constructor.call_args.args[1].api_key.get_secret_value() == "specific-test"
         assert "specific-test" not in repr(constructor.call_args.args[1])
+    from hexta_ai.providers.factory import AIConfigError, configured_provider
     monkeypatch.setenv("AI_TIMEOUT", "secret-invalid-value")
-    with pytest.raises(RuntimeError, match="^Invalid AI provider configuration$"):
-        provider_from_env()
+    with pytest.raises(AIConfigError, match="AI_TIMEOUT") as error:
+        configured_provider()
+    assert "secret-invalid-value" not in str(error.value)
+    assert provider_from_env().name == "disabled"
     monkeypatch.setenv("AI_PROVIDER", "unknown")
-    with pytest.raises(RuntimeError, match="^Unsupported AI_PROVIDER$"):
-        provider_from_env()
+    with pytest.raises(AIConfigError, match="AI_PROVIDER must be one of"):
+        configured_provider()
+    assert provider_from_env().name == "disabled"
 
 
 @pytest.mark.parametrize("name", ["gemini", "openai", "anthropic"])

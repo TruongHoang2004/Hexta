@@ -3,7 +3,7 @@ epic: EPIC-005
 title: Kafka event backbone
 status: in-progress
 completed: false
-updated: 2026-10-19
+updated: 2026-11-22
 ---
 
 # Kafka event backbone
@@ -40,6 +40,7 @@ Status records the last verified local/PR snapshot, not live GitHub state. Reche
 ## Sessions
 
 - [2026-10-18_event-backbone-draft](sessions/2026-10-18_event-backbone-draft.md) — in-review; completed: false.
+- [2026-11-22 event contracts](sessions/2026-11-22_event-contracts.md) — in-review (PR #93): one shared contract file per event (`packages/shared/events`) on the unchanged topics, catalog-routed outbox relay; replaces the ingress/outbound packages.
 - [2026-11-14 audit hardening](../EPIC-001-system-design/sessions/2026-11-14_audit-hardening.md) — [PR #68](https://github.com/TruongHoang2004/Hexta/pull/68) in-review: order.confirmed transactional outbox and relay to `hexta.orders.events.v1`; producer only, no consumer.
 
 ## Remaining work and next handoff

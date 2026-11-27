@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
 	"strings"
 	"time"
 
-	"github.com/TruongHoang2004/Hexta/packages/shared/outbound"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/delivery"
 	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
@@ -88,13 +89,21 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 			result = old
 			return nil
 		}
-		turn, err := r.CurrentTurn(ctx, tenant, thread.ID)
+		turn, err := r.LatestTurn(ctx, tenant, thread.ID)
 		if err != nil {
 			return err
 		}
-		create := turn == nil
+		// Simulated input is always new at processing time, so a closed latest turn opens a new unassigned turn.
+		create := types.InboundPlacement(turn, now, now) != types.InboundAppend
 		if create {
-			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: "open", Control: "sales", NeedsHuman: true, ControlGeneration: 1}
+			settings, err := r.ReplySettings(ctx, tenant, false)
+			if err != nil {
+				return err
+			}
+			turn = &types.MessagingTurn{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, Lifecycle: types.TurnOpen, ControlGeneration: 1}
+			newTurnHandling(turn, settings)
+		} else if err := botIntake(ctx, r, turn, now); err != nil {
+			return err
 		}
 		turn.ContextRevision++
 		turn.Version++
@@ -107,6 +116,9 @@ func (s *MessagingCommandService) Inbound(ctx context.Context, tenant, actor str
 			return err
 		}
 		fresh = true
+		if _, err := enqueueBotRouting(ctx, r, *turn, *result, "", now); err != nil {
+			return err
+		}
 		thread.UpdatedAt = now
 		if err := r.SaveThread(ctx, *thread); err != nil {
 			return err
@@ -164,6 +176,9 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			return apperrors.ErrConflict(ctx, "turn", "changed; refresh before retrying")
 		}
 		before := *turn
+		// Control-changing commands fence stale AI/output by bumping the control generation; resolve does not
+		// change control.
+		fence := true
 		switch action {
 		case "handoff":
 			if turn.AssigneeID != nil && *turn.AssigneeID != actor && !owner {
@@ -172,9 +187,7 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			if turn.HandlingState() == "WAITING_STAFF" {
 				return apperrors.ErrConflict(ctx, "turn", "already waiting for staff")
 			}
-			turn.AssigneeID = nil
-			turn.Control = "sales"
-			turn.NeedsHuman = true
+			applyHandoff(turn, input.Reason)
 		case "return-to-bot":
 			if !owner && (turn.AssigneeID == nil || *turn.AssigneeID != actor) {
 				return apperrors.ErrForbidden(ctx).SetDetail("current assignee or tenant owner required")
@@ -182,24 +195,67 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			if turn.HandlingState() != "STAFF_ACTIVE" && turn.HandlingState() != "WAITING_STAFF" {
 				return apperrors.ErrConflict(ctx, "turn", "not under staff control")
 			}
+			// With the reply mode off the bot is off: returning a conversation to it would leave nobody answering.
+			settings, err := r.ReplySettings(ctx, tenant, false)
+			if err != nil {
+				return err
+			}
+			if !settings.BotOn() {
+				return errBotOff(ctx, "returning the conversation to the bot")
+			}
+			// Explicit, authorized return is the only path back to automation; it clears the escalation.
 			turn.AssigneeID = nil
 			turn.Control = "system"
 			turn.NeedsHuman = false
+			turn.NeedsHumanReason = ""
 		case "claim":
 			if turn.AssigneeID != nil && *turn.AssigneeID != actor {
 				return apperrors.ErrConflict(ctx, "turn", "already assigned")
 			}
+			// needs_human survives the claim: the assigned sale resolves it explicitly.
 			turn.AssigneeID = &actor
 			turn.Control = "sales"
-			turn.NeedsHuman = false
 		case "assign":
 			turn.AssigneeID = input.AssigneeID
 			turn.Control = "sales"
-			turn.NeedsHuman = input.AssigneeID == nil
+			// Unassignment returns the work to the staff queue, which must not expire unattended.
+			if input.AssigneeID == nil {
+				turn.NeedsHuman = true
+			}
+		case "resolve":
+			if turn.AssigneeID == nil || *turn.AssigneeID != actor || turn.HandlingState() != "STAFF_ACTIVE" {
+				return apperrors.ErrForbidden(ctx).SetDetail("only the assigned sale can resolve needs-human")
+			}
+			if !turn.NeedsHuman {
+				return apperrors.ErrConflict(ctx, "turn", "does not need a person")
+			}
+			// Resolving restarts the inactivity window but keeps staff control; nothing returns to the bot.
+			turn.NeedsHuman = false
+			turn.NeedsHumanReason = ""
+			if now := time.Now().UTC(); now.After(turn.LastActivityAt) {
+				turn.LastActivityAt = now
+			}
+			fence = false
 		default:
 			return apperrors.ErrBadRequest(ctx).SetDetail("unsupported conversation command")
 		}
-		turn.ControlGeneration++
+		// Mirrors SaveTurn: any assignment records the session's last handler.
+		if turn.AssigneeID != nil {
+			handler := *turn.AssigneeID
+			turn.LastHandlerID = &handler
+		}
+		cancelled := 0
+		if fence {
+			turn.ControlGeneration++
+			// Every control change leaves bot handling or restarts it, so no proposal waits for review any more.
+			turn.ReviewPending = false
+			// A control change stops automatic sending, including bot replies already queued: undispatched sends
+			// are cancelled here (before the turn row is written, matching the delivery consumer's lock order);
+			// pending proposals become stale through the generation bump.
+			if cancelled, err = r.CancelPendingBotSends(ctx, tenant, id, time.Now().UTC()); err != nil {
+				return err
+			}
+		}
 		turn.Version++
 		if err := r.SaveTurn(ctx, *turn, false); err != nil {
 			return err
@@ -209,7 +265,8 @@ func (s *MessagingCommandService) Command(ctx context.Context, tenant, actor, id
 			"version": turn.Version, "control_generation": turn.ControlGeneration,
 			"before": before.HandlingState(), "after": turn.HandlingState(),
 			"previous_assignee_id": before.AssigneeID, "assignee_id": turn.AssigneeID,
-			"reason": input.Reason,
+			"reason": input.Reason, "needs_human": turn.NeedsHuman, "previous_needs_human_reason": before.NeedsHumanReason,
+			"cancelled_bot_sends": cancelled,
 		})
 	})
 	return result, err
@@ -270,6 +327,7 @@ func (s *MessagingCommandService) SendSimulation(ctx context.Context, tenant, ac
 			return err
 		}
 		fresh = true
+		// A simulated reply has no delivery step, so it is a confirmed send and counts as activity.
 		turn.Version++
 		turn.ContextRevision++
 		turn.LastActivityAt = now
@@ -296,7 +354,7 @@ const outboundIntentTTL = 10 * time.Minute
 // The connector performs the provider call later; this request never calls Meta and never retries.
 func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor, id string, input types.ChannelSendInput) (*types.MessagingMessage, *apperrors.Error) {
 	input.Text = strings.TrimSpace(input.Text)
-	if !messagingText(input.Text, outbound.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
+	if !messagingText(input.Text, delivery.MaxTextRunes) || input.ExpectedVersion < 1 || input.ContextRevision < 1 {
 		return nil, apperrors.ErrBadRequest(ctx).SetDetail("text (1–2000) and positive version/context required")
 	}
 	if _, err := uuid.Parse(input.ClientMessageID); err != nil {
@@ -342,21 +400,16 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 			return apperrors.ErrConflict(ctx, conn.Platform+" connection", "is "+conn.Status+"; sending is unavailable")
 		}
 		now := time.Now().UTC()
-		result = &types.MessagingMessage{ID: messagingID(), TenantID: tenant, ThreadID: turn.ThreadID, TurnID: id, Direction: "outbound", ActorID: actor, Body: input.Text, RequestKey: input.ClientMessageID, RequestHash: hash, Status: "channel", CreatedAt: now, ContentType: types.ContentText, DeliveryStatus: types.DeliverySending}
-		if err := r.InsertMessage(ctx, *result); err != nil {
+		var intentID string
+		result, intentID, err = enqueueChannelReply(ctx, r, *conn, *thread, id, actor, input.Text, input.ClientMessageID, hash, now)
+		fresh = err == nil
+		if err != nil {
 			return err
 		}
-		fresh = true
-		intent := types.OutboundIntent{ID: messagingID(), TenantID: tenant, ConnectionID: conn.ID, MessageID: result.ID, ClientMessageID: input.ClientMessageID, RequestHash: hash, RecipientID: thread.RecipientID, Status: types.IntentPending, CreatedAt: now, UpdatedAt: now}
-		attempt := types.OutboundAttempt{ID: messagingID(), TenantID: tenant, IntentID: intent.ID, Status: types.IntentPending, ConnectionVersion: conn.Version, CreatedAt: now}
-		payload, _ := json.Marshal(outbound.IntentEvent{SchemaVersion: 1, IntentID: intent.ID, AttemptID: attempt.ID, CorrelationID: result.ID, TenantID: tenant, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: input.Text, IssuedAt: now, ExpiresAt: now.Add(outboundIntentTTL)})
-		event := &model.DomainEvent{ID: uuid.NewString(), TenantID: tenant, EventType: model.DomainEventOutboundIntent, AggregateID: intent.ID, Payload: string(payload), State: model.DomainEventStatePending}
-		if err := r.InsertOutbound(ctx, intent, attempt, event); err != nil {
-			return err
-		}
+		// A pending channel send is not activity: the turn's inactivity clock advances only when the connector
+		// confirms it was sent (DeliveryService). Failed and unknown outcomes never count.
 		turn.Version++
 		turn.ContextRevision++
-		turn.LastActivityAt = now
 		if err := r.SaveTurn(ctx, *turn, false); err != nil {
 			return err
 		}
@@ -364,8 +417,28 @@ func (s *MessagingCommandService) SendChannel(ctx context.Context, tenant, actor
 		if err := r.SaveThread(ctx, *thread); err != nil {
 			return err
 		}
-		return r.Audit(ctx, tenant, actor, "messaging.channel_reply", "messaging_turn", id, map[string]string{"message_id": result.ID, "intent_id": intent.ID})
+		return r.Audit(ctx, tenant, actor, "messaging.channel_reply", "messaging_turn", id, map[string]string{"message_id": result.ID, "intent_id": intentID})
 	})
 	s.announce(ctx, result, fresh, err)
 	return result, err
+}
+
+// enqueueChannelReply records an outbound channel message with its single-attempt delivery intent and outbox event.
+// It is the one outbound pipeline for staff replies, proposal sends and bot automatic sends; the caller has locked
+// the thread, authorized the sender and checked that conn is active.
+func enqueueChannelReply(ctx context.Context, r repository.MessagingStore, conn types.ChannelConnection, thread types.MessagingThread, turnID, actor, text, key, hash string, now time.Time) (*types.MessagingMessage, string, *apperrors.Error) {
+	tenant := thread.TenantID
+	message := &types.MessagingMessage{ID: messagingID(), TenantID: tenant, ThreadID: thread.ID, TurnID: turnID, Direction: "outbound", ActorID: actor, Body: text, RequestKey: key, RequestHash: hash, Status: "channel", CreatedAt: now, ContentType: types.ContentText, DeliveryStatus: types.DeliverySending}
+	if err := r.InsertMessage(ctx, *message); err != nil {
+		return nil, "", err
+	}
+	intent := types.OutboundIntent{ID: messagingID(), TenantID: tenant, ConnectionID: conn.ID, MessageID: message.ID, ClientMessageID: key, RequestHash: hash, RecipientID: thread.RecipientID, Status: types.IntentPending, CreatedAt: now, UpdatedAt: now}
+	attempt := types.OutboundAttempt{ID: messagingID(), TenantID: tenant, IntentID: intent.ID, Status: types.IntentPending, ConnectionVersion: conn.Version, CreatedAt: now}
+	meta := events.Meta{EventID: uuid.NewString(), CorrelationID: message.ID, TenantID: tenant, OccurredAt: now}
+	payload, _ := json.Marshal(delivery.SendRequested{Meta: meta, IntentID: intent.ID, AttemptID: attempt.ID, ConnectionID: conn.ID, ConnectionVersion: conn.Version, Platform: conn.Platform, AccountID: conn.AccountID, RecipientID: thread.RecipientID, Text: text, ExpiresAt: now.Add(outboundIntentTTL)})
+	event := &model.DomainEvent{ID: meta.EventID, TenantID: tenant, EventType: model.DomainEventOutboundIntent, AggregateID: intent.ID, Payload: string(payload), State: model.DomainEventStatePending}
+	if err := r.InsertOutbound(ctx, intent, attempt, event); err != nil {
+		return nil, "", err
+	}
+	return message, intent.ID, nil
 }

@@ -1,0 +1,45 @@
+# Hexta edge behind an existing TLS-terminating reverse proxy (compose.prod.shared-edge.yml). Same routing as
+# Caddyfile, over plain HTTP on the proxy's Docker network. Upstreams use container names because the shared
+# network can hold other apps' `api`/`postgres`/`redis` aliases.
+{
+	auto_https off
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For X-Real-IP
+	}
+}
+
+:80 {
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Facebook verification (GET) and callbacks (POST); Telegram per-connection callbacks (POST).
+	@webhooks path /webhooks/facebook /webhooks/telegram/*
+	handle @webhooks {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy hexta-prod-connector-1:8091
+	}
+	handle /webhooks/* {
+		respond 404
+	}
+
+	handle /api/* {
+		reverse_proxy hexta-prod-api-1:8080 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy hexta-prod-web-1:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
-
-	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events"
+	"github.com/TruongHoang2004/Hexta/packages/shared/events/messaging"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
+
+	apperrors "github.com/TruongHoang2004/Hexta/packages/shared/pkg/errors"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
 	"github.com/google/uuid"
 )
@@ -30,15 +32,15 @@ func (p *ConversationProjector) WithPublisher(publisher RealtimePublisher) *Conv
 
 // Decode validates a topic value. ok=false means the envelope is malformed and must be quarantined; a nil change
 // with ok=true is an event this consumer deliberately ignores (unknown type or newer schema version).
-func (p *ConversationProjector) Decode(value []byte) (tenant string, change *types.ConversationChanged, ok bool) {
-	var env types.DomainEventEnvelope
+func (p *ConversationProjector) Decode(value []byte) (tenant string, change *messaging.ConversationChanged, ok bool) {
+	var env events.Envelope
 	if json.Unmarshal(value, &env) != nil {
 		return "", nil, false
 	}
-	if env.EventType != model.DomainEventConversationChanged || env.SchemaVersion != 1 {
+	if env.EventType != model.DomainEventConversationChanged || env.SchemaVersion != events.EnvelopeSchemaVersion {
 		return "", nil, env.EventType != "" && env.SchemaVersion >= 1
 	}
-	var data types.ConversationChanged
+	var data messaging.ConversationChanged
 	if json.Unmarshal(env.Data, &data) != nil {
 		return "", nil, false
 	}
@@ -54,7 +56,7 @@ func (p *ConversationProjector) Decode(value []byte) (tenant string, change *typ
 }
 
 // Project applies one decoded change; failures are retried by the consumer and never skip the offset.
-func (p *ConversationProjector) Project(ctx context.Context, tenant string, change types.ConversationChanged) *apperrors.Error {
+func (p *ConversationProjector) Project(ctx context.Context, tenant string, change messaging.ConversationChanged) *apperrors.Error {
 	if err := p.store.Apply(ctx, tenant, change); err != nil {
 		return err
 	}
