@@ -11,6 +11,7 @@ import (
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/model"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/core/types"
 	"github.com/TruongHoang2004/Hexta/services/api/internal/repository"
+	"github.com/google/uuid"
 )
 
 func onboardingFixture(t *testing.T) (salesFixture, *TenantOnboardingService) {
@@ -26,19 +27,43 @@ func onboardingFixture(t *testing.T) (salesFixture, *TenantOnboardingService) {
 	}
 	return f, NewTenantOnboardingService(repository.NewTenantOnboardingRepository(f.db))
 }
-func TestOnboardingApprovalAndAuthority(t *testing.T) {
+func TestOnboardingApplyAutoApproves(t *testing.T) {
 	f, s := onboardingFixture(t)
 	ctx := context.Background()
-	request, err := s.Apply(ctx, f.sale, "Applied Business", "applied-business")
+	row, err := s.Apply(ctx, f.sale, "Instant Business", "instant-business")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if row.Status != "approved" || row.TenantID == nil {
+		t.Fatal("application was not auto-approved")
+	}
+	member, err := repository.NewSalesRepository(f.db).Member(ctx, *row.TenantID, f.sale)
+	if err != nil || member == nil || member.Role != model.RoleOwner {
+		t.Fatal("applicant is not owner")
+	}
+	_, err = s.Apply(ctx, f.peer, "Other", "instant-business")
+	requireSalesStatus(t, err, 409)
+}
+
+// pendingRequest seeds a legacy pending request, which operators can still review.
+func pendingRequest(t *testing.T, f salesFixture, slug string) *model.TenantRegistration {
+	t.Helper()
+	row := &model.TenantRegistration{ID: uuid.NewString(), ApplicantID: f.sale, Name: slug, Slug: slug, Status: "pending"}
+	if err := f.db.Create(row).Error; err != nil {
+		t.Fatal(err)
+	}
+	return row
+}
+func TestOnboardingApprovalAndAuthority(t *testing.T) {
+	f, s := onboardingFixture(t)
+	ctx := context.Background()
+	request := pendingRequest(t, f, "applied-business")
 	var count int64
 	f.db.Model(&model.Tenant{}).Where("slug = ?", request.Slug).Count(&count)
 	if count != 0 {
-		t.Fatal("application granted tenant access before approval")
+		t.Fatal("pending request granted tenant access before approval")
 	}
-	_, err = s.Review(ctx, f.owner, request.ID, "approved", "")
+	_, err := s.Review(ctx, f.owner, request.ID, "approved", "")
 	requireSalesStatus(t, err, 403)
 	approved, err := s.Review(ctx, "operator", request.ID, "approved", "Verified")
 	if err != nil {
@@ -156,10 +181,7 @@ func TestOnboardingConcurrentApprovalPostgres(t *testing.T) {
 	}
 	f, s := onboardingFixture(t)
 	ctx := context.Background()
-	request, err := s.Apply(ctx, f.sale, "Race Business", "race-business")
-	if err != nil {
-		t.Fatal(err)
-	}
+	request := pendingRequest(t, f, "race-business")
 	var wg sync.WaitGroup
 	results := make(chan *apperrors.Error, 2)
 	start := make(chan struct{})
