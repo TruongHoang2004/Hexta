@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StatusChip, buttonClass, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import type { MessagingDetail } from "../../services/messaging";
+import { initialOf, maskExternalKey } from "../../utils";
 
 /** Customer facts and shortcuts beside the conversation; `children` holds owner-only controls. */
 export function CustomerPanel({
@@ -23,15 +24,25 @@ export function CustomerPanel({
   return (
     <aside
       aria-label={t("desk.customer.title")}
-      className="flex min-w-0 flex-[1_1_240px] flex-col gap-3 self-start rounded-xl border border-border bg-surface p-4"
+      className="flex min-w-0 flex-[1_1_240px] flex-col gap-3 self-start rounded-xl border border-border bg-surface p-4 shadow-sm"
     >
       <h2 className="font-semibold">{t("desk.customer.title")}</h2>
       {detail && (
         <dl className="space-y-1 text-sm">
           <dt className="sr-only">{t("desk.conversation")}</dt>
-          <dd className="font-medium">{detail.conversation.thread.display_name}</dd>
-          <dt className="text-muted">{t("desk.customer.reference")}</dt>
-          <dd className="break-words">{detail.conversation.thread.external_key}</dd>
+          <dd className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-white"
+            >
+              {initialOf(detail.conversation.thread.display_name)}
+            </span>
+            <span className="font-medium">{detail.conversation.thread.display_name}</span>
+          </dd>
+          <dt className="pt-2 text-xs text-muted">{t("desk.customer.reference")}</dt>
+          <dd className="break-all font-mono text-xs" title={t("desk.customer.referenceMasked")}>
+            {maskExternalKey(detail.conversation.thread.external_key)}
+          </dd>
           <dd>
             <StatusChip>{source ? t(`desk.sources.${source}`) : ""}</StatusChip>
           </dd>

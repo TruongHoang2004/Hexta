@@ -197,3 +197,15 @@ export function sessionOutcome(t: Translate, turn: MessagingTurn): string {
 export function sessionCause(t: Translate, turn: MessagingTurn): string {
   return turn.close_cause === "closed_manually" ? t("desk.sessions.cause.closed_manually") : t("desk.sessions.cause.expired");
 }
+
+/** Shows only the edges of a channel customer key; the full value is for the system, not the screen. */
+export function maskExternalKey(key: string): string {
+  const colon = key.indexOf(":");
+  const prefix = colon >= 0 ? key.slice(0, colon + 1) : "";
+  const value = colon >= 0 ? key.slice(colon + 1) : key;
+  if (value.length <= 8) return `${prefix}${"•".repeat(value.length)}`;
+  return `${prefix}${value.slice(0, 4)}••••••${value.slice(-2)}`;
+}
+
+/** First letter of a display name for avatars. */
+export const initialOf = (name: string) => (name.trim().charAt(0) || "?").toUpperCase();
