@@ -4,7 +4,7 @@ import Link from "next/link";
 import { StatusChip, buttonClass, secondaryClass } from "@/components/primitives";
 import { useT } from "@/lib/i18n/provider";
 import type { MessagingDetail } from "../../services/messaging";
-import { initialOf, maskExternalKey } from "../../utils";
+import { initialOf } from "../../utils";
 
 /** Customer facts and shortcuts beside the conversation; `children` holds owner-only controls. */
 export function CustomerPanel({
@@ -38,10 +38,6 @@ export function CustomerPanel({
               {initialOf(detail.conversation.thread.display_name)}
             </span>
             <span className="font-medium">{detail.conversation.thread.display_name}</span>
-          </dd>
-          <dt className="pt-2 text-xs text-muted">{t("desk.customer.reference")}</dt>
-          <dd className="break-all font-mono text-xs" title={t("desk.customer.referenceMasked")}>
-            {maskExternalKey(detail.conversation.thread.external_key)}
           </dd>
           <dd>
             <StatusChip>{source ? t(`desk.sources.${source}`) : ""}</StatusChip>
