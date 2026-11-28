@@ -30,11 +30,16 @@ export function MessageBubble({
         : message.direction === "inbound"
           ? t("desk.sender.customerSimulated")
           : t("desk.sender.saleSimulated");
+  const outbound = message.direction === "outbound";
+  const bot = outbound && message.actor_id === botActorID;
+  const tone = !outbound
+    ? "mr-auto rounded-bl-sm border border-border bg-surface"
+    : bot
+      ? "ml-auto rounded-br-sm bg-primary/10"
+      : "ml-auto rounded-br-sm bg-primary text-white [&_*]:text-white";
   return (
-    <li
-      className={`max-w-[85%] rounded-xl border border-border p-3 ${message.direction === "outbound" ? "ml-auto bg-primary/5" : "mr-auto bg-surface"}`}
-    >
-      <p className="text-xs text-muted">
+    <li className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${tone}`}>
+      <p className={`text-xs ${outbound && !bot ? "opacity-80" : "text-muted"}`}>
         {sender} · {new Date(message.created_at).toLocaleString()}
       </p>
       <MessageContent message={message} platform={platform} />

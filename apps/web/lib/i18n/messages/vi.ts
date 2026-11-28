@@ -286,6 +286,7 @@ export const vi = {
     customer: {
       title: "Khách hàng",
       reference: "Mã khách trên kênh",
+      referenceMasked: "Mã đầy đủ được ẩn",
       createDraft: "Tạo đơn nháp",
       askConsultant: "Hỏi trợ lý tư vấn",
       draftHint: "Mở trang Đơn hàng để tạo đơn nháp cho khách này.",

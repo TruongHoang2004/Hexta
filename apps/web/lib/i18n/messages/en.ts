@@ -286,6 +286,7 @@ export const en: Messages = {
     customer: {
       title: "Customer",
       reference: "Channel customer ID",
+      referenceMasked: "Full ID is hidden",
       createDraft: "Create draft order",
       askConsultant: "Ask the consultant",
       draftHint: "Opens Orders to create a draft for this customer.",
